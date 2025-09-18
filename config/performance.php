@@ -73,6 +73,22 @@ return [
         'performance_alerts' => env('PERFORMANCE_ALERTS_ENABLED', true),
         'dashboard_enabled' => env('PERFORMANCE_DASHBOARD_ENABLED', true),
         'export_metrics' => env('EXPORT_METRICS_ENABLED', false),
+        'request_logging' => env('REQUEST_LOGGING_ENABLED', false),
+    ],
+
+    'rate_limiting' => [
+        'enabled' => env('RATE_LIMITING_ENABLED', true),
+        'redis_based' => env('RATE_LIMITING_REDIS', true),
+        'aggressive_mode' => env('RATE_LIMITING_AGGRESSIVE', false),
+        'whitelist_ips' => env('RATE_LIMITING_WHITELIST', '127.0.0.1,::1'),
+    ],
+
+    'security' => [
+        'audit_logging' => env('AUDIT_LOGGING_ENABLED', true),
+        'security_headers' => env('SECURITY_HEADERS_ENABLED', true),
+        'csrf_enhanced' => env('CSRF_ENHANCED_ENABLED', true),
+        'suspicious_activity_detection' => env('SUSPICIOUS_ACTIVITY_DETECTION', true),
+        'auto_block_threats' => env('AUTO_BLOCK_THREATS', false),
     ],
 
 ];

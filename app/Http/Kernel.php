@@ -22,6 +22,7 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \App\Http\Middleware\CheckAppStatus::class,
+        \App\Http\Middleware\SecurityHeadersMiddleware::class,
         \App\Http\Middleware\QueryPerformanceMiddleware::class,
     ];
 
@@ -41,12 +42,15 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\SetOrganizationFromSession::class,
             \App\Http\Middleware\Localization::class,
+            \App\Http\Middleware\AuditLoggingMiddleware::class,
         ],
 
         'api' => [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\AdvancedRateLimitMiddleware::class,
+            \App\Http\Middleware\AuditLoggingMiddleware::class,
         ],
     ];
 
@@ -75,6 +79,9 @@ class Kernel extends HttpKernel
         'check.client.role' => \App\Http\Middleware\CheckClientRole::class,
         'auth.bearer' => \App\Http\Middleware\AuthenticateBearerToken::class,
         'setOrganization' => \App\Http\Middleware\SetOrganizationFromSession::class,
+        'advanced.rate.limit' => \App\Http\Middleware\AdvancedRateLimitMiddleware::class,
+        'audit.logging' => \App\Http\Middleware\AuditLoggingMiddleware::class,
+        'security.headers' => \App\Http\Middleware\SecurityHeadersMiddleware::class,
         'redirectIfAuthenticated' => \App\Http\Middleware\RedirectIfAuthenticated::class,
         'query.performance' => \App\Http\Middleware\QueryPerformanceMiddleware::class,
     ];

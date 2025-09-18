@@ -1,0 +1,636 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
+
+class SecurityService
+{
+    /**
+     * Perform comprehensive security assessment
+     */
+    public function performSecurityAssessment(Request $request): array
+    {
+        $assessment = [
+            'timestamp' => now()->toISOString(),
+            'ip_address' => $request->ip(),
+            'user_id' => Auth::id(),
+            'organization_id' => session('current_organization_id'),
+            'risk_score' => 0,
+            'threats_detected' => [],
+            'recommendations' => [],
+            'blocked' => false,
+        ];
+
+        // Check IP reputation
+        $ipRisk = $this->assessIpRisk($request->ip());
+        $assessment['risk_score'] += $ipRisk['score'];
+        $assessment['threats_detected'] = array_merge($assessment['threats_detected'], $ipRisk['threats']);
+
+        // Check user behavior patterns
+        if (Auth::check()) {
+            $userRisk = $this->assessUserBehavior(Auth::id(), $request);
+            $assessment['risk_score'] += $userRisk['score'];
+            $assessment['threats_detected'] = array_merge($assessment['threats_detected'], $userRisk['threats']);
+        }
+
+        // Check request patterns
+        $requestRisk = $this->assessRequestPatterns($request);
+        $assessment['risk_score'] += $requestRisk['score'];
+        $assessment['threats_detected'] = array_merge($assessment['threats_detected'], $requestRisk['threats']);
+
+        // Generate recommendations
+        $assessment['recommendations'] = $this->generateSecurityRecommendations($assessment);
+
+        // Determine if request should be blocked
+        $assessment['blocked'] = $assessment['risk_score'] >= 80;
+
+        // Log assessment
+        $this->logSecurityAssessment($assessment);
+
+        return $assessment;
+    }
+
+    /**
+     * Assess IP address risk score
+     */
+    protected function assessIpRisk(string $ip): array
+    {
+        $risk = ['score' => 0, 'threats' => []];
+
+        // Check if IP is in known threat lists
+        if ($this->isKnownThreatIp($ip)) {
+            $risk['score'] += 50;
+            $risk['threats'][] = 'known_threat_ip';
+        }
+
+        // Check recent security incidents from this IP
+        $recentIncidents = $this->getRecentSecurityIncidents($ip);
+        if ($recentIncidents > 5) {
+            $risk['score'] += 30;
+            $risk['threats'][] = 'multiple_security_incidents';
+        }
+
+        // Check rate limit violations
+        $rateLimitViolations = $this->getRateLimitViolations($ip);
+        if ($rateLimitViolations > 10) {
+            $risk['score'] += 20;
+            $risk['threats'][] = 'excessive_rate_limit_violations';
+        }
+
+        // Check geographic location patterns
+        $geoRisk = $this->assessGeographicRisk($ip);
+        $risk['score'] += $geoRisk['score'];
+        $risk['threats'] = array_merge($risk['threats'], $geoRisk['threats']);
+
+        return $risk;
+    }
+
+    /**
+     * Assess user behavior patterns
+     */
+    protected function assessUserBehavior(int $userId, Request $request): array
+    {
+        $risk = ['score' => 0, 'threats' => []];
+
+        // Check for unusual login patterns
+        $loginPatterns = $this->analyzeLoginPatterns($userId);
+        if ($loginPatterns['unusual_hours']) {
+            $risk['score'] += 15;
+            $risk['threats'][] = 'unusual_login_hours';
+        }
+
+        if ($loginPatterns['multiple_locations']) {
+            $risk['score'] += 25;
+            $risk['threats'][] = 'multiple_geographic_locations';
+        }
+
+        // Check for privilege escalation attempts
+        if ($this->detectPrivilegeEscalation($userId, $request)) {
+            $risk['score'] += 40;
+            $risk['threats'][] = 'privilege_escalation_attempt';
+        }
+
+        // Check for data exfiltration patterns
+        if ($this->detectDataExfiltration($userId, $request)) {
+            $risk['score'] += 35;
+            $risk['threats'][] = 'potential_data_exfiltration';
+        }
+
+        // Check account age and activity patterns
+        $accountRisk = $this->assessAccountRisk($userId);
+        $risk['score'] += $accountRisk['score'];
+        $risk['threats'] = array_merge($risk['threats'], $accountRisk['threats']);
+
+        return $risk;
+    }
+
+    /**
+     * Assess request patterns for threats
+     */
+    protected function assessRequestPatterns(Request $request): array
+    {
+        $risk = ['score' => 0, 'threats' => []];
+
+        // Check for SQL injection patterns
+        if ($this->detectSqlInjection($request)) {
+            $risk['score'] += 45;
+            $risk['threats'][] = 'sql_injection_attempt';
+        }
+
+        // Check for XSS patterns
+        if ($this->detectXssAttempt($request)) {
+            $risk['score'] += 40;
+            $risk['threats'][] = 'xss_attempt';
+        }
+
+        // Check for CSRF attacks
+        if ($this->detectCsrfAttack($request)) {
+            $risk['score'] += 35;
+            $risk['threats'][] = 'csrf_attack';
+        }
+
+        // Check for directory traversal
+        if ($this->detectDirectoryTraversal($request)) {
+            $risk['score'] += 30;
+            $risk['threats'][] = 'directory_traversal';
+        }
+
+        // Check for command injection
+        if ($this->detectCommandInjection($request)) {
+            $risk['score'] += 50;
+            $risk['threats'][] = 'command_injection';
+        }
+
+        // Check request size and frequency
+        $volumeRisk = $this->assessRequestVolume($request);
+        $risk['score'] += $volumeRisk['score'];
+        $risk['threats'] = array_merge($risk['threats'], $volumeRisk['threats']);
+
+        return $risk;
+    }
+
+    /**
+     * Check if IP is in known threat database
+     */
+    protected function isKnownThreatIp(string $ip): bool
+    {
+        // Check cache first
+        $cacheKey = "threat_ip:{$ip}";
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        // Check local threat database
+        $isThreat = DB::table('threat_ips')
+            ->where('ip_address', $ip)
+            ->where('expires_at', '>', now())
+            ->exists();
+
+        // Cache result for 1 hour
+        Cache::put($cacheKey, $isThreat, 3600);
+
+        return $isThreat;
+    }
+
+    /**
+     * Get recent security incidents count
+     */
+    protected function getRecentSecurityIncidents(string $ip): int
+    {
+        return DB::table('security_incidents')
+            ->where('ip_address', $ip)
+            ->where('created_at', '>', now()->subHours(24))
+            ->count();
+    }
+
+    /**
+     * Get rate limit violations count
+     */
+    protected function getRateLimitViolations(string $ip): int
+    {
+        return DB::table('rate_limit_violations')
+            ->where('ip_address', $ip)
+            ->where('created_at', '>', now()->subHours(24))
+            ->count();
+    }
+
+    /**
+     * Assess geographic risk
+     */
+    protected function assessGeographicRisk(string $ip): array
+    {
+        $risk = ['score' => 0, 'threats' => []];
+
+        // This would integrate with GeoIP service
+        // For now, we'll use a simplified approach
+        
+        // Check if IP is from high-risk countries
+        $highRiskCountries = ['CN', 'RU', 'KP', 'IR'];
+        $country = $this->getCountryFromIp($ip);
+        
+        if (in_array($country, $highRiskCountries)) {
+            $risk['score'] += 20;
+            $risk['threats'][] = 'high_risk_geographic_location';
+        }
+
+        return $risk;
+    }
+
+    /**
+     * Analyze user login patterns
+     */
+    protected function analyzeLoginPatterns(int $userId): array
+    {
+        $patterns = [
+            'unusual_hours' => false,
+            'multiple_locations' => false,
+        ];
+
+        // Check recent authentication events
+        $recentLogins = DB::table('authentication_events')
+            ->where('user_id', $userId)
+            ->where('event_type', 'login')
+            ->where('created_at', '>', now()->subDays(7))
+            ->get();
+
+        // Analyze time patterns
+        $loginHours = $recentLogins->pluck('created_at')->map(function ($timestamp) {
+            return Carbon::parse($timestamp)->hour;
+        })->unique();
+
+        // If logins occur at very unusual hours (e.g., 2-5 AM)
+        $unusualHours = $loginHours->filter(function ($hour) {
+            return $hour >= 2 && $hour <= 5;
+        });
+
+        $patterns['unusual_hours'] = $unusualHours->count() > 0;
+
+        // Check geographic patterns
+        $locations = $recentLogins->pluck('ip_address')->unique();
+        if ($locations->count() > 3) {
+            $patterns['multiple_locations'] = true;
+        }
+
+        return $patterns;
+    }
+
+    /**
+     * Detect privilege escalation attempts
+     */
+    protected function detectPrivilegeEscalation(int $userId, Request $request): bool
+    {
+        // Check if user is trying to access admin routes without proper role
+        $adminRoutes = ['/admin', '/dashboard/admin', '/api/admin'];
+        $currentRoute = $request->path();
+
+        foreach ($adminRoutes as $adminRoute) {
+            if (str_starts_with($currentRoute, trim($adminRoute, '/'))) {
+                // Check if user has admin role
+                $user = Auth::user();
+                if ($user && !in_array('admin', $user->roles ?? [])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Detect potential data exfiltration
+     */
+    protected function detectDataExfiltration(int $userId, Request $request): bool
+    {
+        // Check for bulk data access patterns
+        $cacheKey = "data_access:{$userId}";
+        $accessCount = Cache::get($cacheKey, 0);
+        
+        // If accessing data endpoints frequently
+        if (str_contains($request->path(), 'export') ||
+            str_contains($request->path(), 'download') ||
+            str_contains($request->path(), 'bulk')) {
+
+            $accessCount++;
+            Cache::put($cacheKey, $accessCount, 3600); // 1 hour
+
+            // If more than 10 bulk access attempts in 1 hour
+            if ($accessCount > 10) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Assess account-based risk factors
+     */
+    protected function assessAccountRisk(int $userId): array
+    {
+        $risk = ['score' => 0, 'threats' => []];
+
+        $user = DB::table('users')->find($userId);
+        if (!$user) {
+            return $risk;
+        }
+
+        // Check account age
+        $accountAge = Carbon::parse($user->created_at)->diffInDays(now());
+        if ($accountAge < 7) {
+            $risk['score'] += 15;
+            $risk['threats'][] = 'new_account_suspicious_activity';
+        }
+
+        // Check if account is verified
+        if (!$user->email_verified_at) {
+            $risk['score'] += 10;
+            $risk['threats'][] = 'unverified_account';
+        }
+
+        return $risk;
+    }
+
+    /**
+     * Detect SQL injection patterns
+     */
+    protected function detectSqlInjection(Request $request): bool
+    {
+        $patterns = [
+            '/(\bor\b|\band\b).*[\'"].*[\'"]/',
+            '/union.*select/i',
+            '/drop.*table/i',
+            '/insert.*into/i',
+            '/delete.*from/i',
+            '/update.*set/i',
+        ];
+
+        $content = json_encode($request->all());
+        
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $content)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Detect XSS attempt patterns
+     */
+    protected function detectXssAttempt(Request $request): bool
+    {
+        $patterns = [
+            '/<script[^>]*>.*<\/script>/i',
+            '/javascript:/i',
+            '/on\w+\s*=/i',
+            '/<iframe[^>]*>/i',
+        ];
+
+        $content = json_encode($request->all());
+        
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $content)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Detect CSRF attack patterns
+     */
+    protected function detectCsrfAttack(Request $request): bool
+    {
+        // Check if CSRF token is missing on state-changing requests
+        if (in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE']) &&
+            !$request->hasHeader('X-CSRF-TOKEN') && !$request->has('_token')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Detect directory traversal attempts
+     */
+    protected function detectDirectoryTraversal(Request $request): bool
+    {
+        $patterns = [
+            '/\.\.\//i',
+            '/\.\.\\\/i',
+            '/%2e%2e%2f/i',
+            '/%2e%2e\\/i',
+        ];
+
+        $fullUrl = $request->fullUrl();
+        
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $fullUrl)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Detect command injection attempts
+     */
+    protected function detectCommandInjection(Request $request): bool
+    {
+        $patterns = [
+            '/[\|&;`\$\(\)]/i',
+            '/\beval\b/i',
+            '/\bexec\b/i',
+            '/\bsystem\b/i',
+        ];
+
+        $content = json_encode($request->all());
+        
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $content)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Assess request volume and frequency
+     */
+    protected function assessRequestVolume(Request $request): array
+    {
+        $risk = ['score' => 0, 'threats' => []];
+
+        // Check request size
+        $contentLength = strlen($request->getContent());
+        if ($contentLength > 10 * 1024 * 1024) { // 10MB
+            $risk['score'] += 25;
+            $risk['threats'][] = 'oversized_request';
+        }
+
+        // Check request frequency from IP
+        $ip = $request->ip();
+        $cacheKey = "request_frequency:{$ip}";
+        $requestCount = Cache::get($cacheKey, 0) + 1;
+        Cache::put($cacheKey, $requestCount, 60); // 1 minute window
+
+        if ($requestCount > 100) { // More than 100 requests per minute
+            $risk['score'] += 30;
+            $risk['threats'][] = 'high_request_frequency';
+        }
+
+        return $risk;
+    }
+
+    /**
+     * Generate security recommendations based on assessment
+     */
+    protected function generateSecurityRecommendations(array $assessment): array
+    {
+        $recommendations = [];
+
+        if ($assessment['risk_score'] > 70) {
+            $recommendations[] = 'Consider blocking this IP address temporarily';
+            $recommendations[] = 'Implement additional authentication factors';
+        }
+
+        if (in_array('sql_injection_attempt', $assessment['threats_detected'])) {
+            $recommendations[] = 'Review and strengthen input validation';
+            $recommendations[] = 'Implement prepared statements for all database queries';
+        }
+
+        if (in_array('xss_attempt', $assessment['threats_detected'])) {
+            $recommendations[] = 'Implement proper output encoding';
+            $recommendations[] = 'Review Content Security Policy settings';
+        }
+
+        if (in_array('multiple_security_incidents', $assessment['threats_detected'])) {
+            $recommendations[] = 'Investigate IP address history';
+            $recommendations[] = 'Consider adding to threat intelligence database';
+        }
+
+        return $recommendations;
+    }
+
+    /**
+     * Log security assessment results
+     */
+    protected function logSecurityAssessment(array $assessment): void
+    {
+        Log::channel('security')->info('Security assessment completed', $assessment);
+
+        // Store in database for analytics
+        DB::table('security_assessments')->insert([
+            'ip_address' => $assessment['ip_address'],
+            'user_id' => $assessment['user_id'],
+            'organization_id' => $assessment['organization_id'],
+            'risk_score' => $assessment['risk_score'],
+            'threats_detected' => json_encode($assessment['threats_detected']),
+            'recommendations' => json_encode($assessment['recommendations']),
+            'blocked' => $assessment['blocked'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Get country from IP address (simplified)
+     */
+    protected function getCountryFromIp(string $ip): string
+    {
+        // This would typically use a GeoIP service
+        // For now, return a default based on IP analysis
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            // In production, integrate with MaxMind GeoIP or similar service
+            return 'US';
+        }
+        return 'LOCAL';
+    }
+
+    /**
+     * Block IP address for security violations
+     */
+    public function blockIpAddress(string $ip, string $reason, int $duration = 86400): void
+    {
+        Cache::put("blocked_ip:{$ip}", [
+            'reason' => $reason,
+            'blocked_at' => now(),
+            'expires_at' => now()->addSeconds($duration),
+        ], $duration);
+
+        // Log the blocking action
+        Log::channel('security')->warning("IP address blocked", [
+            'ip' => $ip,
+            'reason' => $reason,
+            'duration' => $duration,
+        ]);
+
+        // Store in database
+        DB::table('blocked_ips')->insert([
+            'ip_address' => $ip,
+            'reason' => $reason,
+            'blocked_at' => now(),
+            'expires_at' => now()->addSeconds($duration),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Check if IP address is currently blocked
+     */
+    public function isIpBlocked(string $ip): bool
+    {
+        return Cache::has("blocked_ip:{$ip}");
+    }
+
+    /**
+     * Get security dashboard metrics
+     */
+    public function getSecurityMetrics(): array
+    {
+        return [
+            'today' => [
+                'security_incidents' => DB::table('security_incidents')
+                    ->whereDate('created_at', today())
+                    ->count(),
+                'blocked_ips' => DB::table('blocked_ips')
+                    ->whereDate('created_at', today())
+                    ->count(),
+                'rate_limit_violations' => DB::table('rate_limit_violations')
+                    ->whereDate('created_at', today())
+                    ->count(),
+                'failed_authentications' => DB::table('authentication_events')
+                    ->where('event_type', 'failed_login')
+                    ->whereDate('created_at', today())
+                    ->count(),
+            ],
+            'week' => [
+                'security_incidents' => DB::table('security_incidents')
+                    ->where('created_at', '>', now()->subWeek())
+                    ->count(),
+                'high_risk_assessments' => DB::table('security_assessments')
+                    ->where('risk_score', '>', 70)
+                    ->where('created_at', '>', now()->subWeek())
+                    ->count(),
+            ],
+            'top_threats' => DB::table('security_incidents')
+                ->select('type', DB::raw('count(*) as count'))
+                ->where('created_at', '>', now()->subWeek())
+                ->groupBy('type')
+                ->orderBy('count', 'desc')
+                ->limit(10)
+                ->get(),
+        ];
+    }
+}
