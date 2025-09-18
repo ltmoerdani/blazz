@@ -254,10 +254,8 @@ class AuditLoggingMiddleware
     private function storeAuditLog(array $data): string
     {
         try {
-            $auditId = $data['request_id'];
-            
-            DB::table('audit_logs')->insert([
-                'id' => $auditId,
+            // Use AuditLog model untuk better consistency
+            $auditLog = \App\Models\AuditLog::create([
                 'event_type' => $data['event_type'],
                 'endpoint' => $data['endpoint'],
                 'method' => $data['method'],
@@ -267,12 +265,11 @@ class AuditLoggingMiddleware
                 'user_id' => $data['user_id'],
                 'organization_id' => $data['organization_id'],
                 'session_id' => $data['session_id'],
-                'request_data' => json_encode($data['additional_data']),
-                'created_at' => $data['timestamp'],
-                'updated_at' => $data['timestamp'],
+                'request_data' => $data['additional_data'],
+                'request_id' => $data['request_id'],
             ]);
             
-            return $auditId;
+            return $auditLog->id;
         } catch (\Exception $e) {
             // Fallback ke file logging jika database fail
             Log::error('Failed to store audit log to database', [
@@ -290,14 +287,14 @@ class AuditLoggingMiddleware
     private function updateAuditLog(string $auditId, array $responseData): void
     {
         try {
-            DB::table('audit_logs')->where('id', $auditId)->update([
+            // Use AuditLog model untuk update
+            \App\Models\AuditLog::where('id', $auditId)->update([
                 'status_code' => $responseData['status_code'],
                 'response_size' => $responseData['response_size'],
                 'execution_time' => $responseData['execution_time'],
                 'memory_usage' => $responseData['memory_usage'],
                 'success' => $responseData['success'],
                 'event_result' => $responseData['event_result'],
-                'updated_at' => now(),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update audit log', [
@@ -374,6 +371,7 @@ class AuditLoggingMiddleware
             'severity' => $this->determineIncidentSeverity($response),
             'ip_address' => $request->ip(),
             'user_id' => $request->user()?->id,
+            'organization_id' => $this->getOrganizationContext($request),
             'endpoint' => $request->route()?->getName(),
             'status_code' => $response->getStatusCode(),
         ];
@@ -382,15 +380,16 @@ class AuditLoggingMiddleware
         
         // Store security incident untuk additional tracking
         try {
-            DB::table('security_incidents')->insert([
+            \App\Models\SecurityIncident::create([
                 'audit_id' => $auditId,
+                'organization_id' => $incidentData['organization_id'] ?? null,
                 'incident_type' => $incidentData['incident_type'],
                 'severity' => $incidentData['severity'],
                 'ip_address' => $incidentData['ip_address'],
                 'user_id' => $incidentData['user_id'],
                 'endpoint' => $incidentData['endpoint'],
-                'details' => json_encode($incidentData),
-                'created_at' => now(),
+                'details' => $incidentData,
+                'resolved' => false,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to store security incident', [
