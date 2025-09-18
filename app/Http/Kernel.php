@@ -40,17 +40,17 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
-            \App\Http\Middleware\SetOrganizationFromSession::class,
+            \App\Http\Middleware\SetOrganizationFromSession::class, // FIRST: Set organization context
+            \App\Http\Middleware\AuditLoggingMiddleware::class,       // SECOND: Log dengan organization context
             \App\Http\Middleware\Localization::class,
-            \App\Http\Middleware\AuditLoggingMiddleware::class,
         ],
 
         'api' => [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
+            // REMOVED: \Illuminate\Routing\Middleware\ThrottleRequests::class.':api', // Replaced by AdvancedRateLimitMiddleware
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \App\Http\Middleware\AdvancedRateLimitMiddleware::class,
-            \App\Http\Middleware\AuditLoggingMiddleware::class,
+            \App\Http\Middleware\AdvancedRateLimitMiddleware::class,  // Organization-aware rate limiting
+            \App\Http\Middleware\AuditLoggingMiddleware::class,       // API audit dengan organization context
         ],
     ];
 

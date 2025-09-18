@@ -108,7 +108,7 @@ class AdvancedRateLimitMiddleware
         }
         
         // Layer 4: Organization-based rate limiting (untuk multi-tenant)
-        $orgId = session('current_organization') ?? $request->get('organization_id');
+        $orgId = $this->getOrganizationContext($request);
         if ($orgId && $user) {
             $keys[] = [
                 'key' => "rate_limit:org:{$orgId}:{$type}",
@@ -343,6 +343,21 @@ class AdvancedRateLimitMiddleware
             Cache::increment("stats:requests:{$type}:" . date('Y-m-d-H'), 1, 3600);
             Cache::increment("stats:requests:total:" . date('Y-m-d'), 1, 86400);
         }
+    }
+
+    /**
+     * Get organization context dari request (session atau API)
+     */
+    private function getOrganizationContext(Request $request): ?int
+    {
+        // Web routes: organization dari session (SetOrganizationFromSession middleware)
+        $orgId = $request->session()->get('current_organization');
+        
+        // API routes: organization dari bearer token middleware (AuthenticateBearerToken)
+        $orgId = $orgId ?? $request->get('organization');
+        
+        // Fallback: try to get dari request parameter
+        return $orgId ?? $request->get('organization_id');
     }
 
     /**

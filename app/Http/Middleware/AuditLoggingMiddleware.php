@@ -85,7 +85,7 @@ class AuditLoggingMiddleware
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'user_id' => $request->user()?->id,
-            'organization_id' => session('current_organization'),
+            'organization_id' => $this->getOrganizationContext($request),
             'session_id' => session()->getId(),
             'request_id' => $this->generateRequestId(),
             'timestamp' => now(),
@@ -473,6 +473,21 @@ class AuditLoggingMiddleware
             500, 503 => 'high',
             default => 'low'
         };
+    }
+
+    /**
+     * Get organization context dari request (session atau API)
+     */
+    private function getOrganizationContext(Request $request): ?int
+    {
+        // Web routes: organization dari session (SetOrganizationFromSession middleware)
+        $orgId = session('current_organization');
+        
+        // API routes: organization dari bearer token middleware (AuthenticateBearerToken)
+        $orgId = $orgId ?? $request->get('organization');
+        
+        // Fallback: try to get dari request parameter
+        return $orgId ?? $request->get('organization_id');
     }
 
     /**

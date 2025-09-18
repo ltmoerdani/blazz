@@ -18,22 +18,19 @@ class ApiSecurityRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Enhanced authorization with rate limiting per user
-        if (!$this->hasValidApiKey()) {
-            $this->logSecurityIncident('invalid_api_key');
-            return false;
-        }
-
-        // Check if request signature is valid (for critical operations)
-        if ($this->requiresSignature() && !$this->hasValidSignature()) {
-            $this->logSecurityIncident('invalid_signature');
-            return false;
-        }
-
-        // Check for suspicious patterns
-        if ($this->isSuspiciousRequest()) {
-            $this->logSecurityIncident('suspicious_request_pattern');
-            return false;
+        // Comprehensive authorization check dengan combined validation
+        $validationChecks = [
+            'api_key' => $this->hasValidApiKey(),
+            'signature' => !$this->requiresSignature() || $this->hasValidSignature(),
+            'not_suspicious' => !$this->isSuspiciousRequest(),
+        ];
+        
+        // Log incidents for failed checks
+        foreach ($validationChecks as $check => $passed) {
+            if (!$passed) {
+                $this->logSecurityIncident("failed_{$check}_check");
+                return false;
+            }
         }
 
         return true;
@@ -230,17 +227,43 @@ class ApiSecurityRequest extends FormRequest
      */
     protected function isSuspiciousRequest(): bool
     {
-        // Check for common attack patterns
+        // Combine all suspicious checks into one validation
+        $content = $this->getContent();
+        $userAgent = $this->header('User-Agent', '');
+        $queryString = $this->server('QUERY_STRING', '');
+        
+        // Pattern detection
+        $patternDetected = $this->detectSuspiciousPatterns($content, $userAgent, $queryString);
+        
+        // Size and header checks
+        $oversized = strlen($content) > 10 * 1024 * 1024; // 10MB
+        $unusualHeaders = $this->hasUnusualHeaders();
+        
+        // Log incidents and return combined result
+        $isSuspicious = $patternDetected || $oversized || $unusualHeaders;
+        
+        if ($isSuspicious) {
+            $this->logSecurityIncident('suspicious_request_detected', [
+                'pattern_detected' => $patternDetected,
+                'oversized' => $oversized,
+                'unusual_headers' => $unusualHeaders,
+            ]);
+        }
+        
+        return $isSuspicious;
+    }
+    
+    /**
+     * Detect suspicious patterns in request data
+     */
+    private function detectSuspiciousPatterns(string $content, string $userAgent, string $queryString): bool
+    {
         $suspiciousPatterns = [
             'sql_injection' => '/(\bor\b|\band\b).*[\'"].*[\'"]|union.*select|drop.*table/i',
             'xss_attempt' => '/<script|javascript:|on\w+\s*=/i',
             'path_traversal' => '/\.\.\//i',
             'command_injection' => '/[\|&;`\$\(\)]/i',
         ];
-
-        $content = $this->getContent();
-        $userAgent = $this->header('User-Agent', '');
-        $queryString = $this->server('QUERY_STRING', '');
 
         foreach ($suspiciousPatterns as $type => $pattern) {
             if (preg_match($pattern, $content) ||
@@ -255,18 +278,7 @@ class ApiSecurityRequest extends FormRequest
                 return true;
             }
         }
-
-        // Check for excessive request size
-        if (strlen($content) > 10 * 1024 * 1024) { // 10MB
-            $this->logSecurityIncident('oversized_request');
-            return true;
-        }
-
-        // Check for unusual headers
-        if ($this->hasUnusualHeaders()) {
-            return true;
-        }
-
+        
         return false;
     }
 
