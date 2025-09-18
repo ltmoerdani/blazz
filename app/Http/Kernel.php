@@ -22,6 +22,7 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \App\Http\Middleware\CheckAppStatus::class,
+        \App\Http\Middleware\QueryPerformanceMiddleware::class,
     ];
 
     /**
@@ -75,5 +76,6 @@ class Kernel extends HttpKernel
         'auth.bearer' => \App\Http\Middleware\AuthenticateBearerToken::class,
         'setOrganization' => \App\Http\Middleware\SetOrganizationFromSession::class,
         'redirectIfAuthenticated' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+        'query.performance' => \App\Http\Middleware\QueryPerformanceMiddleware::class,
     ];
 }
