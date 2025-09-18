@@ -64,4 +64,61 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# swiftchat
+# Swiftchats - Security Hardened Version
+
+## Security Notice
+This version has been completely cleaned of all external dependencies and backdoors that could pose security risks in production environments.
+
+## Security Changes Made
+
+### 1. External API Dependencies Removed
+- ✅ **UpdateController.php**: Removed obfuscated axis96.com update calls
+- ✅ **InstallerController.php**: Disabled external installation verification
+- ✅ **ModuleService.php**: Disabled external addon downloads/updates
+- ✅ **CheckModuleUpdates Command**: Disabled external update checking
+- ✅ **Vue.js Components**: Removed axis96.com purchase code validation
+
+### 2. Security Features Implemented
+- ✅ **SecurityDisabledException**: Custom exception for disabled external features
+- ✅ **Production Environment**: APP_DEBUG=false, APP_ENV=production
+- ✅ **Code Cleanup**: Removed all obfuscated base64-encoded functions
+- ✅ **Asset Rebuild**: Recompiled frontend assets without external references
+
+### 3. Manual Operations Required
+Since external automation has been disabled for security, the following operations now require manual intervention:
+
+#### Application Updates
+- Download updates manually from official sources
+- Apply database migrations: `php artisan migrate`
+- Clear cache: `php artisan optimize:clear`
+
+#### Module Management
+- Install modules manually by extracting to `/modules/` directory
+- Update module database records manually
+- Configure module settings through admin panel
+
+#### Security Monitoring
+- Check for updates manually from official project repository
+- Monitor security advisories independently
+- Implement your own update notification system if needed
+
+## Installation
+1. Copy project to web server
+2. Run `composer install --no-dev --optimize-autoloader`
+3. Run `npm install && npm run build`
+4. Configure `.env` file with your database credentials
+5. Run `php artisan migrate --seed`
+6. Set proper file permissions (755 for directories, 644 for files)
+
+## Security Recommendations
+1. **Change APP_KEY**: Generate new key with `php artisan key:generate`
+2. **Database Security**: Use strong database credentials
+3. **File Permissions**: Ensure proper web server permissions
+4. **Firewall**: Configure firewall rules for production
+5. **SSL/TLS**: Enable HTTPS in production
+6. **Regular Backups**: Implement automated backup strategy
+
+## Support
+For security-related questions or custom development needs, consult with qualified Laravel security specialists.
+
+**Note**: This hardened version prioritizes security over convenience. All external automation features have been intentionally disabled to eliminate potential attack vectors.

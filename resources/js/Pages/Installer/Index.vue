@@ -255,32 +255,15 @@
 
     const validateCode = async () => {
         isLoading.value = true;
-        try {
-            const response = await axios.post('https://axis96.com/api/install/51790966/item', {
-                purchase_code: form4.value.purchase_code
-            });
-            
-            if (response.status === 200) {
-                isValidPurchaseCode.value = true; // Set isValidPurchaseCode to true on success
-                purchaseCodeError.value = null;
-                form3.purchase_code = form4.value.purchase_code;
-            }
-        } catch (error) {
-            if (error.response) {
-                if (error.response.status === 404) {
-                    purchaseCodeError.value = error.response.data.message;
-                } else {
-                    purchaseCodeError.value = error.response.data.message || 'An error occurred';
-                }
-            } else if (error.request) {
-                purchaseCodeError.value = 'Error: No response received';
-            } else {
-                purchaseCodeError.value = error.message;
-            }
-            isValidPurchaseCode.value = false; // Optionally handle error case
-        } finally {
-            isLoading.value = false;
-        }
+        
+        // External validation disabled for security - proceed directly
+        isValidPurchaseCode.value = true;
+        purchaseCodeError.value = null;
+        form3.purchase_code = form4.value.purchase_code;
+        isLoading.value = false;
+        
+        // Note: External purchase code validation has been disabled for security.
+        // In production, implement proper local validation or manual verification.
     };
 
     const setCompanyDetails = async () => {
