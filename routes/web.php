@@ -74,7 +74,7 @@ Route::get('/migrate-upgrade', [App\Http\Controllers\FrontendController::class, 
 
 Route::middleware(['guest', 'redirectIfAuthenticated:user,admin'])->group(function () {
     Route::get('/login', [App\Http\Controllers\AuthController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [App\Http\Controllers\AuthController::class, 'login'])->name('login');
+    Route::post('/login', [App\Http\Controllers\AuthController::class, 'login'])->name('login.submit');
     Route::get('/tfa', [App\Http\Controllers\AuthController::class, 'showTfaForm']);
     Route::post('/tfa', [App\Http\Controllers\AuthController::class, 'tfaVerify']);
     Route::get('/social-login/{type?}', [App\Http\Controllers\AuthController::class, 'socialLogin']);
@@ -227,7 +227,15 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::resource('faqs', App\Http\Controllers\Admin\FaqController::class);
     Route::resource('testimonials', App\Http\Controllers\Admin\TestimonialController::class);
     Route::resource('plans', App\Http\Controllers\Admin\SubscriptionPlanController::class);
-    Route::resource('team/users', App\Http\Controllers\Admin\TeamController::class);
+    Route::resource('team/users', App\Http\Controllers\Admin\TeamController::class)->names([
+        'index' => 'team.users.index',
+        'create' => 'team.users.create',
+        'store' => 'team.users.store',
+        'show' => 'team.users.show',
+        'edit' => 'team.users.edit',
+        'update' => 'team.users.update',
+        'destroy' => 'team.users.destroy'
+    ]);
     Route::resource('team/roles', App\Http\Controllers\Admin\RoleController::class);
     Route::resource('billing', App\Http\Controllers\Admin\BillingController::class);
     Route::resource('addons', App\Http\Controllers\Admin\AddonController::class);
