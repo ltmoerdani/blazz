@@ -82,8 +82,8 @@ class SecurityHeadersMiddleware
         $csp = [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net unpkg.com",
-            "style-src 'self' 'unsafe-inline' fonts.googleapis.com cdn.jsdelivr.net",
-            "font-src 'self' fonts.gstatic.com data:",
+            "style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.bunny.net cdn.jsdelivr.net",
+            "font-src 'self' fonts.gstatic.com fonts.bunny.net data:",
             "img-src 'self' data: blob: *", // Allow images from any source untuk user uploads
             "media-src 'self' blob:",
             "object-src 'none'",

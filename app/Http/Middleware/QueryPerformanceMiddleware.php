@@ -182,11 +182,16 @@ class QueryPerformanceMiddleware
             $action = $route->getAction();
             
             if (isset($action['controller'])) {
-                return $action['controller'];
+                return is_string($action['controller']) ? $action['controller'] : null;
             }
             
             if (isset($action['uses'])) {
-                return $action['uses'];
+                // Check if it's a string (controller@method) or Closure
+                if (is_string($action['uses'])) {
+                    return $action['uses'];
+                } elseif ($action['uses'] instanceof \Closure) {
+                    return 'Closure';
+                }
             }
         }
         
