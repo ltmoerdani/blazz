@@ -25,19 +25,22 @@ php artisan serve    # Terminal 2: Laravel (Port 8000)
 ## ⚡ Prerequisites
 
 ### Required Software
-- **PHP**: 8.2+ 
+- **PHP**: 8.2+ with **imagick extension** (required for QR code generation)
 - **Node.js**: 18+ with npm
 - **MySQL**: 5.7+ or 8.0+
 - **Composer**: 2.0+
 - **Git**: Latest version
+- **ImageMagick**: Latest version (system dependency for imagick PHP extension)
 
 ### Verify Installation
 ```bash
 php --version      # Should show 8.2+
+php -m | grep imagick  # Should show imagick extension loaded
 node --version     # Should show 18+
 npm --version      # Should show 9+
 composer --version # Should show 2.0+
 mysql --version    # Should show 5.7+ or 8.0+
+convert --version  # Should show ImageMagick installation
 ```
 
 ## 🛠️ Complete Setup Instructions
@@ -121,13 +124,33 @@ php artisan db:seed
 php artisan key:generate
 ```
 
-### Step 6: Storage Linking
+### Step 6: Install PHP ImageMagick Extension (Required for 2FA QR Codes)
+
+```bash
+# Install ImageMagick system dependency
+brew install imagemagick
+
+# Install PHP imagick extension via PECL
+pecl install imagick
+
+# Enable extension in php.ini
+# For MAMP users: Edit /Applications/MAMP/bin/php/php8.2.0/conf/php.ini
+# Uncomment or add: extension=imagick.so
+
+# For Homebrew PHP users:
+echo "extension=imagick.so" >> $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")
+
+# Verify installation
+php -m | grep imagick  # Should show 'imagick'
+```
+
+### Step 7: Storage Linking
 
 ```bash
 php artisan storage:link
 ```
 
-### Step 7: Build Frontend Assets
+### Step 8: Build Frontend Assets
 
 ```bash
 # Build assets for production
@@ -269,7 +292,30 @@ DB_USERNAME=root      # Your MySQL username
 DB_PASSWORD=          # Your MySQL password
 ```
 
-#### 6. **Permission Issues (macOS/Linux)**
+#### 6. **Missing ImageMagick Extension (New)**
+
+**Symptoms**: BaconQrCode error "You need to install the imagick extension to use this back end", 2FA QR codes fail to generate.
+
+**Solution**:
+```bash
+# Install ImageMagick system dependency
+brew install imagemagick
+
+# Install PHP imagick extension
+pecl install imagick
+
+# Enable in php.ini (MAMP)
+# Edit: /Applications/MAMP/bin/php/php8.2.0/conf/php.ini
+# Uncomment: extension=imagick.so
+
+# OR for Homebrew PHP
+echo "extension=imagick.so" >> $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")
+
+# Restart web server and verify
+php -m | grep imagick
+```
+
+#### 8. **Permission Issues (macOS/Linux)**
 
 **Symptoms**: Permission denied errors during setup.
 
@@ -355,6 +401,7 @@ After successful setup, you should observe:
 - **Asset Loading**: < 200ms per asset
 - **Database Queries**: < 50ms average
 - **Memory Usage**: < 128MB for basic operations
+- **QR Code Generation**: < 100ms (2FA functionality)
 
 ## 🚀 Next Steps
 
