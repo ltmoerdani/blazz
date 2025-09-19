@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Propaganistas\LaravelPhone\PhoneNumber;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use DB;
 
 class ApiController extends Controller
 {
@@ -696,8 +697,59 @@ class ApiController extends Controller
 
         $templates = Template::where('organization_id', $request->organization)
             ->where('deleted_at', NULL)
-            ->paginate($perPage, ['uuid', 'metadata', 'updated_at'], 'page', $page);
+            ->paginate($perPage, ['uuid', 'name', 'metadata', 'updated_at'], 'page', $page);
 
         return TemplateResource::collection($templates);
+    }
+
+    /**
+     * Verify if the API key is active.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function verifyApiKey(Request $request)
+    {
+        $bearerToken = $request->bearerToken();
+
+        if (!$bearerToken) {
+            return response()->json([
+                'statusCode' => 401,
+                'message' => __('No API key provided. Please include it in the Authorization header as a Bearer token.')
+            ], 401);
+        }
+
+        try {
+            $token = DB::table('organization_api_keys')
+                ->where('token', $bearerToken)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if (!$token) {
+                return response()->json([
+                    'statusCode' => 401,
+                    'message' => __('Invalid API key.')
+                ], 401);
+            }
+
+            $organizationId = $token->organization_id;
+
+            if (!SubscriptionService::isSubscriptionActive($organizationId)) {
+                return response()->json([
+                    'statusCode' => 403,
+                    'message' => __('API key is inactive. Please renew or subscribe to a plan to continue!')
+                ], 403);
+            }
+
+            return response()->json([
+                'statusCode' => 200,
+                'message' => __('API key is valid and active')
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'statusCode' => 500,
+                'message' => __('Request unable to be processed')
+            ], 500);
+        }
     }
 }
