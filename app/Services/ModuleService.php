@@ -33,7 +33,7 @@ class ModuleService
     /**
      * Download addon files - Disabled for security
      */
-    protected function downloadAddonFiles($purchaseCode, $addonName, $zipFilePath)
+    protected function downloadAddonFiles($addonName, $zipFilePath)
     {
         // External addon downloads have been disabled for security
         throw new SecurityDisabledException('External addon downloads have been disabled for security. Please install modules manually.');
@@ -51,7 +51,7 @@ class ModuleService
     /**
      * Setup addon metadata - Disabled for security
      */
-    protected function setupAddonMetadata($addonName, $purchaseCode = null)
+    protected function setupAddonMetadata($addonName)
     {
         // External metadata retrieval has been disabled for security
         throw new SecurityDisabledException('External metadata retrieval has been disabled for security. Please configure modules manually.');
