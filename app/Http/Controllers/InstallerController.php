@@ -7,7 +7,6 @@ use App\Http\Requests\StoreDb;
 use App\Http\Requests\StoreDbUser;
 use App\Models\User;
 use App\Services\UpdateService;
-use App\Exceptions\SecurityDisabledException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
@@ -42,7 +41,7 @@ class InstallerController extends BaseController
 
         if($step == 'database'){
             if(
-                $this->systemRequirements()['status'] == false ||
+                $this->systemRequirements()['status'] == false || 
                 $this->folderPermissions()['status'] == false
             ) {
                 return redirect('install/folders');
@@ -51,7 +50,7 @@ class InstallerController extends BaseController
 
         if($step === 'app'){
             if (
-                $this->systemRequirements()['status'] == false ||
+                $this->systemRequirements()['status'] == false || 
                 $this->folderPermissions()['status'] == false ||
                 !session()->has('database')
             ) {
@@ -61,7 +60,7 @@ class InstallerController extends BaseController
 
         if($step === 'migrations'){
             if (
-                $this->systemRequirements()['status'] == false ||
+                $this->systemRequirements()['status'] == false || 
                 $this->folderPermissions()['status'] == false ||
                 !session()->has('database') ||
                 !session()->has('user')
@@ -95,7 +94,7 @@ class InstallerController extends BaseController
             if(empty($check) and $check->count() == 0){
                 return Redirect::back()->with(
                     'status', [
-                        'type' => 'error',
+                        'type' => 'error', 
                         'message' => __('Access denied for user!. Please check your configuration.')
                     ]
                 );
@@ -104,7 +103,7 @@ class InstallerController extends BaseController
                 session()->forget('database');
 
                 session()->put('database', [
-                    'host' => $request->input('host'),
+                    'host' => $request->input('host'), 
                     'port' => $request->input('port'),
                     'prefix' => $request->input('dbprefix'),
                     'database' => $request->input('dbname'),
@@ -116,7 +115,7 @@ class InstallerController extends BaseController
             } else {
                 return Redirect::back()->with(
                     'status', [
-                        'type' => 'error',
+                        'type' => 'error', 
                         'message' => __('Could not find the database. Please check your configuration.')
                     ]
                 );
@@ -124,7 +123,7 @@ class InstallerController extends BaseController
         } catch (\Exception $e) {
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'error',
+                    'type' => 'error', 
                     'message' => $e->getMessage()
                 ]
             );
@@ -150,7 +149,7 @@ class InstallerController extends BaseController
         session()->put('user', [
             'project_name' => $request->input('company_name'),
             'project_url' => $request->input('url'),
-            'first_name' => $request->input('first_name'),
+            'first_name' => $request->input('first_name'), 
             'last_name' => $request->input('last_name'),
             'email' => $request->input('email'),
             'password' => $request->input('password'),
@@ -161,7 +160,7 @@ class InstallerController extends BaseController
         Cache::flush();
 
         foreach ($envUpdate as $key => $value) {
-            $this->updateEnvFile($key, $value);
+            $this->setEnvValue($key, $value);
         }
 
         return redirect('install/migrations');
@@ -170,14 +169,12 @@ class InstallerController extends BaseController
     public function runMigrations(Request $request){
         if (
             !DB::connection()->getPdo() ||
-            $this->systemRequirements()['status'] == false ||
+            $this->systemRequirements()['status'] == false || 
             $this->folderPermissions()['status'] == false
         ) {
             return redirect('install/folders');
         }
         try {
-            $this->h($request->input('purchase_code'));
-
             $migrateOutput = Artisan::call('migrate', [
                 '--force' => true,
             ]);
@@ -230,7 +227,7 @@ class InstallerController extends BaseController
             ]);
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'error',
+                    'type' => 'error', 
                     'message' => __('An error occurred while executing migrations!')
                 ]
             );
@@ -251,7 +248,7 @@ class InstallerController extends BaseController
         Artisan::call('optimize:clear');
         session()->forget(['user', 'database', 'installation_complete']);
         Artisan::call('key:generate', ['--force' => true, '--show' => true]);
-        $this->updateEnvFile('APP_KEY', trim(str_replace('"', '', Artisan::output())));
+        $this->setEnvValue('APP_KEY', trim(str_replace('"', '', Artisan::output())));
         Artisan::call('storage:link');
     }
 
@@ -345,45 +342,6 @@ class InstallerController extends BaseController
         return file_exists(storage_path('installed'));
     }
 
-    protected function processInstallation($purchaseCode)
-    {
-        // External installation/verification is disabled for security
-        throw new SecurityDisabledException('External verification has been disabled for security. Manual installation required.');
-    }
-
-    protected function downloadInstallationFiles($purchaseCode, $zipFilePath)
-    {
-        // External downloads disabled for security
-        throw new SecurityDisabledException('External downloads have been disabled for security reasons.');
-    }
-
-    protected function extractInstallationFiles($zipFilePath)
-    {
-        // File extraction disabled for security without proper validation
-        throw new SecurityDisabledException('File extraction disabled for security. Manual installation required.');
-    }
-
-    protected function moveFolderContentsToBase()
-    {
-        // This function is disabled for security reasons
-        throw new SecurityDisabledException('Folder movement operations disabled for security.');
-    }
-
-    protected function removeDirectory($directory)
-    {
-        if (is_dir($directory)) {
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($directory, \RecursiveDirectoryIterator::SKIP_DOTS),
-                \RecursiveIteratorIterator::CHILD_FIRST
-            );
-            
-            foreach ($iterator as $file) {
-                $action = ($file->isDir() ? 'rmdir' : 'unlink');
-                $action($file->getRealPath());
-            }
-            rmdir($directory);
-        }
-    }
     
     protected function handleRequestException(RequestException $e, $zipFilePath)
     {
@@ -396,12 +354,12 @@ class InstallerController extends BaseController
             $responseBody = (string) $e->getResponse()->getBody();
             $response = json_decode($responseBody);
             return Redirect::back()->withErrors([
-                'purchase_code' => $response->message ?? 'An error occurred'
+                'installation' => $response->message ?? 'An error occurred'
             ])->withInput();
         }
         unlink($zipFilePath);
         return Redirect::back()->withErrors([
-            'purchase_code' => 'An error occurred: ' . $e->getMessage()
+            'installation' => 'An error occurred: ' . $e->getMessage()
         ])->withInput();
     }
 
@@ -413,35 +371,41 @@ class InstallerController extends BaseController
         }
         
         return Redirect::back()->withErrors([
-            'purchase_code' => 'An error occurred: ' . $e->getMessage()
+            'installation' => 'An error occurred: ' . $e->getMessage()
         ])->withInput();
     }
 
     /**
-     * Update .env file with given key-value pair
+     * Set environment variable in .env file
      */
-    protected function updateEnvFile($key, $value)
+    protected function setEnvValue($key, $value)
     {
-        $envFile = base_path('.env');
+        $envPath = base_path('.env');
         
-        if (!File::exists($envFile)) {
-            File::put($envFile, '');
+        if (!File::exists($envPath)) {
+            File::put($envPath, '');
         }
         
-        $envContent = File::get($envFile);
+        $envContent = File::get($envPath);
         
         // Escape special characters in value
-        $value = is_string($value) ? '"' . addslashes($value) . '"' : $value;
+        $value = str_replace('"', '\"', $value);
         
-        // Check if key exists
-        if (preg_match("/^{$key}=.*/m", $envContent)) {
-            // Update existing key
-            $envContent = preg_replace("/^{$key}=.*/m", "{$key}={$value}", $envContent);
-        } else {
-            // Add new key
-            $envContent .= "\n{$key}={$value}";
+        // If value contains spaces or special characters, wrap in quotes
+        if (preg_match('/\s/', $value) || preg_match('/[#=]/', $value)) {
+            $value = '"' . $value . '"';
         }
         
-        File::put($envFile, $envContent);
+        $keyPattern = '/^' . preg_quote($key, '/') . '=.*$/m';
+        
+        if (preg_match($keyPattern, $envContent)) {
+            // Update existing key
+            $envContent = preg_replace($keyPattern, $key . '=' . $value, $envContent);
+        } else {
+            // Add new key
+            $envContent .= "\n" . $key . '=' . $value;
+        }
+        
+        File::put($envPath, $envContent);
     }
 }

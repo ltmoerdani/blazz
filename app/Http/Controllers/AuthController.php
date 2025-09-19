@@ -2,40 +2,40 @@
 
 namespace App\Http\Controllers;
 
+use DB;
 use App\Helpers\Email;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\PasswordResetRequest;
-use App\Http\Requests\PasswordValidateResetRequest;
 use App\Http\Requests\SignupRequest;
 use App\Http\Requests\StoreUser;
 use App\Http\Requests\StoreUserInvite;
+use App\Http\Requests\PasswordValidateResetRequest;
 use App\Http\Requests\TfaRequest;
+use App\Services\AuthService;
+use App\Services\PasswordResetService;
+use App\Services\UserService;
 use App\Models\Addon;
 use App\Models\Organization;
+use App\Models\PasswordResetToken;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\Team;
 use App\Models\TeamInvite;
 use App\Models\User;
-use App\Services\AuthService;
-use App\Services\PasswordResetService;
 use App\Services\SocialLoginService;
 use App\Services\TeamService;
-use App\Services\UserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
-use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Session;
+use Str;
 
 class AuthController extends BaseController
 {
     protected $userService;
-
     protected $role;
 
     public function __construct($role = 'user')
@@ -44,24 +44,22 @@ class AuthController extends BaseController
         $this->role = $role;
     }
 
-    public function showLoginForm()
-    {
+    public function showLoginForm(){
         $keys = ['logo', 'company_name', 'address', 'email', 'phone', 'socials', 'trial_period', 'allow_facebook_login', 'allow_google_login'];
         $data['companyConfig'] = Setting::whereIn('key', $keys)->pluck('value', 'key')->toArray();
 
         return Inertia::render('Auth/Login', $data);
     }
 
-    public function login(LoginRequest $request)
-    {
+    public function login(LoginRequest $request){
         $user = User::where('email', $request->email)->where('deleted_at', null)->first();
-        $addon = Addon::where('name', 'Google Authenticator')->first()->is_active;
+        $addon = Addon::where('name', 'Google Authenticator')->first()->is_active; 
         $remember = $request->remember;
 
         if ($user->tfa && $addon == 1) {
             $request->session()->put('tfa', $user->id);
             $request->session()->put('remember', $remember);
-
+      
             return redirect('/tfa');
         }
 
@@ -70,11 +68,11 @@ class AuthController extends BaseController
 
     public function showTfaForm(Request $request)
     {
-        if (! $request->session()->has('tfa')) {
+        if (!$request->session()->has('tfa')) {
             return redirect('/login');
         }
 
-        $keys = ['logo', 'company_name', 'address', 'email', 'phone', 'socials', 'trial_period', 'allow_facebook_login', 'allow_google_login'];
+        $keys = ['logo', 'company_name', 'address', 'email', 'phone', 'socials', 'trial_period', 'allow_facebook_login','allow_google_login'];
 
         $data['companyConfig'] = Setting::whereIn('key', $keys)
             ->pluck('value', 'key')
@@ -103,10 +101,10 @@ class AuthController extends BaseController
             Auth::guard($guard)->login($user, $remember);
         }
 
-        // Check number of organizations
-        if ($guard == 'user') {
+        //Check number of organizations
+        if($guard == 'user'){
             $teams = Team::where('user_id', auth()->user()->id);
-            if ($teams->count() == 1) {
+            if($teams->count() == 1){
                 session()->put('current_organization', $teams->first()->organization_id);
             }
         }
@@ -122,23 +120,21 @@ class AuthController extends BaseController
         return redirect('/dashboard');
     }
 
-    public function socialLogin(Request $request, $type)
-    {
-        if ($type === 'google') {
+    public function socialLogin(Request $request, $type){
+        if($type === 'google'){
             return SocialLoginService::makeGoogleDriver()->redirect();
-        } elseif ($type === 'facebook') {
-            // return Socialite::driver('facebook')->redirect();
+        } else if($type === 'facebook'){
+            //return Socialite::driver('facebook')->redirect();
             return SocialLoginService::makeFacebookDriver()->redirect();
         }
     }
 
-    public function handleFacebookCallback(Request $request)
-    {
+    public function handleFacebookCallback(Request $request){
         if ($request->has('error')) {
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success',
-                    'message' => __('There was an error with Facebook login!'),
+                    'type' => 'success', 
+                    'message' => __('There was an error with Facebook login!')
                 ]
             );
         }
@@ -148,12 +144,12 @@ class AuthController extends BaseController
             $user = User::where('facebook_id', $facebookUser->id)->where('status', '=', '1')->where('deleted_at', null)->first();
 
             if ($user) {
-                if ($user->role == 'user') {
-                    // Check if user belongs to organization, otherwise set one up
+                if($user->role == 'user'){
+                    //Check if user belongs to organization, otherwise set one up
                     $team = Team::where('user_id', $user->id)->first();
 
-                    if (! $team) {
-                        // Create Organization
+                    if(!$team){
+                        //Create Organization
                         $organization = $this->createOrganization($user);
 
                         session()->put('current_organization', $organization->id);
@@ -174,11 +170,11 @@ class AuthController extends BaseController
                         $user->facebook_id = $facebookUser->id;
                         $user->save();
 
-                        // Check if user belongs to organization, otherwise set one up
+                        //Check if user belongs to organization, otherwise set one up
                         $team = Team::where('user_id', $user->id)->first();
 
-                        if (! $team) {
-                            // Create Organization
+                        if(!$team){
+                            //Create Organization
                             $organization = $this->createOrganization($user);
 
                             session()->put('current_organization', $organization->id);
@@ -190,7 +186,7 @@ class AuthController extends BaseController
                         $lastName = isset($nameParts[1]) ? $nameParts[1] : '';
 
                         // Create User
-                        $user = new User;
+                        $user = new User();
                         $user->first_name = $firstName;
                         $user->last_name = $lastName;
                         $user->email = $facebookUser->email;
@@ -199,10 +195,10 @@ class AuthController extends BaseController
                         $user->email_verified_at = now();
                         $user->role = 'user';
                         $user->save();
-
-                        // Create Organization
+                
+                        //Create Organization
                         $organization = $this->createOrganization($user);
-
+                
                         // Send Registration Email
                         Email::send('Registration', $user);
 
@@ -212,28 +208,27 @@ class AuthController extends BaseController
 
                         session()->put('current_organization', $organization->id);
                     }
-
+                    
                     // Log the user in
                     Auth::guard('user')->login($user, true);
                 });
-
+            
                 return redirect('dashboard');
             }
         } catch (\Exception $e) {
             // Handle exception, possibly log the error and redirect to an error page
-            Log::error('User registration failed: '.$e->getMessage());
-
+            Log::error('User registration failed: ' . $e->getMessage());
+        
             return redirect()->back()->with('error', 'Registration failed, please try again.');
         }
     }
 
-    public function googleCallback(Request $request)
-    {
+    public function googleCallback(Request $request){
         if ($request->has('error')) {
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success',
-                    'message' => __('There was an error with Google login!'),
+                    'type' => 'success', 
+                    'message' => __('There was an error with Google login!')
                 ]
             );
         }
@@ -249,14 +244,14 @@ class AuthController extends BaseController
 
                 return redirect($user->role == 'admin' ? 'admin/dashboard' : '/dashboard');
             } else {
-                // Create User
-                $name = explode(' ', $gUser->user['name']);
+                //Create User
+                $name = explode(" ", $gUser->user['name']);
 
-                $user = new User;
+                $user = new User();
                 $user->first_name = $name[0];
-                $user->last_name = isset($name[1]) ? $name[1] : null;
+                $user->last_name = isset($name[1]) ? $name[1] : NULL;
                 $user->email = $gUser->email;
-                $user->password = null;
+                $user->password = NULL;
                 $user->email_verified_at = now();
                 $user->role = 'user';
                 $user->save();
@@ -264,32 +259,32 @@ class AuthController extends BaseController
                 $timestamp = now()->format('YmdHis');
                 $randomString = Str::random(4);
 
-                // Create Organization
+                //Create Organization
                 $organization = Organization::create([
-                    'identifier' => $timestamp.$user->id.$randomString,
-                    'name' => $name[0]."'s organization",
-                    'created_by' => $user->id,
+                    'identifier' => $timestamp . $user->id . $randomString,
+                    'name' => $name[0] . "'s organization",
+                    'created_by' => $user->id
                 ]);
 
-                // Create Team
+                //Create Team
                 $team = Team::create([
                     'organization_id' => $organization->id,
                     'user_id' => $user->id,
                     'role' => 'owner',
                     'status' => 'active',
-                    'created_by' => $user->id,
+                    'created_by' => $user->id
                 ]);
 
                 $config = Setting::where('key', 'trial_period')->first();
                 $has_trial = isset($config->value) && $config->value > 0 ? true : false;
 
-                // Create Subscription
+                //Create Subscription
                 Subscription::create([
                     'organization_id' => $organization->id,
                     'status' => $has_trial ? 'trial' : 'active',
                     'plan_id' => null,
                     'start_date' => now(),
-                    'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+'.$config->value.' days')) : now(),
+                    'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $config->value . ' days')) : now(),
                 ]);
 
                 Email::send('Registration', $user);
@@ -299,27 +294,26 @@ class AuthController extends BaseController
                 }
 
                 Auth::guard('user')->login($user, true);
-
+                
                 return redirect('dashboard');
             }
         } catch (\Exception $e) {
             // Handle exception, possibly log the error and redirect to an error page
-            Log::error('User registration failed: '.$e->getMessage());
-
+            Log::error('User registration failed: ' . $e->getMessage());
+        
             return redirect()->back()->with('error', 'Registration failed, please try again.');
         }
     }
 
-    private function createOrganization($user)
-    {
+    private function createOrganization($user){
         $timestamp = now()->format('YmdHis');
         $randomString = Str::random(4);
 
         // Create Organization
         $organization = Organization::create([
-            'identifier' => $timestamp.$user->id.$randomString,
-            'name' => $user->first_name."'s organization",
-            'created_by' => $user->id,
+            'identifier' => $timestamp . $user->id . $randomString,
+            'name' => $user->first_name . "'s organization",
+            'created_by' => $user->id
         ]);
 
         // Create Team
@@ -328,7 +322,7 @@ class AuthController extends BaseController
             'user_id' => $user->id,
             'role' => 'owner',
             'status' => 'active',
-            'created_by' => $user->id,
+            'created_by' => $user->id
         ]);
 
         $config = Setting::where('key', 'trial_period')->first();
@@ -340,7 +334,7 @@ class AuthController extends BaseController
             'status' => $has_trial ? 'trial' : 'active',
             'plan_id' => null,
             'start_date' => now(),
-            'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+'.$config->value.' days')) : now(),
+            'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $config->value . ' days')) : now(),
         ]);
 
         return $organization;
@@ -371,11 +365,11 @@ class AuthController extends BaseController
     {
         $invite = TeamInvite::where('code', $uuid)->first();
 
-        if (! $invite) {
+        if(!$invite){
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success',
-                    'message' => __('That page does not exist!'),
+                    'type' => 'success', 
+                    'message' => __('That page does not exist!')
                 ]
             );
         } else {
@@ -412,8 +406,8 @@ class AuthController extends BaseController
 
         return redirect('/forgot-password')->with(
             'status', [
-                'type' => 'success',
-                'message' => __('We\'ve sent you a password reset link to your email!'),
+                'type' => 'success', 
+                'message' => __('We\'ve sent you a password reset link to your email!')
             ]
         );
     }
@@ -423,7 +417,7 @@ class AuthController extends BaseController
         $email = $request->input('email');
         $token = $request->input('token');
 
-        if (! (new PasswordResetService)->verifyResetCode($email, $token)) {
+        if(!(new PasswordResetService)->verifyResetCode($email, $token)){
             return redirect('/login');
         }
 
@@ -439,15 +433,15 @@ class AuthController extends BaseController
 
         return redirect('/login')->with(
             'status', [
-                'type' => 'success',
-                'message' => __('Password reset successful!'),
+                'type' => 'success', 
+                'message' => __('Password reset successful!')
             ]
         );
     }
 
     public function verifyEmail()
     {
-        if (auth()->user()->email_verified_at != null) {
+        if(auth()->user()->email_verified_at != NULL){
             return redirect('dashboard');
         } else {
             $keys = ['logo', 'company_name', 'address', 'email', 'phone', 'socials', 'trial_period'];
@@ -463,8 +457,8 @@ class AuthController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => 'success',
-                'message' => __('Verification link sent!'),
+                'type' => 'success', 
+                'message' => __('Verification link sent!')
             ]
         );
     }

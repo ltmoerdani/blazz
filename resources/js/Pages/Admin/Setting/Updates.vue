@@ -152,7 +152,6 @@
 
     const form = useForm({
         uuid: null,
-        purchase_code: null,
         addon: null,
         name: null,
     });
