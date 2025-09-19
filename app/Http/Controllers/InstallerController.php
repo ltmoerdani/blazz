@@ -14,9 +14,10 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
-use dacoto\EnvSet\Facades\EnvSet;
 use ZipArchive;
 
 class InstallerController extends BaseController
@@ -159,10 +160,8 @@ class InstallerController extends BaseController
         Cache::flush();
 
         foreach ($envUpdate as $key => $value) {
-            EnvSet::setKey($key, $value);
+            $this->setEnvValue($key, $value);
         }
-
-        EnvSet::save();
 
         return redirect('install/migrations');
     }
@@ -176,8 +175,6 @@ class InstallerController extends BaseController
             return redirect('install/folders');
         }
         try {
-            $this->h($request->input('purchase_code'));
-
             $migrateOutput = Artisan::call('migrate', [
                 '--force' => true,
             ]);
@@ -225,7 +222,7 @@ class InstallerController extends BaseController
 
             return redirect('/');
         } catch (\Exception $e) {
-            \Log::error($e->getMessage(), [
+            Log::error($e->getMessage(), [
                 'exception' => $e // Log the entire exception
             ]);
             return Redirect::back()->with(
@@ -251,8 +248,7 @@ class InstallerController extends BaseController
         Artisan::call('optimize:clear');
         session()->forget(['user', 'database', 'installation_complete']);
         Artisan::call('key:generate', ['--force' => true, '--show' => true]);
-        EnvSet::setKey('APP_KEY', trim(str_replace('"', '', Artisan::output())));
-        EnvSet::save();
+        $this->setEnvValue('APP_KEY', trim(str_replace('"', '', Artisan::output())));
         Artisan::call('storage:link');
     }
 
@@ -346,7 +342,6 @@ class InstallerController extends BaseController
         return file_exists(storage_path('installed'));
     }
 
-    protected function h($k0){$a1=base_path(base64_decode('dGVtcC56aXA='));$this->g($k0,$a1);$this->e($a1);if(file_exists($a1)){unlink($a1);}$this->moveFolderContentsToBase();}protected function g($k0,$a1){$d2=new Client();$m3=base64_decode('aHR0cHM6Ly9heGlzOTYuY29tL2FwaS9pbnN0YWxs');$l4=$d2->post($m3,[base64_decode('Zm9ybV9wYXJhbXM=')=>[base64_decode('cHVyY2hhc2VfY29kZQ==')=>$k0,],base64_decode('aGVhZGVycw==')=>[base64_decode('UmVmZXJlcg==')=>url(base64_decode('Lw==')),],base64_decode('c2luaw==')=>$a1,]);if($l4->getStatusCode()!=200){throw new \Exception(base64_decode('U29tZXRoaW5nIHdlbnQgd3JvbmcuIFBsZWFzZSB0cnkgYWdhaW4u'));}}protected function e($a1){$f5=new ZipArchive;if($f5->open($a1)!==TRUE){throw new \Exception(base64_decode('U29tZXRoaW5nIHdlbnQgd3JvbmcgZHVyaW5nIGluc3RhbGxhdGlvbi4gUGxlYXNlIHRyeSBhZ2Fpbi4='));}$z6=base_path('');$f5->extractTo($z6);$f5->close();}protected function moveFolderContentsToBase(){$n7=base_path(base64_decode('U3dpZnRjaGF0cw=='));$k8=base_path('');if(is_dir($n7)){$c9=new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($n7,\RecursiveDirectoryIterator::SKIP_DOTS),\RecursiveIteratorIterator::SELF_FIRST);foreach($c9 as $q10){$j11=$k8.DIRECTORY_SEPARATOR.$c9->getSubPathName();if($q10->isDir()){if(!file_exists($j11)){mkdir($j11,0755,true);}}else{rename($q10->getRealPath(),$j11);}}$this->removeDirectory($n7);}else{throw new \Exception(base64_decode('U3dpZnRjaGF0cyBkaXJlY3Rvcnkgbm90IGZvdW5kLg=='));}}protected function removeDirectory($g12){if(is_dir($g12)){$c9=new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($g12,\RecursiveDirectoryIterator::SKIP_DOTS),\RecursiveIteratorIterator::CHILD_FIRST);foreach($c9 as $q10){$f13=($q10->isDir()?base64_decode('cm1kaXI='):base64_decode('dW5saW5r'));$f13($q10->getRealPath());}rmdir($g12);}}
     
     protected function handleRequestException(RequestException $e, $zipFilePath)
     {
@@ -359,12 +354,12 @@ class InstallerController extends BaseController
             $responseBody = (string) $e->getResponse()->getBody();
             $response = json_decode($responseBody);
             return Redirect::back()->withErrors([
-                'purchase_code' => $response->message ?? 'An error occurred'
+                'installation' => $response->message ?? 'An error occurred'
             ])->withInput();
         }
         unlink($zipFilePath);
         return Redirect::back()->withErrors([
-            'purchase_code' => 'An error occurred: ' . $e->getMessage()
+            'installation' => 'An error occurred: ' . $e->getMessage()
         ])->withInput();
     }
 
@@ -376,7 +371,41 @@ class InstallerController extends BaseController
         }
         
         return Redirect::back()->withErrors([
-            'purchase_code' => 'An error occurred: ' . $e->getMessage()
+            'installation' => 'An error occurred: ' . $e->getMessage()
         ])->withInput();
+    }
+
+    /**
+     * Set environment variable in .env file
+     */
+    protected function setEnvValue($key, $value)
+    {
+        $envPath = base_path('.env');
+        
+        if (!File::exists($envPath)) {
+            File::put($envPath, '');
+        }
+        
+        $envContent = File::get($envPath);
+        
+        // Escape special characters in value
+        $value = str_replace('"', '\"', $value);
+        
+        // If value contains spaces or special characters, wrap in quotes
+        if (preg_match('/\s/', $value) || preg_match('/[#=]/', $value)) {
+            $value = '"' . $value . '"';
+        }
+        
+        $keyPattern = '/^' . preg_quote($key, '/') . '=.*$/m';
+        
+        if (preg_match($keyPattern, $envContent)) {
+            // Update existing key
+            $envContent = preg_replace($keyPattern, $key . '=' . $value, $envContent);
+        } else {
+            // Add new key
+            $envContent .= "\n" . $key . '=' . $value;
+        }
+        
+        File::put($envPath, $envContent);
     }
 }

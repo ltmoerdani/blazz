@@ -46,6 +46,15 @@ class LanguageTableSeeder extends Seeder
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
+            [
+                'name' => 'Indonesian',
+                'code' => 'id',
+                'status' => 'active',
+                'deleted_at' => null,
+                'deleted_by' => null,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ],
         ];
 
         foreach ($languages as $language) {

@@ -1,23 +1,39 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🚀 Blazz - Enterprise WhatsApp Business Platform
 
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+<img src="https://img.shields.io/badge/Laravel-12.29.0-red.svg" alt="Laravel Version">
+<img src="https://img.shields.io/badge/PHP-8.2+-blue.svg" alt="PHP Version">
+<img src="https://img.shields.io/badge/Vue.js-3.x-green.svg" alt="Vue.js Version">
+<img src="https://img.shields.io/badge/Status-Production Ready-brightgreen.svg" alt="Status">
 </p>
 
-## About Laravel
+## About Blazz
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Blazz** adalah enterprise-grade multi-tenant chat platform yang mengintegrasikan WhatsApp Business API untuk komunikasi pelanggan yang efektif. Platform ini dirancang untuk business yang membutuhkan solusi komunikasi scalable dengan fitur real-time messaging, template management, campaign automation, dan analytics mendalam.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 🎯 Core Features
+
+- **🔄 Real-time Messaging**: Instant bidirectional communication dengan WhatsApp Business API
+- **📝 Template Management**: Advanced template creation, approval tracking, dan optimization tools  
+- **🚀 Campaign Automation**: Automated messaging campaigns dengan segmentation dan scheduling
+- **📊 Analytics Dashboard**: Comprehensive metrics, engagement tracking, dan performance insights
+- **👥 Multi-tenant Architecture**: Complete organization isolation dengan role-based access control
+- **🔒 Enterprise Security**: Advanced security protocols, audit logging, dan compliance features
+- **🌍 Multilingual Support**: Built-in internationalization untuk global business operations
+
+### 🏗️ Technical Architecture
+
+**Backend Framework:**
+- **Laravel 12.29.0** - Modern PHP framework dengan enterprise features
+- **MySQL 8.0+** - Robust database dengan advanced indexing dan optimization
+- **Redis** - High-performance caching dan session management
+- **Queue Workers** - Background job processing untuk high-volume operations
+
+**Frontend Stack:**
+- **Vue.js 3.x** - Reactive user interface dengan modern development experience
+- **Inertia.js** - Seamless SPA experience tanpa API complexity
+- **Tailwind CSS** - Utility-first styling untuk responsive design
+- **Vite** - Fast build tools dengan hot module replacement
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
@@ -64,4 +80,61 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# swiftchat
+# Blazz - Security Hardened Version
+
+## Security Notice
+This Blazz hardened version prioritizes security in production environments.
+
+## Security Changes Made
+
+### 1. External API Dependencies Removed
+- ✅ **UpdateController.php**: Removed obfuscated axis96.com update calls
+- ✅ **InstallerController.php**: Disabled external installation verification
+- ✅ **ModuleService.php**: Disabled external addon downloads/updates
+- ✅ **CheckModuleUpdates Command**: Disabled external update checking
+- ✅ **Vue.js Components**: Removed axis96.com purchase code validation
+
+### 2. Security Features Implemented
+- ✅ **SecurityDisabledException**: Custom exception for disabled external features
+- ✅ **Production Environment**: APP_DEBUG=false, APP_ENV=production
+- ✅ **Code Cleanup**: Removed all obfuscated base64-encoded functions
+- ✅ **Asset Rebuild**: Recompiled frontend assets without external references
+
+### 3. Manual Operations Required
+Since external automation has been disabled for security, the following operations now require manual intervention:
+
+#### Application Updates
+- Download updates manually from official sources
+- Apply database migrations: `php artisan migrate`
+- Clear cache: `php artisan optimize:clear`
+
+#### Module Management
+- Install modules manually by extracting to `/modules/` directory
+- Update module database records manually
+- Configure module settings through admin panel
+
+#### Security Monitoring
+- Check for updates manually from official project repository
+- Monitor security advisories independently
+- Implement your own update notification system if needed
+
+## Installation
+1. Copy project to web server
+2. Run `composer install --no-dev --optimize-autoloader`
+3. Run `npm install && npm run build`
+4. Configure `.env` file with your database credentials
+5. Run `php artisan migrate --seed`
+6. Set proper file permissions (755 for directories, 644 for files)
+
+## Security Recommendations
+1. **Change APP_KEY**: Generate new key with `php artisan key:generate`
+2. **Database Security**: Use strong database credentials
+3. **File Permissions**: Ensure proper web server permissions
+4. **Firewall**: Configure firewall rules for production
+5. **SSL/TLS**: Enable HTTPS in production
+6. **Regular Backups**: Implement automated backup strategy
+
+## Support
+For security-related questions or custom development needs, consult with qualified Laravel security specialists.
+
+**Note**: This hardened version prioritizes security over convenience. All external automation features have been intentionally disabled to eliminate potential attack vectors.
