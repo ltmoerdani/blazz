@@ -8,21 +8,6 @@ Blazz adalah enterprise multi-tenant chat platform yang mengintegrasikan WhatsAp
 
 ## 🚀 RELEASES
 
-### Versi 1.3.0
-**MASSIVE REBRANDING: Swiftchat → Blazz**
-_19 September 2025 — Impact: High_
-
-Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan comprehensive update across all components, documentation, dan user interfaces. Semua functionality preserved dengan enhanced brand identity.
-
-**Major Changes:**
-- ✅ **Complete Brand Transformation**: All "Swiftchat" references updated to "Blazz"
-- 🌍 **Multilingual Consistency**: 6 language files updated dengan consistent branding
-- 📊 **Database Migration**: Seamless transition dari "swiftchats" database ke "blazz"
-- 🎨 **UI/UX Updates**: All frontend components reflect new Blazz branding
-- 📚 **Documentation Overhaul**: Complete documentation ecosystem updated
-
----
-
 ### Versi 1.2.0
 **Laravel 12 Upgrade Success & Enterprise Security Enhancement**
 _19 September 2025 — Impact: High_

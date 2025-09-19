@@ -1,39 +1,23 @@
-# 🚀 Blazz - Enterprise WhatsApp Business Platform
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
-<img src="https://img.shields.io/badge/Laravel-12.29.0-red.svg" alt="Laravel Version">
-<img src="https://img.shields.io/badge/PHP-8.2+-blue.svg" alt="PHP Version">
-<img src="https://img.shields.io/badge/Vue.js-3.x-green.svg" alt="Vue.js Version">
-<img src="https://img.shields.io/badge/Status-Production Ready-brightgreen.svg" alt="Status">
+<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
-## About Blazz
+## About Laravel
 
-**Blazz** adalah enterprise-grade multi-tenant chat platform yang mengintegrasikan WhatsApp Business API untuk komunikasi pelanggan yang efektif. Platform ini dirancang untuk business yang membutuhkan solusi komunikasi scalable dengan fitur real-time messaging, template management, campaign automation, dan analytics mendalam.
+Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-### 🎯 Core Features
-
-- **🔄 Real-time Messaging**: Instant bidirectional communication dengan WhatsApp Business API
-- **📝 Template Management**: Advanced template creation, approval tracking, dan optimization tools  
-- **🚀 Campaign Automation**: Automated messaging campaigns dengan segmentation dan scheduling
-- **📊 Analytics Dashboard**: Comprehensive metrics, engagement tracking, dan performance insights
-- **👥 Multi-tenant Architecture**: Complete organization isolation dengan role-based access control
-- **🔒 Enterprise Security**: Advanced security protocols, audit logging, dan compliance features
-- **🌍 Multilingual Support**: Built-in internationalization untuk global business operations
-
-### 🏗️ Technical Architecture
-
-**Backend Framework:**
-- **Laravel 12.29.0** - Modern PHP framework dengan enterprise features
-- **MySQL 8.0+** - Robust database dengan advanced indexing dan optimization
-- **Redis** - High-performance caching dan session management
-- **Queue Workers** - Background job processing untuk high-volume operations
-
-**Frontend Stack:**
-- **Vue.js 3.x** - Reactive user interface dengan modern development experience
-- **Inertia.js** - Seamless SPA experience tanpa API complexity
-- **Tailwind CSS** - Utility-first styling untuk responsive design
-- **Vite** - Fast build tools dengan hot module replacement
+- [Simple, fast routing engine](https://laravel.com/docs/routing).
+- [Powerful dependency injection container](https://laravel.com/docs/container).
+- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+- [Robust background job processing](https://laravel.com/docs/queues).
+- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
