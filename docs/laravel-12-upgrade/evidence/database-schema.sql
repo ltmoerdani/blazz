@@ -1,4 +1,4 @@
-# 🗃️ SwiftChats Database Schema Evidence
+# 🗃️ Blazz Database Schema Evidence
 
 ## 📊 CURRENT DATABASE STRUCTURE ANALYSIS
 
@@ -358,7 +358,7 @@ ORDER BY TABLE_NAME, INDEX_NAME;
 ### High-Volume Query Patterns
 
 ```sql
--- VERIFIED: Most common query patterns dalam SwiftChats
+-- VERIFIED: Most common query patterns dalam Blazz
 -- Query 1: Chat retrieval (executed ~1000x per hour)
 SELECT 
     c.*, 

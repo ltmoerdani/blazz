@@ -1013,4 +1013,4 @@ public function sendProductCatalog($contactId, $products) {
 - **Multi-Agent:** InstanceController exists but needs expansion for full multi-account support
 - **Payment Integration:** No existing WhatsApp payment implementation found
 - **Product Catalogs:** No existing catalog implementation to migrate</content>
-<parameter name="filePath">/Applications/MAMP/htdocs/Swiftchats/docs/whatsapp-migration/design.md
+<parameter name="filePath">/Applications/MAMP/htdocs/Blazz/docs/whatsapp-migration/design.md

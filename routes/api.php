@@ -17,9 +17,6 @@ use Illuminate\Support\Str;
 |
 */
 
-/*Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});*/
 Route::get('/translations/{locale}', function ($locale) {
     if (Str::startsWith($locale, 'php_')) {
         return response()->json(['error' => 'Invalid locale'], 400);
