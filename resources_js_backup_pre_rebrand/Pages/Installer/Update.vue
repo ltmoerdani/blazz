@@ -4,7 +4,7 @@
             <div class="mt-20">
                 <div class="flex justify-center mb-5">
                     <div>
-                        <h4 class="text-2xl mb-2 text-center">Blazz</h4>
+                        <h4 class="text-2xl mb-2 text-center">Swiftchats</h4>
                         <h1 class="text-2xl text-center">{{ $t('Proceed to update') }}</h1>
                     </div>
                 </div>
