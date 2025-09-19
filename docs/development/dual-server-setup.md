@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-SwiftChats with Laravel 12 requires **two servers running simultaneously** for optimal development experience. This guide explains the dual server setup that successfully resolved styling and asset loading issues.
+Blazz with Laravel 12 requires **two servers running simultaneously** for optimal development experience. This guide explains the dual server setup that successfully resolved styling and asset loading issues.
 
 ## 🎯 Why Dual Servers?
 
@@ -73,12 +73,12 @@ Starting Laravel development server: http://127.0.0.1:8000
 
 ```bash
 # Terminal 1: Start Vite server
-cd /path/to/swiftchats
+cd /path/to/blazz
 npm run dev
 # Keep this running throughout development
 
 # Terminal 2: Start Laravel server  
-cd /path/to/swiftchats
+cd /path/to/blazz
 php artisan serve
 # Keep this running throughout development
 
@@ -297,7 +297,7 @@ screen -S laravel php artisan serve
 Create `scripts/dev.sh`:
 ```bash
 #!/bin/bash
-echo "Starting SwiftChats Development Environment..."
+echo "Starting Blazz Development Environment..."
 
 # Start Vite server in background
 npm run dev &
@@ -366,4 +366,4 @@ services:
 
 ---
 
-**🎯 Result**: With dual server setup, SwiftChats delivers optimal development experience with instant asset updates and full Laravel 12 functionality!
+**🎯 Result**: With dual server setup, Blazz delivers optimal development experience with instant asset updates and full Laravel 12 functionality!

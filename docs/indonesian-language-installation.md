@@ -1,7 +1,7 @@
-# Penambahan Bahasa Indonesia ke SwiftChats
+# Penambahan Bahasa Indonesia ke Blazz
 
 ## Ringkasan
-Bahasa Indonesia telah berhasil ditambahkan ke sistem SwiftChats dengan dukungan penuh untuk:
+Bahasa Indonesia telah berhasil ditambahkan ke sistem Blazz dengan dukungan penuh untuk:
 - Interface aplikasi (789 string terjemahan)
 - Pesan error dan validasi Laravel
 - Dukungan database dan konfigurasi sistem

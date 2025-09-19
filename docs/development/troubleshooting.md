@@ -1,8 +1,8 @@
-# 🔧 SwiftChats Troubleshooting Guide
+# 🔧 Blazz Troubleshooting Guide
 
 ## 📋 Overview
 
-This guide covers common issues encountered during SwiftChats development after the Laravel 12 upgrade, with proven solutions based on real troubleshooting experience.
+This guide covers common issues encountered during Blazz development after the Laravel 12 upgrade, with proven solutions based on real troubleshooting experience.
 
 ## 🎯 Quick Diagnosis
 
@@ -252,16 +252,16 @@ mysql -h 127.0.0.1 -P 3306 -u root -p
 # Step 3: Verify database exists
 mysql -u root -p
 SHOW DATABASES;
-# Should list 'swiftchats' database
+# Should list 'blazz' database
 
 # Step 4: Create database if missing
-CREATE DATABASE swiftchats CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE blazz CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 # Step 5: Update .env with correct credentials
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306              # Or 8889 for MAMP
-DB_DATABASE=swiftchats
+DB_DATABASE=blazz
 DB_USERNAME=root
 DB_PASSWORD=your_password  # MAMP default is often 'root'
 
@@ -441,7 +441,7 @@ sudo chown -R www-data:www-data storage bootstrap/cache
 # Create monitoring script
 cat > scripts/monitor.sh << 'EOF'
 #!/bin/bash
-echo "SwiftChats Development Monitor"
+echo "Blazz Development Monitor"
 echo "=============================="
 
 # Check servers

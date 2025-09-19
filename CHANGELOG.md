@@ -1,18 +1,33 @@
 # 📝 CHANGELOG
 
-Dokumen ini mencatat seluruh perubahan, penambahan fitur, perbaikan bug, peningkatan keamanan, dan optimasi penting pada project Swiftchats. Setiap entri dirancang untuk memudahkan developer, QA, product manager, dan stakeholder menelusuri evolusi platform komunikasi bisnis WhatsApp ini.
+Dokumen ini mencatat seluruh perubahan, penambahan fitur, perbaikan bug, peningkatan keamanan, dan optimasi penting pada project Blazz. Setiap entri dirancang untuk memudahkan developer, QA, product manager, dan stakeholder menelusuri evolusi platform komunikasi bisnis WhatsApp ini.
 
-Swiftchats adalah enterprise multi-tenant chat platform yang mengintegrasikan WhatsApp Business API untuk komunikasi pelanggan yang efektif dengan fitur real-time messaging, template management, campaign automation, dan analytics mendalam.
+Blazz adalah enterprise multi-tenant chat platform yang mengintegrasikan WhatsApp Business API untuk komunikasi pelanggan yang efektif dengan fitur real-time messaging, template management, campaign automation, dan analytics mendalam.
 
 ---
 
 ## 🚀 RELEASES
 
+### Versi 1.3.0
+**MASSIVE REBRANDING: Swiftchat → Blazz**
+_19 September 2025 — Impact: High_
+
+Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan comprehensive update across all components, documentation, dan user interfaces. Semua functionality preserved dengan enhanced brand identity.
+
+**Major Changes:**
+- ✅ **Complete Brand Transformation**: All "Swiftchat" references updated to "Blazz"
+- 🌍 **Multilingual Consistency**: 6 language files updated dengan consistent branding
+- 📊 **Database Migration**: Seamless transition dari "swiftchats" database ke "blazz"
+- 🎨 **UI/UX Updates**: All frontend components reflect new Blazz branding
+- 📚 **Documentation Overhaul**: Complete documentation ecosystem updated
+
+---
+
 ### Versi 1.2.0
 **Laravel 12 Upgrade Success & Enterprise Security Enhancement**
 _19 September 2025 — Impact: High_
 
-Platform Swiftchats telah berhasil diupgrade ke Laravel 12.29.0 dengan peningkatan keamanan enterprise-grade dan optimasi performa yang signifikan. Update ini mencakup enhancement audit logging system, implementasi comprehensive security assessment, dan perbaikan arsitektur untuk mendukung scaling yang lebih baik.
+Platform Blazz telah berhasil diupgrade ke Laravel 12.29.0 dengan peningkatan keamanan enterprise-grade dan optimasi performa yang signifikan. Update ini mencakup enhancement audit logging system, implementasi comprehensive security assessment, dan perbaikan arsitektur untuk mendukung scaling yang lebih baik.
 
 **Major Enhancements:**
 - ✅ **Laravel Framework Upgrade**: Berhasil migrasi dari Laravel 11.x ke Laravel 12.29.0 dengan 100% compatibility rate
@@ -114,7 +129,7 @@ Implementasi comprehensive WhatsApp Business API integration dengan template man
 **Initial Multi-tenant Chat Platform Launch**
 _1 September 2025 — Impact: High_
 
-Peluncuran initial version dari Swiftchats sebagai multi-tenant enterprise chat platform dengan foundational features untuk WhatsApp business communication, user management, dan subscription billing system.
+Peluncuran initial version dari Blazz sebagai multi-tenant enterprise chat platform dengan foundational features untuk WhatsApp business communication, user management, dan subscription billing system.
 
 **Foundation Features:**
 - 🏢 **Multi-tenant Architecture**: Complete organization isolation dengan database partitioning
@@ -188,4 +203,4 @@ Peluncuran initial version dari Swiftchats sebagai multi-tenant enterprise chat 
 
 ---
 
-**Dokumentasi ini dikelola sesuai dengan panduan changelog Swiftchats dan mengikuti semantic versioning untuk konsistensi release management.**
+**Dokumentasi ini dikelola sesuai dengan panduan changelog Blazz dan mengikuti semantic versioning untuk konsistensi release management.**

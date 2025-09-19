@@ -35,38 +35,38 @@
 1) **Create Pre-Rebranding Backup:**
    ```bash
    # Full database backup dengan timestamp
-   mysqldump -u root -P 3306 swiftchats > swiftchats_backup_pre_rebrand_$(date +%Y%m%d_%H%M%S).sql
+   mysqldump -u root -P 3306 blazz > blazz_backup_pre_rebrand_$(date +%Y%m%d_%H%M%S).sql
    
    # Structure-only backup untuk comparison
-   mysqldump -u root -P 3306 --no-data swiftchats > swiftchats_structure_pre_rebrand.sql
+   mysqldump -u root -P 3306 --no-data blazz > blazz_structure_pre_rebrand.sql
    
    # Critical tables backup
-   mysqldump -u root -P 3306 swiftchats users organizations chats contacts > swiftchats_critical_tables_backup.sql
+   mysqldump -u root -P 3306 blazz users organizations chats contacts > blazz_critical_tables_backup.sql
    ```
 
 2) **Staging Environment Preparation:**
    ```bash
    # Create staging database
-   mysql -u root -P 3306 -e "CREATE DATABASE IF NOT EXISTS swiftchats_staging CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+   mysql -u root -P 3306 -e "CREATE DATABASE IF NOT EXISTS blazz_staging CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
    
    # Import staging data
-   mysql -u root -P 3306 swiftchats_staging < swiftchats_backup_pre_rebrand_*.sql
+   mysql -u root -P 3306 blazz_staging < blazz_backup_pre_rebrand_*.sql
    ```
 
 3) **Verification Tools Setup:**
    ```bash
    # Row count comparison script
    mysql -u root -P 3306 -e "
-   SELECT COUNT(*) as users_count FROM swiftchats.users;
-   SELECT COUNT(*) as orgs_count FROM swiftchats.organizations;
-   SELECT COUNT(*) as chats_count FROM swiftchats.chats;
-   SELECT COUNT(*) as contacts_count FROM swiftchats.contacts;
+   SELECT COUNT(*) as users_count FROM blazz.users;
+   SELECT COUNT(*) as orgs_count FROM blazz.organizations;
+   SELECT COUNT(*) as chats_count FROM blazz.chats;
+   SELECT COUNT(*) as contacts_count FROM blazz.contacts;
    " > pre_rebrand_counts.txt
    ```
 
 ## EXPECTED OUTPUT:
 - **BE:** Complete database backups dengan verified integrity
-- **DB:** swiftchats_staging ready untuk testing
+- **DB:** blazz_staging ready untuk testing
 - **Infra:** Backup verification scripts created
 - **QA:** Pre-rebranding baseline data counts documented
 
@@ -83,10 +83,10 @@
 - **Staging Test:** Full application functional di staging environment
 
 ## ARTIFACTS/FILES:** 
-- swiftchats_backup_pre_rebrand_YYYYMMDD_HHMMSS.sql
-- swiftchats_structure_pre_rebrand.sql  
+- blazz_backup_pre_rebrand_YYYYMMDD_HHMMSS.sql
+- blazz_structure_pre_rebrand.sql  
 - pre_rebrand_counts.txt
-- swiftchats_staging database
+- blazz_staging database
 
 ## DEPENDENCIES: None (initial task)
 
@@ -106,7 +106,7 @@
 **Source Implementation:**
 - **File:** .env, config/app.php, config/cache.php, config/session.php
 - **Method to Duplicate:** Environment variable approach dari Laravel standard
-- **Adaptations Required:** Change APP_NAME dari "Swiftchats" ke "Blazz", DB_DATABASE dari "swiftchats" ke "blazz"
+- **Adaptations Required:** Change APP_NAME dari "Blazz" ke "Blazz", DB_DATABASE dari "blazz" ke "blazz"
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
 1) **Update Environment Variables:**
@@ -115,10 +115,10 @@
    cp .env .env.backup_pre_rebrand
    
    # Update APP_NAME
-   sed -i '' 's/APP_NAME=Swiftchats/APP_NAME=Blazz/' .env
+   sed -i '' 's/APP_NAME=Blazz/APP_NAME=Blazz/' .env
    
    # Update DB_DATABASE  
-   sed -i '' 's/DB_DATABASE=swiftchats/DB_DATABASE=blazz/' .env
+   sed -i '' 's/DB_DATABASE=blazz/DB_DATABASE=blazz/' .env
    ```
 
 2) **Verify Configuration Propagation:**
@@ -148,14 +148,14 @@
 
 ## PREDICTED IMPLEMENTATION CHALLENGES
 **Challenge 1:** Cache conflicts dari old prefixes
-- **Prediction Basis:** Existing cached data dengan swiftchats_ prefix
+- **Prediction Basis:** Existing cached data dengan blazz_ prefix
 - **Prevention:** Complete cache clear sebelum dan setelah configuration change
 - **Verification:** php artisan cache:clear && Redis FLUSHALL if using Redis
 
 ## VERIFICATION EVIDENCE (MANDATORY)
 **Success Criteria with Evidence:**
 - **Config Test:** php artisan config:show menunjukkan "Blazz" sebagai app.name
-- **Cache Test:** Cache prefix berubah dari "swiftchats_cache_" ke "blazz_cache_"
+- **Cache Test:** Cache prefix berubah dari "blazz_cache_" ke "blazz_cache_"
 - **Session Test:** Session cookie name berubah ke "blazz_session"
 
 ## ARTIFACTS/FILES:**
@@ -197,7 +197,7 @@
 2) **English Language Updates:**
    ```bash
    # Update English references
-   sed -i '' 's/Swiftchats/Blazz/g' lang/en.json
+   sed -i '' 's/Blazz/Blazz/g' lang/en.json
    sed -i '' 's/swift and effective communication/fast and effective communication/g' lang/en.json
    sed -i '' 's/swift message delivery/fast message delivery/g' lang/en.json
    ```
@@ -205,37 +205,37 @@
 3) **Indonesian Language Updates:**
    ```bash
    # Indonesian sudah menggunakan "cepat" yang appropriate, hanya update app name
-   sed -i '' 's/Swiftchats/Blazz/g' lang/id.json
+   sed -i '' 's/Blazz/Blazz/g' lang/id.json
    # "komunikasi yang cepat dan efektif" sudah appropriate, tidak perlu changed
    ```
 
 4) **Spanish Language Updates:**
    ```bash
    # Update Spanish, "rápida" sudah appropriate
-   sed -i '' 's/Swiftchats/Blazz/g' lang/es.json
+   sed -i '' 's/Blazz/Blazz/g' lang/es.json
    # "comunicación rápida y efectiva" appropriate, tidak perlu changed
    ```
 
 5) **French Language Updates:**
    ```bash
-   sed -i '' 's/Swiftchats/Blazz/g' lang/fr.json
+   sed -i '' 's/Blazz/Blazz/g' lang/fr.json
    # "communication rapide et efficace" appropriate
    ```
 
 6) **Turkish Language Updates:**
    ```bash
-   sed -i '' 's/Swiftchats/Blazz/g' lang/tr.json
+   sed -i '' 's/Blazz/Blazz/g' lang/tr.json
    # "hızlı ve etkili iletişim" appropriate
    ```
 
 7) **Swahili Language Updates:**
    ```bash
-   sed -i '' 's/Swiftchats/Blazz/g' lang/sw.json
+   sed -i '' 's/Blazz/Blazz/g' lang/sw.json
    # Maintain existing translation patterns
    ```
 
 ## EXPECTED OUTPUT:
-- **FE:** All UI text menampilkan "Blazz" instead of "Swiftchats"
+- **FE:** All UI text menampilkan "Blazz" instead of "Blazz"
 - **BE:** i18n system serving updated translations
 - **DB:** no change required
 - **Infra:** Language files updated consistently
@@ -270,13 +270,13 @@
 
 ## TASK-4: Frontend Vue.js Components Update
 - **Referencing:** docs/massive-rebranding/requirements.md (REQ-1), docs/massive-rebranding/design.md (DES-2)
-- **Scope:** Update Vue.js components dengan hardcoded "Swiftchats" references
+- **Scope:** Update Vue.js components dengan hardcoded "Blazz" references
 
 ## EXISTING PATTERN DUPLICATION (MANDATORY)
 **Source Implementation:**
 - **File:** resources/js/Pages/Admin/Setting/Updates.vue lines 4, 22, 34, 104
 - **Method to Duplicate:** Vue.js template text replacement pattern
-- **Adaptations Required:** Replace hardcoded "Swiftchats" dengan "Blazz" dalam template sections
+- **Adaptations Required:** Replace hardcoded "Blazz" dengan "Blazz" dalam template sections
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
 1) **Backup Frontend Files:**
@@ -288,20 +288,20 @@
 2) **Update Admin Settings Pages:**
    ```bash
    # Update Updates.vue
-   sed -i '' 's/Swiftchats Updates/Blazz Updates/g' resources/js/Pages/Admin/Setting/Updates.vue
-   sed -i '' 's/latest version of Swiftchats/latest version of Blazz/g' resources/js/Pages/Admin/Setting/Updates.vue
-   sed -i '' 's/updating Swiftchats/updating Blazz/g' resources/js/Pages/Admin/Setting/Updates.vue
-   sed -i '' 's/alt="Swiftchats Logo"/alt="Blazz Logo"/g' resources/js/Pages/Admin/Setting/Updates.vue
+   sed -i '' 's/Blazz Updates/Blazz Updates/g' resources/js/Pages/Admin/Setting/Updates.vue
+   sed -i '' 's/latest version of Blazz/latest version of Blazz/g' resources/js/Pages/Admin/Setting/Updates.vue
+   sed -i '' 's/updating Blazz/updating Blazz/g' resources/js/Pages/Admin/Setting/Updates.vue
+   sed -i '' 's/alt="Blazz Logo"/alt="Blazz Logo"/g' resources/js/Pages/Admin/Setting/Updates.vue
    ```
 
 3) **Update Installer Pages:**
    ```bash
    # Update Installer Index
-   sed -i '' 's/<h4 class="text-2xl mb-2 text-center">Swiftchats<\/h4>/<h4 class="text-2xl mb-2 text-center">Blazz<\/h4>/g' resources/js/Pages/Installer/Index.vue
-   sed -i '' 's/Welcome to the Swiftchats installation wizard/Welcome to the Blazz installation wizard/g' resources/js/Pages/Installer/Index.vue
+   sed -i '' 's/<h4 class="text-2xl mb-2 text-center">Blazz<\/h4>/<h4 class="text-2xl mb-2 text-center">Blazz<\/h4>/g' resources/js/Pages/Installer/Index.vue
+   sed -i '' 's/Welcome to the Blazz installation wizard/Welcome to the Blazz installation wizard/g' resources/js/Pages/Installer/Index.vue
    
    # Update Installer Update page
-   sed -i '' 's/<h4 class="text-2xl mb-2 text-center">Swiftchats<\/h4>/<h4 class="text-2xl mb-2 text-center">Blazz<\/h4>/g' resources/js/Pages/Installer/Update.vue
+   sed -i '' 's/<h4 class="text-2xl mb-2 text-center">Blazz<\/h4>/<h4 class="text-2xl mb-2 text-center">Blazz<\/h4>/g' resources/js/Pages/Installer/Update.vue
    ```
 
 4) **Update Frontend Landing Page:**
@@ -363,7 +363,7 @@
 **Source Implementation:**
 - **File:** CHANGELOG.md lines 3, 5, 15, README.md security section
 - **Method to Duplicate:** Markdown content update pattern
-- **Adaptations Required:** Replace all "Swiftchats" references dengan "Blazz" while maintaining historical context
+- **Adaptations Required:** Replace all "Blazz" references dengan "Blazz" while maintaining historical context
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
 1) **Backup Documentation:**
@@ -387,7 +387,7 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 **Major Changes:**\
 - ✅ **Complete Brand Transformation**: All "Swiftchat" references updated to "Blazz"\
 - 🌍 **Multilingual Consistency**: 6 language files updated dengan consistent branding\
-- 📊 **Database Migration**: Seamless transition dari "swiftchats" database ke "blazz"\
+- 📊 **Database Migration**: Seamless transition dari "blazz" database ke "blazz"\
 - 🎨 **UI/UX Updates**: All frontend components reflect new Blazz branding\
 - 📚 **Documentation Overhaul**: Complete documentation ecosystem updated\
 \
@@ -395,30 +395,30 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 ' CHANGELOG.md
    
    # Update existing references (but preserve historical context dalam older versions)
-   sed -i '' 's/project Swiftchats/project Blazz/g' CHANGELOG.md
-   sed -i '' 's/platform Swiftchats/platform Blazz/g' CHANGELOG.md
-   sed -i '' 's/Swiftchats adalah/Blazz adalah/g' CHANGELOG.md
+   sed -i '' 's/project Blazz/project Blazz/g' CHANGELOG.md
+   sed -i '' 's/platform Blazz/platform Blazz/g' CHANGELOG.md
+   sed -i '' 's/Blazz adalah/Blazz adalah/g' CHANGELOG.md
    ```
 
 3) **Update README.md:**
    ```bash
    # Update README dengan new branding
-   sed -i '' 's/# Swiftchats - Security Hardened Version/# Blazz - Security Hardened Version/g' README.md
+   sed -i '' 's/# Blazz - Security Hardened Version/# Blazz - Security Hardened Version/g' README.md
    sed -i '' 's/hardened version prioritizes/This Blazz hardened version prioritizes/g' README.md
    ```
 
 4) **Update docs/ Folder Files:**
    ```bash
    # Update all markdown files dalam docs/
-   find docs/ -name "*.md" -exec sed -i '' 's/Swiftchats/Blazz/g' {} \;
-   find docs/ -name "*.md" -exec sed -i '' 's/swiftchats/blazz/g' {} \;
-   find docs/ -name "*.md" -exec sed -i '' 's/SwiftChats/Blazz/g' {} \;
+   find docs/ -name "*.md" -exec sed -i '' 's/Blazz/Blazz/g' {} \;
+   find docs/ -name "*.md" -exec sed -i '' 's/blazz/blazz/g' {} \;
+   find docs/ -name "*.md" -exec sed -i '' 's/Blazz/Blazz/g' {} \;
    ```
 
 5) **Update Documentation References:**
    ```bash
-   # Update file path references yang mengandung Swiftchats
-   find docs/ -name "*.md" -exec sed -i '' 's/\/Applications\/MAMP\/htdocs\/Swiftchats/\/Applications\/MAMP\/htdocs\/Blazz/g' {} \;
+   # Update file path references yang mengandung Blazz
+   find docs/ -name "*.md" -exec sed -i '' 's/\/Applications\/MAMP\/htdocs\/Blazz/\/Applications\/MAMP\/htdocs\/Blazz/g' {} \;
    ```
 
 ## EXPECTED OUTPUT:
@@ -458,13 +458,13 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 
 ## TASK-6: Database Migration & Content Update
 - **Referencing:** docs/massive-rebranding/requirements.md (REQ-3), docs/massive-rebranding/design.md (DES-3)
-- **Scope:** Migrate database dari "swiftchats" ke "blazz" dan update relevant content
+- **Scope:** Migrate database dari "blazz" ke "blazz" dan update relevant content
 
 ## EXISTING PATTERN DUPLICATION (MANDATORY)
 **Source Implementation:**
 - **File:** docs/restore-notes.md lines 10, 14 (database creation dan import patterns)
 - **Method to Duplicate:** MySQL database creation dan data migration approach
-- **Adaptations Required:** Create "blazz" database dan migrate data dari "swiftchats"
+- **Adaptations Required:** Create "blazz" database dan migrate data dari "blazz"
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
 1) **Create New Database:**
@@ -478,8 +478,8 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 
 2) **Data Migration:**
    ```bash
-   # Export from swiftchats  
-   mysqldump -u root -P 3306 swiftchats > temp_migration_dump.sql
+   # Export from blazz  
+   mysqldump -u root -P 3306 blazz > temp_migration_dump.sql
    
    # Import to blazz
    mysql -u root -P 3306 blazz < temp_migration_dump.sql
@@ -508,8 +508,8 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
    
    # Check table structure
    mysql -u root -P 3306 -e "USE blazz; SHOW TABLES;" > blazz_tables.txt
-   mysql -u root -P 3306 -e "USE swiftchats; SHOW TABLES;" > swiftchats_tables.txt
-   diff swiftchats_tables.txt blazz_tables.txt
+   mysql -u root -P 3306 -e "USE blazz; SHOW TABLES;" > blazz_tables.txt
+   diff blazz_tables.txt blazz_tables.txt
    ```
 
 ## EXPECTED OUTPUT:
@@ -553,9 +553,9 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 
 ## EXISTING PATTERN DUPLICATION (MANDATORY)
 **Source Implementation:**
-- **File:** package-lock.json line 2 ("name": "Swiftchats")
+- **File:** package-lock.json line 2 ("name": "Blazz")
 - **Method to Duplicate:** NPM package naming convention
-- **Adaptations Required:** Update package name dari "Swiftchats" ke "Blazz"
+- **Adaptations Required:** Update package name dari "Blazz" ke "Blazz"
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
 1) **Backup Package Files:**
@@ -569,14 +569,14 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
    # Note: package.json doesn't have explicit name field dalam current project
    # Verify dan update if needed
    if grep -q '"name"' package.json; then
-     sed -i '' 's/"name": "Swiftchats"/"name": "Blazz"/g' package.json
+     sed -i '' 's/"name": "Blazz"/"name": "Blazz"/g' package.json
    fi
    ```
 
 3) **Update package-lock.json:**
    ```bash
    # Update name field dalam package-lock.json
-   sed -i '' 's/"name": "Swiftchats"/"name": "Blazz"/g' package-lock.json
+   sed -i '' 's/"name": "Blazz"/"name": "Blazz"/g' package-lock.json
    ```
 
 4) **Regenerate Package Lock:**
@@ -625,18 +625,18 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 
 ## TASK-8: SQL Dump File Update
 - **Referencing:** docs/massive-rebranding/requirements.md (REQ-3), docs/massive-rebranding/design.md (DES-3)
-- **Scope:** Update swiftchats.sql file untuk reflect new "blazz" database name
+- **Scope:** Update blazz.sql file untuk reflect new "blazz" database name
 
 ## EXISTING PATTERN DUPLICATION (MANDATORY)
 **Source Implementation:**
-- **File:** swiftchats.sql lines 1-25 (database definition dan structure)
+- **File:** blazz.sql lines 1-25 (database definition dan structure)
 - **Method to Duplicate:** MySQL dump file structure
-- **Adaptations Required:** Replace "swiftchats" database references dengan "blazz"
+- **Adaptations Required:** Replace "blazz" database references dengan "blazz"
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
 1) **Backup Original SQL File:**
    ```bash
-   cp swiftchats.sql swiftchats.sql.backup_pre_rebrand
+   cp blazz.sql blazz.sql.backup_pre_rebrand
    ```
 
 2) **Generate New SQL Dump:**
@@ -652,15 +652,15 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 3) **Update SQL File Headers:**
    ```bash
    # Update database name dalam comments dan headers
-   sed -i '' 's/Database: `swiftchats`/Database: `blazz`/g' blazz.sql
-   sed -i '' 's/-- Database: swiftchats/-- Database: blazz/g' blazz.sql
+   sed -i '' 's/Database: `blazz`/Database: `blazz`/g' blazz.sql
+   sed -i '' 's/-- Database: blazz/-- Database: blazz/g' blazz.sql
    ```
 
 4) **Create Consistency dengan Documentation:**
    ```bash
    # Update docs/restore-notes.md untuk reflect new file name
-   sed -i '' 's/swiftchats.sql/blazz.sql/g' docs/restore-notes.md
-   sed -i '' 's/swiftchats database/blazz database/g' docs/restore-notes.md
+   sed -i '' 's/blazz.sql/blazz.sql/g' docs/restore-notes.md
+   sed -i '' 's/blazz database/blazz database/g' docs/restore-notes.md
    ```
 
 5) **Verify SQL File Functionality:**
@@ -697,7 +697,7 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 
 ## ARTIFACTS/FILES:**
 - blazz.sql (new database dump)
-- swiftchats.sql.backup_pre_rebrand
+- blazz.sql.backup_pre_rebrand
 - Updated docs/restore-notes.md
 
 ## DEPENDENCIES: TASK-6 (database migration completed)
@@ -768,12 +768,12 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 
 5) **Documentation Consistency Check:**
    ```bash
-   # Check untuk any remaining "Swiftchats" references
-   echo "Checking for remaining Swiftchats references:"
-   find . -type f -name "*.md" -exec grep -l "Swiftchats" {} \; | grep -v backup | head -10
+   # Check untuk any remaining "Blazz" references
+   echo "Checking for remaining Blazz references:"
+   find . -type f -name "*.md" -exec grep -l "Blazz" {} \; | grep -v backup | head -10
    
-   # Check untuk any remaining "swiftchats" database references  
-   find . -type f \( -name "*.php" -o -name "*.env" -o -name "*.json" \) -exec grep -l "swiftchats" {} \; | grep -v backup | head -10
+   # Check untuk any remaining "blazz" database references  
+   find . -type f \( -name "*.php" -o -name "*.env" -o -name "*.json" \) -exec grep -l "blazz" {} \; | grep -v backup | head -10
    ```
 
 6) **Functional Testing:**
@@ -805,7 +805,7 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 - **Config Test:** APP_NAME shows "Blazz", DB connection shows "blazz"
 - **Frontend Test:** All major pages display "Blazz" correctly
 - **Language Test:** All language files valid JSON dengan proper translations
-- **Search Test:** No unwanted "Swiftchats" references remain
+- **Search Test:** No unwanted "Blazz" references remain
 - **Functional Test:** Core application features work normally
 
 ## ARTIFACTS/FILES:**
@@ -911,7 +911,7 @@ Platform telah undergone complete rebranding dari Swiftchat menjadi Blazz dengan
 
 ## PREDICTED IMPLEMENTATION CHALLENGES
 **Challenge 1:** User confusion from sudden rebranding
-- **Prediction Basis:** Users familiar dengan Swiftchats branding
+- **Prediction Basis:** Users familiar dengan Blazz branding
 - **Prevention:** Clear communication dan user announcements
 - **Verification:** Monitor user feedback dan support requests
 

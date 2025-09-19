@@ -64,10 +64,10 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# Swiftchats - Security Hardened Version
+# Blazz - Security Hardened Version
 
 ## Security Notice
-This version has been completely cleaned of all external dependencies and backdoors that could pose security risks in production environments.
+This Blazz hardened version prioritizes security in production environments.
 
 ## Security Changes Made
 

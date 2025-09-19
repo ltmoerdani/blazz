@@ -1,8 +1,8 @@
-# 🔄 SwiftChats Development Workflow Guide
+# 🔄 Blazz Development Workflow Guide
 
 ## 📋 Overview
 
-This guide outlines best practices for developing SwiftChats with Laravel 12, covering daily workflows, debugging techniques, performance monitoring, and team collaboration patterns.
+This guide outlines best practices for developing Blazz with Laravel 12, covering daily workflows, debugging techniques, performance monitoring, and team collaboration patterns.
 
 ## 🚀 Daily Development Workflow
 
@@ -10,7 +10,7 @@ This guide outlines best practices for developing SwiftChats with Laravel 12, co
 
 ```bash
 # 1. Navigate to project
-cd /Applications/MAMP/htdocs/Swiftchats
+cd /Applications/MAMP/htdocs/Blazz
 
 # 2. Check system status
 php artisan about
@@ -310,7 +310,7 @@ APP_URL=http://127.0.0.1:8000
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=swiftchats_dev
+DB_DATABASE=blazz_dev
 
 CACHE_DRIVER=file
 SESSION_DRIVER=file
@@ -516,4 +516,4 @@ php artisan make:listener TrackFeatureUsage
 5. **Document as you code** for team collaboration
 6. **Profile before optimizing** to identify real bottlenecks
 
-**🚀 Happy Coding!** With Laravel 12 and modern tooling, SwiftChats development is faster and more reliable than ever!
+**🚀 Happy Coding!** With Laravel 12 and modern tooling, Blazz development is faster and more reliable than ever!
