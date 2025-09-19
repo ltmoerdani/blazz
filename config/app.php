@@ -2,8 +2,8 @@
 
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\ServiceProvider;
-//use Modules\EmbeddedSignup\Providers\EmbeddedSignupServiceProvider;
-//use Modules\Clickpay\Providers\ClickpayServiceProvider;
+//* use Modules\EmbeddedSignup\Providers\EmbeddedSignupServiceProvider;
+//* use Modules\Clickpay\Providers\ClickpayServiceProvider;
 
 // Define the providers array separately
 $providers = [
@@ -21,37 +21,39 @@ $providers = [
     Mews\Purifier\PurifierServiceProvider::class,
 ];
 
-// Conditionally add EmbeddedSignupServiceProvider if it exists
-if (is_dir(base_path('modules/EmbeddedSignup')) && class_exists(\Modules\EmbeddedSignup\Providers\EmbeddedSignupServiceProvider::class)){
-    $providers[] = \Modules\EmbeddedSignup\Providers\EmbeddedSignupServiceProvider::class;
+// Conditionally add module service providers if they exist
+// Using string literals instead of ::class to avoid Intelephense P1009 errors
+// for modules that may not be installed yet but need to be preserved for future use
+if (is_dir(base_path('modules/EmbeddedSignup')) && class_exists('Modules\EmbeddedSignup\Providers\EmbeddedSignupServiceProvider')){
+    $providers[] = 'Modules\EmbeddedSignup\Providers\EmbeddedSignupServiceProvider';
 }
 
-if (is_dir(base_path('modules/Clickpaysa')) && class_exists(\Modules\Clickpaysa\Providers\ClickpayServiceProvider::class)) {
-    $providers[] = \Modules\Clickpaysa\Providers\ClickpayServiceProvider::class;
+if (is_dir(base_path('modules/Clickpaysa')) && class_exists('Modules\Clickpaysa\Providers\ClickpayServiceProvider')) {
+    $providers[] = 'Modules\Clickpaysa\Providers\ClickpayServiceProvider';
 }
 
-if (is_dir(base_path('modules/Razorpay')) && class_exists(\Modules\Razorpay\Providers\RazorpayServiceProvider::class)) {
-    $providers[] = \Modules\Razorpay\Providers\RazorpayServiceProvider::class;
+if (is_dir(base_path('modules/Razorpay')) && class_exists('Modules\Razorpay\Providers\RazorpayServiceProvider')) {
+    $providers[] = 'Modules\Razorpay\Providers\RazorpayServiceProvider';
 }
 
-if (is_dir(base_path('modules/IntelliReply')) && class_exists(\Modules\IntelliReply\Providers\IntelliServiceProvider::class)) {
-    $providers[] = \Modules\IntelliReply\Providers\IntelliServiceProvider::class;
+if (is_dir(base_path('modules/IntelliReply')) && class_exists('Modules\IntelliReply\Providers\IntelliServiceProvider')) {
+    $providers[] = 'Modules\IntelliReply\Providers\IntelliServiceProvider';
 }
 
-if (is_dir(base_path('modules/FlowBuilder')) && class_exists(\Modules\FlowBuilder\Providers\FlowBuilderServiceProvider::class)) {
-    $providers[] = \Modules\FlowBuilder\Providers\FlowBuilderServiceProvider::class;
+if (is_dir(base_path('modules/FlowBuilder')) && class_exists('Modules\FlowBuilder\Providers\FlowBuilderServiceProvider')) {
+    $providers[] = 'Modules\FlowBuilder\Providers\FlowBuilderServiceProvider';
 }
 
-if (is_dir(base_path('modules/SocketIo')) && class_exists(\Modules\SocketIo\Providers\SocketIoServiceProvider::class)) {
-    $providers[] = \Modules\SocketIo\Providers\SocketIoServiceProvider::class;
+if (is_dir(base_path('modules/SocketIo')) && class_exists('Modules\SocketIo\Providers\SocketIoServiceProvider')) {
+    $providers[] = 'Modules\SocketIo\Providers\SocketIoServiceProvider';
 }
 
-if (is_dir(base_path('modules/Webhook')) && class_exists(\Modules\Webhook\Providers\WebhookServiceProvider::class)) {
-    $providers[] = \Modules\Webhook\Providers\WebhookServiceProvider::class;
+if (is_dir(base_path('modules/Webhook')) && class_exists('Modules\Webhook\Providers\WebhookServiceProvider')) {
+    $providers[] = 'Modules\Webhook\Providers\WebhookServiceProvider';
 }
 
-if (is_dir(base_path('modules/Pabbly')) && class_exists(\Modules\Pabbly\Providers\PabblyServiceProvider::class)) {
-    $providers[] = \Modules\Pabbly\Providers\PabblyServiceProvider::class;
+if (is_dir(base_path('modules/Pabbly')) && class_exists('Modules\Pabbly\Providers\PabblyServiceProvider')) {
+    $providers[] = 'Modules\Pabbly\Providers\PabblyServiceProvider';
 }
 
 return [

@@ -1,29 +1,29 @@
 Restore summary
 
-- Database: `swiftchats`
-- Source SQL: `swiftchats.sql` (path: `/Applications/MAMP/htdocs/Swiftchats/swiftchats.sql`)
+- Database: `blazz`
+- Source SQL: `blazz.sql` (path: `/Applications/MAMP/htdocs/Blazz/blazz.sql`)
 
 Commands yang saya jalankan di environment ini:
 
 1) Buat database jika belum ada
 
-mysql -u root -P 3306 -e "CREATE DATABASE IF NOT EXISTS swiftchats CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -P 3306 -e "CREATE DATABASE IF NOT EXISTS blazz CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 2) Import dump
 
-mysql -u root -P 3306 swiftchats < /Applications/MAMP/htdocs/Swiftchats/swiftchats.sql
+mysql -u root -P 3306 blazz < /Applications/MAMP/htdocs/Blazz/blazz.sql
 
 Hasil verifikasi singkat:
 - Tabel muncul (contoh: `users`, `organizations`, `chats`, `contacts`, `campaigns`, dll.)
-- Contoh query verifikasi: SELECT COUNT(*) FROM swiftchats.users; => [jumlah user]
-- Verifikasi tabel utama: SELECT COUNT(*) FROM swiftchats.organizations; => [jumlah org]
+- Contoh query verifikasi: SELECT COUNT(*) FROM blazz.users; => [jumlah user]
+- Verifikasi tabel utama: SELECT COUNT(*) FROM blazz.organizations; => [jumlah org]
 
 Catatan dan alternatif:
 - Jika MySQL Anda memerlukan password, gunakan flag `-p` dan masukkan password bila diminta:
-  mysql -u <user> -p -P 3306 -e "CREATE DATABASE IF NOT EXISTS swiftchats ..."
-  mysql -u <user> -p -P 3306 swiftchats < swiftchats.sql
+  mysql -u <user> -p -P 3306 -e "CREATE DATABASE IF NOT EXISTS blazz ..."
+  mysql -u <user> -p -P 3306 blazz < blazz.sql
 - Jika Anda menjalankan MySQL via MAMP, port default MySQL MAMP biasanya 8889 (bukan 3306) — sesuaikan `-P` atau koneksi socket.
-- Untuk MAMP dengan socket connection: mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock swiftchats < swiftchats.sql
+- Untuk MAMP dengan socket connection: mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock blazz < blazz.sql
 - Jika Anda perlu saya jalankan import dengan credentials lain, beri tahu user/port/password dan saya jalankan perintah sesuai.
 
 ## 📤 Cara Dump/Backup Database
@@ -31,15 +31,15 @@ Catatan dan alternatif:
 ### Perintah Dump Dasar (Standard MySQL - Port 3306):
 ```bash
 # Full backup dengan data lengkap
-mysqldump -u root -P 3306 swiftchats > swiftchats_backup_$(date +%Y%m%d_%H%M%S).sql
-mysqldump -u root -P 3306 swiftchats > swiftchats_bak.sql
+mysqldump -u root -P 3306 blazz > blazz_backup_$(date +%Y%m%d_%H%M%S).sql
+mysqldump -u root -P 3306 blazz > blazz_bak.sql
 
 # Backup dengan password
-mysqldump -u root -p -P 3306 swiftchats > swiftchats_backup.sql
-mysqldump -u root -p'your_password' -P 3306 swiftchats > swiftchats_backup.sql
+mysqldump -u root -p -P 3306 blazz > blazz_backup.sql
+mysqldump -u root -p'your_password' -P 3306 blazz > blazz_backup.sql
 
 # Backup untuk MAMP dengan socket
-mysqldump -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock swiftchats > swiftchats_backup.sql
+mysqldump -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock blazz > blazz_backup.sql
 ```
 
 ### Opsi Dump Lengkap:
@@ -50,57 +50,57 @@ mysqldump -u root -P 3306 \
   --routines \
   --triggers \
   --add-drop-table \
-  swiftchats > swiftchats_full_backup.sql
+  blazz > blazz_full_backup.sql
 
 # Hanya struktur tabel (tanpa data)
-mysqldump -u root -P 3306 --no-data swiftchats > swiftchats_structure_only.sql
+mysqldump -u root -P 3306 --no-data blazz > blazz_structure_only.sql
 
 # Backup tabel tertentu
-mysqldump -u root -P 3306 swiftchats users > users_backup.sql
-mysqldump -u root -P 3306 swiftchats users organizations chats > core_tables.sql
+mysqldump -u root -P 3306 blazz users > users_backup.sql
+mysqldump -u root -P 3306 blazz users organizations chats > core_tables.sql
 
 # Backup dengan MAMP socket
 mysqldump -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock \
   --single-transaction \
   --routines \
   --triggers \
-  swiftchats > swiftchats_full_backup.sql
+  blazz > blazz_full_backup.sql
 ```
 
 ### Backup dengan Kompresi (untuk file besar):
 ```bash
 # Backup terkompresi
-mysqldump -u root -P 3306 swiftchats | gzip > swiftchats_backup.sql.gz
+mysqldump -u root -P 3306 blazz | gzip > blazz_backup.sql.gz
 
 # Backup terkompresi dengan MAMP socket
-mysqldump -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock swiftchats | gzip > swiftchats_backup.sql.gz
+mysqldump -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock blazz | gzip > blazz_backup.sql.gz
 
 # Restore dari file terkompresi
-gunzip < swiftchats_backup.sql.gz | mysql -u root -P 3306 swiftchats
+gunzip < blazz_backup.sql.gz | mysql -u root -P 3306 blazz
 
 # Restore dengan socket
-gunzip < swiftchats_backup.sql.gz | mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock swiftchats
+gunzip < blazz_backup.sql.gz | mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock blazz
 ```
 
 ### Alternatif untuk MAMP (Port 8889):
 ```bash
 # Jika menggunakan MAMP dengan port default 8889
-mysqldump -u root -P 8889 swiftchats > swiftchats_backup_mamp.sql
+mysqldump -u root -P 8889 blazz > blazz_backup_mamp.sql
 
 # Dengan password untuk MAMP
-mysqldump -u root -p -P 8889 swiftchats > swiftchats_backup_mamp.sql
+mysqldump -u root -p -P 8889 blazz > blazz_backup_mamp.sql
 
 # Menggunakan socket MAMP (lebih reliable)
-mysqldump -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock swiftchats > swiftchats_backup_socket.sql
+mysqldump -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock blazz > blazz_backup_socket.sql
 
 # Import dengan socket MAMP
-mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock swiftchats < swiftchats_backup.sql
+mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock blazz < blazz_backup.sql
 ```
 
 ### Verifikasi Backup:
 ```bash
 # Cek ukuran file backup
-ls -lh swiftchats_backup_*.sql
+ls -lh blazz_backup_*.sql
 
 # Cek jumlah tabel dalam backup
 grep "CREATE TABLE" nama_file.sql | wc -l
@@ -109,13 +109,13 @@ grep "CREATE TABLE" nama_file.sql | wc -l
 head -20 nama_file.sql
 
 # Verifikasi database setelah restore
-mysql -u root -P 3306 -e "USE swiftchats; SHOW TABLES;"
-mysql -u root -P 3306 -e "SELECT COUNT(*) FROM swiftchats.users;"
-mysql -u root -P 3306 -e "SELECT COUNT(*) FROM swiftchats.organizations;"
-mysql -u root -P 3306 -e "SELECT COUNT(*) FROM swiftchats.chats;"
+mysql -u root -P 3306 -e "USE blazz; SHOW TABLES;"
+mysql -u root -P 3306 -e "SELECT COUNT(*) FROM blazz.users;"
+mysql -u root -P 3306 -e "SELECT COUNT(*) FROM blazz.organizations;"
+mysql -u root -P 3306 -e "SELECT COUNT(*) FROM blazz.chats;"
 
 # Verifikasi dengan socket MAMP
-mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock -e "USE swiftchats; SHOW TABLES;"
+mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock -e "USE blazz; SHOW TABLES;"
 ```
 
 ### Tips Backup:
@@ -124,10 +124,10 @@ mysql -u root --socket=/Applications/MAMP/tmp/mysql/mysql.sock -e "USE swiftchat
 - Simpan backup di lokasi yang aman dan terpisah
 - Test restore backup secara berkala untuk memastikan integritas
 - Untuk database besar, gunakan opsi `--single-transaction` untuk menghindari locking
-- **Swiftchats Specific**: Backup juga file uploads di `/public/uploads/` dan storage files
+- **Blazz Specific**: Backup juga file uploads di `/public/uploads/` dan storage files
 - **Security**: Jangan commit file .env yang berisi database credentials ke git repository
 
-### Environment Setup untuk Swiftchats:
+### Environment Setup untuk Blazz:
 ```bash
 # Copy environment file
 cp .env.laravel12.backup .env
@@ -139,7 +139,7 @@ php artisan key:generate
 DB_CONNECTION=mysql
 DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=swiftchats
+DB_DATABASE=blazz
 DB_USERNAME=root
 DB_PASSWORD=
 DB_SOCKET=/Applications/MAMP/tmp/mysql/mysql.sock
@@ -154,10 +154,10 @@ chmod -R 644 storage/logs
 ```
 
 ### File Backup Terbaru:
-- `swiftchats_backup_20250918_103000.sql` - Full backup lengkap database Swiftchats
-- `swiftchats_structure_only.sql` - Struktur tabel saja tanpa data
-- `swiftchats_full_backup.sql` - Full backup dengan routines & triggers
-- `swiftchats.sql` - File SQL original untuk restore database
+- `blazz_backup_20250918_103000.sql` - Full backup lengkap database Blazz
+- `blazz_structure_only.sql` - Struktur tabel saja tanpa data
+- `blazz_full_backup.sql` - Full backup dengan routines & triggers
+- `blazz.sql` - File SQL original untuk restore database
 
 ### Laravel Artisan Commands untuk Post-Restore:
 ```bash
@@ -176,6 +176,6 @@ php artisan schedule:run                # Test scheduled jobs
 
 Tanggal restore: 2025-09-18
 Tanggal update dokumentasi backup: 2025-09-18
-Project: Swiftchats - Laravel Chat Application
-Database: swiftchats
+Project: Blazz - Laravel Chat Application
+Database: blazz
 Environment: MAMP local development

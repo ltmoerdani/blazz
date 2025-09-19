@@ -714,4 +714,4 @@
 - **Database: contacts table** - phone VARCHAR(255) field (format may change)
 - **Routes: web.php** - 18+ WhatsApp-related endpoints identified
 - **Frontend: 15 Vue components** - Complete component inventory with impact analysis</content>
-<parameter name="filePath">/Applications/MAMP/htdocs/Swiftchats/docs/whatsapp-migration/requirements.md
+<parameter name="filePath">/Applications/MAMP/htdocs/Blazz/docs/whatsapp-migration/requirements.md

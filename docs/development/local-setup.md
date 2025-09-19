@@ -1,8 +1,8 @@
-# 🚀 SwiftChats - Local Development Setup Guide
+# 🚀 Blazz - Local Development Setup Guide
 
 ## 📋 Overview
 
-This guide provides comprehensive instructions for setting up and running SwiftChats application locally after the successful Laravel 12 upgrade. The application now runs on **Laravel 12.29.0** with modern dependencies.
+This guide provides comprehensive instructions for setting up and running Blazz application locally after the successful Laravel 12 upgrade. The application now runs on **Laravel 12.29.0** with modern dependencies.
 
 ## 🎯 Quick Start (TL;DR)
 
@@ -76,7 +76,7 @@ Edit `.env` file with the following configuration:
 
 ```properties
 # Application Settings
-APP_NAME=Swiftchats
+APP_NAME=Blazz
 APP_ENV=local
 APP_KEY=base64:7rbHyFec7Xer9OG8IDvoXqLxLoUvw7+wXUK+w3pnFhg=
 APP_DEBUG=true
@@ -86,7 +86,7 @@ APP_URL=http://127.0.0.1:8000
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=swiftchats
+DB_DATABASE=blazz
 DB_USERNAME=root
 DB_PASSWORD=your_password
 
@@ -108,7 +108,7 @@ PUSHER_APP_CLUSTER=your_cluster
 ```bash
 # Create database
 mysql -u root -p
-CREATE DATABASE swiftchats;
+CREATE DATABASE blazz;
 exit
 
 # Run migrations
@@ -287,7 +287,7 @@ SHOW DATABASES;
 # Check .env database credentials
 DB_HOST=127.0.0.1     # Or localhost
 DB_PORT=3306          # Default MySQL port
-DB_DATABASE=swiftchats # Database name
+DB_DATABASE=blazz # Database name
 DB_USERNAME=root      # Your MySQL username
 DB_PASSWORD=          # Your MySQL password
 ```
@@ -444,6 +444,6 @@ composer install && npm install && php artisan migrate:fresh
 
 ---
 
-**🎉 Congratulations!** You now have SwiftChats running locally with Laravel 12.29.0!
+**🎉 Congratulations!** You now have Blazz running locally with Laravel 12.29.0!
 
 For advanced configuration and deployment options, see additional documentation in the `/docs` folder.

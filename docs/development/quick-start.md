@@ -1,4 +1,4 @@
-# ⚡ SwiftChats Quick Start Guide
+# ⚡ Blazz Quick Start Guide
 
 ## 🚀 30-Second Setup
 
@@ -29,7 +29,7 @@ npm install
 cp .env.example .env
 php artisan key:generate
 
-# 3. Database (create 'swiftchats' database first)
+# 3. Database (create 'blazz' database first)
 php artisan migrate
 php artisan db:seed  # optional
 
@@ -200,7 +200,7 @@ php artisan optimize:clear
 ### Common Patterns
 ```bash
 # Daily startup routine
-cd /path/to/swiftchats
+cd /path/to/blazz
 npm run dev &          # Background
 php artisan serve      # Foreground
 
@@ -227,6 +227,6 @@ ps aux | grep -E "php|node"    # Running processes
 
 ---
 
-**🎉 You're ready to develop with SwiftChats + Laravel 12!**
+**🎉 You're ready to develop with Blazz + Laravel 12!**
 
 **Need help?** Check `/docs/development/troubleshooting.md` for detailed solutions.

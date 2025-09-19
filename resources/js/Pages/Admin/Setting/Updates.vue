@@ -1,7 +1,7 @@
 <template>
     <AppLayout>
         <div>
-            <h2 class="text-xl mb-6">{{ $t('Swiftchats Updates') }}</h2>
+            <h2 class="text-xl mb-6">{{ $t('Blazz Updates') }}</h2>
 
             <div class="bg-white border px-2 py-2 rounded-md mb-8">
                 <div class="text-sm mb-2">Current Version: v{{ version }}</div>
@@ -19,7 +19,7 @@
             <div v-if="getValueByKey('is_update_available') == 0" class="mb-8">
                 <p class="flex items-center text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v5m0 5a9 9 0 1 1 0-18a9 9 0 0 1 0 18Zm.05-13v.1h-.1V8h.1Z"/></svg>
-                    <span class="ml-1 mt-1">{{ $t('You have installed the latest version of Swiftchats') }}</span>
+                    <span class="ml-1 mt-1">{{ $t('You have installed the latest version of Blazz') }}</span>
                 </p>
             </div>
 
@@ -31,7 +31,7 @@
 
                 <div class="bg-white text-sm flex items-center justify-between border rounded-md px-2 py-2 mb-6">
                     <div class="flex items-center gap-x-2">
-                        <img class="h-5 w-full" :src="'/images/logo.png'" alt="Swiftchats Logo">
+                        <img class="h-5 w-full" :src="'/images/logo.png'" alt="Blazz Logo">
                         <span>v{{ getValueByKey('available_version') }}</span>
                     </div>
                     <button @click="openModal()" class="border rounded-md px-4 py-1">{{ $t('Update to version') + ' ' + getValueByKey('available_version') }}</button>
@@ -101,7 +101,7 @@
                 
                 <form @submit.prevent="submitForm2()">
                     <div>
-                        <h4 class="text-sm">{{ $t('Would you like to proceed with updating Swiftchats?') }}</h4>
+                        <h4 class="text-sm">{{ $t('Would you like to proceed with updating Blazz?') }}</h4>
                     </div>
                     <div class="mt-3 border-t pt-5 flex">
                         <button type="button" @click.self="isOpenUpdateModal = false" class="inline-flex justify-center rounded-md border border-transparent bg-slate-50 px-4 py-2 text-sm text-slate-500 hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 mr-4">{{ $t('No, not now') }}</button>
