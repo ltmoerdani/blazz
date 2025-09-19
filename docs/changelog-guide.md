@@ -1,6 +1,6 @@
 # Panduan Penulisan & Update Changelog
 
-Dokumen ini berisi aturan, format, dan langkah-langkah pembuatan serta pembaruan changelog untuk project Swiftchats. Tujuannya agar seluruh tim dapat mencatat perubahan secara konsisten, mudah dibaca, dan dapat ditelusuri oleh semua stakeholder.
+Dokumen ini berisi aturan, format, dan langkah-langkah pembuatan serta pembaruan changelog untuk project Blazz. Tujuannya agar seluruh tim dapat mencatat perubahan secara konsisten, mudah dibaca, dan dapat ditelusuri oleh semua stakeholder.
 
 ---
 
@@ -79,7 +79,7 @@ Perbaikan critical security vulnerability pada message encryption system. Semua 
 ---
 ```
 
-## Kategori Perubahan Khusus Swiftchats
+## Kategori Perubahan Khusus Blazz
 
 ### 🔒 Security Updates
 - **Critical**: Vulnerability fixes, encryption updates, auth system changes
@@ -118,4 +118,4 @@ Perbaikan critical security vulnerability pada message encryption system. Semua 
 
 ---
 
-_Dokumen ini wajib diikuti oleh seluruh kontributor project Swiftchats._
+_Dokumen ini wajib diikuti oleh seluruh kontributor project Blazz._

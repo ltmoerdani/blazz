@@ -60,7 +60,7 @@ class SecurityHeadersMiddleware
         $response->headers->remove('X-Powered-By');
         
         // Custom security headers
-        $response->headers->set('X-Security-Enhanced', 'SwiftChats-PHASE3');
+        $response->headers->set('X-Security-Enhanced', 'Blazz-PHASE3');
         $response->headers->set('X-Request-ID', $this->getRequestId());
         
         // Cache control untuk sensitive pages

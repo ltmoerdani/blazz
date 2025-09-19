@@ -1,6 +1,6 @@
 {
   "documentation_structure": {
-    "root_path": "/Applications/MAMP/htdocs/Swiftchats/docs/laravel-12-upgrade/",
+    "root_path": "/Applications/MAMP/htdocs/Blazz/docs/laravel-12-upgrade/",
     "total_documents": 7,
     "total_evidence_files": 4,
     "upgrade_phases": {
@@ -11,7 +11,7 @@
       "level_1_navigation": [
         {
           "file": "index.md",
-          "title": "🎯 SwiftChats Laravel 12 Upgrade - Master Navigation Hub",
+          "title": "🎯 Blazz Laravel 12 Upgrade - Master Navigation Hub",
           "purpose": "Central navigation and quick reference guide",
           "word_count": 1200,
           "cross_references": 12,
@@ -22,7 +22,7 @@
       "level_2_core_documentation": [
         {
           "file": "requirements.md",
-          "title": "📊 SwiftChats Laravel 12 Upgrade Requirements",
+          "title": "📊 Blazz Laravel 12 Upgrade Requirements",
           "purpose": "Business requirements and stakeholder analysis",
           "word_count": 3800,
           "cross_references": 24,
@@ -31,7 +31,7 @@
         },
         {
           "file": "design.md", 
-          "title": "🏗️ SwiftChats Laravel 12 Upgrade Technical Design",
+          "title": "🏗️ Blazz Laravel 12 Upgrade Technical Design",
           "purpose": "Technical architecture and implementation strategy",
           "word_count": 4200,
           "cross_references": 30,
@@ -40,7 +40,7 @@
         },
         {
           "file": "tasks.md",
-          "title": "📋 SwiftChats Laravel 12 Upgrade Implementation Tasks",
+          "title": "📋 Blazz Laravel 12 Upgrade Implementation Tasks",
           "purpose": "Step-by-step implementation guide",
           "word_count": 6500,
           "cross_references": 48,
@@ -51,7 +51,7 @@
       "level_3_supporting_documentation": [
         {
           "file": "database.md",
-          "title": "🗃️ SwiftChats Database Compatibility Analysis",
+          "title": "🗃️ Blazz Database Compatibility Analysis",
           "purpose": "Database migration and compatibility assessment",
           "word_count": 2800,
           "cross_references": 16,
@@ -60,7 +60,7 @@
         },
         {
           "file": "visual.md",
-          "title": "🎨 SwiftChats Laravel 12 Upgrade System Flows",
+          "title": "🎨 Blazz Laravel 12 Upgrade System Flows",
           "purpose": "Visual diagrams and process flows",
           "word_count": 1800,
           "cross_references": 12,
@@ -74,7 +74,7 @@
       "files": [
         {
           "file": "existing-patterns.md",
-          "title": "📁 SwiftChats Laravel 12 Upgrade - Evidence Repository", 
+          "title": "📁 Blazz Laravel 12 Upgrade - Evidence Repository", 
           "purpose": "Comprehensive codebase analysis and compatibility evidence",
           "sections": ["Dependencies", "Services", "Configuration", "Performance"],
           "code_references": 18,
@@ -82,7 +82,7 @@
         },
         {
           "file": "database-schema.sql",
-          "title": "🗃️ SwiftChats Database Schema Evidence",
+          "title": "🗃️ Blazz Database Schema Evidence",
           "purpose": "Database structure and compatibility verification",
           "sections": ["Schema Analysis", "Performance Indexes", "Compatibility Assessment"],
           "table_structures": 12,
@@ -90,7 +90,7 @@
         },
         {
           "file": "api-examples.md",
-          "title": "🌐 SwiftChats API Integration Evidence", 
+          "title": "🌐 Blazz API Integration Evidence", 
           "purpose": "API patterns and integration compatibility",
           "sections": ["Authentication", "Response Patterns", "Performance"],
           "api_endpoints": 15,
@@ -98,7 +98,7 @@
         },
         {
           "file": "test-cases.md",
-          "title": "🧪 SwiftChats Laravel 12 Upgrade - Test Pattern Evidence",
+          "title": "🧪 Blazz Laravel 12 Upgrade - Test Pattern Evidence",
           "purpose": "Testing infrastructure and upgrade validation",
           "sections": ["Feature Tests", "Unit Tests", "Performance Tests"],
           "test_examples": 12,

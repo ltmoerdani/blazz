@@ -4,12 +4,12 @@
             <div class="mt-20">
                 <div class="flex justify-center mb-5">
                     <div>
-                        <h4 class="text-2xl mb-2 text-center">Swiftchats</h4>
+                        <h4 class="text-2xl mb-2 text-center">Blazz</h4>
                         <h1 class="text-2xl text-center">{{ $t('Installation Wizard') }}</h1>
                     </div>
                 </div>
                 <div v-if="props.step === null" class="md:max-w-[40em] p-2">
-                    <p class="text-center text-xl mb-4">{{ $t('Welcome to the Swiftchats installation wizard') }}</p>
+                    <p class="text-center text-xl mb-4">{{ $t('Welcome to the Blazz installation wizard') }}</p>
                     <div class="bg-slate-100 rounded-md p-4">
                         <p class="mb-2">{{ $t('Step 1: You will need the following information before proceeding:') }}</p>
                         <ol class="list-decimal pl-5 text-sm">

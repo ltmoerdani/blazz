@@ -62,12 +62,12 @@ class CheckModuleUpdates extends Command
     }
 
     /**
-     * Check Swiftchats updates - Disabled for security
+     * Check Blazz updates - Disabled for security
      *
-     * @param array|null $swiftchats
+     * @param array|null $blazz
      * @return void
      */
-    private function checkSwiftchatsUpdate(?array $swiftchats): void
+    private function checkBlazzUpdate(?array $blazz): void
     {
         // External update checking disabled for security
         throw new SecurityDisabledException('External update checking has been disabled for security. Please check updates manually.');
