@@ -53,10 +53,18 @@ class AuthController extends BaseController
 
     public function login(LoginRequest $request){
         $user = User::where('email', $request->email)->where('deleted_at', null)->first();
-        $addon = Addon::where('name', 'Google Authenticator')->first()->is_active; 
+        
+        if (!$user) {
+            return back()->withErrors([
+                'email' => 'Email tidak terdaftar atau password salah.',
+            ]);
+        }
+        
+        $addon = Addon::where('name', 'Google Authenticator')->first();
+        $addonIsActive = $addon ? $addon->is_active : 0;
         $remember = $request->remember;
 
-        if ($user->tfa && $addon == 1) {
+        if ($user->tfa && $addonIsActive == 1) {
             $request->session()->put('tfa', $user->id);
             $request->session()->put('remember', $remember);
       
@@ -202,6 +210,7 @@ class AuthController extends BaseController
                         // Send Registration Email
                         Email::send('Registration', $user);
 
+                        $config = Setting::where('key', 'verify_email')->first();
                         if (isset($config->value) && $config->value == '1') {
                             $user->sendEmailVerificationNotification();
                         }
@@ -275,8 +284,8 @@ class AuthController extends BaseController
                     'created_by' => $user->id
                 ]);
 
-                $config = Setting::where('key', 'trial_period')->first();
-                $has_trial = isset($config->value) && $config->value > 0 ? true : false;
+                $trialConfig = Setting::where('key', 'trial_period')->first();
+                $has_trial = isset($trialConfig->value) && $trialConfig->value > 0 ? true : false;
 
                 //Create Subscription
                 Subscription::create([
@@ -284,12 +293,13 @@ class AuthController extends BaseController
                     'status' => $has_trial ? 'trial' : 'active',
                     'plan_id' => null,
                     'start_date' => now(),
-                    'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $config->value . ' days')) : now(),
+                    'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $trialConfig->value . ' days')) : now(),
                 ]);
 
                 Email::send('Registration', $user);
 
-                if (isset($config->value) && $config->value == '1') {
+                $emailConfig = Setting::where('key', 'verify_email')->first();
+                if (isset($emailConfig->value) && $emailConfig->value == '1') {
                     $user->sendEmailVerificationNotification();
                 }
 
