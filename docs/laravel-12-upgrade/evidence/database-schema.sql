@@ -26,7 +26,7 @@ SELECT
     TABLE_NAME, 
     ENGINE 
 FROM information_schema.TABLES 
-WHERE TABLE_SCHEMA = 'swiftchats';
+WHERE TABLE_SCHEMA = 'blazz';
 -- Result: All tables using InnoDB (Laravel 12 compatible ✅)
 ```
 
@@ -334,7 +334,7 @@ SELECT
     SUB_PART,
     INDEX_TYPE
 FROM information_schema.STATISTICS 
-WHERE TABLE_SCHEMA = 'swiftchats' 
+WHERE TABLE_SCHEMA = 'blazz' 
 AND TABLE_NAME IN ('chats', 'contacts', 'users', 'organizations')
 ORDER BY TABLE_NAME, INDEX_NAME;
 ```
@@ -417,7 +417,7 @@ SELECT
     IS_NULLABLE,
     COLUMN_DEFAULT
 FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = 'swiftchats'
+WHERE TABLE_SCHEMA = 'blazz'
 AND DATA_TYPE IN ('double', 'float', 'tinyint(1)');
 
 -- RESULT: No deprecated column types found ✅
@@ -440,7 +440,7 @@ SELECT
     UPDATE_RULE
 FROM information_schema.KEY_COLUMN_USAGE k
 JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON k.CONSTRAINT_NAME = r.CONSTRAINT_NAME
-WHERE k.TABLE_SCHEMA = 'swiftchats'
+WHERE k.TABLE_SCHEMA = 'blazz'
 ORDER BY TABLE_NAME, CONSTRAINT_NAME;
 ```
 
@@ -460,7 +460,7 @@ SELECT
     DATA_TYPE,
     COLUMN_COMMENT
 FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = 'swiftchats'
+WHERE TABLE_SCHEMA = 'blazz'
 AND DATA_TYPE = 'json';
 ```
 

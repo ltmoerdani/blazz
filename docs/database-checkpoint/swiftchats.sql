@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `swiftchats`
+-- Database: `blazz`
 --
 
 -- --------------------------------------------------------
@@ -1072,7 +1072,7 @@ INSERT INTO `settings` (`key`, `value`) VALUES
 ('billing_state', NULL),
 ('billing_tax_id', NULL),
 ('broadcast_driver', 'pusher'),
-('company_name', 'Swiftchats'),
+('company_name', 'blazz'),
 ('currency', 'USD'),
 ('date_format', 'd-M-y'),
 ('default_image_api', NULL),
@@ -1319,7 +1319,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `first_name`, `last_name`, `email`, `facebook_id`, `avatar`, `role`, `phone`, `address`, `email_verified_at`, `password`, `tfa_secret`, `tfa`, `status`, `meta`, `plan`, `plan_id`, `will_expire`, `remember_token`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Admin', 'Swiftchats', 'admin@demo.com', NULL, NULL, 'admin', NULL, NULL, NULL, '$2y$10$Y8O5BBzQzMf4NH9m4cDIEO/NvLK0d6eMn.1RLuiAPGzymMUsdpN0y', NULL, 0, 1, NULL, NULL, NULL, NULL, NULL, '2025-06-19 02:26:10', '2025-06-19 02:26:10', NULL);
+(1, 'Admin', 'blazz', 'admin@demo.com', NULL, NULL, 'admin', NULL, NULL, NULL, '$2y$10$Y8O5BBzQzMf4NH9m4cDIEO/NvLK0d6eMn.1RLuiAPGzymMUsdpN0y', NULL, 0, 1, NULL, NULL, NULL, NULL, NULL, '2025-06-19 02:26:10', '2025-06-19 02:26:10', NULL);
 
 --
 -- Indexes for dumped tables

@@ -14,7 +14,7 @@
 
 USE blazz;
 
--- Insert missing settings that exist in swiftchats but missing in blazz
+-- Insert missing settings that exist in blazz but missing in blazz
 INSERT IGNORE INTO settings (`key`, `value`, `created_at`, `updated_at`) VALUES
 ('display_frontend', '1', NOW(), NOW()),
 ('enable_ai_billing', '0', NOW(), NOW());
@@ -102,7 +102,7 @@ mysqldump -u root -p blazz > docs/database-checkpoints/blazz_backup_before_rollb
 # Restore pre-rebranding state
 mysql -u root -p -e "DROP DATABASE IF EXISTS blazz;"
 mysql -u root -p -e "CREATE DATABASE blazz;"
-mysql -u root -p blazz < docs/rebranding-implementation/backups/database/swiftchats_backup_pre_rebrand_20250919_091400.sql
+mysql -u root -p blazz < docs/rebranding-implementation/backups/database/blazz_backup_pre_rebrand_20250919_091400.sql
 
 # Update database references in restored data
 mysql -u root -p blazz -e "UPDATE settings SET value = 'blazz' WHERE \`key\` = 'app_name';"
