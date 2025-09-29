@@ -117,7 +117,7 @@
     </div>
 </template>
 <script setup>
-    import { ref, onMounted, onBeforeUnmount } from 'vue';
+    import { ref, onMounted } from 'vue';
     import { Link } from "@inertiajs/vue3";
     import LangToggle from '@/Components/LangToggle.vue';
     import { useRtl } from '@/composables/useRtl'
@@ -135,6 +135,16 @@
 
     const parseSocials = () => {
         try {
+            if (!props.companyConfig.socials) {
+                // Set all to null if socials is null/undefined
+                facebookUrl.value = null;
+                twitterUrl.value = null;
+                instagramUrl.value = null;
+                slackUrl.value = null;
+                linkedinUrl.value = null;
+                return;
+            }
+            
             const socialsArray = JSON.parse(props.companyConfig.socials);
 
             facebookUrl.value = socialsArray['facebook'] || null;
@@ -144,6 +154,12 @@
             linkedinUrl.value = socialsArray['linkedin'] || null;
         } catch (error) {
             console.error('Error parsing socials:', error);
+            // Set all to null on error
+            facebookUrl.value = null;
+            twitterUrl.value = null;
+            instagramUrl.value = null;
+            slackUrl.value = null;
+            linkedinUrl.value = null;
         }
     };
 

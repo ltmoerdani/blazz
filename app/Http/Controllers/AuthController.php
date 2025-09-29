@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use DB;
+use Illuminate\Support\Facades\DB;
 use App\Helpers\Email;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\LoginRequest;
@@ -30,8 +30,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
-use Session;
-use Str;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
 
 class AuthController extends BaseController
 {
@@ -103,7 +103,7 @@ class AuthController extends BaseController
 
         //Check number of organizations
         if($guard == 'user'){
-            $teams = Team::where('user_id', auth()->user()->id);
+            $teams = Team::where('user_id', Auth::guard($guard)->user()->id);
             if($teams->count() == 1){
                 session()->put('current_organization', $teams->first()->organization_id);
             }
@@ -227,7 +227,7 @@ class AuthController extends BaseController
         if ($request->has('error')) {
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('There was an error with Google login!')
                 ]
             );
@@ -249,9 +249,9 @@ class AuthController extends BaseController
 
                 $user = new User();
                 $user->first_name = $name[0];
-                $user->last_name = isset($name[1]) ? $name[1] : NULL;
+                $user->last_name = isset($name[1]) ? $name[1] : null;
                 $user->email = $gUser->email;
-                $user->password = NULL;
+                $user->password = null;
                 $user->email_verified_at = now();
                 $user->role = 'user';
                 $user->save();
@@ -368,7 +368,7 @@ class AuthController extends BaseController
         if(!$invite){
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('That page does not exist!')
                 ]
             );
@@ -406,7 +406,7 @@ class AuthController extends BaseController
 
         return redirect('/forgot-password')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('We\'ve sent you a password reset link to your email!')
             ]
         );
@@ -433,7 +433,7 @@ class AuthController extends BaseController
 
         return redirect('/login')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Password reset successful!')
             ]
         );
@@ -441,7 +441,7 @@ class AuthController extends BaseController
 
     public function verifyEmail()
     {
-        if(auth()->user()->email_verified_at != NULL){
+        if(Auth::guard('user')->user()->email_verified_at != null){
             return redirect('dashboard');
         } else {
             $keys = ['logo', 'company_name', 'address', 'email', 'phone', 'socials', 'trial_period'];
@@ -453,11 +453,13 @@ class AuthController extends BaseController
 
     public function sendEmailVerification(Request $request)
     {
-        $request->user()->sendEmailVerificationNotification();
+        /** @var User $user */
+        $user = Auth::guard('user')->user();
+        $user->sendEmailVerificationNotification();
 
         return back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Verification link sent!')
             ]
         );

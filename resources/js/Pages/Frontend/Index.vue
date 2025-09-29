@@ -82,26 +82,26 @@
             </div>
             <div class="hidden lg:block absolute right-[90px] 2xl:right-[150px] max-w-100 top-[330px] z-0">
                 <div class="h-100">
-                    <img class="h-100 max-w-100 border-0" :src="'images/hero/user-6.png'">
+                    <img class="h-100 max-w-100 border-0" :src="'images/hero/user-6.png'" alt="User avatar 6">
                 </div>
             </div>
             <div class="hidden lg:block absolute right-[230px] max-w-100 top-[610px] z-0">
                 <div class="h-100">
-                    <img :src="'images/hero/user-2.png'">
+                    <img :src="'images/hero/user-2.png'" alt="User avatar 2">
                 </div>
             </div>
             <div class="hidden lg:block absolute left-[100px] max-w-100 top-[330px] z-0">
                 <div class="h-100">
-                    <img :src="'images/hero/user-3.png'">
+                    <img :src="'images/hero/user-3.png'" alt="User avatar 3">
                 </div>
             </div>
             <div class="hidden lg:block absolute left-[90px] 2xl:left-[210px] max-w-100 top-[560px] z-0">
                 <div class="h-100">
-                    <img :src="'images/hero/user-4.png'">
+                    <img :src="'images/hero/user-4.png'" alt="User avatar 4">
                 </div>
             </div>
             <div class="hidden md:flex justify-center mt-32">
-                <img :src="'images/hero/dashboard2.png'" class="inline-block max-h-full h-auto shadow-lg z-10">
+                <img :src="'images/hero/dashboard2.png'" class="inline-block max-h-full h-auto shadow-lg z-10" alt="Dashboard preview">
             </div>
         </section>
         <section id="section2" class="mt-[7em] px-5 md:px-10 lg:px-20 py-20 2xl:px-60">
@@ -189,7 +189,7 @@
             <div class="grid lg:grid-cols-2 grid-cols-1 gap-6 items-center mt-10">
                 <div class="bg-gray-300/10 rounded-[20px] px-5 md:px-10 py-10 order-2 lg:order-1" data-aos="fade-up" data-aos-duration="500">
 
-                    <div class="bg-secondary/10  h-12 w-12 bg-primary/10 flex items-center justify-center rounded-lg">
+                    <div class="bg-secondary/10 h-12 w-12 flex items-center justify-center rounded-lg">
                         <svg class="h-6 w-6 text-secondary" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 1024 1024"><path fill="currentColor" d="M288 384h448v64H288zm96-128h256v64H384zM131.456 512H384v128h256V512h252.544L721.856 192H302.144zM896 576H704v128H320V576H128v256h768zM275.776 128h472.448a32 32 0 0 1 28.608 17.664l179.84 359.552A32 32 0 0 1 960 519.552V864a32 32 0 0 1-32 32H96a32 32 0 0 1-32-32V519.552a32 32 0 0 1 3.392-14.336l179.776-359.552A32 32 0 0 1 275.776 128"/></svg>
                     </div>
 
@@ -199,7 +199,7 @@
 
                 <div class="bg-gray-300/10 rounded-[20px] px-5 md:px-10 py-10 order-2 lg:order-1" data-aos="fade-up" data-aos-duration="500">
 
-                    <div class="bg-secondary/10  h-12 w-12 bg-primary/10 flex items-center justify-center rounded-lg">
+                    <div class="bg-secondary/10 h-12 w-12 flex items-center justify-center rounded-lg">
                         <svg class="h-6 w-6 text-secondary" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M18.5 10.255c0 .044 0 .089-.003.133A1.537 1.537 0 0 0 17.473 10c-.162 0-.32.025-.473.074V5.75a.75.75 0 0 0-.75-.75h-8.5a.75.75 0 0 0-.75.75v4.505c0 .414.336.75.75.75h8.276l-.01.025l-.003.012l-.45 1.384l-.01.026a1.625 1.625 0 0 1-.019.053H7.75a2.25 2.25 0 0 1-2.25-2.25V5.75A2.25 2.25 0 0 1 7.75 3.5h3.5v-.75a.75.75 0 0 1 .649-.743L12 2a.75.75 0 0 1 .743.649l.007.101l-.001.75h3.5a2.25 2.25 0 0 1 2.25 2.25zm-5.457 3.781l.112-.036H6.254a2.25 2.25 0 0 0-2.25 2.25v.907a3.75 3.75 0 0 0 1.305 2.844c1.563 1.343 3.802 2 6.691 2c2.076 0 3.817-.339 5.213-1.028a1.545 1.545 0 0 1-1.169-1.003l-.004-.012l-.03-.093c-1.086.422-2.42.636-4.01.636c-2.559 0-4.455-.556-5.713-1.638a2.25 2.25 0 0 1-.783-1.706v-.907a.75.75 0 0 1 .75-.75H12v-.003a1.543 1.543 0 0 1 1.031-1.456zM10.999 7.75a1.25 1.25 0 1 0-2.499 0a1.25 1.25 0 0 0 2.499 0m3.243-1.25a1.25 1.25 0 1 1 0 2.499a1.25 1.25 0 0 1 0-2.499m1.847 10.912a2.831 2.831 0 0 0-1.348-.955l-1.377-.448a.544.544 0 0 1 0-1.025l1.377-.448a2.84 2.84 0 0 0 1.76-1.762l.01-.034l.449-1.377a.544.544 0 0 1 1.026 0l.448 1.377a2.837 2.837 0 0 0 1.798 1.796l1.378.448l.027.007a.544.544 0 0 1 0 1.025l-1.378.448a2.839 2.839 0 0 0-1.798 1.796l-.447 1.377a.55.55 0 0 1-.2.263a.544.544 0 0 1-.827-.263l-.448-1.377a2.834 2.834 0 0 0-.45-.848m7.694 3.801l-.765-.248a1.577 1.577 0 0 1-.999-.998l-.249-.765a.302.302 0 0 0-.57 0l-.249.764a1.577 1.577 0 0 1-.983.999l-.766.248a.302.302 0 0 0 0 .57l.766.249a1.576 1.576 0 0 1 .999 1.002l.248.764a.303.303 0 0 0 .57 0l.25-.764a1.575 1.575 0 0 1 .998-.999l.766-.248a.302.302 0 0 0 0-.57z"/></svg>
                     </div>
 
@@ -429,7 +429,7 @@
                                 <svg v-else xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M19.696 8.72a1.22 1.22 0 0 1-.3.64l-6.09 6.76a1.85 1.85 0 0 1-.58.46a1.7 1.7 0 0 1-1.42.03a1.75 1.75 0 0 1-.62-.42l-6.1-6.83a1.28 1.28 0 0 1-.31-.64a1.31 1.31 0 0 1 .56-1.26a1.36 1.36 0 0 1 .68-.21h13a1.293 1.293 0 0 1 1.15.76c.081.228.092.476.03.71"/></svg>
                             </div>
                         </button>
-                        <div class="w-full overflow-hidden transition-[height] duration-300" :class="selectedFaq === index+1 ? '' : 'hidden'" style="">
+                        <div class="w-full overflow-hidden transition-[height] duration-300" :class="selectedFaq === index+1 ? '' : 'hidden'">
                             <div class="text-slate-500 dark:text-gray-300 pt-3 p-5" v-html="item.answer"></div>
                         </div>
                     </div>
@@ -520,7 +520,7 @@
     </div>
 </template>
 <script setup>
-    import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+    import { ref, computed, onMounted } from 'vue';
     import { Link } from "@inertiajs/vue3";
     import LangToggle from '@/Components/LangToggle.vue';
     import { useRtl } from '@/composables/useRtl';
@@ -537,6 +537,16 @@
 
     const parseSocials = () => {
         try {
+            if (!props.companyConfig.socials) {
+                // Set all to null if socials is null/undefined
+                facebookUrl.value = null;
+                twitterUrl.value = null;
+                instagramUrl.value = null;
+                slackUrl.value = null;
+                linkedinUrl.value = null;
+                return;
+            }
+            
             const socialsArray = JSON.parse(props.companyConfig.socials);
 
             facebookUrl.value = socialsArray['facebook'] || null;
@@ -546,6 +556,12 @@
             linkedinUrl.value = socialsArray['linkedin'] || null;
         } catch (error) {
             console.error('Error parsing socials:', error);
+            // Set all to null on error
+            facebookUrl.value = null;
+            twitterUrl.value = null;
+            instagramUrl.value = null;
+            slackUrl.value = null;
+            linkedinUrl.value = null;
         }
     };
 
