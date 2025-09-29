@@ -9,6 +9,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -100,9 +102,41 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function sendEmailVerificationNotification(){
         try {
-            \Mail::to($this->email)->send(new CustomEmailVerification($this));
+            Mail::to($this->email)->send(new CustomEmailVerification($this));
         } catch (\Exception $e) {
-            \Log::error('Failed to send verification email: ' . $e->getMessage());
+            Log::error('Failed to send verification email: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Determine if the user has verified their email address.
+     *
+     * @return bool
+     */
+    public function hasVerifiedEmail()
+    {
+        return ! is_null($this->email_verified_at);
+    }
+
+    /**
+     * Mark the given user's email as verified.
+     *
+     * @return bool
+     */
+    public function markEmailAsVerified()
+    {
+        return $this->forceFill([
+            'email_verified_at' => $this->freshTimestamp(),
+        ])->save();
+    }
+
+    /**
+     * Get the email address that should be used for verification.
+     *
+     * @return string
+     */
+    public function getEmailForVerification()
+    {
+        return $this->email;
     }
 }
