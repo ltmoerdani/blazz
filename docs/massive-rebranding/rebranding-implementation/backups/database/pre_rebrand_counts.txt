@@ -1,8 +1,0 @@
-users_count
-1
-orgs_count
-0
-chats_count
-0
-contacts_count
-0
