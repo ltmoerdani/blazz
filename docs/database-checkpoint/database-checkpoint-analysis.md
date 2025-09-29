@@ -26,14 +26,14 @@
 
 #### **✅ Database Blazz (Current):**
 - **Total Tables:** 57 tabel
-- **Structure Status:** ✅ Identical dengan database original swiftchats
+- **Structure Status:** ✅ Identical dengan database original blazz
 - **Key Tables Verified:** 
   - `addons` - ✅ Struktur identik
   - `users` - ✅ Struktur identik  
   - `settings` - ✅ Struktur identik
   - `email_templates` - ✅ Struktur identik
 
-#### **✅ Database Swiftchats (Original):**
+#### **✅ Database blazz (Original):**
 - **Total Tables:** 57 tabel
 - **Backup Status:** ✅ Pre-rebranding backup tersedia (19 Sept 2025)
 - **Structure Preserved:** ✅ Original structure maintained
@@ -125,10 +125,10 @@ php artisan migrate
 # Restore dari backup pre-rebranding:
 mysql -u root -p -e "DROP DATABASE IF EXISTS blazz;"
 mysql -u root -p -e "CREATE DATABASE blazz;"
-mysql -u root -p blazz < docs/rebranding-implementation/backups/database/swiftchats_backup_pre_rebrand_20250919_091400.sql
+mysql -u root -p blazz < docs/rebranding-implementation/backups/database/blazz_backup_pre_rebrand_20250919_091400.sql
 
 # Update database name in backup file:
-sed -i '' 's/Database: swiftchats/Database: blazz/g' backup_file.sql
+sed -i '' 's/Database: blazz/Database: blazz/g' backup_file.sql
 ```
 
 ### **Rollback from Staging-WhatsApp (If Applied):**
