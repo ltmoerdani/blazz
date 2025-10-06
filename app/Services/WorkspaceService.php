@@ -17,8 +17,9 @@ use App\Models\SubscriptionPlan;
 use App\Models\Team;
 use App\Models\Template;
 use App\Models\User;
-use DB;
-use Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
 class WorkspaceService
@@ -111,7 +112,7 @@ class WorkspaceService
                     'zip' => $request->zip,
                     'country' => $request->country,
                 ]),
-                'created_by' => auth()->user()->id,
+                'created_by' => Auth::id(),
             ]);
 
             Team::create([
@@ -119,7 +120,7 @@ class WorkspaceService
                 'user_id' => $user->id,
                 'role' => 'owner',
                 'status' => 'active',
-                'created_by' => auth()->user()->id,
+                'created_by' => Auth::id(),
             ]);
 
             $plan = SubscriptionPlan::where('uuid', $request->plan)->first();
@@ -129,7 +130,7 @@ class WorkspaceService
             Subscription::create([
                 'workspace_id' => $workspace->id,
                 'status' => $has_trial ? 'trial' : 'active',
-                'plan_id' => $plan ? $plan->id : NULL,
+                'plan_id' => $plan ? $plan->id : null,
                 'start_date' => now(),
                 'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $config->value . ' days')) : now(),
             ]);
@@ -198,15 +199,15 @@ class WorkspaceService
                 'amount' => $request->amount,
             ];
             
-            if (in_array($type, ['credit', 'debit'])) {
-                $entryData['description'] = $request->description;
+            if (in_array($request->type, ['credit', 'debit'])) {
+                $transactionData['description'] = $request->description;
             }
             
-            if ($type === 'payment') {
-                $entryData['processor'] = $request->method;
+            if ($request->type === 'payment') {
+                $transactionData['processor'] = $request->method;
             }
     
-            $entry = $modelClass::create($entryData);
+            $entry = $modelClass::create($transactionData);
     
             $transaction = BillingTransaction::create([
                 'workspace_id' => $workspace->id,
@@ -214,7 +215,7 @@ class WorkspaceService
                 'entity_id' => $entry->id,
                 'description' => $request->type === 'payment' ? $request->method . ' Transaction' : $request->description,
                 'amount' => $request->amount,
-                'created_by' => auth()->user()->id
+                'created_by' => Auth::id()
             ]);
     
             return $transaction;

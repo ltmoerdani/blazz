@@ -5,9 +5,9 @@ namespace App\Services;
 use App\Http\Resources\UserResource;
 use App\Models\Team;
 use App\Models\User;
-use Auth;
-use DB;
-use Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AuthService
 {

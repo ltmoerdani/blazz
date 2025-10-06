@@ -23,12 +23,14 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
+use Exception;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Propaganistas\LaravelPhone\PhoneNumber;
-use Str;
+use GuzzleHttp\Exception\RequestException;
 
 class WebhookController extends BaseController
 {
@@ -213,7 +215,7 @@ class WebhookController extends BaseController
                         }
 
                         if($contact){
-                            if($contact->first_name == NULL){
+                            if($contact->first_name == null){
                                 $contactData = $res['value']['contacts'][0]['profile'];
                                 $contact->update([
                                     'first_name' => $contactData['name'],
@@ -309,7 +311,7 @@ class WebhookController extends BaseController
             $workspaceConfig = workspace::where('id', $workspace->id)->first();
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
-            $metadataArray['whatsapp']['account_review_status'] = $response['decision'] ?? NULL;
+            $metadataArray['whatsapp']['account_review_status'] = $response['decision'] ?? null;
 
             $updatedMetadataJson = json_encode($metadataArray);
             $workspaceConfig->metadata = $updatedMetadataJson;
@@ -322,7 +324,7 @@ class WebhookController extends BaseController
                 $workspaceConfig = workspace::where('id', $workspace->id)->first();
                 $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
-                $metadataArray['whatsapp']['verified_name'] = $response['requested_verified_name'] ?? NULL;
+                $metadataArray['whatsapp']['verified_name'] = $response['requested_verified_name'] ?? null;
 
                 $updatedMetadataJson = json_encode($metadataArray);
                 $workspaceConfig->metadata = $updatedMetadataJson;
@@ -334,7 +336,7 @@ class WebhookController extends BaseController
             $workspaceConfig = workspace::where('id', $workspace->id)->first();
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
-            $metadataArray['whatsapp']['messaging_limit_tier'] = $response['current_limit'] ?? NULL;
+            $metadataArray['whatsapp']['messaging_limit_tier'] = $response['current_limit'] ?? null;
 
             $updatedMetadataJson = json_encode($metadataArray);
             $workspaceConfig->metadata = $updatedMetadataJson;
@@ -345,8 +347,8 @@ class WebhookController extends BaseController
             $workspaceConfig = workspace::where('id', $workspace->id)->first();
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
-            $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = $response['max_daily_conversation_per_phone'] ?? NULL;
-            $metadataArray['whatsapp']['max_phone_numbers_per_business'] = $response['max_phone_numbers_per_business'] ?? NULL;
+            $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = $response['max_daily_conversation_per_phone'] ?? null;
+            $metadataArray['whatsapp']['max_phone_numbers_per_business'] = $response['max_phone_numbers_per_business'] ?? null;
 
             $updatedMetadataJson = json_encode($metadataArray);
             $workspaceConfig->metadata = $updatedMetadataJson;
@@ -393,7 +395,9 @@ class WebhookController extends BaseController
                 $file = Storage::disk('s3')->put($filePath, $fileContent, [
                     'ContentType' => $mimeType
                 ]);
-                $mediaUrl = Storage::disk('s3')->url($filePath);
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                $s3Disk = Storage::disk('s3');
+                $mediaUrl = $s3Disk->url($filePath);
             }
 
             $mediaData = [

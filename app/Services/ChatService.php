@@ -24,11 +24,12 @@ use App\Traits\TemplateTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Validator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -61,9 +62,9 @@ class ChatService
 
     public function getChatList($request, $uuid = null, $searchTerm = null)
     {
-        $role = auth()->user()->teams[0]->role;
+        $role = Auth::user()->teams[0]->role;
         $contact = new Contact;
-        $unassigned = ChatTicket::where('assigned_to', NULL)->count();
+        $unassigned = ChatTicket::where('assigned_to', null)->count();
         $closedCount = ChatTicket::where('status', 'closed')->count();
         $closedCount = ChatTicket::where('status', 'open')->count();
         $allCount = ChatTicket::count();
@@ -76,14 +77,14 @@ class ChatService
         $aimodule = CustomHelper::isModuleEnabled('AI Assistant');
 
         //Check if tickets module has been enabled
-        if($config->metadata != NULL){
+        if($config->metadata != null){
             $settings = json_decode($config->metadata);
 
             if(isset($settings->tickets) && $settings->tickets->active === true){
                 $ticketingActive = true;
 
                 //Check for chats that don't have corresponding chat ticket rows
-                $contacts = $contact->contactsWithChats($this->workspaceId, NULL);
+                $contacts = $contact->contactsWithChats($this->workspaceId, null);
                 
                 foreach($contacts as $contact){
                     ChatTicket::firstOrCreate(
@@ -147,7 +148,7 @@ class ChatService
                 //To ensure the unread message counter is updated
                 $unreadMessages = Chat::where('workspace_id', $this->workspaceId)
                     ->where('type', 'inbound')
-                    ->where('deleted_at', NULL)
+                    ->where('deleted_at', null)
                     ->where('is_read', 0)
                     ->count();
 
@@ -240,7 +241,7 @@ class ChatService
                         // Assign the ticket to the agent with the least number of assigned tickets
                         $ticket->assigned_to = $agent->user_id;
                     } else {
-                        $ticket->assigned_to = NULL;
+                        $ticket->assigned_to = null;
                     }
 
                     $ticket->save();
@@ -270,7 +271,7 @@ class ChatService
 
                                 $ticket->assigned_to = $agent->user_id;
                             } else {
-                                $ticket->assigned_to = NULL;
+                                $ticket->assigned_to = null;
                             }
                         }
 
@@ -298,7 +299,7 @@ class ChatService
     public function sendMessage(object $request)
     {
         if($request->type === 'text'){
-            return $this->whatsappService->sendMessage($request->uuid, $request->message, auth()->user()->id);
+            return $this->whatsappService->sendMessage($request->uuid, $request->message, Auth::id());
         } else {
             $storage = Setting::where('key', 'storage_system')->first()->value;
             $fileName = $request->file('file')->getClientOriginalName();
@@ -314,7 +315,9 @@ class ChatService
                 $file = $request->file('file');
                 $filePath = 'uploads/media/received/'  . $this->workspaceId . '/' . $fileName;
                 $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
-                $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                $s3Disk = Storage::disk('s3');
+                $mediaFilePath = $s3Disk->url($uploadedFile);
                 $mediaUrl = $mediaFilePath;
             }
     
@@ -349,7 +352,9 @@ class ChatService
                         } else if($storage === 'aws') {
                             $file = $parameter['value'];
                             $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
-                            $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                            /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                            $s3Disk = Storage::disk('s3');
+                            $mediaFilePath = $s3Disk->url($uploadedFile);
             
                             $mediaUrl = $mediaFilePath;
                         }
@@ -391,14 +396,14 @@ class ChatService
         //Build Template to send
         $template = $this->buildTemplate($template->name, $template->language, json_decode(json_encode($metadata)), $contact);
         
-        return $this->whatsappService->sendTemplateMessage($contact->uuid, $template, auth()->user()->id, NULL, $mediaId);
+        return $this->whatsappService->sendTemplateMessage($contact->uuid, $template, Auth::id(), null, $mediaId);
     }
 
     public function clearMessage($uuid)
     {
         Chat::where('uuid', $uuid)
             ->update([
-                'deleted_by' => auth()->user()->id,
+                'deleted_by' => Auth::id(),
                 'deleted_at' => now()
             ]);
     }
@@ -407,12 +412,12 @@ class ChatService
     {
         $contact = Contact::with('lastChat')->where('uuid', $uuid)->firstOrFail();
         Chat::where('contact_id', $contact->id)->update([
-            'deleted_by' => auth()->user()->id,
+            'deleted_by' => Auth::id(),
             'deleted_at' => now()
         ]);
 
         ChatLog::where('contact_id', $contact->id)->where('entity_type', 'chat')->update([
-            'deleted_by' => auth()->user()->id,
+            'deleted_by' => Auth::id(),
             'deleted_at' => now()
         ]);
 

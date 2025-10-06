@@ -4,12 +4,13 @@ namespace App\Services;
 
 use App\Http\Resources\ContactFieldResource;
 use App\Models\ContactField;
+use Illuminate\Support\Facades\Auth;
 
 class ContactFieldService
 {
     private $workspaceId;
     
-    public function __construct($workspaceId = NULL)
+    public function __construct($workspaceId = null)
     {
         $this->workspaceId = $workspaceId;
     }
@@ -40,7 +41,7 @@ class ContactFieldService
      * @param string $uuid
      * @return \App\Models\ContactField
      */
-    public function store(object $request, $uuid = NULL)
+    public function store(object $request, $uuid = null)
     {
         $last_position = ContactField::where('workspace_id', $this->workspaceId)->where('deleted_at', null)->count();
 
@@ -79,7 +80,7 @@ class ContactFieldService
     {
         return ContactField::where('uuid', $uuid)->update([
             'deleted_at' => date('Y-m-d H:i:s'),
-            'deleted_by' => auth()->user()->id
+            'deleted_by' => Auth::id()
         ]);
     } 
 }

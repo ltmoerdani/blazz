@@ -16,6 +16,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -58,7 +59,7 @@ class WhatsappService
      * @param string $messageContent The content of the message to be sent.
      * @return mixed Returns the response from the HTTP request.
      */
-    public function sendMessage($contactUuId, $messageContent, $userId = NULL, $type="text", $buttons = [], $header = [], $footer = null, $buttonLabel = null)
+    public function sendMessage($contactUuId, $messageContent, $userId = null, $type="text", $buttons = [], $header = [], $footer = null, $buttonLabel = null)
     {
         $contact = Contact::where('uuid', $contactUuId)->first();
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
@@ -164,7 +165,7 @@ class WhatsappService
      * @param string $messageContent The content of the message to be sent.
      * @return mixed Returns the response from the HTTP request.
      */
-    public function sendTemplateMessage($contactUuId, $templateContent, $userId = NULL, $campaignId = NULL, $mediaId = NULL)
+    public function sendTemplateMessage($contactUuId, $templateContent, $userId = null, $campaignId = null, $mediaId = null)
     {
         $contact = Contact::where('uuid', $contactUuId)->first();
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
@@ -182,7 +183,7 @@ class WhatsappService
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
         if($responseObject->success === true){
-            if($campaignId != NULL){
+            if($campaignId != null){
                 $campaign = Campaign::where('id', $campaignId)->first();
                 $templateMetadata = json_decode($campaign->metadata);
             }
@@ -193,8 +194,8 @@ class WhatsappService
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
                 'user_id' => $userId,
-                'metadata' => $campaignId != NULL ? $this->buildCampaignTemplateChatMessage($templateMetadata, $contactUuId) : $this->buildTemplateChatMessage($templateContent, $contact),
-                'media_id' => $campaignId != NULL ? $this->getMediaIdFromCampaign($campaignId) : $mediaId,
+                'metadata' => $campaignId != null ? $this->buildCampaignTemplateChatMessage($templateMetadata, $contactUuId) : $this->buildTemplateChatMessage($templateContent, $contact),
+                'media_id' => $campaignId != null ? $this->getMediaIdFromCampaign($campaignId) : $mediaId,
                 'status' => isset($responseObject->data->messages[0]->message_status) ? $responseObject->data->messages[0]->message_status : 'sent',
                 'created_at' => now()
             ]);
@@ -416,7 +417,7 @@ class WhatsappService
      * @param string $imageUrl The URL of the stored image.
      * @return mixed Returns the response from the HTTP request.
      */
-    public function sendMedia($contactUuId, $mediaType, $mediaFileName, $mediaFilePath, $mediaUrl, $location, $caption = NULL, $transcription = NULL)
+    public function sendMedia($contactUuId, $mediaType, $mediaFileName, $mediaFilePath, $mediaUrl, $location, $caption = null, $transcription = null)
     {
         $contact = Contact::where('uuid', $contactUuId)->first();
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
@@ -433,7 +434,7 @@ class WhatsappService
             $requestData[$mediaType]['filename'] = $mediaFileName;
         }
 
-        if($caption != NULL && $mediaType != 'audio'){
+        if($caption != null && $mediaType != 'audio'){
             $requestData[$mediaType]['caption'] = $caption;
         }
 
@@ -780,7 +781,7 @@ class WhatsappService
             $template->language = $request->language;
             $template->metadata = json_encode($requestData);
             $template->status = $responseObject->data->status;
-            $template->created_by = auth()->user()->id;
+            $template->created_by = Auth::id();
             $template->created_at = now();
             $template->updated_at = now();
             $template->save();
@@ -790,6 +791,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -799,7 +801,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();
@@ -1008,7 +1010,7 @@ class WhatsappService
                 $template->category = $template->status == 'APPROVED' ? $template->category : $request->category;
                 //$template->metadata = json_encode($requestData);
                 $template->status = 'PENDING';
-                $template->created_by = auth()->user()->id;
+                $template->created_by = Auth::id();
                 $template->updated_at = now(); // No need to set `created_at` when updating
                 $template->save();
             } else {
@@ -1021,6 +1023,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1030,7 +1033,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();
@@ -1067,7 +1070,7 @@ class WhatsappService
                         $template->metadata = json_encode($templateData);
                         $template->status = $templateData->status;
                         $template->updated_at = now();
-                        $template->deleted_at = NULL;
+                        $template->deleted_at = null;
                         $template->save();
                     } else {
                         $template = new Template();
@@ -1078,7 +1081,7 @@ class WhatsappService
                         $template->language = $templateData->language;
                         $template->metadata = json_encode($templateData);
                         $template->status = $templateData->status;
-                        $template->created_by = auth()->user()->id;
+                        $template->created_by = Auth::id();
                         $template->created_at = now();
                         $template->updated_at = now();
                         $template->save();
@@ -1097,6 +1100,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->data->error->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1106,7 +1110,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();
@@ -1147,7 +1151,7 @@ class WhatsappService
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$mediaId}";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, NULL, $headers);
+        $responseObject = $this->sendHttpRequest('GET', $url, null, $headers);
 
         return $responseObject;
     }
@@ -1157,7 +1161,7 @@ class WhatsappService
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}?fields=health_status";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, NULL, $headers);
+        $responseObject = $this->sendHttpRequest('GET', $url, null, $headers);
 
         return $responseObject;
     }
@@ -1189,7 +1193,7 @@ class WhatsappService
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, NULL, $headers);
+        $responseObject = $this->sendHttpRequest('GET', $url, null, $headers);
 
         return $responseObject;
     }
@@ -1224,7 +1228,7 @@ class WhatsappService
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('DELETE', $url, NULL, $headers);
+        $responseObject = $this->sendHttpRequest('DELETE', $url, null, $headers);
 
         return $responseObject;
     }
@@ -1272,7 +1276,7 @@ class WhatsappService
         $requestData['vertical'] = $request->industry;
         $requestData['email'] = $request->email;
             
-        $profile_picture_url = NULL;
+        $profile_picture_url = null;
 
         if($request->hasFile('profile_picture_url')){
             $storage = Setting::where('key', 'storage_system')->first()->value;
@@ -1285,7 +1289,9 @@ class WhatsappService
             } else if($storage === 'aws') {
                 $file = $request->file('profile_picture_url');
                 $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
-                $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                $s3Disk = Storage::disk('s3');
+                $mediaFilePath = $s3Disk->url($uploadedFile);
                 $profile_picture_url = $mediaFilePath;
             }
 
@@ -1307,7 +1313,7 @@ class WhatsappService
             $metadataArray['whatsapp']['business_profile']['description'] = $request->description;
             $metadataArray['whatsapp']['business_profile']['industry'] = $request->industry;
             $metadataArray['whatsapp']['business_profile']['email'] = $request->email;
-            if($profile_picture_url != NULL){
+            if($profile_picture_url != null){
                 $metadataArray['whatsapp']['business_profile']['profile_picture_url'] = $profile_picture_url;
             }
 
@@ -1325,7 +1331,7 @@ class WhatsappService
         
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('POST', $url, NULL, $headers);
+        $responseObject = $this->sendHttpRequest('POST', $url, null, $headers);
 
         if($responseObject->success === true){
             dd($responseObject);
@@ -1440,7 +1446,7 @@ class WhatsappService
         $url = $response->data->url;
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, NULL, $headers);
+        $responseObject = $this->sendHttpRequest('GET', $url, null, $headers);
 
         dd($responseObject);
 
@@ -1480,6 +1486,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->data->error->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1489,7 +1496,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();
@@ -1526,6 +1533,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->data->error->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1535,10 +1543,11 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
-            $response = $e->getResponse();
+        } catch (\Exception $e) {
             $responseObject->success = false;
-            $responseObject->data = json_decode($response->getBody()->getContents());
+            $responseObject->data = new \stdClass();
+            $responseObject->data->error = new \stdClass();
+            $responseObject->data->error->message = $e->getMessage();
         }
 
         return $responseObject;
@@ -1577,6 +1586,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->data->error->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1586,7 +1596,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();

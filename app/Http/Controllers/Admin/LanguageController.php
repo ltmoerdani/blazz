@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
-use DB;
 use App\Http\Controllers\Controller as BaseController;
+use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreLanguage;
 use App\Http\Resources\LangResource;
 use App\Models\Language;
@@ -18,6 +18,8 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class LanguageController extends BaseController
 {
+    protected $langService;
+
     public function __construct(LangService $langService){
         $this->langService = $langService;
     }
@@ -76,7 +78,7 @@ class LanguageController extends BaseController
     }
 
     public function create(Request $request){
-        $query = $this->langService->getById(NULL);
+        $query = $this->langService->getById(null);
 
         return Inertia::render('Admin/Language/Show', ['title' => __('Languages'), 'faq' => $query]);
     }

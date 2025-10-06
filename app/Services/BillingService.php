@@ -9,7 +9,8 @@ use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
 use App\Models\workspace;
 use App\Services\SubscriptionService;
-use DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class BillingService
 {
@@ -19,7 +20,7 @@ class BillingService
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request, $organizationUuid = NULL)
+    public function get(object $request, $organizationUuid = null)
     {
         if ($organizationUuid !== null) {
             $workspace = workspace::with('subscription.plan')->where('uuid', $organizationUuid)->first();
@@ -69,12 +70,12 @@ class BillingService
                 'entity_id' => $entry->id,
                 'description' => $request->type === 'payment' ? $request->method . ' Transaction' : $request->description,
                 'amount' => $request->type === 'debit' || $request->type === 'invoice' ? -$request->amount : $request->amount,
-                'created_by' => auth()->user()->id
+                'created_by' => Auth::id()
             ]);
 
             //Activate workspace's plan if credits cover cost of plan
             $subscriptionService = new SubscriptionService();
-            $activate = $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, auth()->user()->id);
+            $activate = $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, Auth::id());
 
             return $transaction;
         });

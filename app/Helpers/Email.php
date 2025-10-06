@@ -1,4 +1,4 @@
-<?php 
+<?php
 // app/Helpers/Email.php
 
 namespace App\Helpers;
@@ -65,8 +65,8 @@ class Email
 
         if($smtpQuery->value == 1){
             $emailTemplate = EmailTemplate::where('name', $template)->first();
-            $subject = self::replacePlaceholders($emailTemplate->subject, $recipient, NULL, $plan);
-            $body = self::replacePlaceholders($emailTemplate->body, $recipient, NULL, $plan);
+            $subject = self::replacePlaceholders($emailTemplate->subject, $recipient, null, $plan);
+            $body = self::replacePlaceholders($emailTemplate->body, $recipient, null, $plan);
 
             try {
                 Mail::to($recipient->email)->queue(new CustomEmail($subject, $body));
@@ -93,16 +93,16 @@ class Email
         }
     }
 
-    private static function replacePlaceholders($content, $user = NULL, $link = NULL, $plan = NULL)
+    private static function replacePlaceholders($content, $user = null, $link = null, $plan = null)
     {
         // Define the replacements
         $replacements = [
-            '{{FirstName}}' => $user->first_name ?? NULL,
-            '{{LastName}}' => $user->last_name ?? NULL,
-            '{{Email}}' => $user->email ?? NULL,
-            '{{FullName}}' => $user->full_name ?? NULL,
+            '{{FirstName}}' => $user->first_name ?? null,
+            '{{LastName}}' => $user->last_name ?? null,
+            '{{Email}}' => $user->email ?? null,
+            '{{FullName}}' => $user->full_name ?? null,
             '{{Link}}' => $link,
-            '{{plan}}' => $plan->name ?? NULL,
+            '{{plan}}' => $plan->name ?? null,
             '{{CompanyName}}' => Setting::where('key', 'company_name')->value('value'),
         ];
 

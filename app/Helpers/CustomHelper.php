@@ -28,17 +28,17 @@ class CustomHelper {
         if($config){
             return $config->value;
         } else {
-            return NULL;
+            return null;
         }
     }
 
-    public static function isModuleEnabled($module, $workspaceId = NULL){
+    public static function isModuleEnabled($module, $workspaceId = null){
         $addon = Addon::where('name', $module)
             ->where('status', 1)
             ->where('is_active', 1)
             ->exists();
 
-        $orgId = $workspaceId != NULL ? $workspaceId : session()->get('current_workspace');
+        $orgId = $workspaceId != null ? $workspaceId : session()->get('current_workspace');
 
         $subscription = Subscription::with('plan')
             ->where('workspace_id', $orgId)

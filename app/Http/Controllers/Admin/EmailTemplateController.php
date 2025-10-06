@@ -10,7 +10,7 @@ use Inertia\Inertia;
 
 class EmailTemplateController extends BaseController
 {
-    private $emailTemplateService;
+    protected $emailService;
 
     /**
      * EmailTemplateController constructor.
@@ -19,7 +19,7 @@ class EmailTemplateController extends BaseController
      */
     public function __construct()
     {
-        $this->emailService = new emailService();
+        $this->emailService = new EmailService();
     }
 
     /**
@@ -41,7 +41,7 @@ class EmailTemplateController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show(Request $request, $id = NULL)
+    public function show(Request $request, $id = null)
     {
         $template = $this->emailService->getTemplateByID($request, $id);
 

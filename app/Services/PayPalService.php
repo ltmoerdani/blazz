@@ -17,6 +17,7 @@ use Helper;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 
@@ -95,7 +96,7 @@ class PayPalService
         }
     }
 
-    public function handlePayment($amount, $planId = NULL)
+    public function handlePayment($amount, $planId = null)
     {
         $currency = Setting::where('key', 'currency')->first()->value;
         $returnUrl = url('billing');
@@ -121,7 +122,7 @@ class PayPalService
                                 'currency' => $currency,
                             ],
                             'description' => 'Subscription Payment',
-                            'custom' => session()->get('current_workspace') . '_' . auth()->user()->id . '_' . $planId,
+                            'custom' => session()->get('current_workspace') . '_' . Auth::id() . '_' . $planId,
                         ],
                     ],
                     'application_context' => [

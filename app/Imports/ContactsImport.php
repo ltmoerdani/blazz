@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
 use App\Rules\ContactLimit;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -138,7 +139,7 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
                     'country' => $row['country'] ?? null
                 ]),
                 'metadata'    => !empty($metadata) ? json_encode($metadata) : null,
-                'created_by'  => auth()->user()->id,
+                'created_by'  => Auth::id(),
             ]);
 
             if($contact){
@@ -155,7 +156,7 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
                             'name'            => $groupName,
                             'deleted_at'      => null
                         ], [
-                            'created_by' => auth()->user()->id,
+                            'created_by' => Auth::id(),
                         ]);
 
                         // Attach contact to the group via pivot table

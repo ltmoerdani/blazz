@@ -17,6 +17,8 @@ use Validator;
 
 class FaqController extends BaseController
 {
+    protected $faqService;
+
     public function __construct(FaqService $faqService)
     {
         $this->faqService = $faqService;
@@ -42,7 +44,7 @@ class FaqController extends BaseController
      */
     public function create(Request $request)
     {
-        $query = $this->faqService->getByUuid(NULL);
+        $query = $this->faqService->getByUuid(null);
 
         return Inertia::render('Admin/Faq/Show', ['title' => __('FAQs'), 'faq' => $query]);
     }

@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\SubscriptionService;
 use App\Traits\ConsumesExternalServices;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -34,10 +35,10 @@ class StripeService
         $this->stripe = new \Stripe\StripeClient($this->config->secret_key);
     }
 
-    public function handlePayment($amount, $planId = NULL)
+    public function handlePayment($amount, $planId = null)
     {
         try {
-            if($planId == NULL){
+            if($planId == null){
                 $stripeSession = $this->stripe->checkout->sessions->create([
                     'line_items' => [[
                         'price_data' => [
@@ -51,10 +52,10 @@ class StripeService
                     ]],
                     'mode' => 'payment',
                     //'customer' => session()->get('current_workspace'),
-                    'customer_email' => auth()->user()->email,
+                    'customer_email' => Auth::user()->email,
                     'metadata' => [
                         'workspace_id' => session()->get('current_workspace'),
-                        'user_id' => auth()->user()->id,
+                        'user_id' => Auth::id(),
                         'amount' => $amount,
                         'plan_id' => $planId
                     ],
@@ -74,10 +75,10 @@ class StripeService
                     ]],
                     'mode' => 'subscription',
                     //'customer' => session()->get('current_workspace'),
-                    'customer_email' => auth()->user()->email,
+                    'customer_email' => Auth::user()->email,
                     'metadata' => [
                         'workspace_id' => session()->get('current_workspace'),
-                        'user_id' => auth()->user()->id,
+                        'user_id' => Auth::id(),
                         'amount' => $amount,
                         'plan_id' => $planId
                     ],
@@ -257,7 +258,7 @@ class StripeService
                 $plan->metadata = json_encode($metadata);
                 $plan->save();
             } catch (\Exception $e) {
-                \Log::error('Error updating product prices: ' . $e->getMessage(), [
+                Log::error('Error updating product prices: ' . $e->getMessage(), [
                     'plan_id' => $plan->id,
                 ]);
             }
@@ -288,7 +289,7 @@ class StripeService
         }
     }
 
-    public function handleSubscription($amount, $planId = NULL)
+    public function handleSubscription($amount, $planId = null)
     {
         try{
             /*$workspace = workspace::where('id', session()->get('current_workspace'))->first();
@@ -311,10 +312,10 @@ class StripeService
                     'quantity' => 1,
                 ]],
                 'mode' => 'subscription',
-                'customer_email' => auth()->user()->email,
+                'customer_email' => Auth::user()->email,
                 'metadata' => [
                     'workspace_id' => session()->get('current_workspace'),
-                    'user_id' => auth()->user()->id,
+                    'user_id' => Auth::id(),
                     'amount' => $amount,
                     'plan_id' => $planId
                 ],
@@ -376,7 +377,7 @@ class StripeService
 
                     if($stripeEvent->data->object->mode == 'subscription'){
                         //Save plan id to database
-                        if($metadata->plan_id != NULL){
+                        if($metadata->plan_id != null){
                             $subscription = Subscription::where('workspace_id', $metadata->organization_id)->update([
                                 'plan_id' => $metadata->plan_id
                             ]);

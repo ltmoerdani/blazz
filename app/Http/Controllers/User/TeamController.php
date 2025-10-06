@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\User;
 
-use DB;
 use App\Http\Controllers\Controller as BaseController;
+use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreTeam;
 use App\Http\Resources\TeamResource;
 use App\Models\Team;
