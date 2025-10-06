@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class SetOrganizationFromSession
+class SetWorkspaceFromSession
 {
     /**
      * Handle an incoming request.
@@ -15,8 +15,8 @@ class SetOrganizationFromSession
      */
     public function handle($request, Closure $next)
     {
-        if ($request->session()->has('current_organization')) {
-            $request->merge(['organization' => $request->session()->get('current_organization')]);
+        if ($request->session()->has('current_workspace')) {
+            $request->merge(['workspace' => $request->session()->get('current_workspace')]);
         }
 
         return $next($request);

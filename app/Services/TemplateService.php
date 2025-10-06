@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Events\NewChatEvent;
 use App\Http\Resources\TemplateResource;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Template;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
@@ -17,17 +17,17 @@ use Validator;
 class TemplateService
 {
     private $whatsappService;
-    private $organizationId;
+    private $workspaceId;
 
-    public function __construct($organizationId)
+    public function __construct($workspaceId)
     {
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
         $this->initializeWhatsappService();
     }
 
     private function initializeWhatsappService()
     {
-        $config = Organization::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->organizationId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -57,7 +57,7 @@ class TemplateService
     private function getTemplatesListResponse(Request $request)
     {
         if ($request->expectsJson()) {
-            $rows = Template::where('organization_id', $this->organizationId)->where('deleted_at', null)
+            $rows = Template::where('workspace_id', $this->organizationId)->where('deleted_at', null)
                 ->get()
                 ->map(function ($row) {
                     return [
@@ -73,7 +73,7 @@ class TemplateService
             'title' => __('templates'),
             'allowCreate' => true,
             'rows' => TemplateResource::collection(
-                Template::where('organization_id', $this->organizationId)->where('deleted_at', null)->latest()->paginate(10)
+                Template::where('workspace_id', $this->organizationId)->where('deleted_at', null)->latest()->paginate(10)
             ),
         ]);
     }
@@ -95,7 +95,7 @@ class TemplateService
     {
         if ($request->isMethod('get')){
             $data['languages'] = config('languages');
-            $data['settings'] = Organization::where('id', $this->organizationId)->first();
+            $data['settings'] = workspace::where('id', $this->organizationId)->first();
             
             return Inertia::render('User/Templates/Add', $data);
         } else if ($request->isMethod('post')){

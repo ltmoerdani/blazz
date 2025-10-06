@@ -12,7 +12,7 @@
                     <h3 class="text-2xl text-center">
                         <span v-if="props.user">{{ $t('Hi') }} {{ props.user?.first_name }}</span>
                         <span v-else>{{ $t('Hi') }}</span>,
-                        {{ $t('You have been invited to join') }} {{ props?.organization?.name }}
+                        {{ $t('You have been invited to join') }} {{ props?.workspace?.name }}
                     </h3>
                     
                     <div v-if="!props.user" class="text-center text-sm text-slate-500 mt-5">{{ $t('Get started by entering your details below') }}</div>
@@ -75,7 +75,7 @@
 
     const { rtlClass, isRtl } = useRtl();
 
-    const props = defineProps(['flash', 'config', 'organization', 'companyConfig', 'invite', 'user']);
+    const props = defineProps(['flash', 'config', 'workspace', 'companyConfig', 'invite', 'user']);
     const expireTime = ref(props.invite?.expire_at);
     const currentTime = ref(new Date().toISOString());
     const isLoading = ref(false);

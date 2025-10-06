@@ -16,7 +16,7 @@ use App\Services\AuthService;
 use App\Services\PasswordResetService;
 use App\Services\UserService;
 use App\Models\Addon;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\PasswordResetToken;
 use App\Models\Setting;
 use App\Models\Subscription;
@@ -113,7 +113,7 @@ class AuthController extends BaseController
         if($guard == 'user'){
             $teams = Team::where('user_id', Auth::guard($guard)->user()->id);
             if($teams->count() == 1){
-                session()->put('current_organization', $teams->first()->organization_id);
+                session()->put('current_workspace', $teams->first()->organization_id);
             }
         }
 
@@ -153,14 +153,14 @@ class AuthController extends BaseController
 
             if ($user) {
                 if($user->role == 'user'){
-                    //Check if user belongs to organization, otherwise set one up
+                    //Check if user belongs to workspace, otherwise set one up
                     $team = Team::where('user_id', $user->id)->first();
 
                     if(!$team){
-                        //Create Organization
-                        $organization = $this->createOrganization($user);
+                        //Create workspace
+                        $workspace = $this->createOrganization($user);
 
-                        session()->put('current_organization', $organization->id);
+                        session()->put('current_workspace', $workspace->id);
                     }
                 }
 
@@ -178,14 +178,14 @@ class AuthController extends BaseController
                         $user->facebook_id = $facebookUser->id;
                         $user->save();
 
-                        //Check if user belongs to organization, otherwise set one up
+                        //Check if user belongs to workspace, otherwise set one up
                         $team = Team::where('user_id', $user->id)->first();
 
                         if(!$team){
-                            //Create Organization
-                            $organization = $this->createOrganization($user);
+                            //Create workspace
+                            $workspace = $this->createOrganization($user);
 
-                            session()->put('current_organization', $organization->id);
+                            session()->put('current_workspace', $workspace->id);
                         }
                     } else {
                         // Extract first name and last name
@@ -204,8 +204,8 @@ class AuthController extends BaseController
                         $user->role = 'user';
                         $user->save();
                 
-                        //Create Organization
-                        $organization = $this->createOrganization($user);
+                        //Create workspace
+                        $workspace = $this->createOrganization($user);
                 
                         // Send Registration Email
                         Email::send('Registration', $user);
@@ -215,7 +215,7 @@ class AuthController extends BaseController
                             $user->sendEmailVerificationNotification();
                         }
 
-                        session()->put('current_organization', $organization->id);
+                        session()->put('current_workspace', $workspace->id);
                     }
                     
                     // Log the user in
@@ -268,16 +268,16 @@ class AuthController extends BaseController
                 $timestamp = now()->format('YmdHis');
                 $randomString = Str::random(4);
 
-                //Create Organization
-                $organization = Organization::create([
+                //Create workspace
+                $workspace = workspace::create([
                     'identifier' => $timestamp . $user->id . $randomString,
-                    'name' => $name[0] . "'s organization",
+                    'name' => $name[0] . "'s workspace",
                     'created_by' => $user->id
                 ]);
 
                 //Create Team
                 $team = Team::create([
-                    'organization_id' => $organization->id,
+                    'workspace_id' => $workspace->id,
                     'user_id' => $user->id,
                     'role' => 'owner',
                     'status' => 'active',
@@ -289,7 +289,7 @@ class AuthController extends BaseController
 
                 //Create Subscription
                 Subscription::create([
-                    'organization_id' => $organization->id,
+                    'workspace_id' => $workspace->id,
                     'status' => $has_trial ? 'trial' : 'active',
                     'plan_id' => null,
                     'start_date' => now(),
@@ -319,16 +319,16 @@ class AuthController extends BaseController
         $timestamp = now()->format('YmdHis');
         $randomString = Str::random(4);
 
-        // Create Organization
-        $organization = Organization::create([
+        // Create workspace
+        $workspace = workspace::create([
             'identifier' => $timestamp . $user->id . $randomString,
-            'name' => $user->first_name . "'s organization",
+            'name' => $user->first_name . "'s workspace",
             'created_by' => $user->id
         ]);
 
         // Create Team
         $team = Team::create([
-            'organization_id' => $organization->id,
+            'workspace_id' => $workspace->id,
             'user_id' => $user->id,
             'role' => 'owner',
             'status' => 'active',
@@ -340,14 +340,14 @@ class AuthController extends BaseController
 
         // Create Subscription
         Subscription::create([
-            'organization_id' => $organization->id,
+            'workspace_id' => $workspace->id,
             'status' => $has_trial ? 'trial' : 'active',
             'plan_id' => null,
             'start_date' => now(),
             'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $config->value . ' days')) : now(),
         ]);
 
-        return $organization;
+        return $workspace;
     }
 
     public function showRegistrationForm()
@@ -383,7 +383,7 @@ class AuthController extends BaseController
                 ]
             );
         } else {
-            $data['organization'] = Organization::where('id', $invite->organization_id)->first();
+            $data['workspace'] = workspace::where('id', $invite->organization_id)->first();
             $data['user'] = User::where('email', $invite->email)->where('role', 'user')->first();
             $data['invite'] = $invite;
             $data['code'] = $uuid;

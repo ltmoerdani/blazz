@@ -16,7 +16,7 @@ class CreateTemplatesTable extends Migration
         Schema::create('templates', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50);
-            $table->unsignedBigInteger('organization_id');
+            $table->unsignedBigInteger('workspace_id');
             $table->string('meta_id', 128);
             $table->string('name', 128);
             $table->string('category', 128);
@@ -28,7 +28,7 @@ class CreateTemplatesTable extends Migration
             $table->softDeletes();
 
             // Foreign key constraints
-            $table->foreign('organization_id')->references('id')->on('organizations');
+            $table->foreign('workspace_id')->references('id')->on('workspaces');
             $table->foreign('created_by')->references('id')->on('users');
         });
     }

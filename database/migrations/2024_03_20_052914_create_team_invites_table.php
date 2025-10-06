@@ -15,14 +15,14 @@ class CreateTeamInvitesTable extends Migration
     {
         Schema::create('team_invites', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('organization_id');
+            $table->unsignedBigInteger('workspace_id');
             $table->string('email', 128);
             $table->string('code');
             $table->unsignedBigInteger('invited_by');
             $table->timestamp('expire_at')->useCurrent();
 
             // Foreign key constraints
-            $table->foreign('organization_id')->references('id')->on('organizations');
+            $table->foreign('workspace_id')->references('id')->on('workspaces');
             $table->foreign('invited_by')->references('id')->on('users');
         });
     }

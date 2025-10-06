@@ -32,10 +32,10 @@
             </div>
             <div v-if="props.user" class="flex border-b-2 space-x-4 text-sm text-slate-700">
                 <div @click="changeTab('user')" class="cursor-pointer px-2 py-2 rounded-tl-lg rounded-tr-lg" :class="tab === 'user' ? 'bg-white border' : ''">{{ $t('User details') }}</div>
-                <div @click="changeTab('organization')" class="cursor-pointer px-2 py-2 rounded-tl-lg rounded-tr-lg" :class="tab === 'organization' ? 'bg-white border' : ''">{{ $t('Organization details') }}</div>
+                <div @click="changeTab('workspace')" class="cursor-pointer px-2 py-2 rounded-tl-lg rounded-tr-lg" :class="tab === 'workspace' ? 'bg-white border' : ''">{{ $t('workspace details') }}</div>
             </div>
-            <div v-if="props.user && tab === 'organization'" class="pt-5">
-                <OrganizationTable :rows="props.organizations" :filters="props.filters"/>
+            <div v-if="props.user && tab === 'workspace'" class="pt-5">
+                <WorkspaceTable :rows="props.workspaces" :filters="props.filters"/>
             </div>
             <form v-if="tab === 'user'" @submit.prevent="submitForm()" class="bg-white py-5 px-5 rounded-bl-[0.5rem] rounded-br-[0.5rem]">
                 <div class="sm:flex border-b py-5">
@@ -56,12 +56,12 @@
                 </div>
                 <div v-if="!props.user" class="sm:flex border-b py-5">
                     <div class="hidden sm:block sm:w-[40%] mb-1">
-                        <h3 class="text-sm tracking-[0px]">{{ $t('Organization') }}</h3>
+                        <h3 class="text-sm tracking-[0px]">{{ $t('workspace') }}</h3>
                     </div>
                     <div class="sm:w-[60%] sm:flex space-x-6">
                         <div class="sm:w-[80%] grid gap-x-6 gap-y-4 sm:grid-cols-6">
-                            <FormCheckbox  @input="toggleCreateOrganization" v-model="create_organization" :name="$t('Create organization')" :label="$t('Create organization')" :value="'organization'" :type="'checkbox'" :class="'sm:col-span-3'"/>
-                            <FormInput v-if="create_organization" v-model="form.organization_name" :name="$t('Organization name')" :error="form.errors.organization_name" :type="'text'" :class="'sm:col-span-6'"/>
+                            <FormCheckbox  @input="toggleCreateOrganization" v-model="create_organization" :name="$t('Create workspace')" :label="$t('Create workspace')" :value="'workspace'" :type="'checkbox'" :class="'sm:col-span-3'"/>
+                            <FormInput v-if="create_organization" v-model="form.organization_name" :name="$t('workspace name')" :error="form.errors.organization_name" :type="'text'" :class="'sm:col-span-6'"/>
                         </div>
                     </div>
                 </div>
@@ -96,9 +96,9 @@
     import FormImage from '@/Components/FormImage.vue';
     import FormInput from '@/Components/FormInput.vue';
     import FormPhoneInput from '@/Components/FormPhoneInput.vue';
-    import OrganizationTable from '@/Components/Tables/OrganizationTable.vue';
+    import WorkspaceTable from '@/Components/Tables/WorkspaceTable.vue';
 
-    const props = defineProps({ title: String, user: Object, roles: Object, organizations: Object, filters: Object });
+    const props = defineProps({ title: String, user: Object, roles: Object, workspaces: Object, filters: Object });
     const create_organization = ref(false);
     const tab = ref('user');
 

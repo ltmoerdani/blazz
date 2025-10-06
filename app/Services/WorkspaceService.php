@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Http\Resources\OrganizationsResource;
+use App\Http\Resources\WorkspacesResource;
 use App\Http\Resources\BillingResource;
 use App\Http\Resources\UserResource;
 use App\Models\BillingCredit;
@@ -10,7 +10,7 @@ use App\Models\BillingDebit;
 use App\Models\BillingInvoice;
 use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
@@ -21,7 +21,7 @@ use DB;
 use Str;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
-class OrganizationService
+class WorkspaceService
 {
     /**
      * Get all organizations based on the provided request filters.
@@ -31,16 +31,16 @@ class OrganizationService
      */
     public function get(object $request, $userId = null)
     {
-        $organizations = (new Organization)->listAll($request->query('search'), $userId);
+        $organizations = (new workspace)->listAll($request->query('search'), $userId);
 
-        return OrganizationsResource::collection($organizations);
+        return WorkspacesResource::collection($organizations);
     }
 
     /**
-     * Retrieve an organization by its UUID.
+     * Retrieve an workspace by its UUID.
      *
      * @param string $uuid
-     * @return \App\Models\Organization
+     * @return \App\Models\workspace
      *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
@@ -49,18 +49,18 @@ class OrganizationService
         $result['plans'] = SubscriptionPlan::all();
 
         if ($uuid === null) {
-            $result['organization'] = null;
+            $result['workspace'] = null;
             $result['billing'] = null;
             $result['users'] = null;
     
             return $result;
         }
 
-        $organization = Organization::with('subscription.plan')->where('uuid', $uuid)->first();
-        $users = (new User)->listAll('user', $request->query('search'), $organization->id);
-        $billing = (new BillingTransaction)->listAll($request->query('search'), $organization->id);
+        $workspace = workspace::with('subscription.plan')->where('uuid', $uuid)->first();
+        $users = (new User)->listAll('user', $request->query('search'), $workspace->id);
+        $billing = (new BillingTransaction)->listAll($request->query('search'), $workspace->id);
         
-        $result['organization'] = $organization;
+        $result['workspace'] = $workspace;
         $result['billing'] = BillingResource::collection($billing);
         $result['users'] = UserResource::collection($users);
 
@@ -68,7 +68,7 @@ class OrganizationService
     }
 
     /**
-     * Store a new organization based on the provided request data.
+     * Store a new workspace based on the provided request data.
      *
      * @param Request $request
      */
@@ -76,7 +76,7 @@ class OrganizationService
     {
         return DB::transaction(function () use ($request) {
             if($request->input('create_user') == 1){
-                //Create and attach user to organization
+                //Create and attach user to workspace
                 $user = User::create([
                     'first_name' => $request->input('first_name'),
                     'last_name' => $request->input('last_name'),
@@ -93,7 +93,7 @@ class OrganizationService
                     'password' => $request->input('password'),
                 ]);
             } else {
-                //Attach existng user to organization
+                //Attach existng user to workspace
                 $user = User::where('email', $request->input('email'))->first();
             }
 
@@ -101,7 +101,7 @@ class OrganizationService
             $randomString = Str::random(4);
             $userId = $user->id;
 
-            $organization = Organization::create([
+            $workspace = workspace::create([
                 'name' => $request->input('name'),
                 'identifier' => $timestamp . $userId . $randomString,
                 'address' => json_encode([
@@ -115,7 +115,7 @@ class OrganizationService
             ]);
 
             Team::create([
-                'organization_id' => $organization->id,
+                'workspace_id' => $workspace->id,
                 'user_id' => $user->id,
                 'role' => 'owner',
                 'status' => 'active',
@@ -127,29 +127,29 @@ class OrganizationService
             $has_trial = isset($config->value) && $config->value > 0 ? true : false;
 
             Subscription::create([
-                'organization_id' => $organization->id,
+                'workspace_id' => $workspace->id,
                 'status' => $has_trial ? 'trial' : 'active',
                 'plan_id' => $plan ? $plan->id : NULL,
                 'start_date' => now(),
                 'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $config->value . ' days')) : now(),
             ]);
 
-            return $organization;
+            return $workspace;
         });
     }
 
     /**
-     * Update organization.
+     * Update workspace.
      *
      * @param Request $request
      * @param string $uuid
-     * @return \App\Models\Organization
+     * @return \App\Models\workspace
      */
     public function update($request, $uuid)
     {
-        $organization = Organization::where('uuid', $uuid)->firstOrFail();
+        $workspace = workspace::where('uuid', $uuid)->firstOrFail();
 
-        $organization->update([
+        $workspace->update([
             'name' => $request->input('name'),
             'address' => json_encode([
                 'street' => $request->street,
@@ -160,7 +160,7 @@ class OrganizationService
             ]),
         ]);
 
-        $subscription = Subscription::where('organization_id', $organization->id)->first();
+        $subscription = Subscription::where('workspace_id', $workspace->id)->first();
         $plan = SubscriptionPlan::where('uuid', $request->plan)->first();
 
         if($subscription){
@@ -172,7 +172,7 @@ class OrganizationService
             $has_trial = isset($config->value) && $config->value > 0 ? true : false;
             
             Subscription::create([
-                'organization_id' => $organization->id,
+                'workspace_id' => $workspace->id,
                 'status' => $has_trial ? 'trial' : 'active',
                 'plan_id' => $plan->id,
                 'start_date' => now(),
@@ -180,12 +180,12 @@ class OrganizationService
             ]);
         }
 
-        return $organization;
+        return $workspace;
     }
 
     public function storeTransaction($request, $uuid){
         return DB::transaction(function () use ($request, $uuid) {
-            $organization = Organization::where('uuid', $uuid)->firstOrFail();
+            $workspace = workspace::where('uuid', $uuid)->firstOrFail();
     
             $modelClass = match ($request->type) {
                 'credit' => BillingCredit::class,
@@ -194,7 +194,7 @@ class OrganizationService
             };
 
             $transactionData = [
-                'organization_id' => $organization->id,
+                'workspace_id' => $workspace->id,
                 'amount' => $request->amount,
             ];
             
@@ -209,7 +209,7 @@ class OrganizationService
             $entry = $modelClass::create($entryData);
     
             $transaction = BillingTransaction::create([
-                'organization_id' => $organization->id,
+                'workspace_id' => $workspace->id,
                 'entity_type' => $request->type,
                 'entity_id' => $entry->id,
                 'description' => $request->type === 'payment' ? $request->method . ' Transaction' : $request->description,
@@ -222,21 +222,21 @@ class OrganizationService
     }
 
     public function destroy($uuid){
-        // Find the organization by its UUID
-        $organization = Organization::where('uuid', $uuid)->first();
+        // Find the workspace by its UUID
+        $workspace = workspace::where('uuid', $uuid)->first();
 
-        if ($organization) {
-            // Delete all teams associated with the organization
-            Team::where('organization_id', $organization->id)->delete();
+        if ($workspace) {
+            // Delete all teams associated with the workspace
+            Team::where('workspace_id', $workspace->id)->delete();
             
-            // Delete the organization
-            $organization->delete();
+            // Delete the workspace
+            $workspace->delete();
 
             // Return true to indicate successful deletion
             return true;
         }
 
-        // Return false if the organization does not exist
+        // Return false if the workspace does not exist
         return false;
     }
 }

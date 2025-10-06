@@ -3,24 +3,24 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller as BaseController;
-use App\Http\Requests\StoreOrganization;
-use App\Services\OrganizationService;
+use App\Http\Requests\StoreWorkspace;
+use App\Services\WorkspaceService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class OrganizationController extends BaseController
+class WorkspaceController extends BaseController
 {
     private $organizationService;
     private $role;
 
     /**
-     * OrganizationController constructor.
+     * WorkspaceController constructor.
      *
      * @param UserService $organizationService
      */
     public function __construct()
     {
-        $this->organizationService = new OrganizationService();
+        $this->organizationService = new WorkspaceService();
     }
 
     /**
@@ -31,7 +31,7 @@ class OrganizationController extends BaseController
      */
     public function index(Request $request)
     {
-        return Inertia::render('Admin/Organization/Index', [
+        return Inertia::render('Admin/workspace/Index', [
             'title' => __('Organizations'),
             'allowCreate' => true,
             'rows' => $this->organizationService->get($request), 
@@ -40,7 +40,7 @@ class OrganizationController extends BaseController
     }
 
     /**
-     * Display the specified organization.
+     * Display the specified workspace.
      *
      * @param string $uuid
      * @return \Inertia\Response
@@ -48,9 +48,9 @@ class OrganizationController extends BaseController
     public function show(Request $request, $uuid = NULL, $mode = NULL)
     {
         $res = $this->organizationService->getByUuid($request, $uuid);
-        return Inertia::render('Admin/Organization/Show', [
-            'title' => __('Organization'),
-            'organization' => $res['organization'], 
+        return Inertia::render('Admin/workspace/Show', [
+            'title' => __('workspace'),
+            'workspace' => $res['workspace'], 
             'users' => $res['users'],
             'plans' => $res['plans'], 
             'invoices' => $res['billing'],
@@ -67,9 +67,9 @@ class OrganizationController extends BaseController
     public function create(Request $request)
     {
         $res = $this->organizationService->getByUuid($request);
-        return Inertia::render('Admin/Organization/Show', [
+        return Inertia::render('Admin/workspace/Show', [
             'title' => __('Create Org.'),
-            'organization' => $res['organization'], 
+            'workspace' => $res['workspace'], 
             'users' => $res['users'],
             'plans' => $res['plans'], 
             'invoices' => $res['billing'],
@@ -78,41 +78,41 @@ class OrganizationController extends BaseController
     }
 
     /**
-     * Store a newly created organization.
+     * Store a newly created workspace.
      *
      * @param Request $request
      */
-    public function store(StoreOrganization $request)
+    public function store(StoreWorkspace $request)
     {
         $this->organizationService->store($request);
 
         return redirect('/admin/organizations')->with(
             'status', [
                 'type' => 'success', 
-                'message' => __('Organization created successfully!')
+                'message' => __('workspace created successfully!')
             ]
         );
     }
 
     /**
-     * Update the specified organization.
+     * Update the specified workspace.
      *
      * @param Request $request
      */
-    public function update(StoreOrganization $request, $uuid)
+    public function update(StoreWorkspace $request, $uuid)
     {
         $this->organizationService->update($request, $uuid);
 
         return redirect('/admin/organizations/'.$uuid)->with(
             'status', [
                 'type' => 'success', 
-                'message' => __('Organization updated successfully!')
+                'message' => __('workspace updated successfully!')
             ]
         );
     }
 
     /**
-     * Remove the specified organization.
+     * Remove the specified workspace.
      *
      * @param String $uuid
      */
@@ -123,7 +123,7 @@ class OrganizationController extends BaseController
         return back()->with(
             'status', [
                 'type' => $query ? 'success' : 'error', 
-                'message' => $query ? __('Organization deleted successfully!') : __('This organization does not exist!')
+                'message' => $query ? __('workspace deleted successfully!') : __('This workspace does not exist!')
             ]
         );
     }

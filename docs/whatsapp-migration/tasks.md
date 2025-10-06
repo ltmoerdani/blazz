@@ -889,7 +889,7 @@
 ## EXISTING PATTERN DUPLICATION (MANDATORY)
 **Source Implementation:**
 - **File:** `app/Services/WhatsappService.php` lines 75-110 - List message structure
-- **Method to Duplicate:** Section-based organization and selection handling
+- **Method to Duplicate:** Section-based workspace and selection handling
 - **Adaptations Required:** Convert to text-based section display
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
@@ -994,7 +994,7 @@
 ## EXISTING PATTERN DUPLICATION (MANDATORY)
 **Source Implementation:**
 - **File:** `app/Http/Controllers/User/InstanceController.php` - Basic instance management
-- **Method to Duplicate:** Organization-based data isolation
+- **Method to Duplicate:** workspace-based data isolation
 - **Adaptations Required:** WhatsApp session isolation per account
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
@@ -1028,7 +1028,7 @@
        }
        
        private function routeMessage($message, $orgId) {
-           // Route to correct organization handlers
+           // Route to correct workspace handlers
            MessageProcessor::processForOrganization($message, $orgId);
        }
    }
@@ -1063,7 +1063,7 @@
 
 ## EXPECTED OUTPUT:
 - **FE:** Instance management UI for multiple accounts
-- **BE:** Session isolation per organization/account
+- **BE:** Session isolation per workspace/account
 - **DB:** Session data stored per account
 - **Multi-Agent:** Multiple WhatsApp accounts supported
 
@@ -1076,7 +1076,7 @@
 ## VERIFICATION EVIDENCE (MANDATORY)
 **Success Criteria with Evidence:**
 - **Instance Test:** Multiple accounts can be created
-- **Isolation Test:** Sessions isolated per organization
+- **Isolation Test:** Sessions isolated per workspace
 - **Routing Test:** Messages routed to correct account
 
 ## ARTIFACTS/FILES (relative paths):**

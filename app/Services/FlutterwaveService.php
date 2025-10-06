@@ -67,12 +67,12 @@ class FlutterwaveService
                 'POST',
                 'v3/payments',
                 [
-                    'tx_ref' => 'Ref:' . auth()->user()->id . session()->get('current_organization') . now()->format('YmdHis'),
+                    'tx_ref' => 'Ref:' . auth()->user()->id . session()->get('current_workspace') . now()->format('YmdHis'),
                     'amount' => $amount,
                     'currency' => $currency,
                     'redirect_url' => $redirectUrl,
                     'meta' => [
-                        'organization_id' => session()->get('current_organization'),
+                        'workspace_id' => session()->get('current_workspace'),
                         'plan_id' => $planId,
                         'user_id' => auth()->user()->id,
                     ],
@@ -115,7 +115,7 @@ class FlutterwaveService
                 $transaction = DB::transaction(function () use ($request) {
                     $metadata = $request->data->meta;
 
-                    $organizationId = $metadata->organization_id ?? null;
+                    $workspaceId = $metadata->organization_id ?? null;
                     $userId = $metadata->user_id ?? null;
                     $planId = $metadata->plan_id ?? null;
                     $amount = $request->data->amount;
@@ -127,14 +127,14 @@ class FlutterwaveService
 
                     if(!$exists){
                         $payment = BillingPayment::create([
-                            'organization_id' => $organizationId,
+                            'workspace_id' => $workspaceId,
                             'processor' => 'flutterwave',
                             'details' => $request->data->flw_ref,
                             'amount' => $amount
                         ]);
 
                         $transaction = BillingTransaction::create([
-                            'organization_id' => $organizationId,
+                            'workspace_id' => $workspaceId,
                             'entity_type' => 'payment',
                             'entity_id' => $payment->id,
                             'description' => 'Flutterwave Payment',
@@ -143,9 +143,9 @@ class FlutterwaveService
                         ]);
 
                         if($planId == null){
-                            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($organizationId, $userId);
+                            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
                         } else {
-                            $this->subscriptionService->updateSubscriptionPlan($organizationId, $planId, $userId);
+                            $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
                         }
 
                         //Log::debug($transaction);

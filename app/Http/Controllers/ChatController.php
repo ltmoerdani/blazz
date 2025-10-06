@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\AutoReply;
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
@@ -17,7 +17,7 @@ class ChatController extends BaseController
 {
     private function chatService()
     {
-        return new ChatService(session()->get('current_organization'));
+        return new ChatService(session()->get('current_workspace'));
     }
 
     public function index(Request $request, $uuid = null)

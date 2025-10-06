@@ -15,7 +15,7 @@ class TemplateController extends BaseController
 {
     private function templateService()
     {
-        return new TemplateService(session()->get('current_organization'));
+        return new TemplateService(session()->get('current_workspace'));
     }
 
     public function index(Request $request, $uuid = null)

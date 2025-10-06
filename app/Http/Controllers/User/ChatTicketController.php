@@ -9,7 +9,7 @@ use App\Models\ChatLog;
 use App\Models\ChatTicket;
 use App\Models\ChatTicketLog;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\ChatService;
@@ -60,7 +60,7 @@ class ChatTicketController extends BaseController
     public function assign(Request $request, $uuid)
     { 
         $contact = Contact::where('uuid', $uuid)->first();
-        $team = Team::where('organization_id', session()->get('current_organization'))->where('user_id', $request->id)->first();
+        $team = Team::where('workspace_id', session()->get('current_workspace'))->where('user_id', $request->id)->first();
         $user = User::where('id', $request->id)->first();
         
         if($team && $user){

@@ -17,7 +17,7 @@
 - **📝 Template Management**: Advanced template creation, approval tracking, dan optimization tools  
 - **🚀 Campaign Automation**: Automated messaging campaigns dengan segmentation dan scheduling
 - **📊 Analytics Dashboard**: Comprehensive metrics, engagement tracking, dan performance insights
-- **👥 Multi-tenant Architecture**: Complete organization isolation dengan role-based access control
+- **👥 Multi-tenant Architecture**: Complete workspace isolation dengan role-based access control
 - **🔒 Enterprise Security**: Advanced security protocols, audit logging, dan compliance features
 - **🌍 Multilingual Support**: Built-in internationalization untuk global business operations
 

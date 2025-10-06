@@ -3,22 +3,22 @@
 namespace App\Services;
 
 use App\Http\Resources\NotificationsResource;
-use App\Models\OrganizationApiKey;
+use App\Models\WorkspaceApiKey;
 use Str;
 
-class OrganizationApiService
+class WorkspaceApiService
 {
     public function generate(object $request)
     {
-        OrganizationApiKey::create([
-            'organization_id' => session()->get('current_organization'),
+        WorkspaceApiKey::create([
+            'workspace_id' => session()->get('current_workspace'),
             'token' => Str::random(40)
         ]);
     }
 
     public function destroy($uuid)
     {
-        OrganizationApiKey::where('uuid', $uuid)->update([
+        WorkspaceApiKey::where('uuid', $uuid)->update([
             'deleted_at' => now()
         ]);
     }

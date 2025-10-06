@@ -8,7 +8,7 @@ use App\Rules\UniqueEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreUserOrganization extends FormRequest
+class StoreWorkspace extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -27,11 +27,20 @@ class StoreUserOrganization extends FormRequest
     {
         $rules = [
             'name' => 'required',
-            'email' => 'required',
+            'plan' => 'required',
         ];
 
         if ($this->isMethod('post')) {
-            $rules['email'] = ['required', 'email', new NotUniqueEmail];
+            if ($this->input('create_user') == 1) {
+                $rules += [
+                    'email' => ['required', 'email', new UniqueEmail],
+                    'first_name' => 'required',
+                    'last_name' => 'required',
+                    'password' => 'required|confirmed',
+                ];
+            } else {
+                $rules['email'] = ['required', 'email', new NotUniqueEmail];
+            }
         }
 
         return $rules;

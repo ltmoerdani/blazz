@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\CampaignLog;
 use App\Models\CampaignLogRetry;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Services\WhatsappService;
 use App\Traits\TemplateTrait;
 use Illuminate\Bus\Queueable;
@@ -21,13 +21,13 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, TemplateTrait;
 
     public $timeout = 300;
-    private $organizationId;
+    private $workspaceId;
     private $campaignLogId;
     protected $retryIndex;
 
-    public function __construct(int $organizationId, int $campaignLogId, int $retryIndex)
+    public function __construct(int $workspaceId, int $campaignLogId, int $retryIndex)
     {
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
         $this->campaignLogId = $campaignLogId;
         $this->retryIndex = $retryIndex;
     }
@@ -39,8 +39,8 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
 
     public function handle()
     {
-        $log = CampaignLog::with('campaign', 'campaign.organization', 'contact')->find($this->campaignLogId);
-        $campaignSettings = json_decode($log->campaign->organization->metadata ?? '{}', true)['campaigns'] ?? [];
+        $log = CampaignLog::with('campaign', 'campaign.workspace', 'contact')->find($this->campaignLogId);
+        $campaignSettings = json_decode($log->campaign->workspace->metadata ?? '{}', true)['campaigns'] ?? [];
         $retryIntervals = $campaignSettings['resend_intervals'] ?? [];
         $maxRetries = count($retryIntervals);
         $retryCount = $log->retries()->count();
@@ -142,11 +142,11 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
 
     private function initializeWhatsappService()
     {
-        $config = cache()->remember("organization.{$this->organizationId}.metadata", 3600, function() {
-            return Organization::find($this->organizationId)->metadata ?? [];
+        $config = cache()->remember("workspace.{$this->organizationId}.metadata", 3600, function() {
+            return workspace::find($this->organizationId)->metadata ?? [];
         });
 
-        $config = Organization::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->organizationId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;

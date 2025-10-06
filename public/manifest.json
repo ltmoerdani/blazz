@@ -2199,7 +2199,7 @@
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Admin/Layout/Sidebar.vue"
   },
-  "resources/js/Pages/Admin/Organization/Index.vue": {
+  "resources/js/Pages/Admin/workspace/Index.vue": {
     "css": [
       "assets/vue-tel-input-0ba478fb.css",
       "assets/index-755185d7.css"
@@ -2241,9 +2241,9 @@
       "_DropdownItem-1491b39e.js"
     ],
     "isDynamicEntry": true,
-    "src": "resources/js/Pages/Admin/Organization/Index.vue"
+    "src": "resources/js/Pages/Admin/workspace/Index.vue"
   },
-  "resources/js/Pages/Admin/Organization/Show.vue": {
+  "resources/js/Pages/Admin/workspace/Show.vue": {
     "css": [
       "assets/index-755185d7.css",
       "assets/vue-tel-input-0ba478fb.css"
@@ -2287,7 +2287,7 @@
       "_DropdownItem-1491b39e.js"
     ],
     "isDynamicEntry": true,
-    "src": "resources/js/Pages/Admin/Organization/Show.vue"
+    "src": "resources/js/Pages/Admin/workspace/Show.vue"
   },
   "resources/js/Pages/Admin/Payment/Index.vue": {
     "css": [
@@ -4870,8 +4870,8 @@
       "resources/js/Pages/Admin/Layout/Menu.vue",
       "resources/js/Pages/Admin/Layout/MobileSidebar.vue",
       "resources/js/Pages/Admin/Layout/Sidebar.vue",
-      "resources/js/Pages/Admin/Organization/Index.vue",
-      "resources/js/Pages/Admin/Organization/Show.vue",
+      "resources/js/Pages/Admin/workspace/Index.vue",
+      "resources/js/Pages/Admin/workspace/Show.vue",
       "resources/js/Pages/Admin/Payment/Index.vue",
       "resources/js/Pages/Admin/Role/Index.vue",
       "resources/js/Pages/Admin/Role/Show.vue",

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->unsignedBigInteger('organization_id');
+            $table->unsignedBigInteger('workspace_id');
             $table->string('source', 128);
             $table->string('title', 128)->nullable();
             $table->text('content')->nullable();

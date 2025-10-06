@@ -189,7 +189,7 @@ class OptimizePerformanceCommand extends Command
     private function preWarmPerformanceCache(): void
     {
         try {
-            // Cache organization metrics untuk dashboard
+            // Cache workspace metrics untuk dashboard
             DB::table('organizations')
                 ->select('id')
                 ->limit(10)

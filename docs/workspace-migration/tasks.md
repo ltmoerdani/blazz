@@ -1,11 +1,11 @@
-# TASKS - Organization → Workspace Migration
+# TASKS - workspace → Workspace Migration
 
 ## IMPLEMENTATION CHECKLIST (FRONTEND → DATABASE → BACKEND)
 
 ### 🎨 PHASE 1: FRONTEND/UI MIGRATION (26 components, 7 locales, 7 routes)
 
 #### TASK-F1: Translation Files Migration
-**Goal:** Update all i18n keys dari organization → workspace
+**Goal:** Update all i18n keys dari workspace → workspace
 **Complexity:** 🟡 MEDIUM
 **Estimated Time:** 2-4 hours
 
@@ -19,37 +19,37 @@
 - [ ] `lang/default_en.json` - Default fallback
 
 **Implementation Steps:**
-1. Search & replace all `organization.*` keys → `workspace.*` 
-2. Update nested translation objects (organization.name → workspace.name)
+1. Search & replace all `workspace.*` keys → `workspace.*` 
+2. Update nested translation objects (workspace.name → workspace.name)
 3. Maintain backward compatibility dengan deprecation notice
 4. Test translation loading dengan missing key fallbacks
 
 **Validation:**
 ```bash
 # Test command: Verify no broken translation keys
-grep -r "organization\." resources/js --include="*.vue" | grep "\$t("
+grep -r "workspace\." resources/js --include="*.vue" | grep "\$t("
 ```
 
 ---
 
 #### TASK-F2: Vue Components Props Migration  
-**Goal:** Update 26 Vue components dari organization props → workspace props
+**Goal:** Update 26 Vue components dari workspace props → workspace props
 **Complexity:** 🔴 HIGH (breaking changes)
 **Estimated Time:** 6-10 hours
 
 **Components to Update:**
-- [ ] `resources/js/Components/ProfileModal.vue` - organization prop → workspace
+- [ ] `resources/js/Components/ProfileModal.vue` - workspace prop → workspace
 - [ ] `resources/js/Components/OrganizationModal.vue` - **CRITICAL** rename file + logic
 - [ ] `resources/js/Components/Tables/OrganizationTable.vue` - **CRITICAL** rename + routes
-- [ ] `resources/js/Components/Tables/BillingTable.vue` - item.organization → item.workspace
-- [ ] `resources/js/Pages/Auth/Invite.vue` - props.organization → props.workspace
-- [ ] `resources/js/Pages/Admin/Layout/Menu.vue` - organization prop → workspace
+- [ ] `resources/js/Components/Tables/BillingTable.vue` - item.workspace → item.workspace
+- [ ] `resources/js/Pages/Auth/Invite.vue` - props.workspace → props.workspace
+- [ ] `resources/js/Pages/Admin/Layout/Menu.vue` - workspace prop → workspace
 - [ ] **+20 additional components** (from 26 total verified)
 
 **Implementation Steps Per Component:**
-1. Update `defineProps()` declarations: `'organization'` → `'workspace'`
-2. Update template references: `props.organization` → `props.workspace`
-3. Update computed properties using organization data
+1. Update `defineProps()` declarations: `'workspace'` → `'workspace'`
+2. Update template references: `props.workspace` → `props.workspace`
+3. Update computed properties using workspace data
 4. Update method calls dan form submissions
 5. Test component rendering dengan new props
 
@@ -62,30 +62,30 @@ mv resources/js/Components/Tables/OrganizationTable.vue → WorkspaceTable.vue
 
 **Validation:**
 ```bash
-# Test command: Verify no lingering organization props
-find resources/js -name "*.vue" -exec grep -H "props.*organization" {} \;
+# Test command: Verify no lingering workspace props
+find resources/js -name "*.vue" -exec grep -H "props.*workspace" {} \;
 ```
 
 ---
 
 #### TASK-F3: Route Definitions Migration
-**Goal:** Update 7 organization routes → workspace routes  
+**Goal:** Update 7 workspace routes → workspace routes  
 **Complexity:** 🟡 MEDIUM
 **Estimated Time:** 2-3 hours
 
 **Routes to Update in `routes/web.php`:**
-- [ ] Line 96: `/profile/organization` → `/profile/workspace`
-- [ ] Line 110: `/select-organization` → `/select-workspace`  
+- [ ] Line 96: `/profile/workspace` → `/profile/workspace`
+- [ ] Line 110: `/select-workspace` → `/select-workspace`  
 - [ ] Line 111: `selectOrganization` method → `selectWorkspace`
-- [ ] Line 112: `/organization` POST → `/workspace` POST
-- [ ] Line 114: `check.organization` middleware → `check.workspace`
+- [ ] Line 112: `/workspace` POST → `/workspace` POST
+- [ ] Line 114: `check.workspace` middleware → `check.workspace`
 - [ ] Line 221: `organizations` resource → `workspaces` resource
 - [ ] Line 258: `/organizations` → `/workspaces` (commented route)
 
 **Implementation Steps:**
 1. Update route paths dengan backward compatibility aliases
-2. Update named routes: `user.organization.*` → `user.workspace.*`
-3. Update middleware references: `check.organization` → `check.workspace`
+2. Update named routes: `user.workspace.*` → `user.workspace.*`
+3. Update middleware references: `check.workspace` → `check.workspace`
 4. Update controller method names di route definitions
 5. Test route resolution dan parameter binding
 
@@ -210,13 +210,13 @@ use App\Http\Resources\WorkspacesResource;        // NEW (OrganizationsResource 
 use App\Http\Resources\BillingResource;          // Keep same
 use App\Http\Resources\UserResource;             // Keep same  
 use App\Models\BillingCredit, BillingDebit, BillingInvoice, BillingPayment;
-use App\Models\BillingTransaction, Workspace, Setting, Subscription;  // Organization → Workspace
+use App\Models\BillingTransaction, Workspace, Setting, Subscription;  // workspace → Workspace
 use App\Models\SubscriptionPlan, Team, Template, User;
 use DB, Str, Propaganistas\LaravelPhone\PhoneNumber;
 ```
 
 **Method Implementation (6 methods):**
-- [ ] `get(object $request, $userId = null)` - Update query Organization → Workspace
+- [ ] `get(object $request, $userId = null)` - Update query workspace → Workspace
 - [ ] `getByUuid($request, $uuid = null)` - Update model references
 - [ ] `store(Object $request)` - Update creation logic
 - [ ] `update($request, $uuid)` - Update update logic  
@@ -225,9 +225,9 @@ use DB, Str, Propaganistas\LaravelPhone\PhoneNumber;
 
 **Implementation Steps:**
 1. **EXACT copy** OrganizationService.php → WorkspaceService.php
-2. Replace all `Organization::class` → `Workspace::class`
+2. Replace all `workspace::class` → `Workspace::class`
 3. Replace `OrganizationsResource::class` → `WorkspacesResource::class` 
-4. Update all internal string references 'organization' → 'workspace'
+4. Update all internal string references 'workspace' → 'workspace'
 5. Test service methods dengan workspace context
 6. Maintain identical method signatures untuk compatibility
 
@@ -240,7 +240,7 @@ php artisan tinker -c "app(App\Services\WorkspaceService::class)"
 ---
 
 #### TASK-B2: Controller Migration (3-Tier Architecture)
-**Goal:** Update 3 organization controllers → workspace controllers
+**Goal:** Update 3 workspace controllers → workspace controllers
 **Complexity:** 🟡 MEDIUM (namespace changes)  
 **Estimated Time:** 4-6 hours
 
@@ -250,12 +250,12 @@ php artisan tinker -c "app(App\Services\WorkspaceService::class)"
 - [ ] `app/Http/Controllers/Admin/OrganizationController.php` → `WorkspaceController.php`
 
 **Implementation Steps Per Controller:**
-1. Rename controller file: Organization* → Workspace*
+1. Rename controller file: workspace* → Workspace*
 2. Update class name: `OrganizationController` → `WorkspaceController`
 3. Update service injection: `OrganizationService` → `WorkspaceService`
-4. Update model references: `Organization::class` → `Workspace::class`
+4. Update model references: `workspace::class` → `Workspace::class`
 5. Update method names: `selectOrganization()` → `selectWorkspace()`
-6. Update view/redirect paths: organization → workspace
+6. Update view/redirect paths: workspace → workspace
 7. Test controller methods dengan dependency injection
 
 **Validation:**
@@ -267,7 +267,7 @@ php artisan route:list | grep WorkspaceController
 ---
 
 #### TASK-B3: Middleware Pipeline Migration (Global Changes)
-**Goal:** Update global middleware pipeline organization → workspace
+**Goal:** Update global middleware pipeline workspace → workspace
 **Complexity:** 🔴 HIGH (system-wide impact)
 **Estimated Time:** 4-6 hours
 
@@ -295,7 +295,7 @@ php artisan route:list | grep WorkspaceController
 **Implementation Steps:**
 1. **EXACT copy** SetOrganizationFromSession → SetWorkspaceFromSession
 2. Update session key: `current_organization` → `current_workspace`
-3. Update request merge: `['organization' => ...]` → `['workspace' => ...]`
+3. Update request merge: `['workspace' => ...]` → `['workspace' => ...]`
 4. Update AuditLoggingMiddleware context extraction
 5. Update AdvancedRateLimitMiddleware rate keys
 6. Update Kernel.php middleware registration
@@ -315,7 +315,7 @@ php artisan route:list --middleware=setWorkspace
 **Estimated Time:** 3-4 hours
 
 **Files to Create:**
-- [ ] `app/Models/Workspace.php` - **NEW** (copy dari Organization.php)
+- [ ] `app/Models/Workspace.php` - **NEW** (copy dari workspace.php)
 
 **Critical Relationships to Maintain:**
 ```php
@@ -340,7 +340,7 @@ public function listAll($searchTerm, $userId = null) {
 ```
 
 **Implementation Steps:**
-1. **EXACT copy** Organization.php → Workspace.php
+1. **EXACT copy** workspace.php → Workspace.php
 2. Update FK references: organization_id → workspace_id
 3. Update relationship methods untuk new table structure
 4. Maintain exact query patterns dan method signatures
@@ -362,17 +362,17 @@ php artisan tinker -c "App\Models\Workspace::with('teams')->first()"
 
 **Files to Update:**
 - [ ] `composer.json` - Update autoload classmap (if needed)
-- [ ] Update imports across 13+ Organization* classes
-- [ ] Update service providers (if any organization bindings)
+- [ ] Update imports across 13+ workspace* classes
+- [ ] Update service providers (if any workspace bindings)
 
-**Organization Classes to Update (13 files):**
-- Search & replace all `Organization::class` → `Workspace::class` references
-- Update import statements: `use App\Models\Organization` → `use App\Models\Workspace`
+**workspace Classes to Update (13 files):**
+- Search & replace all `workspace::class` → `Workspace::class` references
+- Update import statements: `use App\Models\workspace` → `use App\Models\Workspace`
 - Update service bindings dan container registrations
 
 **Implementation Steps:**
 1. Run composer autoload dump
-2. Search & replace Organization class references
+2. Search & replace workspace class references
 3. Update service provider bindings  
 4. Update factory references (if any)
 5. Test class resolution dan autoloading
@@ -402,8 +402,8 @@ composer dump-autoload && php artisan tinker -c "class_exists('App\Models\Worksp
 **Estimated Time:** 3-4 hours
 
 **Test Cases:**
-- [ ] Database rollback restores organization tables
-- [ ] Frontend rollback restores organization terminology
+- [ ] Database rollback restores workspace tables
+- [ ] Frontend rollback restores workspace terminology
 - [ ] Service layer rollback restores OrganizationService
 - [ ] Session rollback restores current_organization
 

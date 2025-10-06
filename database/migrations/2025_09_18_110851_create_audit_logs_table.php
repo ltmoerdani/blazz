@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('ip_address', 45)->index(); // IPv4/IPv6 support
             $table->text('user_agent')->nullable();
             $table->unsignedBigInteger('user_id')->nullable()->index();
-            $table->unsignedBigInteger('organization_id')->nullable()->index();
+            $table->unsignedBigInteger('workspace_id')->nullable()->index();
             $table->string('session_id', 100)->nullable()->index();
             $table->json('request_data')->nullable(); // Request details
             $table->integer('status_code')->nullable()->index();
@@ -35,7 +35,7 @@ return new class extends Migration
             
             // Indexes untuk performance dan searching
             $table->index(['user_id', 'created_at']);
-            $table->index(['organization_id', 'created_at']);
+            $table->index(['workspace_id', 'created_at']);
             $table->index(['ip_address', 'created_at']);
             $table->index(['event_type', 'created_at']);
             $table->index(['success', 'created_at']);
@@ -70,7 +70,7 @@ return new class extends Migration
             $table->id();
             $table->string('ip_address', 45)->index();
             $table->unsignedBigInteger('user_id')->nullable()->index();
-            $table->string('rate_limit_type', 50)->index(); // ip, user, endpoint, organization
+            $table->string('rate_limit_type', 50)->index(); // ip, user, endpoint, workspace
             $table->string('endpoint', 100)->nullable()->index();
             $table->integer('attempts')->default(1);
             $table->integer('limit_threshold');
@@ -117,7 +117,7 @@ return new class extends Migration
             $table->string('audit_id', 100)->nullable()->index(); // Reference ke audit_logs
             $table->unsignedBigInteger('user_id')->index(); // User who accessed data
             $table->unsignedBigInteger('target_user_id')->nullable()->index(); // User whose data was accessed
-            $table->unsignedBigInteger('organization_id')->nullable()->index();
+            $table->unsignedBigInteger('workspace_id')->nullable()->index();
             $table->string('data_type', 50)->index(); // user_profile, chat_history, contact_info, etc.
             $table->string('access_type', 20)->index(); // read, export, modify, delete
             $table->string('data_source', 100)->nullable(); // Table or endpoint accessed
@@ -131,7 +131,7 @@ return new class extends Migration
             
                         // Indexes for data_access_logs
             $table->index(['target_user_id', 'data_type', 'created_at'], 'data_target_type_created_idx');
-            $table->index(['organization_id', 'access_type', 'created_at'], 'data_org_access_created_idx');
+            $table->index(['workspace_id', 'access_type', 'created_at'], 'data_org_access_created_idx');
             $table->index(['consent_given', 'created_at'], 'data_consent_created_idx');
             $table->index(['user_id', 'access_type', 'created_at'], 'data_user_access_created_idx');
         });

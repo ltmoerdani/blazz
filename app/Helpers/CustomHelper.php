@@ -32,16 +32,16 @@ class CustomHelper {
         }
     }
 
-    public static function isModuleEnabled($module, $organizationId = NULL){
+    public static function isModuleEnabled($module, $workspaceId = NULL){
         $addon = Addon::where('name', $module)
             ->where('status', 1)
             ->where('is_active', 1)
             ->exists();
 
-        $orgId = $organizationId != NULL ? $organizationId : session()->get('current_organization');
+        $orgId = $workspaceId != NULL ? $workspaceId : session()->get('current_workspace');
 
         $subscription = Subscription::with('plan')
-            ->where('organization_id', $orgId)
+            ->where('workspace_id', $orgId)
             ->first();
 
         if($addon){

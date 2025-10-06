@@ -12,18 +12,18 @@ class BillingCredit extends Model {
     protected $guarded = [];
     public $timestamps = false;
 
-    public function listAll($searchTerm, $organizationId = null)
+    public function listAll($searchTerm, $workspaceId = null)
     {
-        return $this->with(['organization'])
-                    ->when($organizationId !== null, function ($query) use ($organizationId) {
-                        return $query->where('organization_id', $organizationId);
+        return $this->with(['workspace'])
+                    ->when($workspaceId !== null, function ($query) use ($workspaceId) {
+                        return $query->where('workspace_id', $workspaceId);
                     })
                     ->latest()
                     ->paginate(10);
     }
 
-    public function organization()
+    public function workspace()
     {
-        return $this->belongsTo(Organization::class, 'organization_id', 'id');
+        return $this->belongsTo(workspace::class, 'workspace_id', 'id');
     }
 }

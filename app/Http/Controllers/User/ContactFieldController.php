@@ -15,7 +15,7 @@ class ContactFieldController extends BaseController
 {
     private function contactFieldService()
     {
-        return new ContactFieldService(session()->get('current_organization'));
+        return new ContactFieldService(session()->get('current_workspace'));
     }
 
     public function index(Request $request, $id = null){
@@ -36,7 +36,7 @@ class ContactFieldController extends BaseController
 
     public function show($uuid)
     {
-        $contactFieldService = new ContactFieldService(session()->get('current_organization'));
+        $contactFieldService = new ContactFieldService(session()->get('current_workspace'));
         $row = $contactFieldService->getByUuid($uuid);
 
         return response()->json(['success' => true, 'item'=> $row]);

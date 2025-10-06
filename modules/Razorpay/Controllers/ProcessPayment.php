@@ -66,7 +66,7 @@ class ProcessPayment extends BaseController
                             'email'        => auth()->user()->email,
                         ],
                         'notes' => [
-                            'organization_id' => session()->get('current_organization'),
+                            'workspace_id' => session()->get('current_workspace'),
                             'user_id' => auth()->user()->id,
                             'plan_id' => $planId
                         ],
@@ -107,20 +107,20 @@ class ProcessPayment extends BaseController
             if ($payload['event'] === 'payment.authorized') {
                 $transaction = DB::transaction(function () use ($payload) {
                     $notes = $payload['payload']['payment']['entity']['notes'];
-                    $organizationId = $notes['organization_id'] ?? null;
+                    $workspaceId = $notes['workspace_id'] ?? null;
                     $userId = $notes['user_id'] ?? null;
                     $planId = $notes['plan_id'] ?? null;
                     $amount = $payload['payload']['payment']['entity']['amount'] / 100; // Convert paise to currency
 
                     $payment = BillingPayment::create([
-                        'organization_id' => $organizationId,
+                        'workspace_id' => $workspaceId,
                         'processor' => 'razorpay',
                         'details' => $payload['payload']['payment']['entity']['id'],
                         'amount' => $amount
                     ]);
 
                     $transaction = BillingTransaction::create([
-                        'organization_id' => $organizationId,
+                        'workspace_id' => $workspaceId,
                         'entity_type' => 'payment',
                         'entity_id' => $payment->id,
                         'description' => 'Razorpay Payment',
@@ -129,13 +129,13 @@ class ProcessPayment extends BaseController
                     ]);
 
                     if ($planId == null) {
-                        $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($organizationId, $userId);
+                        $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
                     } else {
-                        $this->subscriptionService->updateSubscriptionPlan($organizationId, $planId, $userId);
+                        $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
                     }
 
                     // Uncomment if you have an event or further processing to do
-                    // event(new NewPaymentEvent($transaction, $organizationId));
+                    // event(new NewPaymentEvent($transaction, $workspaceId));
 
                     return $transaction;
                 });

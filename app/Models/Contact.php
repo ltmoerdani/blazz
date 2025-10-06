@@ -29,10 +29,10 @@ class Contact extends Model {
         return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
     }
 
-    public function getAllContacts($organizationId, $searchTerm)
+    public function getAllContacts($workspaceId, $searchTerm)
     {
         return $this->with('contactGroups')
-            ->where('organization_id', $organizationId)
+            ->where('workspace_id', $workspaceId)
             ->where('deleted_at', null)
             ->where(function ($query) use ($searchTerm) {
                 $query->where('contacts.first_name', 'like', '%' . $searchTerm . '%')
@@ -57,14 +57,14 @@ class Contact extends Model {
             ->paginate(10);
     }
 
-    public function getAllContactGroups($organizationId)
+    public function getAllContactGroups($workspaceId)
     {
-        return ContactGroup::where('organization_id', $organizationId)->whereNull('deleted_at')->get();
+        return ContactGroup::where('workspace_id', $workspaceId)->whereNull('deleted_at')->get();
     }
 
-    public function countContacts($organizationId)
+    public function countContacts($workspaceId)
     {
-        return $this->where('organization_id', $organizationId)->whereNull('deleted_at')->count();
+        return $this->where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
     }
 
     public function contactGroups()
@@ -102,20 +102,20 @@ class Contact extends Model {
         return $this->hasMany(ChatLog::class);
     }
 
-    public function contactsWithChats($organizationId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
+    public function contactsWithChats($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
     {
         $query = $this->newQuery()
-            ->where('contacts.organization_id', $organizationId)
+            ->where('contacts.organization_id', $workspaceId)
             ->whereNotNull('contacts.latest_chat_created_at')
             ->with(['lastChat', 'lastInboundChat'])
             ->whereNull('contacts.deleted_at')
             ->select('contacts.*')
-            ->selectSub(function ($subquery) use ($organizationId) {
+            ->selectSub(function ($subquery) use ($workspaceId) {
                 $subquery->from('chats')
                     ->selectRaw('MAX(created_at)')
                     ->whereColumn('chats.contact_id', 'contacts.id')
                     ->whereNull('chats.deleted_at')
-                    ->where('chats.organization_id', $organizationId);
+                    ->where('chats.organization_id', $workspaceId);
             }, 'last_chat_created_at');
 
         // Apply ticketing conditions if active
@@ -153,7 +153,7 @@ class Contact extends Model {
         return $contacts;
 
         /*$query = $this->newQuery()
-            ->where('contacts.organization_id', $organizationId)
+            ->where('contacts.organization_id', $workspaceId)
             ->whereNotNull('contacts.latest_chat_created_at')
             ->whereNull('contacts.deleted_at')
             ->with(['lastChat', 'lastInboundChat'])
@@ -203,10 +203,10 @@ class Contact extends Model {
         return $query->paginate(10);*/
     }
 
-    public function contactsWithChatsCount($organizationId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
+    public function contactsWithChatsCount($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
     {
         $query = $this->newQuery()
-            ->where('contacts.organization_id', $organizationId)
+            ->where('contacts.organization_id', $workspaceId)
             ->whereNotNull('contacts.latest_chat_created_at')
             ->whereNull('contacts.deleted_at')
             ->with(['lastChat', 'lastInboundChat'])

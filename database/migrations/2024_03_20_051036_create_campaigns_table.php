@@ -17,7 +17,7 @@ class CreateCampaignsTable extends Migration
         Schema::create('campaigns', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->integer('organization_id');
+            $table->integer('workspace_id');
             $table->string('name', 128);
             $table->integer('template_id');
             $table->integer('contact_group_id');

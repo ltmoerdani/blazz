@@ -22,8 +22,8 @@ class AuditLoggingMiddleware
         'user.created' => 'User Account Created',
         'user.updated' => 'User Profile Updated',
         'user.deleted' => 'User Account Deleted',
-        'organization.created' => 'Organization Created',
-        'organization.updated' => 'Organization Updated',
+        'workspace.created' => 'workspace Created',
+        'workspace.updated' => 'workspace Updated',
         'chat.created' => 'Chat Started',
         'chat.message' => 'Message Sent',
         'api.access' => 'API Access',
@@ -41,7 +41,7 @@ class AuditLoggingMiddleware
         'admin.*',
         'api.*',
         'user.profile.*',
-        'organization.*',
+        'workspace.*',
         'billing.*',
         'settings.*',
     ];
@@ -85,7 +85,7 @@ class AuditLoggingMiddleware
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'user_id' => $request->user()?->id,
-            'organization_id' => $this->getOrganizationContext($request),
+            'workspace_id' => $this->getOrganizationContext($request),
             'session_id' => session()->getId(),
             'request_id' => $this->generateRequestId(),
             'timestamp' => now(),
@@ -174,7 +174,7 @@ class AuditLoggingMiddleware
             'admin.*',
             'auth.login',
             'user.delete',
-            'organization.delete',
+            'workspace.delete',
             'billing.*',
             'api.admin.*',
         ];
@@ -263,7 +263,7 @@ class AuditLoggingMiddleware
                 'ip_address' => $data['ip_address'],
                 'user_agent' => $data['user_agent'],
                 'user_id' => $data['user_id'],
-                'organization_id' => $data['organization_id'],
+                'workspace_id' => $data['workspace_id'],
                 'session_id' => $data['session_id'],
                 'request_data' => $data['additional_data'],
                 'request_id' => $data['request_id'],
@@ -371,7 +371,7 @@ class AuditLoggingMiddleware
             'severity' => $this->determineIncidentSeverity($response),
             'ip_address' => $request->ip(),
             'user_id' => $request->user()?->id,
-            'organization_id' => $this->getOrganizationContext($request),
+            'workspace_id' => $this->getOrganizationContext($request),
             'endpoint' => $request->route()?->getName(),
             'status_code' => $response->getStatusCode(),
         ];
@@ -382,7 +382,7 @@ class AuditLoggingMiddleware
         try {
             \App\Models\SecurityIncident::create([
                 'audit_id' => $auditId,
-                'organization_id' => $incidentData['organization_id'] ?? null,
+                'workspace_id' => $incidentData['workspace_id'] ?? null,
                 'incident_type' => $incidentData['incident_type'],
                 'severity' => $incidentData['severity'],
                 'ip_address' => $incidentData['ip_address'],
@@ -475,18 +475,18 @@ class AuditLoggingMiddleware
     }
 
     /**
-     * Get organization context dari request (session atau API)
+     * Get workspace context dari request (session atau API)
      */
     private function getOrganizationContext(Request $request): ?int
     {
-        // Web routes: organization dari session (SetOrganizationFromSession middleware)
-        $orgId = session('current_organization');
+        // Web routes: workspace dari session (SetWorkspaceFromSession middleware)
+        $orgId = session('current_workspace');
         
-        // API routes: organization dari bearer token middleware (AuthenticateBearerToken)
-        $orgId = $orgId ?? $request->get('organization');
+        // API routes: workspace dari bearer token middleware (AuthenticateBearerToken)
+        $orgId = $orgId ?? $request->get('workspace');
         
         // Fallback: try to get dari request parameter
-        return $orgId ?? $request->get('organization_id');
+        return $orgId ?? $request->get('workspace_id');
     }
 
     /**
@@ -497,7 +497,7 @@ class AuditLoggingMiddleware
         $sensitivePatterns = [
             'admin/*',
             'user/profile/*',
-            'organization/settings/*',
+            'workspace/settings/*',
             'billing/*',
             'api/admin/*',
         ];

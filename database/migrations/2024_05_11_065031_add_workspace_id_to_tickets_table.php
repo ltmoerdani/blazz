@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('organizations', function (Blueprint $table) {
-            $table->json('metadata')->nullable()->default(null)->change();
+        Schema::table('tickets', function (Blueprint $table) {
+            $table->unsignedBigInteger('workspace_id')->nullable()->after('reference');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('organizations', function (Blueprint $table) {
-            $table->text('metadata')->change();
+        Schema::table('tickets', function (Blueprint $table) {
+            $table->dropColumn('workspace_id');
         });
     }
 };

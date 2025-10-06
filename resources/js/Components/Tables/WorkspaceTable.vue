@@ -32,7 +32,7 @@
     const form = useForm({'test': null});
 
     const deleteAction = (key) => {
-        form.delete('/admin/organizations/' + key);
+        form.delete('/admin/workspaces/' + key);
     }
 
     const isLastRow = (index) => {
@@ -129,7 +129,7 @@
                         </button>
                         <template #items>
                             <DropdownItemGroup>
-                                <DropdownItem :href="'/admin/organizations/' + item.uuid">{{ $t('View/edit') }}</DropdownItem>
+                                <DropdownItem :href="'/admin/workspaces/' + item.uuid">{{ $t('View/edit') }}</DropdownItem>
                                 <DropdownItem as="button" @click="openAlert(item.uuid)">{{ $t('Delete') }}</DropdownItem>
                             </DropdownItemGroup>
                         </template>

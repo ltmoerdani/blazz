@@ -13,7 +13,7 @@ class SecurityIncident extends Model
 
     protected $fillable = [
         'audit_id',
-        'organization_id',
+        'workspace_id',
         'incident_type',
         'severity',
         'ip_address',
@@ -36,9 +36,9 @@ class SecurityIncident extends Model
         return $this->belongsTo(AuditLog::class, 'audit_id', 'id');
     }
 
-    public function organization()
+    public function workspace()
     {
-        return $this->belongsTo(Organization::class);
+        return $this->belongsTo(workspace::class);
     }
 
     public function user()

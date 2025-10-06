@@ -17,7 +17,7 @@ class PageResource extends JsonResource
     {
         $data = parent::toArray($request);
 
-        // Convert updated_at to the organization's timezone and format it
+        // Convert updated_at to the workspace's timezone and format it
         $updatedAt = DateTimeHelper::convertToCompanyTimezone($this->updated_at);
         $data['updated_at'] = DateTimeHelper::formatDateWithoutHours($updatedAt);
 

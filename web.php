@@ -92,7 +92,7 @@ Route::middleware(['auth:user,admin'])->group(function () {
     Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update']);
     Route::put('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword']);
     Route::put('/profile/tfa', [App\Http\Controllers\ProfileController::class, 'updateTfa']);
-    Route::put('/profile/organization', [App\Http\Controllers\ProfileController::class, 'updateOrganization']);
+    Route::put('/profile/workspace', [App\Http\Controllers\ProfileController::class, 'updateOrganization']);
 });
 
 Route::middleware(['auth:user'])->group(function () {
@@ -106,11 +106,11 @@ Route::middleware(['auth:user'])->group(function () {
     Route::post('/email/verification-notification', [App\Http\Controllers\AuthController::class, 'sendEmailVerification'])->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
     Route::group(['middleware' => ['check.email.verification']], function () {
-        Route::get('/select-organization', [App\Http\Controllers\User\OrganizationController::class, 'index'])->name('user.organization.index');
-        Route::post('/select-organization', [App\Http\Controllers\User\OrganizationController::class, 'selectOrganization'])->name('user.organization.selectOrganization');
-        Route::post('/organization', [App\Http\Controllers\User\OrganizationController::class, 'store'])->name('user.organization.store');
+        Route::get('/select-workspace', [App\Http\Controllers\User\OrganizationController::class, 'index'])->name('user.workspace.index');
+        Route::post('/select-workspace', [App\Http\Controllers\User\OrganizationController::class, 'selectOrganization'])->name('user.workspace.selectOrganization');
+        Route::post('/workspace', [App\Http\Controllers\User\OrganizationController::class, 'store'])->name('user.workspace.store');
 
-        Route::group(['middleware' => ['check.organization']], function () {
+        Route::group(['middleware' => ['check.workspace']], function () {
             //User Panel Routes
             Route::match(['get', 'post'], '/dashboard', [App\Http\Controllers\User\DashboardController::class, 'index'])->name('dashboard');
 

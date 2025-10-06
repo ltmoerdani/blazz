@@ -8,12 +8,12 @@ use Inertia\Inertia;
 use App\Helpers\SubscriptionHelper;
 use Illuminate\Support\Facades\Auth;
 
-class CheckOrganizationId
+class CheckWorkspaceId
 {
     public function handle($request, Closure $next)
     {
-        if (!session()->has('current_organization')) {
-            return redirect()->route('user.organization.index');
+        if (!session()->has('current_workspace')) {
+            return redirect()->route('user.workspace.index');
         }
 
         return $next($request);

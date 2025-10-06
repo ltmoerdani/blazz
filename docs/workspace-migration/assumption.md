@@ -1,7 +1,7 @@
-# ASSUMPTION ANALYSIS - Migrasi Organization ke Workspace
+# ASSUMPTION ANALYSIS - Migrasi workspace ke Workspace
 
 ## EXECUTIVE SUMMARY
-Transformasi tenant "Organization" menjadi "Workspace" bertujuan menyeragamkan terminologi lintas backend, frontend, dan database tanpa mengganggu isolasi multi-tenant. Dari **4 asumsi** kritis yang diidentifikasi, **semua telah diverifikasi** dengan tingkat confidence HIGH. Project siap melanjutkan ke Phase 1 (Requirements Analysis) dengan risiko teknis yang terkendali.
+Transformasi tenant "workspace" menjadi "Workspace" bertujuan menyeragamkan terminologi lintas backend, frontend, dan database tanpa mengganggu isolasi multi-tenant. Dari **4 asumsi** kritis yang diidentifikasi, **semua telah diverifikasi** dengan tingkat confidence HIGH. Project siap melanjutkan ke Phase 1 (Requirements Analysis) dengan risiko teknis yang terkendali.
 
 ## ASUMSI KRITIS
 🔴 **[ASM-1] Database & Foreign Keys**  
@@ -17,26 +17,26 @@ Transformasi tenant "Organization" menjadi "Workspace" bertujuan menyeragamkan t
 └─ Status: ✅ **VERIFIED**
 
 🟠 **[ASM-3] Service & Controller Naming**  
-├─ Asumsi: Seluruh business logic memakai kelas bermerek `Organization*` sehingga rename → `Workspace*` tidak memutus dependensi.  
+├─ Asumsi: Seluruh business logic memakai kelas bermerek `workspace*` sehingga rename → `Workspace*` tidak memutus dependensi.  
 ├─ Risiko: Class lama masih direferensikan → fatal error autoload.  
 ├─ Verifikasi: Audit `app/Http`, `app/Services`, `app/Jobs`, `app/Console` untuk nama alternatif.  
 └─ Status: ✅ **VERIFIED**
 
 🟠 **[ASM-4] Frontend & Lokalizasi**  
-├─ Asumsi: Semua string/UI Organization berada di `resources/js` & `lang/*.json` dan dapat diganti sistematis.  
+├─ Asumsi: Semua string/UI workspace berada di `resources/js` & `lang/*.json` dan dapat diganti sistematis.  
 ├─ Risiko: Inkonsistensi istilah, fallback translation error.  
 ├─ Verifikasi: Enumerasi komponen Vue + file translasi multi-bahasa.  
 └─ Status: ✅ **VERIFIED**
 
 ## TEMUAN FORENSIK
 ### Backend
-- Models: `app/Models/Team.php` (relasi `organization()`), `app/Models/OrganizationApiKey.php` (kolom `organization_id`).
+- Models: `app/Models/Team.php` (relasi `workspace()`), `app/Models/OrganizationApiKey.php` (kolom `organization_id`).
 - Services: `app/Services/OrganizationService.php`, `app/Services/OrganizationApiService.php`, `app/Services/PerformanceCacheService.php` (metode `getOrganizationMetrics`, `getOrganizationList`).
-- Middleware: `app/Http/Middleware/SetOrganizationFromSession.php`, `app/Http/Middleware/CheckOrganizationId.php`, `app/Http/Middleware/HandleInertiaRequests.php` (share context Organization).
+- Middleware: `app/Http/Middleware/SetOrganizationFromSession.php`, `app/Http/Middleware/CheckOrganizationId.php`, `app/Http/Middleware/HandleInertiaRequests.php` (share context workspace).
 
 ### Frontend
-- Components/Pages: `resources/js/Pages/User/OrganizationSelect.vue`, `resources/js/Components/OrganizationModal.vue`, `resources/js/Components/Tables/OrganizationTable.vue`, `resources/js/Pages/Admin/Organization/*.vue`.
-- Translations: `lang/en.json`, `lang/id.json`, `lang/es.json`, `lang/fr.json`, `lang/tr.json`, `lang/sw.json` (key "Organization", "Select organization", dll.).
+- Components/Pages: `resources/js/Pages/User/OrganizationSelect.vue`, `resources/js/Components/OrganizationModal.vue`, `resources/js/Components/Tables/OrganizationTable.vue`, `resources/js/Pages/Admin/workspace/*.vue`.
+- Translations: `lang/en.json`, `lang/id.json`, `lang/es.json`, `lang/fr.json`, `lang/tr.json`, `lang/sw.json` (key "workspace", "Select workspace", dll.).
 
 ### Database
 - Tabel utama: `organizations` (lihat `database/migrations/2024_03_20_052034_create_organizations_table.php`).
@@ -54,7 +54,7 @@ Transformasi tenant "Organization" menjadi "Workspace" bertujuan menyeragamkan t
 - [ ] Simulasikan flow login → switch tenant menggunakan session key baru `current_workspace`.
 
 ### Fase 3 – Naming & Frontend
-- [x] Enumerasi kelas `Organization*` di `app/Http`, `app/Services`, `app/Jobs`, `app/Console` untuk menilai impact rename.
+- [x] Enumerasi kelas `workspace*` di `app/Http`, `app/Services`, `app/Jobs`, `app/Console` untuk menilai impact rename.
 - [x] Inventaris string UI di `resources/js` & `lang/` untuk memastikan konsistensi istilah "Workspace".
 - [ ] Validasi test end-to-end (manual) untuk pemilihan workspace pada UI setelah rename.
 
@@ -78,14 +78,14 @@ Transformasi tenant "Organization" menjadi "Workspace" bertujuan menyeragamkan t
 - Config dependencies minimal (2 referensi non-kritis)
 
 **✅ ASM-3 - Service & Class Naming:**
-- 8 Organization class files ditemukan, semua menggunakan PSR-4 autoload standard
-- 7 file menggunakan string references ke Organization classes (mudah di-replace)
+- 8 workspace class files ditemukan, semua menggunakan PSR-4 autoload standard
+- 7 file menggunakan string references ke workspace classes (mudah di-replace)
 - Queue jobs (4 files) menggunakan import eksplisit, bukan hardcoded strings
 - Audit logs menggunakan string literals tapi non-critical untuk functionality
 
 **✅ ASM-4 - Frontend & Lokalizasi:**
-- 13 Vue components menggunakan Organization, mayoritas via `$t()` i18n
-- 7 locale files (.json) memiliki Organization strings dengan coverage konsisten
+- 13 Vue components menggunakan workspace, mayoritas via `$t()` i18n
+- 7 locale files (.json) memiliki workspace strings dengan coverage konsisten
 - 3 hardcoded references ditemukan (component imports & method names), mudah di-rename
 - Indonesian translation punya coverage lebih lengkap (11 keys vs 7 di en.json)
 

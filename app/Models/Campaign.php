@@ -29,8 +29,8 @@ class Campaign extends Model {
         return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
     }
 
-    public function organization(){
-        return $this->belongsTo(Organization::class, 'organization_id', 'id');
+    public function workspace(){
+        return $this->belongsTo(workspace::class, 'workspace_id', 'id');
     }
 
     public function template(){

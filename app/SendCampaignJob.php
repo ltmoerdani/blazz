@@ -7,7 +7,7 @@ use App\Models\Campaign;
 use App\Models\CampaignLog;
 use App\Models\CampaignLogRetry;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Services\WhatsappService;
 use App\Traits\HasUuid;
@@ -24,7 +24,7 @@ class SendCampaignJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, TemplateTrait, SerializesModels;
 
-    private $organizationId;
+    private $workspaceId;
     private $whatsappService;
 
     public function handle()
@@ -34,16 +34,16 @@ class SendCampaignJob implements ShouldQueue
             $timezone = $timezoneQuery ? $timezoneQuery->value : 'UTC';*/
 
             $campaigns = Campaign::whereIn('status', ['scheduled', 'ongoing'])
-                ->with('organization') // Eager load the organization relationship
+                ->with('workspace') // Eager load the workspace relationship
                 ->whereNull('deleted_at')
                 ->cursor();
 
             $campaigns->each(function ($campaign) {
-                $organization = $campaign->organization;
+                $workspace = $campaign->workspace;
                 $timezone = 'UTC';
 
-                if ($organization) {
-                    $metadata = $organization->metadata;
+                if ($workspace) {
+                    $metadata = $workspace->metadata;
                     $metadata = isset($metadata) ? json_decode($metadata, true) : null;
 
                     if ($metadata && isset($metadata['timezone'])) {
@@ -53,7 +53,7 @@ class SendCampaignJob implements ShouldQueue
 
                 $scheduledAt = Carbon::parse($campaign->scheduled_at, 'UTC')->timezone($timezone);
 
-                // Compare the scheduled_at time with the current time in the organization's timezone
+                // Compare the scheduled_at time with the current time in the workspace's timezone
                 if ($scheduledAt->lte(Carbon::now($timezone))) {
                     $this->processCampaign($campaign);
                 }
@@ -91,7 +91,7 @@ class SendCampaignJob implements ShouldQueue
     protected function getContactsForCampaign(Campaign $campaign)
     {
         if (empty($campaign->contact_group_id) || $campaign->contact_group_id === '0') {
-            return Contact::where('organization_id', $campaign->organization_id)
+            return Contact::where('workspace_id', $campaign->workspace_id)
                 ->whereNull('deleted_at')
                 ->get();
         }
@@ -149,8 +149,8 @@ class SendCampaignJob implements ShouldQueue
 
     protected function processPendingOrRetryableLogs(Campaign $campaign)
     {
-        $campaign = Campaign::with('organization')->find($campaign->id);
-        $orgMetadata = json_decode($campaign->organization->metadata ?? '{}', true);
+        $campaign = Campaign::with('workspace')->find($campaign->id);
+        $orgMetadata = json_decode($campaign->workspace->metadata ?? '{}', true);
         $retryEnabled = $orgMetadata['campaigns']['enable_resend'] ?? false;
         $retryIntervals = $orgMetadata['campaigns']['resend_intervals'] ?? [];
         $maxRetries = count($retryIntervals);
@@ -204,8 +204,8 @@ class SendCampaignJob implements ShouldQueue
 
     protected function hasPendingOrRetryableLogs(Campaign $campaign)
     {
-        $campaign = Campaign::with('organization')->find($campaign->id);
-        $orgMetadata = json_decode($campaign->organization->metadata ?? '{}', true);
+        $campaign = Campaign::with('workspace')->find($campaign->id);
+        $orgMetadata = json_decode($campaign->workspace->metadata ?? '{}', true);
         $retryEnabled = $orgMetadata['campaigns']['enable_resend'] ?? false;
         $retryIntervals = $orgMetadata['campaigns']['resend_intervals'] ?? [];
         $maxRetries = count($retryIntervals);
@@ -264,8 +264,8 @@ class SendCampaignJob implements ShouldQueue
                     $log->status = 'ongoing';
                     $log->save();
             
-                    //Set Organization Id & initialize whatsapp service
-                    $this->organizationId = $campaignLog->campaign->organization_id;
+                    //Set workspace Id & initialize whatsapp service
+                    $this->organizationId = $campaignLog->campaign->workspace_id;
                     $this->initializeWhatsappService();
             
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
@@ -302,8 +302,8 @@ class SendCampaignJob implements ShouldQueue
                     $retryLog->status = 'ongoing';
                     $retryLog->save();
             
-                    //Set Organization Id & initialize whatsapp service
-                    $this->organizationId = $campaignLog->campaign->organization_id;
+                    //Set workspace Id & initialize whatsapp service
+                    $this->organizationId = $campaignLog->campaign->workspace_id;
                     $this->initializeWhatsappService();
             
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
@@ -330,7 +330,7 @@ class SendCampaignJob implements ShouldQueue
                     $log->save(); 
 
                     //If this is the last retry send contact to failed group
-                    $orgMetadata = json_decode($campaignLog->campaign->organization->metadata ?? '{}', true);
+                    $orgMetadata = json_decode($campaignLog->campaign->workspace->metadata ?? '{}', true);
                     $retryIntervals = $orgMetadata['campaigns']['resend_intervals'] ?? [];
                     $maxRetries = count($retryIntervals);
 
@@ -360,7 +360,7 @@ class SendCampaignJob implements ShouldQueue
 
     private function initializeWhatsappService()
     {
-        $config = Organization::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->organizationId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -374,7 +374,7 @@ class SendCampaignJob implements ShouldQueue
 
     protected function addContactToFailedGroup($campaignLog)
     {
-        $campaignSettings = json_decode($campaignLog->campaign->organization->metadata, true)['campaigns'] ?? [];
+        $campaignSettings = json_decode($campaignLog->campaign->workspace->metadata, true)['campaigns'] ?? [];
         $retryIntervals = $campaignSettings['resend_intervals'];
 
         if (!empty($campaignSettings['move_failed_contacts_to_group'])) {

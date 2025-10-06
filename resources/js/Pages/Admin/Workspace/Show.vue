@@ -1,19 +1,19 @@
 <template>
     <AppLayout>
         <div class="bg-white md:bg-inherit pt-0 px-4 md:pt-8 md:p-8 rounded-[5px] text-[#000] h-full overflow-y-scroll">
-            <div v-if="props.organization === null" class="md:flex justify-between hidden">
+            <div v-if="props.workspace === null" class="md:flex justify-between hidden">
                 <div>
-                    <h1 class="text-xl mb-1">{{ $t('Create organization') }}</h1>
+                    <h1 class="text-xl mb-1">{{ $t('Create workspace') }}</h1>
                     <p class="mb-6 flex items-center text-sm leading-6 text-gray-600">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v5m0 5a9 9 0 1 1 0-18a9 9 0 0 1 0 18Zm.05-13v.1h-.1V8h.1Z"/></svg>
-                        <span class="ml-1 mt-1">{{ $t('Create organization') }}</span>
+                        <span class="ml-1 mt-1">{{ $t('Create workspace') }}</span>
                     </p>
                 </div>
                 <div>
-                    <Link href="/admin/organizations" class="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Back') }}</Link>
+                    <Link href="/admin/workspaces" class="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Back') }}</Link>
                 </div>
             </div>
-            <div v-if="props.organization" class="flex justify-between">
+            <div v-if="props.workspace" class="flex justify-between">
                 <div class="flex items-center space-x-2 mb-8 mt-8 md:mt-0">
                     <div class="rounded-full p-1">
                         <div class="rounded-full w-32 h-32 bg-slate-200 flex justify-center items-center">
@@ -21,33 +21,33 @@
                         </div>
                     </div>
                     <div>
-                        <h1 class="text-lg">{{ props.organization.name }}</h1>
-                        <h2 class="text-sm">{{ $t('Subscription plan') }}: {{ props.organization?.subscription?.plan?.name ?? 'Not set' }} <span v-if="props.organization?.subscription?.status === 'trial'" class="bg-[#000] text-white text-xs py-1 px-2 rounded-md">{{ $t('Trial period') }}</span></h2>
-                        <h2 class="text-sm capitalize">{{ $t('Valid until') }}: {{ props.organization?.subscription?.valid_until ?? 'Not set' }}</h2>
+                        <h1 class="text-lg">{{ props.workspace.name }}</h1>
+                        <h2 class="text-sm">{{ $t('Subscription plan') }}: {{ props.workspace?.subscription?.plan?.name ?? 'Not set' }} <span v-if="props.workspace?.subscription?.status === 'trial'" class="bg-[#000] text-white text-xs py-1 px-2 rounded-md">{{ $t('Trial period') }}</span></h2>
+                        <h2 class="text-sm capitalize">{{ $t('Valid until') }}: {{ props.workspace?.subscription?.valid_until ?? 'Not set' }}</h2>
                     </div>
                 </div>
                 <div class="flex space-x-4">
                     <div>
                         <button type="button" @click="toggleFormModal()" class="rounded-md bg-indigo-600 px-3 h-9 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Create transaction') }}</button>
                     </div>
-                    <Link href="/admin/organizations" class="rounded-md h-9 bg-black px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Back') }}</Link>
+                    <Link href="/admin/workspaces" class="rounded-md h-9 bg-black px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Back') }}</Link>
                 </div>
             </div>
-            <div v-if="props.organization" class="flex border-b space-x-4 text-sm">
-                <div @click="changeTab('organization')" class="cursor-pointer px-2 py-2" :class="tab === 'organization' ? 'bg-white' : ''">{{ $t('User details') }}</div>
+            <div v-if="props.workspace" class="flex border-b space-x-4 text-sm">
+                <div @click="changeTab('workspace')" class="cursor-pointer px-2 py-2" :class="tab === 'workspace' ? 'bg-white' : ''">{{ $t('User details') }}</div>
                 <div @click="changeTab('team')" class="cursor-pointer px-2 py-2" :class="tab === 'team' ? 'bg-white' : ''">{{ $t('Team') }}</div>
                 <div @click="changeTab('billing')" class="cursor-pointer px-2 py-2" :class="tab === 'billing' ? 'bg-white' : ''">{{ $t('Billing history') }}</div>
             </div>
-            <div v-if="props.organization && tab === 'team'" class="pt-5">
+            <div v-if="props.workspace && tab === 'team'" class="pt-5">
                 <UserTable :rows="props.users" :filters="props.filters" :type="'user'" :showRole="true" :showDeleteBtn="false"/>
             </div>
-            <div v-if="props.organization && tab === 'billing'" class="pt-5">
-                <BillingTable :rows="props.invoices" :filters="props.filters" :uuid="props.organization.uuid"/>
+            <div v-if="props.workspace && tab === 'billing'" class="pt-5">
+                <BillingTable :rows="props.invoices" :filters="props.filters" :uuid="props.workspace.uuid"/>
             </div>
-            <form v-if="tab === 'organization'" @submit.prevent="submitForm()" class="bg-white py-5 px-5 rounded-bl-[0.5rem] rounded-br-[0.5rem]">
+            <form v-if="tab === 'workspace'" @submit.prevent="submitForm()" class="bg-white py-5 px-5 rounded-bl-[0.5rem] rounded-br-[0.5rem]">
                 <div class="sm:flex border-b py-5">
                     <div class="hidden sm:block sm:w-[40%] mb-1">
-                        <h3 class="text-sm tracking-[0px]">{{ $t('Organization details') }}</h3>
+                        <h3 class="text-sm tracking-[0px]">{{ $t('workspace details') }}</h3>
                     </div>
                     <div class="sm:w-[60%] sm:flex space-x-6">
                         <div class="sm:w-[80%] grid gap-x-6 gap-y-4 sm:grid-cols-6">
@@ -56,10 +56,10 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="props.organization === null" class="sm:flex border-b py-5">
+                <div v-if="props.workspace === null" class="sm:flex border-b py-5">
                     <div class="hidden sm:block sm:w-[40%] mb-1">
                         <h3 class="text-sm tracking-[0px]">{{ $t('User details') }}</h3>
-                        <p class="text-sm text-gray-500">{{ $t('Enter the details of the main administrative user of this organization') }}</p>
+                        <p class="text-sm text-gray-500">{{ $t('Enter the details of the main administrative user of this workspace') }}</p>
                     </div>
                     <div class="sm:w-[60%]">
                         <div class="sm:w-[80%] flex justify-between bg-primary rounded-[5px] p-1 space-x-2 mb-4 text-white">
@@ -150,7 +150,7 @@
             default: true
         }, 
         title: String, 
-        organization: Object, 
+        workspace: Object, 
         users: Object, 
         invoices: Object, 
         plans: Object, 
@@ -158,7 +158,7 @@
         mode: String 
     });
 
-    const tab = ref('organization');
+    const tab = ref('workspace');
 
     const getAddressDetail = (value, key) => {
         if(value){
@@ -170,8 +170,8 @@
     };
 
     const form = useForm({
-        name: props.organization?.name,
-        plan: props.organization?.subscription?.plan?.uuid,
+        name: props.workspace?.name,
+        plan: props.workspace?.subscription?.plan?.uuid,
         create_user: 1,
         first_name: null,
         last_name: null,
@@ -179,11 +179,11 @@
         phone: null,
         password: null, 
         password_confirmation: null,
-        street: getAddressDetail(props.organization?.address, 'street'),
-        city: getAddressDetail(props.organization?.address, 'city'),
-        state: getAddressDetail(props.organization?.address, 'state'),
-        zip: getAddressDetail(props.organization?.address, 'zip'),
-        country: getAddressDetail(props.organization?.address, 'country')
+        street: getAddressDetail(props.workspace?.address, 'street'),
+        city: getAddressDetail(props.workspace?.address, 'city'),
+        state: getAddressDetail(props.workspace?.address, 'state'),
+        zip: getAddressDetail(props.workspace?.address, 'zip'),
+        country: getAddressDetail(props.workspace?.address, 'country')
     });
 
     const typeOptions = ref([
@@ -198,7 +198,7 @@
     ])
 
     const form1 = useForm({
-        uuid: props.organization?.uuid,
+        uuid: props.workspace?.uuid,
         type: null,
         amount: null,
         method: null,
@@ -235,9 +235,9 @@
     }
 
     const submitForm = async () => {
-        const url = props.organization ? window.location.pathname : '/admin/organizations';
+        const url = props.workspace ? window.location.pathname : '/admin/workspaces';
 
-        form[props.organization ? 'put' : 'post'](url, {
+        form[props.workspace ? 'put' : 'post'](url, {
             preserveScroll: true,
         });
     };

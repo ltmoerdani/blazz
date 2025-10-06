@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\DB;
 use App\Models\Chat;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\User;
 
 /**
@@ -27,18 +27,18 @@ class PerformanceCacheService
     /**
      * Advanced cache tagging untuk intelligent invalidation
      */
-    public function getChatTimeline($organizationId, $contactId = null, $limit = 50)
+    public function getChatTimeline($workspaceId, $contactId = null, $limit = 50)
     {
-        $cacheKey = "chat_timeline:{$organizationId}:{$contactId}:{$limit}";
-        $tags = ['chats', "org:{$organizationId}"];
+        $cacheKey = "chat_timeline:{$workspaceId}:{$contactId}:{$limit}";
+        $tags = ['chats', "org:{$workspaceId}"];
         
         if ($contactId) {
             $tags[] = "contact:{$contactId}";
         }
 
-        return Cache::tags($tags)->remember($cacheKey, self::CACHE_MEDIUM, function() use ($organizationId, $contactId, $limit) {
+        return Cache::tags($tags)->remember($cacheKey, self::CACHE_MEDIUM, function() use ($workspaceId, $contactId, $limit) {
             $query = Chat::with(['contact:id,name,phone', 'media:id,file_name,file_url'])
-                ->where('organization_id', $organizationId)
+                ->where('workspace_id', $workspaceId)
                 ->orderBy('created_at', 'desc')
                 ->limit($limit);
 
@@ -51,26 +51,26 @@ class PerformanceCacheService
     }
 
     /**
-     * Organization dashboard metrics dengan aggressive caching
+     * workspace dashboard metrics dengan aggressive caching
      */
-    public function getOrganizationMetrics($organizationId)
+    public function getOrganizationMetrics($workspaceId)
     {
-        $cacheKey = "org_metrics:{$organizationId}";
-        $tags = ['org_metrics', "org:{$organizationId}"];
+        $cacheKey = "org_metrics:{$workspaceId}";
+        $tags = ['org_metrics', "org:{$workspaceId}"];
 
-        return Cache::tags($tags)->remember($cacheKey, self::CACHE_LONG, function() use ($organizationId) {
+        return Cache::tags($tags)->remember($cacheKey, self::CACHE_LONG, function() use ($workspaceId) {
             return [
-                'total_chats' => Chat::where('organization_id', $organizationId)->count(),
-                'today_chats' => Chat::where('organization_id', $organizationId)
+                'total_chats' => Chat::where('workspace_id', $workspaceId)->count(),
+                'today_chats' => Chat::where('workspace_id', $workspaceId)
                     ->whereDate('created_at', today())->count(),
-                'active_contacts' => Chat::where('organization_id', $organizationId)
+                'active_contacts' => Chat::where('workspace_id', $workspaceId)
                     ->distinct('contact_id')
                     ->whereDate('created_at', '>=', now()->subDays(7))
                     ->count('contact_id'),
                 'team_members' => DB::table('teams')
-                    ->where('organization_id', $organizationId)
+                    ->where('workspace_id', $workspaceId)
                     ->count(),
-                'response_time_avg' => $this->calculateAverageResponseTime($organizationId),
+                'response_time_avg' => $this->calculateAverageResponseTime($workspaceId),
             ];
         });
     }
@@ -78,22 +78,22 @@ class PerformanceCacheService
     /**
      * User-specific data dengan personal caching
      */
-    public function getUserDashboard($userId, $organizationId)
+    public function getUserDashboard($userId, $workspaceId)
     {
-        $cacheKey = "user_dashboard:{$userId}:{$organizationId}";
-        $tags = ['user_data', "user:{$userId}", "org:{$organizationId}"];
+        $cacheKey = "user_dashboard:{$userId}:{$workspaceId}";
+        $tags = ['user_data', "user:{$userId}", "org:{$workspaceId}"];
 
-        return Cache::tags($tags)->remember($cacheKey, self::CACHE_MEDIUM, function() use ($userId, $organizationId) {
+        return Cache::tags($tags)->remember($cacheKey, self::CACHE_MEDIUM, function() use ($userId, $workspaceId) {
             return [
-                'my_chats_count' => Chat::where('organization_id', $organizationId)
+                'my_chats_count' => Chat::where('workspace_id', $workspaceId)
                     ->where(function($q) use ($userId) {
                         $q->whereJsonContains('metadata->assigned_to', $userId)
                           ->orWhereJsonContains('metadata->handled_by', $userId);
                     })->count(),
-                'pending_chats' => Chat::where('organization_id', $organizationId)
+                'pending_chats' => Chat::where('workspace_id', $workspaceId)
                     ->where('status', 'pending')
                     ->count(),
-                'recent_activity' => $this->getUserRecentActivity($userId, $organizationId),
+                'recent_activity' => $this->getUserRecentActivity($userId, $workspaceId),
             ];
         });
     }
@@ -101,10 +101,10 @@ class PerformanceCacheService
     /**
      * High-frequency contact search dengan Redis caching
      */
-    public function searchContacts($organizationId, $searchTerm, $limit = 20)
+    public function searchContacts($workspaceId, $searchTerm, $limit = 20)
     {
         // Use Redis untuk high-frequency searches
-        $cacheKey = "contact_search:{$organizationId}:" . md5(strtolower($searchTerm));
+        $cacheKey = "contact_search:{$workspaceId}:" . md5(strtolower($searchTerm));
         
         $cached = Redis::get($cacheKey);
         if ($cached) {
@@ -112,7 +112,7 @@ class PerformanceCacheService
         }
 
         $results = DB::table('contacts')
-            ->where('organization_id', $organizationId)
+            ->where('workspace_id', $workspaceId)
             ->where(function($q) use ($searchTerm) {
                 $q->where('name', 'like', "%{$searchTerm}%")
                   ->orWhere('phone', 'like', "%{$searchTerm}%");
@@ -127,7 +127,7 @@ class PerformanceCacheService
     }
 
     /**
-     * Organization list dengan pagination caching
+     * workspace list dengan pagination caching
      */
     public function getOrganizationList($page = 1, $perPage = 10, $searchTerm = null)
     {
@@ -135,7 +135,7 @@ class PerformanceCacheService
         $tags = ['organizations', 'org_list'];
 
         return Cache::tags($tags)->remember($cacheKey, self::CACHE_MEDIUM, function() use ($page, $perPage, $searchTerm) {
-            $query = Organization::with(['teams:organization_id,user_id,role', 'teams.user:id,name,avatar'])
+            $query = workspace::with(['teams:organization_id,user_id,role', 'teams.user:id,name,avatar'])
                 ->withCount('teams');
 
             if ($searchTerm) {
@@ -150,9 +150,9 @@ class PerformanceCacheService
     /**
      * Smart cache invalidation methods
      */
-    public function invalidateChatCache($organizationId, $contactId = null)
+    public function invalidateChatCache($workspaceId, $contactId = null)
     {
-        $tags = ['chats', "org:{$organizationId}"];
+        $tags = ['chats', "org:{$workspaceId}"];
         
         if ($contactId) {
             $tags[] = "contact:{$contactId}";
@@ -161,17 +161,17 @@ class PerformanceCacheService
         Cache::tags($tags)->flush();
     }
 
-    public function invalidateOrganizationCache($organizationId)
+    public function invalidateOrganizationCache($workspaceId)
     {
-        Cache::tags(["org:{$organizationId}", 'org_metrics'])->flush();
+        Cache::tags(["org:{$workspaceId}", 'org_metrics'])->flush();
     }
 
-    public function invalidateUserCache($userId, $organizationId = null)
+    public function invalidateUserCache($userId, $workspaceId = null)
     {
         $tags = ["user:{$userId}", 'user_data'];
         
-        if ($organizationId) {
-            $tags[] = "org:{$organizationId}";
+        if ($workspaceId) {
+            $tags[] = "org:{$workspaceId}";
         }
 
         Cache::tags($tags)->flush();
@@ -206,21 +206,21 @@ class PerformanceCacheService
     /**
      * Helper methods
      */
-    private function calculateAverageResponseTime($organizationId)
+    private function calculateAverageResponseTime($workspaceId)
     {
         // Simplified calculation - in production, this would use more sophisticated metrics
-        return Cache::remember("response_time:{$organizationId}", self::CACHE_LONG, function() use ($organizationId) {
+        return Cache::remember("response_time:{$workspaceId}", self::CACHE_LONG, function() use ($workspaceId) {
             return DB::table('chats')
-                ->where('organization_id', $organizationId)
+                ->where('workspace_id', $workspaceId)
                 ->whereNotNull('metadata->response_time')
                 ->avg(DB::raw('JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.response_time"))')) ?? 0;
         });
     }
 
-    private function getUserRecentActivity($userId, $organizationId)
+    private function getUserRecentActivity($userId, $workspaceId)
     {
-        return Cache::remember("user_activity:{$userId}:{$organizationId}", self::CACHE_SHORT, function() use ($userId, $organizationId) {
-            return Chat::where('organization_id', $organizationId)
+        return Cache::remember("user_activity:{$userId}:{$workspaceId}", self::CACHE_SHORT, function() use ($userId, $workspaceId) {
+            return Chat::where('workspace_id', $workspaceId)
                 ->whereJsonContains('metadata->handled_by', $userId)
                 ->orderBy('created_at', 'desc')
                 ->limit(5)

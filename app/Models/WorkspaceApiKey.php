@@ -7,16 +7,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class OrganizationApiKey extends Model
+class WorkspaceApiKey extends Model
 {
     use HasFactory;
     use HasUuid;
 
+    protected $table = 'workspace_api_keys';
     protected $guarded = [];
     public $timestamps = true;
     
     protected $fillable = [
-        'organization_id',
+        'workspace_id',
         'api_key',
         'name',
         'permissions',
@@ -33,11 +34,11 @@ class OrganizationApiKey extends Model
     ];
 
     /**
-     * Get the organization that owns this API key
+     * Get the workspace that owns this API key
      */
-    public function organization(): BelongsTo
+    public function workspace(): BelongsTo
     {
-        return $this->belongsTo(Organization::class);
+        return $this->belongsTo(Workspace::class);
     }
 
     /**

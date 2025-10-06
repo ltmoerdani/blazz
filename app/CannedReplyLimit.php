@@ -8,12 +8,12 @@ use app\Services\SubscriptionService;
 
 class CannedReplyLimit implements Rule
 {
-    private $organizationId;
+    private $workspaceId;
     protected $ignoreId;
 
-    public function __construct($organizationId, $ignoreId = null)
+    public function __construct($workspaceId, $ignoreId = null)
     {
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
         $this->ignoreId = $ignoreId;
     }
     
