@@ -30,9 +30,6 @@ class SendCampaignJob implements ShouldQueue
     public function handle()
     {
         try {
-            /*$timezoneQuery = Setting::where('key', 'timezone')->first();
-            $timezone = $timezoneQuery ? $timezoneQuery->value : 'UTC';*/
-
             $campaigns = Campaign::whereIn('status', ['scheduled', 'ongoing'])
                 ->with('workspace') // Eager load the workspace relationship
                 ->whereNull('deleted_at')
@@ -209,7 +206,7 @@ class SendCampaignJob implements ShouldQueue
         $retryEnabled = $orgMetadata['campaigns']['enable_resend'] ?? false;
         $retryIntervals = $orgMetadata['campaigns']['resend_intervals'] ?? [];
         $maxRetries = count($retryIntervals);
-        
+
         // Check for pending logs first
         $hasPending = CampaignLog::where('status', 'pending')
             ->where('campaign_id', $campaign->id)
@@ -227,8 +224,8 @@ class SendCampaignJob implements ShouldQueue
         // Now check for retryable failed logs
         $hasRetryable = CampaignLog::where('campaign_id', $campaign->id)
             ->where('status', 'failed')
-            ->where(function ($query) use ($retryIntervals, $maxRetries) {
-                $query->whereExists(function ($sub) use ($retryIntervals, $maxRetries) {
+            ->where(function ($query) use ($maxRetries) {
+                $query->whereExists(function ($sub) use ($maxRetries) {
                     $sub->select(DB::raw(1))
                         ->from('campaign_log_retries as clr')
                         ->whereColumn('clr.campaign_log_id', 'campaign_logs.id')
@@ -249,28 +246,23 @@ class SendCampaignJob implements ShouldQueue
                               ->where('status', 'pending') // Make sure the log is still pending
                               ->lockForUpdate()
                               ->first();
-                   
-            if ($log) {  
+
+            if ($log) {
                 if (!$campaignLog->contact) {
                     $log->status = 'failed';
                     $log->save();
-                    
-                    /*Log::error("Skipping message sending: Contact is either missing or deleted.", [
-                        'campaign_log_id' => $campaignLog->id,
-                        'contact_id' => $campaignLog->contact->id ?? null
-                    ]);*/
-                } else {   
-                    $campaign_user_id = Campaign::find($log->campaign_id)?->created_by;    
+
+                } else {
+                    $campaign_user_id = Campaign::find($log->campaign_id)?->created_by;
                     $log->status = 'ongoing';
                     $log->save();
-            
+
                     //Set workspace Id & initialize whatsapp service
                     $this->workspaceId = $campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
-            
+
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
                     $responseObject = $this->whatsappService->sendTemplateMessage($campaignLog->contact->uuid, $template, $campaign_user_id, $campaignLog->campaign_id);
-                    //Log::info(json_encode($responseObject));
                     $this->updateCampaignLogStatus($campaignLog, $responseObject);
                 }
             }
@@ -285,31 +277,26 @@ class SendCampaignJob implements ShouldQueue
                               ->where('status', 'failed')
                               ->lockForUpdate()
                               ->first();
-                   
-            if ($log) {  
+
+            if ($log) {
                 if (!$campaignLog->contact) {
                     $log->status = 'failed';
                     $log->save();
-                    
-                    /*Log::error("Skipping message sending: Contact is either missing or deleted.", [
-                        'campaign_log_id' => $campaignLog->id,
-                        'contact_id' => $campaignLog->contact->id ?? null
-                    ]);*/
-                } else {   
-                    $campaign_user_id = Campaign::find($log->campaign_id)?->created_by;  
+
+                } else {
+                    $campaign_user_id = Campaign::find($log->campaign_id)?->created_by;
                     $retryLog = new CampaignLogRetry();
                     $retryLog->campaign_log_id = $campaignLog->id;
                     $retryLog->status = 'ongoing';
                     $retryLog->save();
-            
+
                     //Set workspace Id & initialize whatsapp service
                     $this->workspaceId = $campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
-            
+
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
                     $responseObject = $this->whatsappService->sendTemplateMessage($campaignLog->contact->uuid, $template, $campaign_user_id, $campaignLog->campaign_id);
                     $successStatus = ($responseObject->success === true) ? 'success' : 'failed';
-                    //Log::info(json_encode($responseObject));
 
                     $retryLog->chat_id = $responseObject->data->chat->id ?? null;
                     $retryLog->status = $successStatus;
@@ -327,7 +314,7 @@ class SendCampaignJob implements ShouldQueue
                     $log = CampaignLog::find($campaignLog->id);
                     $log->retry_count += 1;
                     $log->status = $successStatus;
-                    $log->save(); 
+                    $log->save();
 
                     //If this is the last retry send contact to failed group
                     $orgMetadata = json_decode($campaignLog->campaign->workspace->metadata ?? '{}', true);
@@ -375,7 +362,6 @@ class SendCampaignJob implements ShouldQueue
     protected function addContactToFailedGroup($campaignLog)
     {
         $campaignSettings = json_decode($campaignLog->campaign->workspace->metadata, true)['campaigns'] ?? [];
-        $retryIntervals = $campaignSettings['resend_intervals'];
 
         if (!empty($campaignSettings['move_failed_contacts_to_group'])) {
             $groupUuid = $campaignSettings['failed_campaign_group'];

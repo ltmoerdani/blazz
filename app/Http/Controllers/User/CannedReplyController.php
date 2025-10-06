@@ -17,6 +17,9 @@ use Helper;
 
 class CannedReplyController extends BaseController
 {
+    // Constants for repeated string literals
+    const CANNED_REPLIES_TITLE = 'Canned replies';
+    
     private $autoReplyService;
 
     public function __construct(AutoReplyService $autoReplyService)
@@ -30,7 +33,7 @@ class CannedReplyController extends BaseController
         $fbmodule = CustomHelper::isModuleEnabled('Flow builder');
 
         return Inertia::render('User/Automation/Basic/Index', [
-            'title' => __('Canned replies'),
+            'title' => __(self::CANNED_REPLIES_TITLE),
             'allowCreate' => true,
             'rows' => $rows,
             'filters' => request()->all(),
@@ -40,7 +43,7 @@ class CannedReplyController extends BaseController
     }
 
     public function create(){
-        $data['title'] = __('Canned replies');
+        $data['title'] = __(self::CANNED_REPLIES_TITLE);
         $placeholders = config('formats.placeholders');
         $workspaceId = session()->get('current_workspace');
         $additionalFields = DB::table('contact_fields')
@@ -74,7 +77,7 @@ class CannedReplyController extends BaseController
     }
 
     public function edit($uuid){
-        $data['title'] = __('Canned replies');
+        $data['title'] = __(self::CANNED_REPLIES_TITLE);
         $data['autoreply'] = AutoReply::where('uuid', $uuid)->first();
         $placeholders = config('formats.placeholders');
         $workspaceId = session()->get('current_workspace');

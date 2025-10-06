@@ -176,15 +176,10 @@
 <script setup>
     import SettingLayout from "./Layout.vue";
     import { ref } from 'vue';
-    import EmbeddedSignupBtn from '@/Components/EmbeddedSignupBtn.vue';
-    import FormModal from '@/Components/FormModal.vue';
     import FormInput from '@/Components/FormInput.vue';
     import FormSelect from '@/Components/FormSelect.vue';
-    import FormTextArea from '@/Components/FormTextArea.vue';
     import FormToggleSwitch from '@/Components/FormToggleSwitch.vue';
-    import Modal from '@/Components/Modal.vue';
-    import { trans } from 'laravel-vue-i18n';
-    import { router, useForm } from "@inertiajs/vue3";
+    import { useForm } from "@inertiajs/vue3";
 
     const props = defineProps(['contactGroups', 'settings', 'timezones', 'modules', 'workspace', 'countries', 'sounds']);
     const statusView = ref(false);

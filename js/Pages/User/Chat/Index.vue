@@ -57,9 +57,6 @@
                     />
                 </div>
             </div>
-            <!--<div v-if="contact" class="md:w-[25%] min-w-0 bg-cover flex flex-col bg-white border-l">
-                <ChatContact v-if="contact" class="bg-white h-full" :contact="contact" />
-            </div>-->
         </div>
         <button class="hidden" ref="toggleNavbarBtn" @click="slotProps.toggleNavBar"></button>
     </AppLayout>

@@ -15,7 +15,7 @@
 <script setup>
     import { usePage } from "@inertiajs/vue3";
     import Sidebar from "./Sidebar.vue";
-    import { defineProps, ref, computed, watch, onMounted } from 'vue';
+    import { ref, computed, watch, onMounted } from 'vue';
     import { toast } from 'vue3-toastify';
     import MobileSidebar from "./MobileSidebar.vue";
     import 'vue3-toastify/dist/index.css';

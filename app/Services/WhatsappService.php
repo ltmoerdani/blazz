@@ -25,6 +25,13 @@ use Session;
 
 class WhatsappService
 {
+    // Constants for repeated string literals
+    const INTERACTIVE_BUTTONS = 'interactive buttons';
+    const INTERACTIVE_CTA_URL = 'interactive call to action url';
+    const INTERACTIVE_LIST = 'interactive list';
+    const BEARER_PREFIX = 'Bearer ';
+    const JSON_CONTENT_TYPE = 'application/json';
+    
     private $accessToken;
     private $apiVersion;
     private $appId;
@@ -73,18 +80,18 @@ class WhatsappService
             $requestData['type'] = 'text';
             $requestData['text']['preview_url'] = true; //If you have added url either http or https a preview will be displayed
             $requestData['text']['body'] = clean($messageContent);
-        } elseif($type == "interactive buttons" || $type == "interactive call to action url" || $type == "interactive list"){
+        } elseif($type == self::INTERACTIVE_BUTTONS || $type == self::INTERACTIVE_CTA_URL || $type == self::INTERACTIVE_LIST){
             $requestData['type'] = 'interactive';
 
-            if($type == "interactive buttons"){
+            if($type == self::INTERACTIVE_BUTTONS){
                 $requestData['interactive']['type'] = 'button';
-            } elseif($type == "interactive call to action url"){
+            } elseif($type == self::INTERACTIVE_CTA_URL){
                 $requestData['interactive']['type'] = 'cta_url';
-            } elseif($type == "interactive list"){
+            } elseif($type == self::INTERACTIVE_LIST){
                 $requestData['interactive']['type'] = 'list';
             }
 
-            if($type == "interactive buttons"){
+            if($type == self::INTERACTIVE_BUTTONS){
                 foreach($buttons as $button){
                     $requestData['interactive']['action']['buttons'][] = [
                         'type' => 'reply',
@@ -94,10 +101,10 @@ class WhatsappService
                         ],
                     ];
                 }
-            } elseif($type == "interactive call to action url"){
+            } elseif($type == self::INTERACTIVE_CTA_URL){
                 $requestData['interactive']['action']['name'] = "cta_url";
                 $requestData['interactive']['action']['parameters'] = $buttons;
-            } elseif($type == "interactive list"){
+            } elseif($type == self::INTERACTIVE_LIST){
                 $requestData['interactive']['action']['sections'] = $buttons;
                 $requestData['interactive']['action']['button'] = $buttonLabel;
             }
@@ -736,8 +743,8 @@ class WhatsappService
         try {
             $response = $client->post($url, [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->accessToken,
-                    'Content-Type' => 'application/json',
+                    'Authorization' => self::BEARER_PREFIX . $this->accessToken,
+                    'Content-Type' => self::JSON_CONTENT_TYPE,
                 ],
                 'json' => $requestData,
             ]);
@@ -968,8 +975,8 @@ class WhatsappService
         try {
             $response = $client->post($url, [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->accessToken,
-                    'Content-Type' => 'application/json',
+                    'Authorization' => self::BEARER_PREFIX . $this->accessToken,
+                    'Content-Type' => self::JSON_CONTENT_TYPE,
                 ],
                 'json' => $requestData,
             ]);
@@ -1142,7 +1149,7 @@ class WhatsappService
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->post("https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps")->throw()->json();
 
             $responseObject->success = true;
@@ -1174,7 +1181,7 @@ class WhatsappService
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->post("https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps", [
                 'override_callback_uri' => $callbackUrl,
                 'verify_token' => $verifyToken
@@ -1206,7 +1213,7 @@ class WhatsappService
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->get("https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/whatsapp_business_profile", [
                 'fields' => 'about,address,description,email,profile_picture_url,websites,vertical',
             ])->throw()->json();
@@ -1346,7 +1353,7 @@ class WhatsappService
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->get("https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}", [
                 'fields' => 'status, code_verification_status , quality_score, health_status',
             ])->throw()->json();
@@ -1377,7 +1384,7 @@ class WhatsappService
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->get("https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}", [
                 'fields' => 'account_review_status',
             ])->throw()->json();
@@ -1524,8 +1531,8 @@ class WhatsappService
     public function setHeaders()
     {
         return [
-            'Authorization' => 'Bearer ' . $this->accessToken,
-            'Content-Type' => 'application/json',
+            'Authorization' => self::BEARER_PREFIX . $this->accessToken,
+            'Content-Type' => self::JSON_CONTENT_TYPE,
         ];
     }
 

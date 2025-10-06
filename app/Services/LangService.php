@@ -13,6 +13,9 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class LangService
 {
+    // Constants for repeated string literals
+    const JSON_EXTENSION = '.json';
+    
     /**
      * Get all languages based on the provided request filters.
      *
@@ -59,13 +62,13 @@ class LangService
                 // Read the contents of default_en.json
                 $defaultLangFilePath = $langDirectory . '/default_en.json';
 
-                $oldLangFilePath = $langDirectory . '/' . strtolower($oldCode) . '.json';
+                $oldLangFilePath = $langDirectory . '/' . strtolower($oldCode) . self::JSON_EXTENSION;
                 if (file_exists($oldLangFilePath)) {
-                    $newLangFilePath = $langDirectory . '/' . strtolower($request->code) . '.json';
+                    $newLangFilePath = $langDirectory . '/' . strtolower($request->code) . self::JSON_EXTENSION;
                     rename($oldLangFilePath, $newLangFilePath);
                 } else {
                     $defaultContent = File::get($defaultLangFilePath);
-                    $newLangFilePath = $langDirectory . '/' . strtolower($request->code) . '.json';
+                    $newLangFilePath = $langDirectory . '/' . strtolower($request->code) . self::JSON_EXTENSION;
                     File::put($newLangFilePath, $defaultContent);
                 }
             }
@@ -102,7 +105,7 @@ class LangService
 
             // Delete the language file if it exists
             $langDirectory = base_path('lang');
-            $langFilePath = $langDirectory . '/' . $language->code . '.json';
+            $langFilePath = $langDirectory . '/' . $language->code . self::JSON_EXTENSION;
             if (file_exists($langFilePath)) {
                 unlink($langFilePath);
                 Log::info('Language file deleted: ' . $langFilePath);
