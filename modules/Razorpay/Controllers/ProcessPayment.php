@@ -33,9 +33,9 @@ class ProcessPayment extends BaseController
         $this->subscriptionService = new SubscriptionService();
 
         $settings = Setting::whereIn('key', [
-            'razorpay_key_id', 
-            'razorpay_secret_key', 
-            'currency', 
+            'razorpay_key_id',
+            'razorpay_secret_key',
+            'currency',
             'razorpay_webhook_secret'
         ])->pluck('value', 'key');
 

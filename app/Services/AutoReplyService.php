@@ -49,16 +49,16 @@ class AutoReplyService
                     $file = Storage::disk('local')->put('public', $fileContent);
                     $mediaFilePath = $file;
                     $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-                } else if($storage === 'aws') {
+                } elseif($storage === 'aws') {
                     $filePath = 'uploads/media/received'  . session()->get('current_workspace') . '/' . $fileName;
-                    $file = Storage::disk('s3')->put($filePath, $fileContent, 'public');
+                    Storage::disk('s3')->put($filePath, $fileContent, 'public');
                     /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
                     $s3Disk = Storage::disk('s3');
                     $mediaFilePath = $s3Disk->url($filePath);
                     $mediaUrl = $mediaFilePath;
                 }
 
-                $uploadedMedia = MediaService::upload($request->file('response'));
+                MediaService::upload($request->file('response'));
 
                 $metadata['data']['file']['name'] = $fileName;
                 $metadata['data']['file']['location'] = $mediaFilePath;
@@ -69,7 +69,7 @@ class AutoReplyService
                 $metadata['data']['file']['location'] = $media->file->location;
                 $metadata['data']['file']['url'] = $media->file->url;
             }
-        } else if($request->response_type === 'text') {
+        } elseif($request->response_type === 'text') {
             $metadata['data']['text'] = $request->response;
         } else {
             $metadata['data']['template'] = $request->response;
@@ -182,12 +182,12 @@ class AutoReplyService
 
         if($metadata['type'] == 'text'){
             $text = $metadata['text']['body'];
-        } else if(json_decode($chat->metadata)->type == 'button'){
+        } elseif(json_decode($chat->metadata)->type == 'button'){
             $text = $metadata['button']['payload'];
-        } else if(json_decode($chat->metadata)->type == 'interactive'){
+        } elseif(json_decode($chat->metadata)->type == 'interactive'){
             if($metadata['interactive']['type'] == 'button_reply'){
                 $text = $metadata['interactive']['button_reply']['title'];
-            } else if($metadata['interactive']['type'] == 'list_reply'){
+            } elseif($metadata['interactive']['type'] == 'list_reply'){
                 $text = $metadata['interactive']['list_reply']['title'];
             }
         }
@@ -220,12 +220,12 @@ class AutoReplyService
 
         if($metadata['type'] == 'text'){
             $text = $metadata['text']['body'];
-        } else if(json_decode($chat->metadata)->type == 'button'){
+        } elseif(json_decode($chat->metadata)->type == 'button'){
             $text = $metadata['button']['payload'];
-        } else if(json_decode($chat->metadata)->type == 'interactive'){
+        } elseif(json_decode($chat->metadata)->type == 'interactive'){
             if($metadata['interactive']['type'] == 'button_reply'){
                 $text = $metadata['interactive']['button_reply']['title'];
-            } else if($metadata['interactive']['type'] == 'list_reply'){
+            } elseif($metadata['interactive']['type'] == 'list_reply'){
                 $text = $metadata['interactive']['list_reply']['title'];
             }
         }
@@ -251,12 +251,12 @@ class AutoReplyService
 
         if($metadata['type'] == 'text'){
             $text = $metadata['text']['body'];
-        } else if(json_decode($chat->metadata)->type == 'button'){
+        } elseif(json_decode($chat->metadata)->type == 'button'){
             $text = $metadata['button']['payload'];
-        } else if(json_decode($chat->metadata)->type == 'interactive'){
+        } elseif(json_decode($chat->metadata)->type == 'interactive'){
             if($metadata['interactive']['type'] == 'button_reply'){
                 $text = $metadata['interactive']['button_reply']['title'];
-            } else if($metadata['interactive']['type'] == 'list_reply'){
+            } elseif($metadata['interactive']['type'] == 'list_reply'){
                 $text = $metadata['interactive']['list_reply']['title'];
             }
         }
@@ -284,7 +284,7 @@ class AutoReplyService
 
         if ($criteria === 'exact match') {
             return $receivedMessage === " " . $normalizedTrigger;
-        } else if ($criteria === 'contains') {
+        } elseif ($criteria === 'contains') {
             $triggerWords = explode(' ', $normalizedTrigger);
             $pattern = '/\b(' . implode('|', array_map('preg_quote', $triggerWords)) . ')\b/i';
 
@@ -304,7 +304,7 @@ class AutoReplyService
         if($replyType === 'text'){
             $message = $this->replacePlaceholders($workspace_id, $contact->uuid, $metadata->data->text);
             $this->initializeWhatsappService($workspace_id)->sendMessage($contact->uuid, $message);
-        } else if($replyType === 'audio' || $replyType === 'image'){
+        } elseif($replyType === 'audio' || $replyType === 'image'){
             $location = strpos($metadata->data->file->location, 'public\\') === 0 ? 'local' : 'amazon';
             $this->initializeWhatsappService($workspace_id)->sendMedia($contact->uuid, $replyType, $metadata->data->file->name, $metadata->data->file->location, $metadata->data->file->url, $location);
         }
@@ -329,25 +329,25 @@ class AutoReplyService
         $contact = Contact::with('contactGroups')->where('uuid', $contactUuid)->first();
         $address = $contact->address ? json_decode($contact->address, true) : [];
         $metadata = $contact->metadata ? json_decode($contact->metadata, true) : [];
-        $full_address = ($address['street'] ?? Null) . ', ' .
-                        ($address['city'] ?? Null) . ', ' .
-                        ($address['state'] ?? Null) . ', ' .
-                        ($address['zip'] ?? Null) . ', ' .
-                        ($address['country'] ?? Null);
+        $full_address = ($address['street'] ?? null) . ', ' .
+                        ($address['city'] ?? null) . ', ' .
+                        ($address['state'] ?? null) . ', ' .
+                        ($address['zip'] ?? null) . ', ' .
+                        ($address['country'] ?? null);
 
         $data = [
-            'first_name' => $contact->first_name ?? Null,
-            'last_name' => $contact->last_name ?? Null,
-            'full_name' => $contact->full_name ?? Null,
-            'email' => $contact->email ?? Null,
-            'phone' => $contact->phone ?? Null,
+            'first_name' => $contact->first_name ?? null,
+            'last_name' => $contact->last_name ?? null,
+            'full_name' => $contact->full_name ?? null,
+            'email' => $contact->email ?? null,
+            'phone' => $contact->phone ?? null,
             'organization_name' => $workspace->name,
             'full_address' => $full_address,
-            'street' => $address['street'] ?? Null,
-            'city' => $address['city'] ?? Null,
-            'state' => $address['state'] ?? Null,
-            'zip_code' => $address['zip'] ?? Null,
-            'country' => $address['country'] ?? Null,
+            'street' => $address['street'] ?? null,
+            'city' => $address['city'] ?? null,
+            'state' => $address['state'] ?? null,
+            'zip_code' => $address['zip'] ?? null,
+            'country' => $address['country'] ?? null,
         ];
 
         $transformedMetadata = [];
@@ -359,8 +359,6 @@ class AutoReplyService
         }
 
         $mergedData = array_merge($data, $transformedMetadata);
-
-        //Log::info($mergedData);
 
         return preg_replace_callback('/\{(\w+)\}/', function ($matches) use ($mergedData) {
             $key = $matches[1];

@@ -30,7 +30,7 @@ class EmailTemplateController extends BaseController
      */
     public function index(Request $request){
         return Inertia::render('Admin/Setting/EmailTemplate/Index', [
-            'rows' => $this->emailService->getTemplates($request), 
+            'rows' => $this->emailService->getTemplates($request),
             'filters' => $request->all()
         ]);
     }
@@ -61,7 +61,7 @@ class EmailTemplateController extends BaseController
 
         return redirect('/admin/settings/email-templates')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Template updated successfully!')
             ]
         );

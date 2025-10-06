@@ -118,5 +118,5 @@ class LangService
             Log::error('Error deleting language: ' . $e->getMessage());
             return response()->json(['message' => 'Failed to delete language'], 500);
         }
-    } 
+    }
 }

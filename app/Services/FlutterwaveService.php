@@ -40,7 +40,7 @@ class FlutterwaveService
         $this->secretKey = $this->config->secret_key;
     }
 
-    public function makeRequest($method, $url, $body = NULL)
+    public function makeRequest($method, $url, $body = null)
     {
         $httpClient = new HttpClient();
 
@@ -62,7 +62,7 @@ class FlutterwaveService
         }
     }
 
-    public function handlePayment($amount, $planId = NULL)
+    public function handlePayment($amount, $planId = null)
     {
         $currency = strtoupper(Setting::where('key', 'currency')->first()->value);
         $redirectUrl = url('payment/flutterwave');
@@ -155,7 +155,6 @@ class FlutterwaveService
                             $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
                         }
 
-                        //Log::debug($transaction);
                         return $transaction;
                     }
                 });

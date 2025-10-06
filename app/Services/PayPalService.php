@@ -157,7 +157,7 @@ class PayPalService
         $pubKey = openssl_pkey_get_public(file_get_contents($headers['PAYPAL-CERT-URL']));
         $key = openssl_pkey_get_details($pubKey)['key'];
 
-        // verify data against provided signature 
+        // verify data against provided signature
         $result = openssl_verify(
             $data,
             base64_decode($headers['PAYPAL-TRANSMISSION-SIG']),

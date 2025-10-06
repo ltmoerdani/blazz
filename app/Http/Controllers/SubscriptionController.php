@@ -101,13 +101,6 @@ class SubscriptionController extends BaseController
         return Redirect::back()->with('response_data', [
             'data' => SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $id),
         ]);
-
-        /*return Redirect::back()->with(
-            'status', [
-                'type' => 'success',
-                'message' => __('Coupon applied successfully!')
-            ]
-        );*/
     }
 
     public function removeCoupon(Request $request, $id)

@@ -49,5 +49,5 @@ class CouponService
     public function deletePost($request, $uuid)
     {
         return Coupon::where('uuid', $uuid)->update(['deleted' => 1]);
-    } 
+    }
 }

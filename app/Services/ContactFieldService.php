@@ -82,5 +82,5 @@ class ContactFieldService
             'deleted_at' => date('Y-m-d H:i:s'),
             'deleted_by' => Auth::id()
         ]);
-    } 
+    }
 }

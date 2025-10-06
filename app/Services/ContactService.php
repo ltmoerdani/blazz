@@ -28,7 +28,7 @@ class ContactService
         $contact->email = $request->email;
 
         $phone = new PhoneNumber($request->phone);
-        $contact->phone = $phone->formatE164();//$phone->formatInternational();
+        $contact->phone = $phone->formatE164();
 
         if($request->hasFile('file')){
             $storage = Setting::where('key', 'storage_system')->first()->value;
@@ -40,7 +40,7 @@ class ContactService
                 $mediaFilePath = $file;
 
                 $contact->avatar = '/media/' . ltrim($mediaFilePath, '/');
-            } else if($storage === 'aws') {
+            } elseif($storage === 'aws') {
                 $file = $request->file('file');
                 $uploadedFile = $file->store('uploads/media/contacts/' . $this->workspaceId, 's3');
                 /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */

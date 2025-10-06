@@ -33,7 +33,7 @@ class RoleController extends BaseController
         return Inertia::render('Admin/Role/Index', [
             'title' => __('Roles'),
             'allowCreate' => true,
-            'rows' => $this->roleService->get($request), 
+            'rows' => $this->roleService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -74,7 +74,7 @@ class RoleController extends BaseController
 
         return redirect('/admin/team/roles')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Role added successfully!')
             ]
         );
@@ -92,7 +92,7 @@ class RoleController extends BaseController
 
         return redirect('/admin/team/roles')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Role updated successfully!')
             ]
         );
