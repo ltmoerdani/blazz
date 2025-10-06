@@ -49,7 +49,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
                     $lockedLog->status = 'ongoing';
                     $lockedLog->save();
             
-                    $this->organizationId = $this->campaignLog->campaign->organization_id;
+                    $this->workspaceId = $this->campaignLog->campaign->organization_id;
                     $this->initializeWhatsappService();
             
                     $template = $this->buildTemplateRequest($this->campaignLog->campaign_id, $this->campaignLog->contact);
@@ -138,11 +138,11 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
 
     private function initializeWhatsappService()
     {
-        $config = cache()->remember("workspace.{$this->organizationId}.metadata", 3600, function() {
-            return workspace::find($this->organizationId)->metadata ?? [];
+        $config = cache()->remember("workspace.{$this->workspaceId}.metadata", 3600, function() {
+            return workspace::find($this->workspaceId)->metadata ?? [];
         });
 
-        $config = workspace::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -157,13 +157,13 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
             $appId, 
             $phoneNumberId, 
             $wabaId, 
-            $this->organizationId
+            $this->workspaceId
         );
     }
 
     /*private function initializeWhatsappService()
     {
-        $config = workspace::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -178,7 +178,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
             $appId, 
             $phoneNumberId, 
             $wabaId, 
-            $this->organizationId
+            $this->workspaceId
         );
     }*/
 }

@@ -43,7 +43,7 @@ class DeveloperController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Your API token has been generated successfully')
             ]
         );

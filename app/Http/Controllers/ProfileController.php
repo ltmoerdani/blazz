@@ -11,9 +11,10 @@ use App\Http\Requests\StoreProfileTfa;
 use App\Models\workspace;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
-use Hash;
-use Redirect;
 
 class ProfileController extends BaseController
 {
@@ -24,7 +25,7 @@ class ProfileController extends BaseController
         $email = $request->email;
         $phone = $request->phone;
 
-        $response = User::where('id', auth()->user()->id)->update([
+        $response = User::where('id', Auth::id())->update([
             'first_name' => $first_name,
             'last_name' => $last_name,
             'email' => $email,
@@ -33,7 +34,7 @@ class ProfileController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Profile updated successfully!')
             ]
         );
@@ -44,13 +45,13 @@ class ProfileController extends BaseController
         $old_password = $request->old_password;
         $password = Hash::make($request->password);
 
-        $response = User::where('id', auth()->user()->id)->update([
+        $response = User::where('id', Auth::id())->update([
             'password' => $password,
         ]);
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Profile updated successfully!')
             ]
         );
@@ -60,7 +61,7 @@ class ProfileController extends BaseController
     {
         $status = $request->status;
         $token = $request->token;
-        $userId = auth()->user()->id;
+        $userId = Auth::id();
 
         if ($status === 0) {
             User::where('id', $userId)->update([
@@ -110,14 +111,14 @@ class ProfileController extends BaseController
         if($workspaceConfig->save()){
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('workspace updated successfully!')
                 ]
             );
         } else {
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Something went wrong. Refresh the page and try again')
                 ]
             );

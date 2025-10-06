@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace App\Helpers;
 
@@ -14,8 +14,11 @@ class WebhookHelper
 
         if(CustomHelper::isModuleEnabled('Webhooks', $workspaceId)){
             // Check if MainController exists
-            if (class_exists(\Modules\Webhook\Controllers\MainController::class)) {
-                $webhookController = new \Modules\Webhook\Controllers\MainController();
+            $controllerClass = '\Modules\Webhook\Controllers\MainController';
+            
+            if (class_exists($controllerClass)) {
+                /** @var object $webhookController */
+                $webhookController = new $controllerClass();
                 return $webhookController->trigger($event, $workspaceId, $data);
             }
 

@@ -54,7 +54,7 @@ class TeamController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('User invited successfully!')
             ]
         );
@@ -65,7 +65,7 @@ class TeamController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('User account updated successfully!')
             ]
         );

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\User;
 
-use DB;
 use App\Http\Controllers\Controller as BaseController;
+use Illuminate\Support\Facades\DB;
 use App\Helpers\CustomHelper;
 use App\Http\Requests\StoreAutoReply;
 use App\Models\Addon;
@@ -29,11 +29,11 @@ class CannedReplyController extends BaseController
         $aimodule = CustomHelper::isModuleEnabled('AI Assistant');
         $fbmodule = CustomHelper::isModuleEnabled('Flow builder');
 
-        return Inertia::render('User/Automation/Basic/Index', [ 
-            'title' => __('Canned replies'), 
-            'allowCreate' => true, 
-            'rows' => $rows, 
-            'filters' => request()->all(), 
+        return Inertia::render('User/Automation/Basic/Index', [
+            'title' => __('Canned replies'),
+            'allowCreate' => true,
+            'rows' => $rows,
+            'filters' => request()->all(),
             'aimodule' => $aimodule,
             'fbmodule' => $fbmodule,
         ]);
@@ -67,7 +67,7 @@ class CannedReplyController extends BaseController
 
         return Redirect::route('cannedReply.create')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Data added successfully!')
             ]
         );
@@ -102,7 +102,7 @@ class CannedReplyController extends BaseController
 
         return Redirect::route('cannedReply.edit', $uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Data updated successfully!')
             ]
         );
@@ -114,7 +114,7 @@ class CannedReplyController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Row deleted successfully!')
             ]
         );

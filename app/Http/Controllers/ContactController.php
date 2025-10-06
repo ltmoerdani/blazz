@@ -17,9 +17,9 @@ use App\Services\ContactService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
-use Excel;
-use Validator;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ContactController extends BaseController
 {
@@ -28,13 +28,13 @@ class ContactController extends BaseController
         return new ContactService(session()->get('current_workspace'));
     }
 
-    private function getCurrentOrganizationId()
+    private function getCurrentworkspaceId()
     {
         return session()->get('current_workspace');
     }
 
     public function index(Request $request, $uuid = null){
-        $workspaceId = $this->getCurrentOrganizationId();
+        $workspaceId = $this->getCurrentworkspaceId();
         $contactModel = new Contact;
 
         if($uuid === 'export') {
@@ -91,7 +91,7 @@ class ContactController extends BaseController
 
         return redirect('/contacts')->with(
             'status', [
-                'type' => $statusType, 
+                'type' => $statusType,
                 'message' => $statusMessage,
                 'import_summary' => array(
                     'total_imports' => $totalImports,
@@ -111,7 +111,7 @@ class ContactController extends BaseController
         
         return redirect('/contacts?id=' . $contact->uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact added successfully!')
             ]
         );
@@ -123,7 +123,7 @@ class ContactController extends BaseController
 
         return redirect('/contacts/' . $contact->uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact updated successfully!')
             ]
         );
@@ -135,7 +135,7 @@ class ContactController extends BaseController
 
         return redirect('/contacts/' . $uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact updated successfully!')
             ]
         );
@@ -148,7 +148,7 @@ class ContactController extends BaseController
 
         return redirect('/contacts')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact(s) deleted successfully')
             ]
         );

@@ -11,7 +11,7 @@ class ContactFieldService
     
     public function __construct($workspaceId = NULL)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
     }
 
     /**
@@ -22,7 +22,7 @@ class ContactFieldService
      */
     public function get(object $request)
     {
-        $rows = ContactField::where('workspace_id', $this->organizationId)
+        $rows = ContactField::where('workspace_id', $this->workspaceId)
             ->where('deleted_at', null)->latest()->paginate(5);
 
         return ContactFieldResource::collection($rows);
@@ -30,7 +30,7 @@ class ContactFieldService
 
     public function getByUuid($uuid = null)
     {
-        return ContactField::where('workspace_id', $this->organizationId)->where('uuid', $uuid)->first();;
+        return ContactField::where('workspace_id', $this->workspaceId)->where('uuid', $uuid)->first();;
     }
 
     /**
@@ -42,10 +42,10 @@ class ContactFieldService
      */
     public function store(object $request, $uuid = NULL)
     {
-        $last_position = ContactField::where('workspace_id', $this->organizationId)->where('deleted_at', null)->count();
+        $last_position = ContactField::where('workspace_id', $this->workspaceId)->where('deleted_at', null)->count();
 
         $field = $uuid === null ? new ContactField() : ContactField::where('uuid', $uuid)->firstOrFail();
-        $field->organization_id = $this->organizationId;
+        $field->organization_id = $this->workspaceId;
         $field->name = $request->name;
         $field->type = $request->component;
 

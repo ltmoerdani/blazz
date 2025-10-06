@@ -139,8 +139,8 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_workspace');
-            $workspaceConfig = workspace::where('id', $currentOrganizationId)->first();
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
@@ -173,8 +173,8 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_workspace');
-            $workspaceConfig = workspace::where('id', $currentOrganizationId)->first();
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
@@ -207,8 +207,8 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_workspace');
-            $workspaceConfig = workspace::where('id', $currentOrganizationId)->first();
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
             $metadataArray['automation']['response_sequence'] = $request->response_sequence;

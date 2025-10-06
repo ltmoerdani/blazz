@@ -141,7 +141,7 @@ class AuthController extends BaseController
         if ($request->has('error')) {
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('There was an error with Facebook login!')
                 ]
             );

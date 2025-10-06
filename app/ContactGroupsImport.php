@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class ContactGroupsImport implements ToModel, WithHeadingRow
 {
@@ -14,6 +15,7 @@ class ContactGroupsImport implements ToModel, WithHeadingRow
     protected $totalImports = 0;
     protected $failedImportsDueToFormat = 0;
     protected $failedImportsDueToDuplicates = 0;
+    protected $failedImports = [];
 
     /**
     * @param array $row
@@ -54,7 +56,7 @@ class ContactGroupsImport implements ToModel, WithHeadingRow
             $contactGroup = new ContactGroup([
                 'workspace_id'  => session()->get('current_workspace'),
                 'name'  => $row['group_name'],
-                'created_by'  => auth()->user()->id,
+                'created_by'  => Auth::id(),
             ]);
 
             if($contactGroup){

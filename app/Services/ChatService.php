@@ -41,13 +41,13 @@ class ChatService
 
     public function __construct($workspaceId)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
         $this->initializeWhatsappService();
     }
 
     private function initializeWhatsappService()
     {
-        $config = workspace::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -56,7 +56,7 @@ class ChatService
         $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->organizationId);
+        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
 
     public function getChatList($request, $uuid = null, $searchTerm = null)
@@ -67,8 +67,8 @@ class ChatService
         $closedCount = ChatTicket::where('status', 'closed')->count();
         $closedCount = ChatTicket::where('status', 'open')->count();
         $allCount = ChatTicket::count();
-        $config = workspace::where('id', $this->organizationId)->first();
-        $agents = Team::where('workspace_id', $this->organizationId)->get();
+        $config = workspace::where('id', $this->workspaceId)->first();
+        $agents = Team::where('workspace_id', $this->workspaceId)->get();
         $ticketState = $request->status == null ? 'all' : $request->status;
         $sortDirection = $request->session()->get('chat_sort_direction') ?? 'desc';
         $allowAgentsToViewAllChats = true;
@@ -83,7 +83,7 @@ class ChatService
                 $ticketingActive = true;
 
                 //Check for chats that don't have corresponding chat ticket rows
-                $contacts = $contact->contactsWithChats($this->organizationId, NULL);
+                $contacts = $contact->contactsWithChats($this->workspaceId, NULL);
                 
                 foreach($contacts as $contact){
                     ChatTicket::firstOrCreate(
@@ -102,8 +102,8 @@ class ChatService
         }
 
         // Retrieve the list of contacts with chats
-        $contacts = $contact->contactsWithChats($this->organizationId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
-        $rowCount = $contact->contactsWithChatsCount($this->organizationId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
+        $contacts = $contact->contactsWithChats($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
+        $rowCount = $contact->contactsWithChatsCount($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
 
         $pusherSettings = Setting::whereIn('key', [
             'pusher_app_id',
@@ -114,7 +114,7 @@ class ChatService
 
         $perPage = 10; // Number of items per page
         $totalContacts = count($contacts); // Total number of contacts
-        $messageTemplates = Template::where('workspace_id', $this->organizationId)
+        $messageTemplates = Template::where('workspace_id', $this->workspaceId)
             ->where('deleted_at', null)
             ->where('status', 'APPROVED')
             ->get();
@@ -145,7 +145,7 @@ class ChatService
                 $settings = json_decode($config->metadata);
 
                 //To ensure the unread message counter is updated
-                $unreadMessages = Chat::where('workspace_id', $this->organizationId)
+                $unreadMessages = Chat::where('workspace_id', $this->workspaceId)
                     ->where('type', 'inbound')
                     ->where('deleted_at', NULL)
                     ->where('is_read', 0)
@@ -158,7 +158,7 @@ class ChatService
                     'rowCount' => $rowCount,
                     'filters' => request()->all(),
                     'pusherSettings' => $pusherSettings,
-                    'organizationId' => $this->organizationId,
+                    'workspaceId' => $this->workspaceId,
                     'state' => app()->environment(),
                     'demoNumber' => env('DEMO_NUMBER'),
                     'settings' => $config,
@@ -168,14 +168,14 @@ class ChatService
                     'hasMoreMessages' => $initialMessages['hasMoreMessages'],
                     'nextPage' => $initialMessages['nextPage'],
                     'contact' => $contact,
-                    'fields' => ContactField::where('workspace_id', $this->organizationId)->where('deleted_at', null)->get(),
+                    'fields' => ContactField::where('workspace_id', $this->workspaceId)->where('deleted_at', null)->get(),
                     'locationSettings' => $this->getLocationSettings(),
                     'ticket' => $ticket,
                     'agents' => $agents,
                     'addon' => $aimodule,
                     'chat_sort_direction' => $sortDirection,
                     'unreadMessages' => $unreadMessages,
-                    'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->organizationId, 'message_limit')
+                    'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit')
                 ]);
             }
         }
@@ -194,7 +194,7 @@ class ChatService
                 'rowCount' => $rowCount,
                 'filters' => request()->all(),
                 'pusherSettings' => $pusherSettings,
-                'organizationId' => $this->organizationId,
+                'workspaceId' => $this->workspaceId,
                 'state' => app()->environment(),
                 'settings' => $config,
                 'templates' => $messageTemplates,
@@ -203,14 +203,14 @@ class ChatService
                 'addon' => $aimodule,
                 'ticket' => array(),
                 'chat_sort_direction' => $sortDirection,
-                'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->organizationId, 'message_limit')
+                'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit')
             ]);
         }
     }
 
     public function handleTicketAssignment($contactId){
-        $workspaceId = $this->organizationId;
-        $settings = workspace::where('id', $this->organizationId)->first();
+        $workspaceId = $this->workspaceId;
+        $settings = workspace::where('id', $this->workspaceId)->first();
         $settings = json_decode($settings->metadata);
 
         // Check if ticket functionality is active
@@ -312,8 +312,8 @@ class ChatService
             } else if($storage === 'aws') {
                 $location = 'amazon';
                 $file = $request->file('file');
-                $filePath = 'uploads/media/received/'  . $this->organizationId . '/' . $fileName;
-                $uploadedFile = $file->store('uploads/media/sent/' . $this->organizationId, 's3');
+                $filePath = 'uploads/media/received/'  . $this->workspaceId . '/' . $fileName;
+                $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
                 $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
                 $mediaUrl = $mediaFilePath;
             }
@@ -348,7 +348,7 @@ class ChatService
                             $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
                         } else if($storage === 'aws') {
                             $file = $parameter['value'];
-                            $uploadedFile = $file->store('uploads/media/sent/' . $this->organizationId, 's3');
+                            $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
                             $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
             
                             $mediaUrl = $mediaFilePath;
@@ -452,7 +452,7 @@ class ChatService
 
     private function getLocationSettings(){
         // Retrieve the settings for the current workspace
-        $settings = workspace::where('id', $this->organizationId)->first();
+        $settings = workspace::where('id', $this->workspaceId)->first();
 
         if ($settings) {
             // Decode the JSON metadata column into an associative array
