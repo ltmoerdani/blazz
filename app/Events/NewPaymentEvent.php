@@ -17,18 +17,18 @@ class NewPaymentEvent implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $payment;
-    public $organizationId;
+    public $workspaceId;
 
     /**
      * Create a new event instance.
      *
      * @param mixed $payment
-     * @param int $organizationId
+     * @param int $workspaceId
      */
-    public function __construct($payment, $organizationId)
+    public function __construct($payment, $workspaceId)
     {
         $this->payment = $payment;
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
     }
 
     /**

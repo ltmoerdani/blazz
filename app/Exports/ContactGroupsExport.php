@@ -13,7 +13,7 @@ class ContactGroupsExport implements FromCollection, WithHeadings
     */
     public function collection()
     {
-        $contactgroups = ContactGroup::where('organization_id', session()->get('current_organization'))
+        $contactgroups = ContactGroup::where('workspace_id', session()->get('current_workspace'))
             ->whereNull('deleted_at')
             ->get();
 

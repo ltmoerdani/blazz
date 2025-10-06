@@ -93,7 +93,7 @@ Route::middleware(['auth:user,admin'])->group(function () {
     Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update']);
     Route::put('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword']);
     Route::put('/profile/tfa', [App\Http\Controllers\ProfileController::class, 'updateTfa']);
-    Route::put('/profile/organization', [App\Http\Controllers\ProfileController::class, 'updateOrganization']);
+    Route::put('/profile/workspace', [App\Http\Controllers\ProfileController::class, 'updateWorkspace']);
 });
 
 Route::middleware(['auth:user'])->group(function () {
@@ -107,11 +107,11 @@ Route::middleware(['auth:user'])->group(function () {
     Route::post('/email/verification-notification', [App\Http\Controllers\AuthController::class, 'sendEmailVerification'])->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
     Route::group(['middleware' => ['check.email.verification']], function () {
-        Route::get('/select-organization', [App\Http\Controllers\User\OrganizationController::class, 'index'])->name('user.organization.index');
-        Route::post('/select-organization', [App\Http\Controllers\User\OrganizationController::class, 'selectOrganization'])->name('user.organization.selectOrganization');
-        Route::post('/organization', [App\Http\Controllers\User\OrganizationController::class, 'store'])->name('user.organization.store');
+        Route::get('/select-workspace', [App\Http\Controllers\User\WorkspaceController::class, 'index'])->name('user.workspace.index');
+        Route::post('/select-workspace', [App\Http\Controllers\User\WorkspaceController::class, 'selectWorkspace'])->name('user.workspace.selectWorkspace');
+        Route::post('/workspace', [App\Http\Controllers\User\WorkspaceController::class, 'store'])->name('user.workspace.store');
 
-        Route::group(['middleware' => ['check.organization']], function () {
+        Route::group(['middleware' => ['check.workspace']], function () {
             //User Panel Routes
             Route::match(['get', 'post'], RouteConstants::DASHBOARD_PATH, [App\Http\Controllers\User\DashboardController::class, 'index'])->name('dashboard');
 
@@ -218,7 +218,7 @@ Route::middleware(['auth:user'])->group(function () {
 Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::get(RouteConstants::DASHBOARD_PATH, [App\Http\Controllers\Admin\DashboardController::class, 'index']);
     Route::resource('users', App\Http\Controllers\Admin\UserController::class);
-    Route::resource('organizations', App\Http\Controllers\Admin\OrganizationController::class);
+    Route::resource('workspaces', App\Http\Controllers\Admin\WorkspaceController::class);
     //* Route::resource('blog/posts', App\Http\Controllers\Admin\BlogController::class);
     //* Route::resource('blog/categories', App\Http\Controllers\Admin\BlogCategoryController::class);
     //* Route::resource('blog/authors', App\Http\Controllers\Admin\BlogAuthorController::class);
@@ -255,7 +255,7 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::post('/translations/{languageCode}/{key}', [App\Http\Controllers\Admin\LanguageController::class, 'updateTranslation']);
 
     //* Route::get('/pages', [App\Http\Controllers\Admin\PageController::class, 'index']);
-    //* Route::get('/users/{uuid}/organizations', [App\Http\Controllers\Admin\CustomerController::class, 'userOrganizations']);
+    //* Route::get('/users/{uuid}/organizations', [App\Http\Controllers\Admin\CustomerController::class, 'userWorkspaces']);
     //* Route::get('/subscriptions', [App\Http\Controllers\Admin\SubscriptionController::class, 'index']);
     Route::get('/payment-logs', [App\Http\Controllers\Admin\PaymentController::class, 'index']);
 

@@ -4,25 +4,25 @@ namespace App\Services;
 
 use App\Helpers\Email;
 use App\Http\Resources\UserResource;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\Team;
 use App\Models\User;
-use App\Services\OrganizationService;
+use App\Services\WorkspaceService;
 use DB;
 use Str;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
 class UserService
 {
-    private $organization;
+    private $workspace;
     private $role;
 
     public function __construct($role)
     {
-        $this->organizationService = new OrganizationService();
+        $this->organizationService = new WorkspaceService();
         $this->role = $role;
     }
 
@@ -116,8 +116,8 @@ class UserService
                 $userId = $newUser->id;
                 $creatorId = auth()->check() ? auth()->user()->id : $newUser->id;
 
-                //Create Organization
-                $newOrganization = Organization::create([
+                //Create workspace
+                $newOrganization = workspace::create([
                     'identifier' => $timestamp . $userId . $randomString,
                     'name' => $request->input('organization_name'),
                     'created_by' => $creatorId
@@ -125,7 +125,7 @@ class UserService
 
                 //Create Team
                 $team = Team::create([
-                    'organization_id' => $newOrganization->id,
+                    'workspace_id' => $newOrganization->id,
                     'user_id' => $userId,
                     'role' => 'owner',
                     'status' => 'active',
@@ -137,7 +137,7 @@ class UserService
 
                 //Create Subscription
                 Subscription::create([
-                    'organization_id' => $newOrganization->id,
+                    'workspace_id' => $newOrganization->id,
                     'status' => $has_trial ? 'trial' : 'active',
                     'plan_id' => null,
                     'start_date' => now(),
@@ -205,8 +205,8 @@ class UserService
         $user = User::where('id', $id)->first();
 
         if ($user) {
-            // Retrieve the organization ID of the user being deleted
-            $organizationId = $user->teams()->value('organization_id');
+            // Retrieve the workspace ID of the user being deleted
+            $workspaceId = $user->teams()->value('workspace_id');
 
             // Check if the user is an owner in the team
             $isOwner = $user->teams()->where('role', 'owner')->exists();
@@ -216,30 +216,30 @@ class UserService
 
             // Confirm the user has been deleted (soft deleted)
             if ($user->trashed()) {
-                // Check if the organization ID is valid
-                if ($organizationId) {
+                // Check if the workspace ID is valid
+                if ($workspaceId) {
                     // Reassign owner role if necessary
                     if ($isOwner) {
                         // Find the next user in the team to assign as the new owner
-                        $nextUser = User::whereHas('teams', function ($query) use ($organizationId) {
-                            $query->where('organization_id', $organizationId);
+                        $nextUser = User::whereHas('teams', function ($query) use ($workspaceId) {
+                            $query->where('workspace_id', $workspaceId);
                         })->where('id', '!=', $user->id)->first();
 
                         if ($nextUser) {
-                            $team = $nextUser->teams()->where('organization_id', $organizationId)->first();
+                            $team = $nextUser->teams()->where('workspace_id', $workspaceId)->first();
                             $team->role = 'owner';
                             $team->save();
                         }
                     }
 
-                    // Count the number of users associated with the organization excluding the user being deleted
-                    $userCount = User::whereHas('teams', function ($query) use ($organizationId) {
-                        $query->where('organization_id', $organizationId);
+                    // Count the number of users associated with the workspace excluding the user being deleted
+                    $userCount = User::whereHas('teams', function ($query) use ($workspaceId) {
+                        $query->where('workspace_id', $workspaceId);
                     })->where('id', '!=', $user->id)->count();
 
-                    // If the user being deleted is the last user associated with the organization, soft delete the organization
+                    // If the user being deleted is the last user associated with the workspace, soft delete the workspace
                     if ($userCount === 0) {
-                        Organization::find($organizationId)->delete();
+                        workspace::find($workspaceId)->delete();
                     }
                 }
             }

@@ -15,12 +15,12 @@ class ContactsExport implements FromCollection, WithHeadings
     public function collection()
     {
         $contacts = Contact::with('contactGroups')
-            ->where('organization_id', session()->get('current_organization'))
+            ->where('workspace_id', session()->get('current_workspace'))
             ->whereNull('deleted_at')
             ->get();
 
         // Get dynamic fields from the contact_fields table
-        $dynamicFields = ContactField::where('organization_id', session()->get('current_organization'))
+        $dynamicFields = ContactField::where('workspace_id', session()->get('current_workspace'))
             ->whereNull('deleted_at')
             ->get();
 
@@ -59,7 +59,7 @@ class ContactsExport implements FromCollection, WithHeadings
 
     public function headings(): array
     {
-        $dynamicFields = ContactField::where('organization_id', session()->get('current_organization'))
+        $dynamicFields = ContactField::where('workspace_id', session()->get('current_workspace'))
             ->whereNull('deleted_at')
             ->get();
 

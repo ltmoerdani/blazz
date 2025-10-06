@@ -7,11 +7,11 @@ use App\Models\ContactField;
 
 class ContactFieldService
 {
-    private $organizationId;
+    private $workspaceId;
     
-    public function __construct($organizationId = NULL)
+    public function __construct($workspaceId = NULL)
     {
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
     }
 
     /**
@@ -22,7 +22,7 @@ class ContactFieldService
      */
     public function get(object $request)
     {
-        $rows = ContactField::where('organization_id', $this->organizationId)
+        $rows = ContactField::where('workspace_id', $this->organizationId)
             ->where('deleted_at', null)->latest()->paginate(5);
 
         return ContactFieldResource::collection($rows);
@@ -30,7 +30,7 @@ class ContactFieldService
 
     public function getByUuid($uuid = null)
     {
-        return ContactField::where('organization_id', $this->organizationId)->where('uuid', $uuid)->first();;
+        return ContactField::where('workspace_id', $this->organizationId)->where('uuid', $uuid)->first();;
     }
 
     /**
@@ -42,7 +42,7 @@ class ContactFieldService
      */
     public function store(object $request, $uuid = NULL)
     {
-        $last_position = ContactField::where('organization_id', $this->organizationId)->where('deleted_at', null)->count();
+        $last_position = ContactField::where('workspace_id', $this->organizationId)->where('deleted_at', null)->count();
 
         $field = $uuid === null ? new ContactField() : ContactField::where('uuid', $uuid)->firstOrFail();
         $field->organization_id = $this->organizationId;

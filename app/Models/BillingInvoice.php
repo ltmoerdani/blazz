@@ -12,11 +12,11 @@ class BillingInvoice extends Model {
     protected $guarded = [];
     public $timestamps = false;
 
-    public function listAll($searchTerm, $organizationId = null)
+    public function listAll($searchTerm, $workspaceId = null)
     {
-        return $this->with(['plan', 'organization'])
-                    ->when($organizationId !== null, function ($query) use ($organizationId) {
-                        return $query->where('organization_id', $organizationId);
+        return $this->with(['plan', 'workspace'])
+                    ->when($workspaceId !== null, function ($query) use ($workspaceId) {
+                        return $query->where('workspace_id', $workspaceId);
                     })
                     ->latest()
                     ->paginate(10);
@@ -27,8 +27,8 @@ class BillingInvoice extends Model {
         return $this->belongsTo(SubscriptionPlan::class, 'plan_id', 'id');
     }
 
-    public function organization()
+    public function workspace()
     {
-        return $this->belongsTo(Organization::class, 'organization_id', 'id');
+        return $this->belongsTo(workspace::class, 'workspace_id', 'id');
     }
 }

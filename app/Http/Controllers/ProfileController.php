@@ -8,7 +8,7 @@ use App\Http\Requests\StoreProfile;
 use App\Http\Requests\StoreProfilePassword;
 use App\Http\Requests\StoreProfileAddress;
 use App\Http\Requests\StoreProfileTfa;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -81,11 +81,11 @@ class ProfileController extends BaseController
         ]);
     }
 
-    public function updateOrganization(StoreProfileAddress $request)
+    public function updateWorkspace(StoreProfileAddress $request)
     {
-        $organizationId = session('current_organization');
-        $organizationConfig = Organization::where('id', $organizationId)->first();
-        $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+        $workspaceId = session('current_workspace');
+        $workspaceConfig = workspace::where('id', $workspaceId)->first();
+        $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
         $metadataArray['notifications']['enable_sound'] = $request->input('enable_sound_notification');
         $metadataArray['notifications']['tone'] = $request->input('tone');
@@ -103,15 +103,15 @@ class ProfileController extends BaseController
         $addressArray['zip'] = $request->input('zip');
         $addressArray['country'] = $request->input('country');
 
-        $organizationConfig->name = $request->input('organization_name');
-        $organizationConfig->address = json_encode($addressArray);
-        $organizationConfig->metadata = json_encode($metadataArray);
+        $workspaceConfig->name = $request->input('organization_name');
+        $workspaceConfig->address = json_encode($addressArray);
+        $workspaceConfig->metadata = json_encode($metadataArray);
 
-        if($organizationConfig->save()){
+        if($workspaceConfig->save()){
             return Redirect::back()->with(
                 'status', [
                     'type' => 'success', 
-                    'message' => __('Organization updated successfully!')
+                    'message' => __('workspace updated successfully!')
                 ]
             );
         } else {

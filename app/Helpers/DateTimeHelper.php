@@ -2,7 +2,7 @@
 
 namespace App\Helpers;
 
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
@@ -22,12 +22,12 @@ class DateTimeHelper
     public static function convertToOrganizationTimezone($date)
     {
         $timezone = 'UTC'; // Default to UTC
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
-        if ($organizationId) {
-            $organization = Organization::find($organizationId);
-            if ($organization) {
-                $metadata = $organization->metadata;
+        if ($workspaceId) {
+            $workspace = workspace::find($workspaceId);
+            if ($workspace) {
+                $metadata = $workspace->metadata;
                 $metadata = isset($metadata) ? json_decode($metadata, true) : null;
 
                 if ($metadata && isset($metadata['timezone'])) {

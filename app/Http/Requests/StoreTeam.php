@@ -29,13 +29,13 @@ class StoreTeam extends FormRequest
                 'required',
                 'email', // Added the email validation rule
                 Rule::unique('users', 'email')->where(function ($query) {
-                    $organizationId = session()->get('current_organization');
+                    $workspaceId = session()->get('current_workspace');
 
-                    $query->whereIn('id', function ($subQuery) use ($organizationId) {
+                    $query->whereIn('id', function ($subQuery) use ($workspaceId) {
                         $subQuery->select('user_id')
                             ->from('teams')
                             ->where('deleted_at', null)
-                            ->where('organization_id', $organizationId);
+                            ->where('workspace_id', $workspaceId);
                     });
                 }),
                 new TeamLimit

@@ -27,14 +27,14 @@ use Validator;
 class DashboardController extends BaseController
 {
     public function index(Request $request){
-        $billingRows = BillingTransaction::whereHas('organization', function ($query) {
+        $billingRows = BillingTransaction::whereHas('workspace', function ($query) {
                 $query->whereNull('deleted_at');
             })
-            ->with('organization')
+            ->with('workspace')
             ->limit(5)
             ->orderBy('created_at', 'desc')
             ->get();
-        $totalRevenue = BillingTransaction::whereHas('organization', function ($query) {
+        $totalRevenue = BillingTransaction::whereHas('workspace', function ($query) {
                 $query->whereNull('deleted_at');
             })->where('entity_type', '=', 'payment')->sum('amount');
         $data['totalRevenue'] = CurrencyHelper::formatCurrency($totalRevenue);
@@ -84,7 +84,7 @@ class DashboardController extends BaseController
 
         foreach($this->period() as $dateString){
             $date = Carbon::parse($dateString);
-            $billingCount = BillingTransaction::whereHas('organization', function ($query) {
+            $billingCount = BillingTransaction::whereHas('workspace', function ($query) {
                     $query->whereNull('deleted_at');
                 })->where('entity_type', '=', 'payment')
                 ->whereDate('updated_at', $date->toDateString())

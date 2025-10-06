@@ -13,11 +13,11 @@ use Propaganistas\LaravelPhone\PhoneNumber;
 
 class ContactService
 {
-    private $organizationId;
+    private $workspaceId;
 
-    public function __construct($organizationId)
+    public function __construct($workspaceId)
     {
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
     }
 
     public function store(object $request, $uuid = null){
@@ -74,7 +74,7 @@ class ContactService
         }
 
         // Prepare a clean contact object for webhook
-        $cleanContact = $contact->makeHidden(['id', 'organization_id', 'created_by']);
+        $cleanContact = $contact->makeHidden(['id', 'workspace_id', 'created_by']);
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent($uuid === null ? 'contact.created' : 'contact.updated', $cleanContact, $this->organizationId);
@@ -94,8 +94,8 @@ class ContactService
 
         if (empty($uuids)) {
             // Delete all contacts (soft delete)
-            $contacts = Contact::where('organization_id', $this->organizationId)->get();
-            Contact::whereNotNull('id')->where('organization_id', $this->organizationId)->delete();
+            $contacts = Contact::where('workspace_id', $this->organizationId)->get();
+            Contact::whereNotNull('id')->where('workspace_id', $this->organizationId)->delete();
 
             // Prepare deleted contacts for the webhook
             foreach ($contacts as $contact) {
@@ -106,7 +106,7 @@ class ContactService
             }
 
             //Mark all unread chats as read
-            Chat::where('organization_id', $this->organizationId)
+            Chat::where('workspace_id', $this->organizationId)
                 ->where('type', 'inbound')
                 ->whereNull('deleted_at')
                 ->where('is_read', 0)
@@ -134,7 +134,7 @@ class ContactService
                     ]);
             }
 
-            Contact::whereIn('uuid', $uuids)->where('organization_id', $this->organizationId)->delete();
+            Contact::whereIn('uuid', $uuids)->where('workspace_id', $this->organizationId)->delete();
         }
 
         // Trigger webhook with deleted contacts

@@ -11,7 +11,7 @@
             <div class="space-y-12">
                 <div class="pb-12">
                     <div class="grid gap-6 grid-cols-2 pb-10 border-b md:w-2/3">
-                        <FormInput v-model="form.company_name" :name="$t('Organization/company name')" :error="form.errors.company_name" :type="'text'" :class="'col-span-2'"/>
+                        <FormInput v-model="form.company_name" :name="$t('workspace/company name')" :error="form.errors.company_name" :type="'text'" :class="'col-span-2'"/>
                         <FormInput v-model="form.phone" :name="$t('Phone')" :error="form.errors.phone" :type="'text'" :class="'col-span-1'"/>
                         <FormInput v-model="form.email" :name="$t('Email')" :error="form.errors.email" :type="'text'" :class="'col-span-1'"/>
                         <FormTextArea v-model="form.address" :name="$t('Address')" :showLabel="true" :error="form.errors.address" :class="'col-span-2'"/>

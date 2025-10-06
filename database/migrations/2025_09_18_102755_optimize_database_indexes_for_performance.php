@@ -14,31 +14,31 @@ return new class extends Migration
         // Optimize chats table - primary bottleneck identified
         Schema::table('chats', function (Blueprint $table) {
             // Composite index untuk timeline queries (most common operation)
-            $table->index(['organization_id', 'created_at', 'type'], 'idx_chat_timeline_performance');
+            $table->index(['workspace_id', 'created_at', 'type'], 'idx_chat_timeline_performance');
             
             // Participants lookup optimization
-            $table->index(['organization_id', 'contact_id', 'status'], 'idx_chat_participants_opt');
+            $table->index(['workspace_id', 'contact_id', 'status'], 'idx_chat_participants_opt');
             
             // Media queries optimization
             $table->index(['media_id', 'created_at'], 'idx_chat_media_timeline');
         });
 
-        // Optimize organizations table - dashboard performance
-        Schema::table('organizations', function (Blueprint $table) {
+        // Optimize workspaces table - dashboard performance
+        Schema::table('workspaces', function (Blueprint $table) {
             // Multi-tenant performance index
             $table->index(['created_by', 'created_at'], 'idx_org_creator_timeline');
             
             // Status-based queries
-            if (!Schema::hasColumn('organizations', 'status')) {
+            if (!Schema::hasColumn('workspaces', 'status')) {
                 $table->string('status', 20)->default('active')->after('name');
             }
             $table->index(['status', 'created_at'], 'idx_org_status_performance');
         });
 
-        // Optimize teams table - organization membership queries
+        // Optimize teams table - workspace membership queries
         Schema::table('teams', function (Blueprint $table) {
-            // Covering index untuk organization-user relationships
-            $table->index(['organization_id', 'user_id', 'role', 'created_at'], 'idx_team_membership_complete');
+            // Covering index untuk workspace-user relationships
+            $table->index(['workspace_id', 'user_id', 'role', 'created_at'], 'idx_team_membership_complete');
         });
 
         // Optimize users table - authentication and search
@@ -79,10 +79,10 @@ return new class extends Migration
             $table->dropIndex('idx_chat_media_timeline');
         });
 
-        Schema::table('organizations', function (Blueprint $table) {
+        Schema::table('workspaces', function (Blueprint $table) {
             $table->dropIndex('idx_org_creator_timeline');
             $table->dropIndex('idx_org_status_performance');
-            if (Schema::hasColumn('organizations', 'status')) {
+            if (Schema::hasColumn('workspaces', 'status')) {
                 $table->dropColumn('status');
             }
         });

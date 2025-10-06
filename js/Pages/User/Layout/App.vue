@@ -1,9 +1,9 @@
 <template>
     <div :class="rtlClass">
-        <MobileSidebar :user="user" :config="config" :organization="organization" :organizations="organizations" :title="currentPageTitle" :displayCreateBtn="displayCreateBtn" :displayTopBar="viewTopBar"></MobileSidebar>
+        <MobileSidebar :user="user" :config="config" :workspace="workspace" :organizations="organizations" :title="currentPageTitle" :displayCreateBtn="displayCreateBtn" :displayTopBar="viewTopBar"></MobileSidebar>
 
         <div class="md:mt-0 md:pt-0 flex md:h-screen w-full tracking-[0.3px] bg-gray-300/10" :class="viewTopBar === false ? 'mt-0 pt-0' : ''">
-            <Sidebar :user="user" :config="config" :organization="organization" :organizations="organizations" :unreadMessages="unreadMessages"></Sidebar>
+            <Sidebar :user="user" :config="config" :workspace="workspace" :organizations="organizations" :unreadMessages="unreadMessages"></Sidebar>
             <div class="md:min-h-screen flex flex-col w-full min-w-0">
                 <slot :user="user" :toggleNavBar="toggleTopBar" @testEmit="doSomething"></slot>
             </div>
@@ -27,7 +27,7 @@
     const viewTopBar = ref(true);
     const user = computed(() => usePage().props.auth.user);
     const config = computed(() => usePage().props.config);
-    const organization = computed(() => usePage().props.organization);
+    const workspace = computed(() => usePage().props.workspace);
     const organizations = computed(() => usePage().props.organizations);
     const currentPageTitle = computed(() => usePage().props.title);
     const displayCreateBtn = computed(() => usePage().props.allowCreate);
@@ -52,7 +52,7 @@
     };
 
     const setupSound = () => {
-        const settings = organization.value.metadata ? JSON.parse(organization.value.metadata) : {};
+        const settings = workspace.value.metadata ? JSON.parse(workspace.value.metadata) : {};
         const notifications = settings.notifications || {};
 
         if (notifications?.enable_sound && audioPlayer.value) {
@@ -77,7 +77,7 @@
             getValueByKey('pusher_app_cluster')
         );
 
-        echo.channel('chats.ch' + organization.value.id).listen('NewChatEvent', (event) => {
+        echo.channel('chats.ch' + workspace.value.id).listen('NewChatEvent', (event) => {
             const chat = event.chat;
 
             if (chat[0].value.deleted_at == null && chat[0].value.type === 'inbound') {

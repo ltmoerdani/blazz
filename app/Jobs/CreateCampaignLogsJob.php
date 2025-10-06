@@ -25,12 +25,12 @@ class CreateCampaignLogsJob implements ShouldQueue
     {
         try {
             $campaigns = Campaign::where('status', 'scheduled')
-                ->with('organization')
+                ->with('workspace')
                 ->whereNull('deleted_at')
                 ->cursor();
 
             foreach ($campaigns as $campaign) {
-                $timezone = $this->getOrganizationTimezone($campaign->organization);
+                $timezone = $this->getOrganizationTimezone($campaign->workspace);
                 $scheduledAt = Carbon::parse($campaign->scheduled_at, 'UTC')->timezone($timezone);
 
                 if ($scheduledAt->lte(Carbon::now($timezone))) {
@@ -43,11 +43,11 @@ class CreateCampaignLogsJob implements ShouldQueue
         }
     }
 
-    protected function getOrganizationTimezone($organization)
+    protected function getOrganizationTimezone($workspace)
     {
-        if (!$organization) return 'UTC';
+        if (!$workspace) return 'UTC';
 
-        $metadata = $organization->metadata;
+        $metadata = $workspace->metadata;
         $metadata = isset($metadata) ? json_decode($metadata, true) : null;
 
         return $metadata['timezone'] ?? 'UTC';
@@ -65,7 +65,7 @@ class CreateCampaignLogsJob implements ShouldQueue
     protected function getContactsForCampaign(Campaign $campaign)
     {
         if (empty($campaign->contact_group_id) || $campaign->contact_group_id === '0') {
-            return Contact::where('organization_id', $campaign->organization_id)
+            return Contact::where('workspace_id', $campaign->organization_id)
                 ->whereNull('deleted_at')
                 ->get();
         }

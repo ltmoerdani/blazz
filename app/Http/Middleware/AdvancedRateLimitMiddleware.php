@@ -107,14 +107,14 @@ class AdvancedRateLimitMiddleware
             ];
         }
         
-        // Layer 4: Organization-based rate limiting (untuk multi-tenant)
+        // Layer 4: workspace-based rate limiting (untuk multi-tenant)
         $orgId = $this->getOrganizationContext($request);
         if ($orgId && $user) {
             $keys[] = [
                 'key' => "rate_limit:org:{$orgId}:{$type}",
                 'limit' => $config['attempts'] * 5, // Organizations get much higher limits
                 'window' => $config['window'],
-                'type' => 'organization'
+                'type' => 'workspace'
             ];
         }
         
@@ -168,7 +168,7 @@ class AdvancedRateLimitMiddleware
             'ip' => 'Too many requests from your IP address. Please try again later.',
             'user' => 'You have exceeded your request quota. Please try again later.',
             'endpoint' => 'This endpoint is temporarily rate limited. Please try again later.',
-            'organization' => 'Your organization has exceeded its request quota.',
+            'workspace' => 'Your workspace has exceeded its request quota.',
             default => 'Rate limit exceeded. Please try again later.'
         };
         
@@ -346,18 +346,18 @@ class AdvancedRateLimitMiddleware
     }
 
     /**
-     * Get organization context dari request (session atau API)
+     * Get workspace context dari request (session atau API)
      */
     private function getOrganizationContext(Request $request): ?int
     {
-        // Web routes: organization dari session (SetOrganizationFromSession middleware)
-        $orgId = $request->session()->get('current_organization');
+        // Web routes: workspace dari session (SetWorkspaceFromSession middleware)
+        $orgId = $request->session()->get('current_workspace');
         
-        // API routes: organization dari bearer token middleware (AuthenticateBearerToken)
-        $orgId = $orgId ?? $request->get('organization');
+        // API routes: workspace dari bearer token middleware (AuthenticateBearerToken)
+        $orgId = $orgId ?? $request->get('workspace');
         
         // Fallback: try to get dari request parameter
-        return $orgId ?? $request->get('organization_id');
+        return $orgId ?? $request->get('workspace_id');
     }
 
     /**

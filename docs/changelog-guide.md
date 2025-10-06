@@ -93,11 +93,11 @@ Perbaikan critical security vulnerability pada message encryption system. Semua 
 - **Media Handling**: File uploads, image/video processing, storage optimization
 - **Templates**: Message templates, quick replies, automated responses
 
-### 🏢 Organization & Teams
-- **Multi-tenancy**: Organization isolation, data separation
+### 🏢 workspace & Teams
+- **Multi-tenancy**: workspace isolation, data separation
 - **User Management**: Roles, permissions, team collaboration
 - **Billing & Subscriptions**: Payment processing, plan management, usage tracking
-- **API Access**: Organization API keys, rate limiting, usage analytics
+- **API Access**: workspace API keys, rate limiting, usage analytics
 
 ### 🔧 Infrastructure & Performance  
 - **Database**: Migration scripts, indexing, query optimization

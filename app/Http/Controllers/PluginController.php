@@ -9,7 +9,7 @@ use App\Helpers\CustomHelper;
 use App\Http\Requests\StoreWhatsappProfile;
 use App\Models\Addon;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Template;
 use App\Services\ContactFieldService;

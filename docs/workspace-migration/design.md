@@ -1,4 +1,4 @@
-# DESIGN - Organization → Workspace Migration
+# DESIGN - workspace → Workspace Migration
 
 ## AS-IS BASELINE (FORENSIC ANALYSIS & SCAN SUMMARY)
 
@@ -44,7 +44,7 @@ use App\Http\Resources\OrganizationsResource;
 use App\Http\Resources\BillingResource;
 use App\Http\Resources\UserResource;
 use App\Models\BillingCredit, BillingDebit, BillingInvoice, BillingPayment;
-use App\Models\BillingTransaction, Organization, Setting, Subscription;
+use App\Models\BillingTransaction, workspace, Setting, Subscription;
 use App\Models\SubscriptionPlan, Team, Template, User;
 use DB, Str, Propaganistas\LaravelPhone\PhoneNumber;
 
@@ -64,7 +64,7 @@ public function destroy($uuid)                                 // Line 224
 public function handle($request, Closure $next)
 {
     if ($request->session()->has('current_organization')) {
-        $request->merge(['organization' => $request->session()->get('current_organization')]);
+        $request->merge(['workspace' => $request->session()->get('current_organization')]);
     }
     return $next($request);
 }
@@ -72,20 +72,20 @@ public function handle($request, Closure $next)
 // KERNEL REGISTRATION (app/Http/Kernel.php):
 // Global web middleware stack position:
 'web' => [
-    \App\Http\Middleware\SetOrganizationFromSession::class, // FIRST: Set organization
+    \App\Http\Middleware\SetOrganizationFromSession::class, // FIRST: Set workspace
     \App\Http\Middleware\AuditLoggingMiddleware::class,    // SECOND: Log dengan context  
     \App\Http\Middleware\Localization::class,
 ],
 
 // Named middleware alias:
 'setOrganization' => \App\Http\Middleware\SetOrganizationFromSession::class,
-'check.organization' => \App\Http\Middleware\CheckOrganizationId::class,
+'check.workspace' => \App\Http\Middleware\CheckOrganizationId::class,
 ```
 
-### **Organization Model Evidence (Phase 1 Verified):**
+### **workspace Model Evidence (Phase 1 Verified):**
 **Model Relationships:**
 ```php
-// File: app/Models/Organization.php
+// File: app/Models/workspace.php
 public function teams() {
     return $this->hasMany(Team::class, 'organization_id');
 }
@@ -106,25 +106,25 @@ public function listAll($searchTerm, $userId = null) {
 ```
 
 ### **Frontend Pattern Evidence (Phase 1 Verified):**
-**Vue Component Organization Props:**
+**Vue Component workspace Props:**
 ```javascript
 // Pattern in resources/js/Pages/Auth/Invite.vue line 78
-const props = defineProps(['flash', 'config', 'organization', 'companyConfig', 'invite', 'user']);
+const props = defineProps(['flash', 'config', 'workspace', 'companyConfig', 'invite', 'user']);
 
 // Pattern in resources/js/Components/ProfileModal.vue lines 43-48
-organization_name: props.organization?.name,
-address: getAddressDetail(props.organization?.address, 'street'),
-city: getAddressDetail(props.organization?.address, 'city'),
+organization_name: props.workspace?.name,
+address: getAddressDetail(props.workspace?.address, 'street'),
+city: getAddressDetail(props.workspace?.address, 'city'),
 ```
 
 **Route Pattern Evidence:**
 ```php
-// File: routes/web.php - Organization route mappings:
+// File: routes/web.php - workspace route mappings:
 // User Panel Routes:
-Route::get('/select-organization', [OrganizationController::class, 'index']);
-Route::post('/select-organization', [OrganizationController::class, 'selectOrganization']);
-Route::post('/organization', [User\OrganizationController::class, 'store']);
-Route::put('/profile/organization', [ProfileController::class, 'updateOrganization']);
+Route::get('/select-workspace', [OrganizationController::class, 'index']);
+Route::post('/select-workspace', [OrganizationController::class, 'selectOrganization']);
+Route::post('/workspace', [User\OrganizationController::class, 'store']);
+Route::put('/profile/workspace', [ProfileController::class, 'updateOrganization']);
 
 // Admin Panel Routes:
 Route::resource('organizations', Admin\OrganizationController::class);
@@ -138,7 +138,7 @@ Route::resource('organizations', Admin\OrganizationController::class);
 **Vue Route Pattern:**
 ```javascript
 // Pattern in OrganizationModal.vue
-form.post('/organization', { preserveScroll: true })
+form.post('/workspace', { preserveScroll: true })
 ```
 
 ---
@@ -186,7 +186,7 @@ use App\Http\Resources\WorkspacesResource;        // OrganizationsResource → W
 use App\Http\Resources\BillingResource;         // Keep same
 use App\Http\Resources\UserResource;            // Keep same
 use App\Models\BillingCredit, BillingDebit, BillingInvoice, BillingPayment;
-use App\Models\BillingTransaction, Workspace, Setting, Subscription;  // Organization → Workspace
+use App\Models\BillingTransaction, Workspace, Setting, Subscription;  // workspace → Workspace
 use App\Models\SubscriptionPlan, Team, Template, User;
 use DB, Str, Propaganistas\LaravelPhone\PhoneNumber;
 
@@ -199,9 +199,9 @@ public function storeTransaction($request, $uuid)              // Identical sign
 public function destroy($uuid)                                 // Identical signature
 
 // INTERNAL CHANGES:
-// Organization::class → Workspace::class
+// workspace::class → Workspace::class
 // OrganizationsResource::class → WorkspacesResource::class
-// All 'organization' strings → 'workspace' (internal logic only)
+// All 'workspace' strings → 'workspace' (internal logic only)
 ```
 
 ### DES-3: Session Context Migration (Request Merge Pattern)
@@ -239,22 +239,22 @@ public function handle($request, Closure $next)
 ```
 
 ### DES-4: Frontend Vue Component Migration (Props Mapping)
-**Current State:** 26 Vue components dengan organization props dan data  
+**Current State:** 26 Vue components dengan workspace props dan data  
 **Target State:** Same components dengan workspace props dan data  
 **Delta:** Props renaming + API response field mapping
 
 **Implementation Strategy:**
 ```javascript
-// DUPLICATE exact pattern dari Organization props
-// Before: defineProps(['organization', 'config', ...])
+// DUPLICATE exact pattern dari workspace props
+// Before: defineProps(['workspace', 'config', ...])
 // After:  defineProps(['workspace', 'config', ...])
 
 // EXACT same data access patterns:
-// Before: props.organization?.name
+// Before: props.workspace?.name
 // After:  props.workspace?.name
 
 // Route duplication:
-// Before: form.post('/organization', ...)  
+// Before: form.post('/workspace', ...)  
 // After:  form.post('/workspace', ...)
 ```
 
@@ -269,7 +269,7 @@ public function handle($request, Closure $next)
 
 **Risk:** Session corruption during middleware transition  
 **Mitigation:** Backward compatibility layer untuk session keys  
-**Validation:** Session testing dengan multiple organization contexts
+**Validation:** Session testing dengan multiple workspace contexts
 
 **Risk:** Frontend component breaking during props rename  
 **Mitigation:** Feature flag deployment + component-by-component updates  
@@ -283,7 +283,7 @@ public function handle($request, Closure $next)
 
 **Phase 1 - Frontend/UI (26 components, 7 locales, 7 routes):**
 - **Complexity:** MEDIUM - Props renaming pattern consistent
-- **Evidence:** Vue component patterns show consistent organization prop usage
+- **Evidence:** Vue component patterns show consistent workspace prop usage
 - **Strategy:** Component-by-component duplication with backward compatibility
 
 **Phase 2 - Database (1 table, 24 FK dependencies):**
@@ -291,7 +291,7 @@ public function handle($request, Closure $next)
 - **Evidence:** organization_id pattern across 24 migrations confirmed
 - **Strategy:** Zero-downtime dengan dual-write approach
 
-**Phase 3 - Backend (13 Organization classes, 6 service methods, 5+ middleware files):**
+**Phase 3 - Backend (13 workspace classes, 6 service methods, 5+ middleware files):**
 - **Complexity:** HIGH - Service has 15+ model dependencies, global middleware pipeline changes
 - **Evidence:** OrganizationService complex dependencies, middleware registered globally
 - **Strategy:** Class duplication + dependency mapping + kernel middleware updates + cascade changes

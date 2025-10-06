@@ -9,7 +9,7 @@
 
     const props = defineProps({
         user: Object,
-        organization: Object,
+        workspace: Object,
         role: String,
         isOpen: Boolean,
     })
@@ -40,12 +40,12 @@
     })
 
     const form2 = useForm({
-        organization_name: props.organization?.name,
-        address: getAddressDetail(props.organization?.address, 'street'),
-        city: getAddressDetail(props.organization?.address, 'city'),
-        state: getAddressDetail(props.organization?.address, 'state'),
-        zip: getAddressDetail(props.organization?.address, 'zip'),
-        country: getAddressDetail(props.organization?.address, 'country'),
+        organization_name: props.workspace?.name,
+        address: getAddressDetail(props.workspace?.address, 'street'),
+        city: getAddressDetail(props.workspace?.address, 'city'),
+        state: getAddressDetail(props.workspace?.address, 'state'),
+        zip: getAddressDetail(props.workspace?.address, 'zip'),
+        country: getAddressDetail(props.workspace?.address, 'country'),
     })
 
     const form3 = useForm({

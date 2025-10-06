@@ -79,7 +79,7 @@ CREATE TABLE organizations (
     INDEX idx_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Team/organization membership
+-- Team/workspace membership
 CREATE TABLE teams (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
@@ -387,7 +387,7 @@ ORDER BY last_message_at DESC;
 -- Current performance: ~25ms average
 -- Laravel 12 target: <15ms dengan enhanced FULLTEXT
 
--- Query 3: Organization dashboard (executed ~200x per hour)
+-- Query 3: workspace dashboard (executed ~200x per hour)
 SELECT 
     o.*,
     COUNT(DISTINCT c.id) as total_contacts,

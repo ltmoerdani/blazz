@@ -167,7 +167,7 @@ class SecurityHeadersMiddleware
         $sensitivePatterns = [
             'admin/*',
             'user/profile/*',
-            'organization/settings/*',
+            'workspace/settings/*',
             'billing/*',
             'api/admin/*',
             'developer/*',
@@ -183,7 +183,7 @@ class SecurityHeadersMiddleware
         $sensitiveRoutes = [
             'admin.dashboard',
             'user.profile',
-            'organization.settings',
+            'workspace.settings',
             'billing.dashboard',
             'developer.index',
         ];

@@ -24,7 +24,7 @@ class ProcessCampaignMessagesJob implements ShouldQueue
     {
         try {
             // Process logs in chunks to avoid memory issues
-            CampaignLog::with(['campaign.organization', 'contact'])
+            CampaignLog::with(['campaign.workspace', 'contact'])
                 ->whereIn('status', ['pending', 'failed'])
                 ->whereHas('campaign', function ($query) {
                     $query->where('status', 'ongoing');
@@ -35,7 +35,7 @@ class ProcessCampaignMessagesJob implements ShouldQueue
 
                     // Process logs and collect jobs
                     foreach ($logs as $log) {
-                        $orgMetadata = json_decode($log->campaign->organization->metadata ?? '{}', true);
+                        $orgMetadata = json_decode($log->campaign->workspace->metadata ?? '{}', true);
                         $retryEnabled = $orgMetadata['campaigns']['enable_resend'] ?? [];
                         $retryIntervals = $orgMetadata['campaigns']['resend_intervals'] ?? [];
                         $maxRetries = count($retryIntervals);
@@ -72,8 +72,8 @@ class ProcessCampaignMessagesJob implements ShouldQueue
 
     private function markCampaignAsCompleted($campaignId)
     {
-        $campaign = Campaign::with('organization')->find($campaignId);
-        $orgMetadata = json_decode($campaign->organization->metadata ?? '{}', true);
+        $campaign = Campaign::with('workspace')->find($campaignId);
+        $orgMetadata = json_decode($campaign->workspace->metadata ?? '{}', true);
         $retryEnabled = $orgMetadata['campaigns']['enable_resend'] ?? [];
         $retryIntervals = $orgMetadata['campaigns']['resend_intervals'] ?? [];
         $maxRetries = count($retryIntervals);

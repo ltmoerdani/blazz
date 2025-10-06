@@ -16,7 +16,7 @@ class CreateChatsTable extends Migration
         Schema::create('chats', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->integer('organization_id');
+            $table->integer('workspace_id');
             $table->string('wam_id', 128)->nullable();
             $table->integer('contact_id');
             $table->enum('type', ['inbound', 'outbound'])->nullable();
