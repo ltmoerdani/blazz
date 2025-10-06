@@ -64,10 +64,6 @@ class ChatService
     {
         $role = Auth::user()->teams[0]->role;
         $contact = new Contact;
-        $unassigned = ChatTicket::where('assigned_to', null)->count();
-        $closedCount = ChatTicket::where('status', 'closed')->count();
-        $closedCount = ChatTicket::where('status', 'open')->count();
-        $allCount = ChatTicket::count();
         $config = workspace::where('id', $this->workspaceId)->first();
         $agents = Team::where('workspace_id', $this->workspaceId)->get();
         $ticketState = $request->status == null ? 'all' : $request->status;
@@ -113,8 +109,6 @@ class ChatService
             'pusher_app_cluster',
         ])->pluck('value', 'key')->toArray();
 
-        $perPage = 10; // Number of items per page
-        $totalContacts = count($contacts); // Total number of contacts
         $messageTemplates = Template::where('workspace_id', $this->workspaceId)
             ->where('deleted_at', null)
             ->where('status', 'APPROVED')
@@ -225,7 +219,7 @@ class ChatService
             DB::transaction(function () use ($reassignOnReopen, $autoassignment, $ticket, $contactId, $workspaceId) {
                 if(!$ticket){
                     // Create a new ticket if it doesn't exist
-                    $ticket = New ChatTicket;
+                    $ticket = new ChatTicket;
                     $ticket->contact_id = $contactId;
                     $ticket->status = 'open';
                     $ticket->updated_at = now();
@@ -310,10 +304,9 @@ class ChatService
                 $file = Storage::disk('local')->put('public', $fileContent);
                 $mediaFilePath = $file;
                 $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-            } else if($storage === 'aws') {
+            } elseif($storage === 'aws') {
                 $location = 'amazon';
                 $file = $request->file('file');
-                $filePath = 'uploads/media/received/'  . $this->workspaceId . '/' . $fileName;
                 $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
                 /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
                 $s3Disk = Storage::disk('s3');
@@ -338,7 +331,7 @@ class ChatService
                 $metadata['header']['format'] = $header['format'];
                 $metadata['header']['parameters'] = [];
         
-                foreach ($request->header['parameters'] as $key => $parameter) {
+                foreach ($request->header['parameters'] as $parameter) {
                     if ($parameter['selection'] === 'upload') {
                         $storage = Setting::where('key', 'storage_system')->first()->value;
                         $fileName = $parameter['value']->getClientOriginalName();
@@ -349,7 +342,7 @@ class ChatService
                             $mediaFilePath = $file;
             
                             $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-                        } else if($storage === 'aws') {
+                        } elseif($storage === 'aws') {
                             $file = $parameter['value'];
                             $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
                             /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
@@ -420,10 +413,6 @@ class ChatService
             'deleted_by' => Auth::id(),
             'deleted_at' => now()
         ]);
-
-        $chat = Chat::with('contact','media')->where('id', $contact->lastChat->id)->first();
-
-        //event(new NewChatEvent($chat, $contact->organization_id));
     }
 
     private function getContentTypeFromUrl($url) {
@@ -465,10 +454,7 @@ class ChatService
 
             if (isset($metadata['contacts'])) {
                 // If the 'contacts' key exists, retrieve the 'location' value
-                $location = $metadata['contacts']['location'];
-
-                // Now, you have the location value available
-                return $location;
+                return $metadata['contacts']['location'];
             } else {
                 return null;
             }

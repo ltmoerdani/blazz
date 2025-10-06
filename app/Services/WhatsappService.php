@@ -73,14 +73,14 @@ class WhatsappService
             $requestData['type'] = 'text';
             $requestData['text']['preview_url'] = true; //If you have added url either http or https a preview will be displayed
             $requestData['text']['body'] = clean($messageContent);
-        } else if($type == "interactive buttons" || $type == "interactive call to action url" || $type == "interactive list"){
+        } elseif($type == "interactive buttons" || $type == "interactive call to action url" || $type == "interactive list"){
             $requestData['type'] = 'interactive';
 
             if($type == "interactive buttons"){
                 $requestData['interactive']['type'] = 'button';
-            } else if($type == "interactive call to action url"){
+            } elseif($type == "interactive call to action url"){
                 $requestData['interactive']['type'] = 'cta_url';
-            } else if($type == "interactive list"){
+            } elseif($type == "interactive list"){
                 $requestData['interactive']['type'] = 'list';
             }
 
@@ -94,10 +94,10 @@ class WhatsappService
                         ],
                     ];
                 }
-            } else if($type == "interactive call to action url"){
+            } elseif($type == "interactive call to action url"){
                 $requestData['interactive']['action']['name'] = "cta_url";
                 $requestData['interactive']['action']['parameters'] = $buttons;
-            } else if($type == "interactive list"){
+            } elseif($type == "interactive list"){
                 $requestData['interactive']['action']['sections'] = $buttons;
                 $requestData['interactive']['action']['button'] = $buttonLabel;
             }
@@ -178,7 +178,7 @@ class WhatsappService
         $requestData['type'] = 'template';
         $requestData['template'] = $templateContent;
 
-        //\Log::info('WhatsApp API Request: ' . json_encode($requestData));
+        
 
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
@@ -290,7 +290,7 @@ class WhatsappService
             }
         }
 
-        //dd(json_encode($array));
+        
         return json_encode($array);
     }
 
@@ -358,20 +358,20 @@ class WhatsappService
             }
         }
 
-        //\Log::info(json_encode($array));
+        
         return json_encode($array);
     }
 
     private function getParameters($contact, $parameter){
         if($parameter === 'first name'){
             return $contact->first_name;
-        } else if($parameter === 'last name'){
+        } elseif($parameter === 'last name'){
             return $contact->last_name;
-        } else if($parameter === 'name'){
+        } elseif($parameter === 'name'){
             return $contact->first_name . ' ' . $contact->last_name;
-        } else if($parameter === 'email'){
+        } elseif($parameter === 'email'){
             return $contact->email;
-        } else if($parameter === 'phone'){
+        } elseif($parameter === 'phone'){
             return $contact->phone;
         }
     }
@@ -385,30 +385,6 @@ class WhatsappService
      * @param string $mediaFile The file to be uploaded as media.
      * @return mixed Returns the response from the HTTP request.
      */
-    /*public function sendMedia($contactUuid, $mediaType, $mediaFile)
-    {
-        $contact = Contact::where('uuid', $contactUuId)->first();
-        $mediaFilePath = Storage::path("media/{$mediaFileName}");
-
-        $fileUploadResponse = $this->initiateResumableUploadSession($mediaFilePath);
-
-        if(!$fileUploadResponse->success){
-            return $fileUploadResponse;
-        }
-
-        $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
-        $headers = $this->setHeaders();
-
-        $requestData['messaging_product'] = 'whatsapp';
-        $requestData['recipient_type'] = 'individual';
-        $requestData['to'] = $contact->phone;
-        $requestData['type'] = $mediaType;
-        $requestData[$mediaType]['id'] = $fileUploadResponse->data->h;
-
-        $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
-
-        dd($responseObject);
-    }*/
 
     /**
      * This function sends a stored image as a media file via a POST request to the specified phone number using Facebook's messaging API.
@@ -440,10 +416,7 @@ class WhatsappService
 
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
-        //Log::info(json_encode($responseObject));
-
         if($responseObject->success === true){
-            //Log::info($mediaUrl);
             $wamId = $responseObject->data->messages[0]->id;
             $contentType = $this->getContentTypeFromUrl($mediaUrl);
             $mediaData = $this->formatMediaResponse($wamId, $mediaUrl, $mediaType, $contentType, $transcription);
@@ -489,7 +462,7 @@ class WhatsappService
             event(new NewChatEvent($chatArray, $contact->organization_id));
         }
 
-        //\Log::info(json_encode($responseObject, true));
+        
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('message.sent', [
@@ -499,7 +472,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function getContentTypeFromUrl($url) {
+    public function getContentTypeFromUrl($url) {
         try {
             // Make a HEAD request to fetch headers only
             $response = Http::head($url);
@@ -517,7 +490,7 @@ class WhatsappService
         }
     }
 
-    function formatMediaResponse($wamId, $mediaUrl, $mediaType, $contentType, $transcription = null){
+    public function formatMediaResponse($wamId, $mediaUrl, $mediaType, $contentType, $transcription = null){
         $response = [
             "id" => $wamId,
             "type" => $mediaType,
@@ -533,7 +506,7 @@ class WhatsappService
         return $response;
     }
 
-    function getMediaSizeInBytesFromUrl($url) {
+    public function getMediaSizeInBytesFromUrl($url) {
         $imageContent = file_get_contents($url);
     
         if ($imageContent !== false) {
@@ -758,7 +731,7 @@ class WhatsappService
         $client = new Client();
         $responseObject = new \stdClass();
 
-        //\Log::info($requestData);
+        
 
         try {
             $response = $client->post($url, [
@@ -1008,7 +981,6 @@ class WhatsappService
             if ($template) {
                 $template->organization_id = session()->get('current_workspace');
                 $template->category = $template->status == 'APPROVED' ? $template->category : $request->category;
-                //$template->metadata = json_encode($requestData);
                 $template->status = 'PENDING';
                 $template->created_by = Auth::id();
                 $template->updated_at = now(); // No need to set `created_at` when updating
@@ -1043,7 +1015,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function syncTemplates()
+    public function syncTemplates()
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/message_templates";
 
@@ -1059,8 +1031,6 @@ class WhatsappService
                 ]);
 
                 $responseObject = json_decode($response->getBody()->getContents());
-
-                //dd($responseObject);
 
                 foreach($responseObject->data as $templateData){
                     $template = Template::where('workspace_id', session()->get('current_workspace'))
@@ -1146,7 +1116,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function getMedia($mediaId)
+    public function getMedia($mediaId)
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$mediaId}";
         $headers = $this->setHeaders();
@@ -1156,7 +1126,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function checkHealth()
+    public function checkHealth()
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}?fields=health_status";
         $headers = $this->setHeaders();
@@ -1166,7 +1136,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function subscribeToWaba()
+    public function subscribeToWaba()
     {
         $responseObject = new \stdClass();
 
@@ -1188,7 +1158,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function getWabaSubscriptions()
+    public function getWabaSubscriptions()
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps";
         $headers = $this->setHeaders();
@@ -1198,7 +1168,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function overrideCallbackUrl($callbackUrl, $verifyToken)
+    public function overrideCallbackUrl($callbackUrl, $verifyToken)
     {
         $responseObject = new \stdClass();
 
@@ -1223,7 +1193,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function unSubscribeToWaba()
+    public function unSubscribeToWaba()
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps";
         $headers = $this->setHeaders();
@@ -1249,7 +1219,7 @@ class WhatsappService
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response['data'][0];
@@ -1286,7 +1256,7 @@ class WhatsappService
                 $file = Storage::disk('local')->put('public', $fileContent);
                 $mediaFilePath = $file;
                 $profile_picture_url = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-            } else if($storage === 'aws') {
+            } elseif($storage === 'aws') {
                 $file = $request->file('profile_picture_url');
                 $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
                 /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
@@ -1358,7 +1328,7 @@ class WhatsappService
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response['data'][0];
@@ -1389,7 +1359,7 @@ class WhatsappService
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response;
@@ -1420,7 +1390,7 @@ class WhatsappService
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response;
@@ -1435,7 +1405,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function viewMedia($mediaId)
+    public function viewMedia($mediaId)
     {
         $response = $this->getMedia($mediaId);
 
@@ -1453,7 +1423,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function initiateResumableUploadSession($file)
+    public function initiateResumableUploadSession($file)
     {
         $sessionResponse = $this->createResumableUploadSession($file);
 
@@ -1506,7 +1476,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function createResumableUploadSession($file)
+    public function createResumableUploadSession($file)
     {
         $fileLength = $file->getSize();
         $fileType = $file->getMimeType();

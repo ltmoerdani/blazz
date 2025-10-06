@@ -29,7 +29,7 @@ class RegisterController extends BaseController
         if(!$accessTokenResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $accessTokenResponse->data->error->message
                 ]
             );
@@ -44,7 +44,7 @@ class RegisterController extends BaseController
         if(!$debugTokenResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $debugTokenResponse->data->error->message
                 ]
             );
@@ -56,19 +56,19 @@ class RegisterController extends BaseController
         if(!$phoneNumberResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $phoneNumberResponse->data->error->message
                 ]
             );
         }
 
         //Get Phone Number Status
-        $phoneNumberStatusResponse = $this->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id); 
+        $phoneNumberStatusResponse = $this->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id);
 
         if(!$phoneNumberStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $phoneNumberStatusResponse->data->error->message
                 ]
             );
@@ -80,7 +80,7 @@ class RegisterController extends BaseController
         if(!$accountReviewStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $accountReviewStatusResponse->data->error->message
                 ]
             );
@@ -92,19 +92,19 @@ class RegisterController extends BaseController
         if(!$registerNumber->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $registerNumber->data->error->message
                 ]
             );
         }
 
         //Get business profile
-        $businessProfileResponse = $this->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);  
-        
+        $businessProfileResponse = $this->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);
+
         if(!$businessProfileResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $businessProfileResponse->data->error->message
                 ]
             );
@@ -120,11 +120,11 @@ class RegisterController extends BaseController
         if(!$subscribeToWabaResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $subscribeToWabaResponse->data->error->message
                 ]
             );
-        } 
+        }
 
         //Set Callback Url
         $overridecallbackResponse = $this->overrideWabaCallbackUrl($accessToken, $debugTokenResponse->data->waba_id, $callbackUrl, $token);
@@ -132,23 +132,13 @@ class RegisterController extends BaseController
         if(!$overridecallbackResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $overridecallbackResponse->data->error->message
                 ]
             );
         }
 
         //Set Callback Url
-        /*$overridecallbackResponse = $this->overridePhoneCallbackUrl($accessToken, $phoneNumberResponse->data->id, $callbackUrl, $token);
-                    
-        if(!$overridecallbackResponse->success){
-            return back()->with(
-                'status', [
-                    'type' => 'error', 
-                    'message' => $overridecallbackResponse->data->error->message
-                ]
-            );
-        }*/
 
         $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
         $metadataArray['whatsapp']['is_embedded_signup'] = 1;
@@ -183,7 +173,7 @@ class RegisterController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('You\'ve successfully connected your account to whatsapp!')
             ]
         );
@@ -294,7 +284,7 @@ class RegisterController extends BaseController
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response['data'][0];
@@ -327,7 +317,7 @@ class RegisterController extends BaseController
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response;
@@ -360,7 +350,7 @@ class RegisterController extends BaseController
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response;
@@ -393,7 +383,7 @@ class RegisterController extends BaseController
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response['data'][0];
@@ -409,7 +399,7 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function subscribeToWaba($accessToken, $wabaId)
+    public function subscribeToWaba($accessToken, $wabaId)
     {
         $responseObject = new \stdClass();
 
@@ -433,7 +423,7 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function getWabaSubscriptions($accessToken, $wabaId)
+    public function getWabaSubscriptions($accessToken, $wabaId)
     {
         $responseObject = new \stdClass();
 
@@ -484,7 +474,7 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function overridePhoneCallbackUrl($accessToken, $phoneId, $callbackUrl, $verifyToken)
+    public function overridePhoneCallbackUrl($accessToken, $phoneId, $callbackUrl, $verifyToken)
     {
         $responseObject = new \stdClass();
 
@@ -513,7 +503,7 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function unSubscribeToWaba($accessToken, $wabaId)
+    public function unSubscribeToWaba($accessToken, $wabaId)
     {
         $responseObject = new \stdClass();
 
@@ -537,7 +527,7 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function registerNumber($accessToken, $phoneNumberID)
+    public function registerNumber($accessToken, $phoneNumberID)
     {
         $responseObject = new \stdClass();
 
@@ -564,7 +554,7 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function syncTemplates($accessToken, $wabaId)
+    public function syncTemplates($accessToken, $wabaId)
     {
         $responseObject = new \stdClass();
 

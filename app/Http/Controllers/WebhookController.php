@@ -52,7 +52,6 @@ class WebhookController extends BaseController
     }
 
     public function whatsappWebhook(Request $request){
-        //Log::info($request);
         $verifyToken = Setting::where('key', 'whatsapp_callback_token')->first()->value;
 
         $mode = $request->input('hub_mode');
@@ -68,7 +67,6 @@ class WebhookController extends BaseController
 
     public function handle(Request $request, $identifier = null)
     {
-        //Log::info('Webhook Handler: Start processing for identifier ' . $identifier);
         $workspace = $this->getOrganizationByIdentifier($identifier);
 
         if (!$workspace) {
@@ -94,14 +92,7 @@ class WebhookController extends BaseController
                 return $this->forbiddenResponse();
             }
 
-            /*$appSecret = $metadata->whatsapp->app_secret;
-            $headerSignature = $request->header('X-Hub-Signature-256');
-            $payload = $request->getContent();
-            $calculatedSignature = 'sha256=' . hash_hmac('sha256', $payload, $appSecret);
 
-            if (!$this->isValidSignature($calculatedSignature, $headerSignature)) {
-                return $this->invalidSignatureResponse();
-            }*/
 
             return $this->handlePostRequest($request, $workspace);
         }
@@ -148,15 +139,14 @@ class WebhookController extends BaseController
     {
         $res = $request->entry[0]['changes'][0];
 
-        //Log::info($request);
+        
 
         if($res['field'] === 'messages'){
-            $contacts = $res['value']['contacts'][0] ?? null;
             $messages = $res['value']['messages'] ?? null;
             $statuses = $res['value']['statuses'] ?? null;
 
             if($statuses) {
-                //$response = $res['value']['statuses'][0];
+                
                 foreach($statuses as $response){
                     $chatWamId = $response['id'];
                     $status = $response['status'];
@@ -178,9 +168,9 @@ class WebhookController extends BaseController
                 WebhookHelper::triggerWebhookEvent('message.status.update', [
                     'data' => $res,
                 ], $workspace->id);
-            } else if($messages) {
+            } elseif($messages) {
                 $isLimitReached = SubscriptionService::isSubscriptionLimitReachedForInboundMessages($workspace->id);
-                //Log::info($messages);
+                
 
                 if(!$isLimitReached){
                     foreach($messages as $response){
@@ -297,7 +287,7 @@ class WebhookController extends BaseController
                     ], $workspace->id);
                 }
             }
-        } else if($res['field'] === 'message_template_status_update'){
+        } elseif($res['field'] === 'message_template_status_update'){
             $response = $res['value'] ?? null;
             $template = Template::where('meta_id', $response['message_template_id'])->first();
 
@@ -305,7 +295,7 @@ class WebhookController extends BaseController
                 $template->status = $response['event'];
                 $template->save();
             }
-        } else if($res['field'] === 'account_review_update'){
+        } elseif($res['field'] === 'account_review_update'){
             //Account Status
             $response = $res['value'] ?? null;
             $workspaceConfig = workspace::where('id', $workspace->id)->first();
@@ -316,7 +306,7 @@ class WebhookController extends BaseController
             $updatedMetadataJson = json_encode($metadataArray);
             $workspaceConfig->metadata = $updatedMetadataJson;
             $workspaceConfig->save();
-        } else if($res['field'] === 'phone_number_name_update'){
+        } elseif($res['field'] === 'phone_number_name_update'){
             //Display Name
             $response = $res['value'] ?? null;
 
@@ -330,7 +320,7 @@ class WebhookController extends BaseController
                 $workspaceConfig->metadata = $updatedMetadataJson;
                 $workspaceConfig->save();
             }
-        } else if($res['field'] === 'phone_number_quality_update'){
+        } elseif($res['field'] === 'phone_number_quality_update'){
             //messaging_tier_limit
             $response = $res['value'] ?? null;
             $workspaceConfig = workspace::where('id', $workspace->id)->first();
@@ -341,7 +331,7 @@ class WebhookController extends BaseController
             $updatedMetadataJson = json_encode($metadataArray);
             $workspaceConfig->metadata = $updatedMetadataJson;
             $workspaceConfig->save();
-        } else if($res['field'] === 'business_capability_update'){
+        } elseif($res['field'] === 'business_capability_update'){
             //messaging_tier_limit
             $response = $res['value'] ?? null;
             $workspaceConfig = workspace::where('id', $workspace->id)->first();
@@ -386,13 +376,12 @@ class WebhookController extends BaseController
 
             if($storage === 'local'){
                 $location = 'local';
-                $file = Storage::disk('local')->put('public/' . $fileName, $fileContent);
-                $mediaFilePath = $file;
+                Storage::disk('local')->put('public/' . $fileName, $fileContent);
                 $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . 'public/' . $fileName;
-            } else if($storage === 'aws') {
+            } elseif($storage === 'aws') {
                 $location = 'amazon';
                 $filePath = 'uploads/media/received/'  . $workspace->id . '/' . Str::random(40) . time();
-                $file = Storage::disk('s3')->put($filePath, $fileContent, [
+                Storage::disk('s3')->put($filePath, $fileContent, [
                     'ContentType' => $mimeType
                 ]);
                 /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
@@ -400,12 +389,10 @@ class WebhookController extends BaseController
                 $mediaUrl = $s3Disk->url($filePath);
             }
 
-            $mediaData = [
+            return [
                 'media_url' => $mediaUrl,
                 'location' => $location,
             ];
-    
-            return $mediaData;
         } catch (RequestException $e) {
             Log::error("Error processing webhook: " . $e->getMessage());
             return Response::json(['error' => 'Failed to download file'], 403);
@@ -421,9 +408,7 @@ class WebhookController extends BaseController
         $extension = explode('/', $mimeType)[1];
 
         // Combine the hash, timestamp, and extension to create a unique filename
-        $filename = "{$hash}_" . time() . ".{$extension}";
-
-        return $filename;
+        return "{$hash}_" . time() . ".{$extension}";
     }
 
     private function getMedia($mediaId, workspace $workspace)
@@ -435,7 +420,6 @@ class WebhookController extends BaseController
         }
 
         $client = new Client();
-        $responseObject = new \stdClass();
 
         try {
             $requestOptions = [

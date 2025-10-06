@@ -47,5 +47,5 @@ class ChatNoteService
         $note->deleted_at = date('Y-m-d H:i:s');
         $note->deleted_by = Auth::id();
         $note->save();
-    } 
+    }
 }

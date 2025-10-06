@@ -27,7 +27,7 @@ class LanguageController extends BaseController
     public function index(Request $request){
         return Inertia::render('Admin/Setting/Language/Index', [
             'title' => __('Languages'),
-            'rows' => $this->langService->get($request), 
+            'rows' => $this->langService->get($request),
             'default_language' => Setting::where('key', 'default_language')->value('value') ?? 'en',
             'filters' => $request->all()
         ]);
@@ -44,7 +44,7 @@ class LanguageController extends BaseController
             return Inertia::render('Admin/Setting/Language/Show', [
                 'title' => __('Language Translations'),
                 'language' => $language,
-                'rows' => [], 
+                'rows' => [],
                 'filters' => $request->all()
             ]);
         }
@@ -88,7 +88,7 @@ class LanguageController extends BaseController
 
         return redirect('/admin/languages')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Language added successfully!')
             ]
         );
@@ -167,7 +167,7 @@ class LanguageController extends BaseController
 
         return redirect('/admin/languages')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Language updated successfully!')
             ]
         );
@@ -182,7 +182,7 @@ class LanguageController extends BaseController
         if (!file_exists($langFilePath)) {
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Language file not found')
                 ]
             );
@@ -196,7 +196,7 @@ class LanguageController extends BaseController
         if (!array_key_exists($key, $translations)) {
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Key not found')
                 ]
             );
@@ -213,7 +213,7 @@ class LanguageController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Translation updated successfully')
             ]
         );
@@ -234,7 +234,7 @@ class LanguageController extends BaseController
 
         return redirect('/admin/languages')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Language updated successfully!')
             ]
         );
@@ -245,7 +245,7 @@ class LanguageController extends BaseController
 
         return redirect('/admin/languages')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Language deleted successfully!')
             ]
         );

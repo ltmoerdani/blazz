@@ -140,7 +140,7 @@ class SettingController extends BaseController
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
-        } else if($request->isMethod('post')) {
+        } elseif($request->isMethod('post')) {
             $currentworkspaceId = session()->get('current_workspace');
             $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
@@ -174,7 +174,7 @@ class SettingController extends BaseController
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
-        } else if($request->isMethod('post')) {
+        } elseif($request->isMethod('post')) {
             $currentworkspaceId = session()->get('current_workspace');
             $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
@@ -189,13 +189,6 @@ class SettingController extends BaseController
 
             $workspaceConfig->metadata = $updatedMetadataJson;
             $workspaceConfig->save();
-
-            /*return back()->with(
-                'status', [
-                    'type' => 'success',
-                    'message' => __('Settings updated successfully')
-                ]
-            );*/
         }
     }
 
@@ -208,7 +201,7 @@ class SettingController extends BaseController
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
-        } else if($request->isMethod('post')) {
+        } elseif($request->isMethod('post')) {
             $currentworkspaceId = session()->get('current_workspace');
             $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
@@ -218,13 +211,6 @@ class SettingController extends BaseController
             $updatedMetadataJson = json_encode($metadataArray);
             $workspaceConfig->metadata = $updatedMetadataJson;
             $workspaceConfig->save();
-
-            /*return back()->with(
-                'status', [
-                    'type' => 'success',
-                    'message' => __('Settings updated successfully')
-                ]
-            );*/
         }
     }
 
@@ -295,7 +281,7 @@ class SettingController extends BaseController
                 $wabaId = $config['whatsapp']['waba_id'] ?? null;
             
                 $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-                $unsubscribe = $whatsappService->unSubscribeToWaba();
+                $whatsappService->unSubscribeToWaba();
             }
             
             //Delete whatsapp settings

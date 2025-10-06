@@ -9,7 +9,7 @@ use App\Models\Faq;
 use App\Services\FaqService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule; 
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Helper;
 use Session;
@@ -32,7 +32,7 @@ class FaqController extends BaseController
     public function index(Request $request){
         return Inertia::render('Admin/Faq/Index', [
             'title' => __('FAQs'),
-            'rows' => $this->faqService->get($request), 
+            'rows' => $this->faqService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -60,7 +60,7 @@ class FaqController extends BaseController
 
         return redirect('/admin/faqs')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Faq added successfully!')
             ]
         );
@@ -91,7 +91,7 @@ class FaqController extends BaseController
 
         return redirect('/admin/faqs')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Faq updated successfully!')
             ]
         );
@@ -109,7 +109,7 @@ class FaqController extends BaseController
 
         return redirect('/admin/faqs')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Faq deleted successfully!')
             ]
         );
