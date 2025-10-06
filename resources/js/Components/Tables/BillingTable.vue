@@ -72,7 +72,7 @@
         <TableHeader>
             <TableHeaderRow>
                 <TableHeaderRowItem :position="'first'">{{ $t('Date') }}</TableHeaderRowItem>
-                <TableHeaderRowItem :position="'first'" class="hidden sm:table-cell">{{ $t('Organization') }}</TableHeaderRowItem>
+                <TableHeaderRowItem :position="'first'" class="hidden sm:table-cell">{{ $t('workspace') }}</TableHeaderRowItem>
                 <TableHeaderRowItem class="hidden sm:table-cell">{{ $t('Description') }}</TableHeaderRowItem>
                 <TableHeaderRowItem class="hidden sm:table-cell">{{ $t('Amount') }}</TableHeaderRowItem>
                 <TableHeaderRowItem :position="'last'"></TableHeaderRowItem>
@@ -81,7 +81,7 @@
         <TableBody>
             <TableBodyRow v-for="(item, index) in rows.data" :key="index" :class="!isLastRow(index) ? 'border-b' : ''">
                 <TableBodyRowItem :position="'first'" class="hidden sm:table-cell">{{ item.created_at }}</TableBodyRowItem>
-                <TableBodyRowItem :position="'first'" class="capitalize">{{ item.organization.name }}</TableBodyRowItem>
+                <TableBodyRowItem :position="'first'" class="capitalize">{{ item.workspace.name }}</TableBodyRowItem>
                 <TableBodyRowItem class="hidden sm:table-cell capitalize">{{ item.description }}</TableBodyRowItem>
                 <TableBodyRowItem class="">{{ item.amount }}</TableBodyRowItem>
                 <TableBodyRowItem class="hidden sm:table-cell">

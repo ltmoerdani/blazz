@@ -6,7 +6,7 @@ use Carbon\Carbon;
 use Helper;
 use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\PaymentGateway;
 use App\Models\Setting;
 use App\Models\Subscription;
@@ -50,10 +50,10 @@ class StripeService
                         'quantity' => 1,
                     ]],
                     'mode' => 'payment',
-                    //'customer' => session()->get('current_organization'),
+                    //'customer' => session()->get('current_workspace'),
                     'customer_email' => auth()->user()->email,
                     'metadata' => [
-                        'organization_id' => session()->get('current_organization'),
+                        'workspace_id' => session()->get('current_workspace'),
                         'user_id' => auth()->user()->id,
                         'amount' => $amount,
                         'plan_id' => $planId
@@ -73,10 +73,10 @@ class StripeService
                         'quantity' => 1,
                     ]],
                     'mode' => 'subscription',
-                    //'customer' => session()->get('current_organization'),
+                    //'customer' => session()->get('current_workspace'),
                     'customer_email' => auth()->user()->email,
                     'metadata' => [
-                        'organization_id' => session()->get('current_organization'),
+                        'workspace_id' => session()->get('current_workspace'),
                         'user_id' => auth()->user()->id,
                         'amount' => $amount,
                         'plan_id' => $planId
@@ -291,8 +291,8 @@ class StripeService
     public function handleSubscription($amount, $planId = NULL)
     {
         try{
-            /*$organization = Organization::where('id', session()->get('current_organization'))->first();
-            if ($organization && $metadata = json_decode($organization->metadata, true)) {
+            /*$workspace = workspace::where('id', session()->get('current_workspace'))->first();
+            if ($workspace && $metadata = json_decode($workspace->metadata, true)) {
                 $stripeCustomerId = $metadata['stripe']['id'] ?? null;
             } else {
                 $stripeCustomerId = $this->createCustomer(auth()->user()->id);
@@ -313,7 +313,7 @@ class StripeService
                 'mode' => 'subscription',
                 'customer_email' => auth()->user()->email,
                 'metadata' => [
-                    'organization_id' => session()->get('current_organization'),
+                    'workspace_id' => session()->get('current_workspace'),
                     'user_id' => auth()->user()->id,
                     'amount' => $amount,
                     'plan_id' => $planId
@@ -368,22 +368,22 @@ class StripeService
             if (isset($metadata->organization_id)) {
                 $transaction = DB::transaction(function () use ($stripeEvent, $metadata) {
                     //Save stripe id to database
-                    $organization = Organization::where('id', $metadata->organization_id)->first();
-                    $orgMetadata = json_decode($organization->metadata, true);
+                    $workspace = workspace::where('id', $metadata->organization_id)->first();
+                    $orgMetadata = json_decode($workspace->metadata, true);
                     $orgMetadata['stripe_id'] = $stripeEvent->data->object->customer;
-                    $organization->metadata = json_encode($orgMetadata);
-                    $organization->save();
+                    $workspace->metadata = json_encode($orgMetadata);
+                    $workspace->save();
 
                     if($stripeEvent->data->object->mode == 'subscription'){
                         //Save plan id to database
                         if($metadata->plan_id != NULL){
-                            $subscription = Subscription::where('organization_id', $metadata->organization_id)->update([
+                            $subscription = Subscription::where('workspace_id', $metadata->organization_id)->update([
                                 'plan_id' => $metadata->plan_id
                             ]);
                         }
                     } else {
                         $payment = BillingPayment::create([
-                            'organization_id' => $metadata->organization_id,
+                            'workspace_id' => $metadata->organization_id,
                             'processor' => 'stripe',
                             'details' => $stripeEvent->data->object->payment_intent,
                             'amount' => $metadata->amount
@@ -391,7 +391,7 @@ class StripeService
 
                         //Log::info($payment);
                         $transaction = BillingTransaction::create([
-                            'organization_id' => $metadata->organization_id,
+                            'workspace_id' => $metadata->organization_id,
                             'entity_type' => 'payment',
                             'entity_id' => $payment->id,
                             'description' => 'Stripe Payment',
@@ -419,18 +419,18 @@ class StripeService
             $transaction = DB::transaction(function () use ($stripeEvent) {
                 $customerId = $stripeEvent->data->object->customer;
 
-                // Query the Organization using the stripe_id (customer ID)
-                $organization = Organization::whereJsonContains('metadata->stripe_id', $customerId)->first();
+                // Query the workspace using the stripe_id (customer ID)
+                $workspace = workspace::whereJsonContains('metadata->stripe_id', $customerId)->first();
 
-                if ($organization) {
-                    $subscription = Subscription::where('organization_id', $organization->id)->first();
-                    $organizationId = $organization->id;
+                if ($workspace) {
+                    $subscription = Subscription::where('workspace_id', $workspace->id)->first();
+                    $workspaceId = $workspace->id;
                     $planId = $subscription->plan_id;
                     $amount = $stripeEvent->data->object->total/100;
                     $userId = 0;
 
                     $payment = BillingPayment::create([
-                        'organization_id' => $organizationId,
+                        'workspace_id' => $workspaceId,
                         'processor' => 'stripe',
                         'details' => $stripeEvent->data->object->id,
                         'amount' => $amount,
@@ -438,7 +438,7 @@ class StripeService
 
                     //Log::info($payment);
                     $transaction = BillingTransaction::create([
-                        'organization_id' => $organizationId,
+                        'workspace_id' => $workspaceId,
                         'entity_type' => 'payment',
                         'entity_id' => $payment->id,
                         'description' => 'Stripe Payment',
@@ -447,9 +447,9 @@ class StripeService
                     ]);
 
                     if($planId == null){
-                        $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($organizationId, $userId);
+                        $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
                     } else {
-                        $this->subscriptionService->updateSubscriptionPlan($organizationId, $planId, $userId);
+                        $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
                     }
 
                     return response()->json([

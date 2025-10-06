@@ -14,7 +14,7 @@ use App\Models\ChatTicketLog;
 use App\Models\Contact;
 use App\Models\ContactField;
 use App\Models\ContactGroup;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\Template;
@@ -37,17 +37,17 @@ class ChatService
     use TemplateTrait;
 
     private $whatsappService;
-    private $organizationId;
+    private $workspaceId;
 
-    public function __construct($organizationId)
+    public function __construct($workspaceId)
     {
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
         $this->initializeWhatsappService();
     }
 
     private function initializeWhatsappService()
     {
-        $config = Organization::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->organizationId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -67,8 +67,8 @@ class ChatService
         $closedCount = ChatTicket::where('status', 'closed')->count();
         $closedCount = ChatTicket::where('status', 'open')->count();
         $allCount = ChatTicket::count();
-        $config = Organization::where('id', $this->organizationId)->first();
-        $agents = Team::where('organization_id', $this->organizationId)->get();
+        $config = workspace::where('id', $this->organizationId)->first();
+        $agents = Team::where('workspace_id', $this->organizationId)->get();
         $ticketState = $request->status == null ? 'all' : $request->status;
         $sortDirection = $request->session()->get('chat_sort_direction') ?? 'desc';
         $allowAgentsToViewAllChats = true;
@@ -114,7 +114,7 @@ class ChatService
 
         $perPage = 10; // Number of items per page
         $totalContacts = count($contacts); // Total number of contacts
-        $messageTemplates = Template::where('organization_id', $this->organizationId)
+        $messageTemplates = Template::where('workspace_id', $this->organizationId)
             ->where('deleted_at', null)
             ->where('status', 'APPROVED')
             ->get();
@@ -145,7 +145,7 @@ class ChatService
                 $settings = json_decode($config->metadata);
 
                 //To ensure the unread message counter is updated
-                $unreadMessages = Chat::where('organization_id', $this->organizationId)
+                $unreadMessages = Chat::where('workspace_id', $this->organizationId)
                     ->where('type', 'inbound')
                     ->where('deleted_at', NULL)
                     ->where('is_read', 0)
@@ -168,7 +168,7 @@ class ChatService
                     'hasMoreMessages' => $initialMessages['hasMoreMessages'],
                     'nextPage' => $initialMessages['nextPage'],
                     'contact' => $contact,
-                    'fields' => ContactField::where('organization_id', $this->organizationId)->where('deleted_at', null)->get(),
+                    'fields' => ContactField::where('workspace_id', $this->organizationId)->where('deleted_at', null)->get(),
                     'locationSettings' => $this->getLocationSettings(),
                     'ticket' => $ticket,
                     'agents' => $agents,
@@ -209,8 +209,8 @@ class ChatService
     }
 
     public function handleTicketAssignment($contactId){
-        $organizationId = $this->organizationId;
-        $settings = Organization::where('id', $this->organizationId)->first();
+        $workspaceId = $this->organizationId;
+        $settings = workspace::where('id', $this->organizationId)->first();
         $settings = json_decode($settings->metadata);
 
         // Check if ticket functionality is active
@@ -221,7 +221,7 @@ class ChatService
             // Check if a ticket already exists for the contact
             $ticket = ChatTicket::where('contact_id', $contactId)->first();
 
-            DB::transaction(function () use ($reassignOnReopen, $autoassignment, $ticket, $contactId, $organizationId) {
+            DB::transaction(function () use ($reassignOnReopen, $autoassignment, $ticket, $contactId, $workspaceId) {
                 if(!$ticket){
                     // Create a new ticket if it doesn't exist
                     $ticket = New ChatTicket;
@@ -232,7 +232,7 @@ class ChatService
                     // Perform auto-assignment if enabled
                     if($autoassignment){
                         // Find an agent with the least number of assigned tickets
-                        $agent = Team::where('organization_id', $organizationId)
+                        $agent = Team::where('workspace_id', $workspaceId)
                             ->withCount('tickets')
                             ->whereNull('deleted_at')
                             ->orderBy('tickets_count')->first();
@@ -262,7 +262,7 @@ class ChatService
                     if($ticket->status === 'closed'){
                         if($reassignOnReopen){
                             if($autoassignment){
-                                $agent = Team::where('organization_id', $organizationId)
+                                $agent = Team::where('workspace_id', $workspaceId)
                                     ->withCount('tickets')
                                     ->whereNull('deleted_at')
                                     ->orderBy('tickets_count')
@@ -451,8 +451,8 @@ class ChatService
     }
 
     private function getLocationSettings(){
-        // Retrieve the settings for the current organization
-        $settings = Organization::where('id', $this->organizationId)->first();
+        // Retrieve the settings for the current workspace
+        $settings = workspace::where('id', $this->organizationId)->first();
 
         if ($settings) {
             // Decode the JSON metadata column into an associative array

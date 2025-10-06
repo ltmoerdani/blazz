@@ -12,9 +12,9 @@ class AutoReply extends Model {
     protected $guarded = [];
     public $timestamps = false;
 
-    public function listAll($organizationId, $searchTerm)
+    public function listAll($workspaceId, $searchTerm)
     {
-        return $this->where('organization_id', $organizationId)
+        return $this->where('workspace_id', $workspaceId)
                     ->where('deleted_at', null)
                     ->where(function ($query) use ($searchTerm) {
                         $query->where('name', 'like', '%' . $searchTerm . '%')

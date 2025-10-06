@@ -9,12 +9,12 @@ use Exception;
 
 class UniquePhone implements Rule
 {
-    private $organizationId;
+    private $workspaceId;
     private $uuid; 
 
-    public function __construct($organizationId, $uuid = null)
+    public function __construct($workspaceId, $uuid = null)
     {
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
         $this->uuid = $uuid;
     }
 
@@ -29,9 +29,9 @@ class UniquePhone implements Rule
             $phone = new PhoneNumber($value);
             $formattedPhone = $phone->formatE164();
 
-            // Check if the phone number is unique for the given organization_id
+            // Check if the phone number is unique for the given workspace_id
             $query = DB::table('contacts')
-                ->where('organization_id', $this->organizationId)
+                ->where('workspace_id', $this->organizationId)
                 ->where('phone', $formattedPhone)
                 ->where('deleted_at', null);
 

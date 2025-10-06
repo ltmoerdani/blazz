@@ -7,9 +7,9 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Helpers\CustomHelper;
 use App\Http\Resources\DeveloperResource;
 use App\Models\Addon;
-use App\Models\OrganizationApiKey;
+use App\Models\WorkspaceApiKey;
 use App\Models\Setting;
-use App\Services\OrganizationApiService;
+use App\Services\WorkspaceApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
@@ -18,13 +18,13 @@ class DeveloperController extends BaseController
 {
     private $organizationApiService;
 
-    public function __construct(OrganizationApiService $organizationApiService)
+    public function __construct(WorkspaceApiService $organizationApiService)
     {
         $this->organizationApiService = $organizationApiService;
     }
 
     public function index(){
-        $rows = OrganizationApiKey::where('organization_id', session()->get('current_organization'))
+        $rows = WorkspaceApiKey::where('workspace_id', session()->get('current_workspace'))
             ->where('deleted_at', NULL)
             ->paginate(9);
         $data['rows'] = DeveloperResource::collection($rows);

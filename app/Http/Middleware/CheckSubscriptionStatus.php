@@ -20,11 +20,11 @@ class CheckSubscriptionStatus
             // Check if the user role is 'user'
             if ($user->role === 'user') {
                 $subscriptionService = new SubscriptionService();
-                $organizationId = session()->get('current_organization');
-                //$activate = $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($organizationId);
+                $workspaceId = session()->get('current_workspace');
+                //$activate = $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId);
 
                 // Check subscription has been activated and it is inactive
-                if (!$subscriptionService::isSubscriptionActive($organizationId)) {
+                if (!$subscriptionService::isSubscriptionActive($workspaceId)) {
                     return to_route('user.billing.index');
                 }
             }

@@ -144,7 +144,7 @@
         'methods', 
         'isPaymentLoading',
         'pusherSettings',
-        'organizationId',
+        'workspaceId',
         'setting'
     ]);
 
@@ -191,7 +191,7 @@
                 encrypted: true,
             });
 
-            window.Echo.channel('payments.ch' + props.organizationId).listen('NewPaymentEvent', (event) => {
+            window.Echo.channel('payments.ch' + props.workspaceId).listen('NewPaymentEvent', (event) => {
                 router.visit('/billing', {});
             });
         }

@@ -4,7 +4,7 @@ namespace Modules\EmbeddedSignup\Controllers;
 
 use DB;
 use App\Http\Controllers\Controller as BaseController;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Template;
 use Illuminate\Http\Request;
@@ -21,7 +21,7 @@ class RegisterController extends BaseController
     }
 
     public function handleSignup(Request $request){
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
         $accessTokenResponse = $this->getAccessToken($request->token);
 
@@ -109,9 +109,9 @@ class RegisterController extends BaseController
             );
         }
 
-        $organizationConfig = Organization::where('id', $organizationId)->first();
-        $callbackUrl = URL::to('/') . '/webhook/whatsapp/' . $organizationConfig->identifier;
-        $token = $organizationConfig->identifier;
+        $workspaceConfig = workspace::where('id', $workspaceId)->first();
+        $callbackUrl = URL::to('/') . '/webhook/whatsapp/' . $workspaceConfig->identifier;
+        $token = $workspaceConfig->identifier;
 
         //Subscribe to Waba
         $subscribeToWabaResponse = $this->subscribeToWaba($accessToken, $debugTokenResponse->data->waba_id);
@@ -149,7 +149,7 @@ class RegisterController extends BaseController
             );
         }*/
 
-        $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+        $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
         $metadataArray['whatsapp']['is_embedded_signup'] = 1;
         $metadataArray['whatsapp']['access_token'] = $accessToken;
         $metadataArray['whatsapp']['app_id'] = $debugTokenResponse->data->app_id;
@@ -174,8 +174,8 @@ class RegisterController extends BaseController
 
         $updatedMetadataJson = json_encode($metadataArray);
 
-        $organizationConfig->metadata = $updatedMetadataJson;
-        $organizationConfig->save();
+        $workspaceConfig->metadata = $updatedMetadataJson;
+        $workspaceConfig->save();
 
         //Sync templates
         $this->syncTemplates($accessToken, $debugTokenResponse->data->waba_id);
@@ -574,7 +574,7 @@ class RegisterController extends BaseController
                 ])->get("https://graph.facebook.com/{$this->apiVersion}/{$wabaId}/message_templates")->throw()->json();
 
                 foreach($response['data'] as $templateData){
-                    $template = Template::where('organization_id', session()->get('current_organization'))
+                    $template = Template::where('workspace_id', session()->get('current_workspace'))
                         ->where('meta_id', $templateData['id'])->first();
 
                     if($template){
@@ -585,7 +585,7 @@ class RegisterController extends BaseController
                         $template->save();
                     } else {
                         $template = new Template();
-                        $template->organization_id = session()->get('current_organization');
+                        $template->organization_id = session()->get('current_workspace');
                         $template->meta_id = $templateData['id'];
                         $template->name = $templateData['name'];
                         $template->category = $templateData['category'];

@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\Contact;
 use App\Models\ContactField;
 use App\Models\ContactGroup;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Exports\ContactsExport;
 use App\Http\Requests\StoreContact;
 use App\Http\Resources\ContactResource;
@@ -25,16 +25,16 @@ class ContactController extends BaseController
 {
     private function contactService()
     {
-        return new ContactService(session()->get('current_organization'));
+        return new ContactService(session()->get('current_workspace'));
     }
 
     private function getCurrentOrganizationId()
     {
-        return session()->get('current_organization');
+        return session()->get('current_workspace');
     }
 
     public function index(Request $request, $uuid = null){
-        $organizationId = $this->getCurrentOrganizationId();
+        $workspaceId = $this->getCurrentOrganizationId();
         $contactModel = new Contact;
 
         if($uuid === 'export') {
@@ -44,11 +44,11 @@ class ContactController extends BaseController
             $uuid = $request->query('id') ? $request->query('id') : $uuid ;
             $editContact = $request->query('edit') === 'true' ? true : false;
 
-            $contacts = $contactModel->getAllContacts($organizationId, $searchTerm);
-            $rowCount = $contactModel->countContacts($organizationId);
-            $contactGroups = $contactModel->getAllContactGroups($organizationId);
+            $contacts = $contactModel->getAllContacts($workspaceId, $searchTerm);
+            $rowCount = $contactModel->countContacts($workspaceId);
+            $contactGroups = $contactModel->getAllContactGroups($workspaceId);
             $contact = Contact::with('contactGroups')->where('uuid', $uuid)->where('deleted_at', null)->first();
-            $contactFields = ContactField::where('organization_id', $organizationId)->where('deleted_at', null)->get();
+            $contactFields = ContactField::where('workspace_id', $workspaceId)->where('deleted_at', null)->get();
 
             //dd($contact);
             return Inertia::render('User/Contact/Index', [
@@ -155,8 +155,8 @@ class ContactController extends BaseController
     }
 
     private function getLocationSettings(){
-        // Retrieve the settings for the current organization
-        $settings = Organization::where('id', session()->get('current_organization'))->first();
+        // Retrieve the settings for the current workspace
+        $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
         if ($settings) {
             // Decode the JSON metadata column into an associative array

@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Organization extends Model {
+class Workspace extends Model {
     use HasFactory;
     use HasUuid;
     use SoftDeletes;
 
+    protected $table = 'workspaces';
     protected $guarded = [];
     public $timestamps = true;
 
@@ -35,16 +36,16 @@ class Organization extends Model {
 
     public function teams()
     {
-        return $this->hasMany(Team::class, 'organization_id');
+        return $this->hasMany(Team::class, 'workspace_id');
     }
 
     public function owner()
     {
-        return $this->belongsTo(Team::class, 'id', 'organization_id')->where('role', 'owner');
+        return $this->belongsTo(Team::class, 'id', 'workspace_id')->where('role', 'owner');
     }
 
     public function subscription()
     {
-        return $this->belongsTo(Subscription::class, 'id', 'organization_id');
+        return $this->belongsTo(Subscription::class, 'id', 'workspace_id');
     }
 }

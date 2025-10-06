@@ -27,7 +27,7 @@
     }, { immediate: true });
 
     const submitForm = async () => {
-        form.post('/organization', {
+        form.post('/workspace', {
             preserveScroll: true,
         })
     };
@@ -38,11 +38,11 @@
     }
 </script>
 <template>
-    <Modal :label="$t('Create Organization')" :isOpen=isOpenModal>
+    <Modal :label="$t('Create workspace')" :isOpen=isOpenModal>
         <div class="mt-5 grid grid-cols-1 gap-x-6 gap-y-4">
             <form @submit.prevent="submitForm()" class="gap-y-4">
                 <div class="grid grid-cols gap-y-4">
-                    <FormInput v-model="form.name" :name="$t('Organization Name')" :error="form.errors.name" :type="'text'" :class="'col-span-6'"/>
+                    <FormInput v-model="form.name" :name="$t('workspace Name')" :error="form.errors.name" :type="'text'" :class="'col-span-6'"/>
                 </div>
                 
                 <div class="mt-4 flex">

@@ -185,9 +185,9 @@ php artisan migrate:fresh --force --seed
 
 # Verify all data relationships intact
 php artisan tinker
->>> App\Models\User::with('organization')->count();
+>>> App\Models\User::with('workspace')->count();
 >>> App\Models\Chat::with('fromUser', 'toUser')->count();  
->>> App\Models\Organization::with('teams')->count();
+>>> App\Models\workspace::with('teams')->count();
 >>> exit
 
 # Performance baseline measurement
@@ -291,7 +291,7 @@ class Laravel12PerformanceOptimization extends Migration
             $table->index(['organization_id', 'from_user_id', 'to_user_id'], 'idx_chat_participants');
         });
         
-        // Organization performance indexes
+        // workspace performance indexes
         Schema::table('organizations', function (Blueprint $table) {
             $table->index(['created_at', 'status'], 'idx_org_status_timeline');
         });
@@ -396,7 +396,7 @@ ORDER BY TABLE_NAME, CARDINALITY DESC;
 class Chat extends Model
 {
     // Laravel 12: Enhanced eager loading
-    protected $with = ['fromUser', 'toUser', 'organization'];
+    protected $with = ['fromUser', 'toUser', 'workspace'];
     
     // Optimize query scopes
     public function scopeForOrganization($query, $organizationId)
@@ -578,8 +578,8 @@ class DatabaseMigrationTest extends TestCase
     
     public function test_data_relationships()
     {
-        $chat = Chat::with('organization', 'fromUser')->first();
-        $this->assertNotNull($chat->organization);
+        $chat = Chat::with('workspace', 'fromUser')->first();
+        $this->assertNotNull($chat->workspace);
         $this->assertNotNull($chat->fromUser);
     }
     
@@ -962,7 +962,7 @@ class CreateAnalyticsWarehouse extends Migration
             $table->index(['activity_date', 'messages_sent']);
         });
         
-        // Organization analytics
+        // workspace analytics
         Schema::create('organization_analytics', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('organization_id');
@@ -1003,7 +1003,7 @@ class CreateAnalyticsWarehouse extends Migration
             $table->string('model_name');
             $table->string('model_version');
             $table->bigInteger('entity_id'); // user_id, organization_id, etc.
-            $table->string('entity_type'); // user, organization
+            $table->string('entity_type'); // user, workspace
             $table->string('prediction_type'); // churn, upgrade, usage
             $table->decimal('prediction_score', 5, 4); // 0-1 probability
             $table->json('prediction_factors'); // factors influencing prediction

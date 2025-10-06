@@ -26,7 +26,7 @@ class AuditLog extends Model
         'ip_address',
         'user_agent',
         'user_id',
-        'organization_id',
+        'workspace_id',
         'session_id',
         'request_data',
         'status_code',
@@ -70,9 +70,9 @@ class AuditLog extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function organization()
+    public function workspace()
     {
-        return $this->belongsTo(Organization::class);
+        return $this->belongsTo(workspace::class);
     }
     
     public function securityIncidents()

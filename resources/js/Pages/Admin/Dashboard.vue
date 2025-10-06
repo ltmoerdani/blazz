@@ -10,7 +10,7 @@
                 </div>
             </div>
             <div class="md:flex space-x-2 md:space-x-2 mt-4 md:mt-0 mb-8 text-xl md:text-sm hidden">
-                <Link href="/admin/organizations/create" class="bg-primary py-2 px-3 rounded-lg text-white text-center">{{ $t('Add organization') }}</Link>
+                <Link href="/admin/workspaces/create" class="bg-primary py-2 px-3 rounded-lg text-white text-center">{{ $t('Add workspace') }}</Link>
                 <Link href="/admin/users/create" class="bg-primary py-2 px-3 rounded-lg text-white text-center">{{ $t('Add user') }}</Link>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 md:space-y-0">
@@ -99,7 +99,7 @@
                     </div>
                     <div v-else class="space-y-1">
                         <div v-for="(item, index) in props.payments.data" :key="index" class="mt-4 border-l-4 bg-gray-50 flex justify-between p-2 text-sm">
-                            <div class="capitalize">{{ item.organization.name }}</div>
+                            <div class="capitalize">{{ item.workspace.name }}</div>
                             <div class="self-end">
                                 <span class="bg-[#ffe5b4] p-1 rounded-md text-xs px-2 capitalize">{{ item.amount }}</span>
                             </div>

@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Addon;
 use App\Models\Chat;
 use App\Models\Language;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;
@@ -47,7 +47,7 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $organization = array();
+        $workspace = array();
         $organizations = array();
         $user = $request->user();
         $language = session('locale') ?? 'en';
@@ -78,14 +78,14 @@ class HandleInertiaRequests extends Middleware
         }
 
         if ($user && $user->role === 'user') {
-            $organizationId = session('current_organization');
-            $user->load(['teams' => function ($query) use ($organizationId) {
-                $query->where('organization_id', $organizationId);
+            $workspaceId = session('current_workspace');
+            $user->load(['teams' => function ($query) use ($workspaceId) {
+                $query->where('workspace_id', $workspaceId);
             }]);
 
-            $organizations = Team::with('organization')->where('user_id', $user->id)->get();
-            $organization = Organization::where('id', $organizationId)->first();
-            $unreadMessages = Chat::where('organization_id', $organizationId)
+            $organizations = Team::with('workspace')->where('user_id', $user->id)->get();
+            $workspace = workspace::where('id', $workspaceId)->first();
+            $unreadMessages = Chat::where('workspace_id', $workspaceId)
                 ->where('type', 'inbound')
                 ->where('deleted_at', NULL)
                 ->where('is_read', 0)
@@ -114,7 +114,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user ?: null,
             ],
-            'organization' => $organization,
+            'workspace' => $workspace,
             'organizations' => $organizations,
             'flash' => [
                 'status'=> session('status')

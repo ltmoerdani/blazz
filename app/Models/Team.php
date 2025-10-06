@@ -19,9 +19,9 @@ class Team extends Model {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
-    public function organization()
+    public function workspace()
     {
-        return $this->belongsTo(Organization::class, 'organization_id', 'id');
+        return $this->belongsTo(workspace::class, 'workspace_id', 'id');
     }
 
     public function tickets()

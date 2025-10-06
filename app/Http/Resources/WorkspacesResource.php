@@ -6,7 +6,7 @@ use App\Helpers\DateTimeHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class OrganizationsResource extends JsonResource
+class WorkspacesResource extends JsonResource
 {
     /**
      * Transform the resource into an array.

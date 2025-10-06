@@ -192,7 +192,7 @@ class SecurityService
     }
 
     /**
-     * Get incident count for organization
+     * Get incident count for workspace
      */
     protected function getIncidentCount(int $organizationId, Carbon $startDate): int
     {
@@ -228,7 +228,7 @@ class SecurityService
     }
 
     /**
-     * Get top threats for organization
+     * Get top threats for workspace
      */
     protected function getTopThreats(int $organizationId, Carbon $startDate): array
     {

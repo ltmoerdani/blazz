@@ -10,7 +10,7 @@ use App\Http\Resources\CampaignLogResource;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
 use App\Models\ContactGroup;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Template;
 use App\Services\CampaignService;
 use Illuminate\Http\Request;
@@ -29,13 +29,13 @@ class CampaignController extends BaseController
     }
 
     public function index(Request $request, $uuid = null){
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
         if($uuid == null){
             $searchTerm = $request->query('search');
-            $settings = Organization::where('id', $organizationId)->first();
+            $settings = workspace::where('id', $workspaceId)->first();
             $rows = CampaignResource::collection(
                 Campaign::with(['template', 'campaignLogs'])
-                    ->where('organization_id', $organizationId)
+                    ->where('workspace_id', $workspaceId)
                     ->where('deleted_at', null)
                     ->where(function ($query) use ($searchTerm) {
                         $query->where('name', 'like', '%' . $searchTerm . '%')
@@ -49,13 +49,13 @@ class CampaignController extends BaseController
 
             return Inertia::render('User/Campaign/Index', [ 'title'=> __('Campaigns'), 'allowCreate' => true, 'rows' => $rows, 'filters' => request()->all(['search']), 'settings' => $settings ]);
         } else if($uuid == 'create'){
-            $data['settings'] = Organization::where('id', $organizationId)->first();
-            $data['templates'] = Template::where('organization_id', $organizationId)
+            $data['settings'] = workspace::where('id', $workspaceId)->first();
+            $data['templates'] = Template::where('workspace_id', $workspaceId)
                 ->where('deleted_at', null)
                 ->where('status', 'APPROVED')
                 ->get();
 
-            $data['contactGroups'] = ContactGroup::where('organization_id', $organizationId)
+            $data['contactGroups'] = ContactGroup::where('workspace_id', $workspaceId)
                 ->where('deleted_at', null)
                 ->get();
 

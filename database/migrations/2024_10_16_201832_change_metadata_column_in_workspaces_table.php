@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('organization_api_keys', function (Blueprint $table) {
-            $table->unsignedBigInteger('deleted_by')->after('deleted_at')->nullable();
+        Schema::table('workspaces', function (Blueprint $table) {
+            $table->json('metadata')->nullable()->default(null)->change();
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('organization_api_keys', function (Blueprint $table) {
-            $table->dropColumn('deleted_by');
+        Schema::table('workspaces', function (Blueprint $table) {
+            $table->text('metadata')->change();
         });
     }
 };

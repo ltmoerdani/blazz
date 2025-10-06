@@ -29,12 +29,12 @@ return new class extends Migration
         
         // Fix security_incidents table - add organization_id for multi-tenant
         Schema::table('security_incidents', function (Blueprint $table) {
-            if (!Schema::hasColumn('security_incidents', 'organization_id')) {
-                $table->unsignedBigInteger('organization_id')->nullable()->after('user_id')->index();
+            if (!Schema::hasColumn('security_incidents', 'workspace_id')) {
+                $table->unsignedBigInteger('workspace_id')->nullable()->after('user_id')->index();
             }
             
             // Add additional indexes untuk performance
-            $table->index(['organization_id', 'incident_type', 'created_at'], 'security_org_type_created_idx');
+            $table->index(['workspace_id', 'incident_type', 'created_at'], 'security_org_type_created_idx');
         });
         
         // Restore foreign key with proper constraint
@@ -44,15 +44,15 @@ return new class extends Migration
         
         // Ensure rate_limit_violations has organization_id
         Schema::table('rate_limit_violations', function (Blueprint $table) {
-            if (!Schema::hasColumn('rate_limit_violations', 'organization_id')) {
-                $table->unsignedBigInteger('organization_id')->nullable()->after('user_id')->index();
+            if (!Schema::hasColumn('rate_limit_violations', 'workspace_id')) {
+                $table->unsignedBigInteger('workspace_id')->nullable()->after('user_id')->index();
             }
         });
         
         // Fix authentication_events - ensure audit_id relationship is proper
         Schema::table('authentication_events', function (Blueprint $table) {
-            if (!Schema::hasColumn('authentication_events', 'organization_id')) {
-                $table->unsignedBigInteger('organization_id')->nullable()->after('user_id')->index();
+            if (!Schema::hasColumn('authentication_events', 'workspace_id')) {
+                $table->unsignedBigInteger('workspace_id')->nullable()->after('user_id')->index();
             }
         });
         
@@ -60,7 +60,7 @@ return new class extends Migration
         if (Schema::hasTable('data_access_logs')) {
             Schema::table('data_access_logs', function (Blueprint $table) {
                 // Add composite index untuk better performance
-                $table->index(['organization_id', 'data_type', 'created_at'], 'data_access_organization_created_idx');
+                $table->index(['workspace_id', 'data_type', 'created_at'], 'data_access_organization_created_idx');
             });
         }
     }
@@ -78,21 +78,21 @@ return new class extends Migration
         });
         
         Schema::table('security_incidents', function (Blueprint $table) {
-            if (Schema::hasColumn('security_incidents', 'organization_id')) {
+            if (Schema::hasColumn('security_incidents', 'workspace_id')) {
                 $table->dropIndex('security_org_type_created_idx');
-                $table->dropColumn('organization_id');
+                $table->dropColumn('workspace_id');
             }
         });
         
         Schema::table('rate_limit_violations', function (Blueprint $table) {
-            if (Schema::hasColumn('rate_limit_violations', 'organization_id')) {
-                $table->dropColumn('organization_id');
+            if (Schema::hasColumn('rate_limit_violations', 'workspace_id')) {
+                $table->dropColumn('workspace_id');
             }
         });
         
         Schema::table('authentication_events', function (Blueprint $table) {
-            if (Schema::hasColumn('authentication_events', 'organization_id')) {
-                $table->dropColumn('organization_id');
+            if (Schema::hasColumn('authentication_events', 'workspace_id')) {
+                $table->dropColumn('workspace_id');
             }
         });
     }

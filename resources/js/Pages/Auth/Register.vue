@@ -20,7 +20,7 @@
                             <FormInput v-model="form.last_name" :name="$t('Last name')" :error="form.errors.last_name" :type="'text'" :class="'col-span-3'"/>
                         </div>
                         <div class="mt-5">
-                            <FormInput v-model="form.organization_name" :name="$t('Organization name')" :error="form.errors.organization_name" :type="'text'" :class="'sm:col-span-6'"/>
+                            <FormInput v-model="form.organization_name" :name="$t('workspace name')" :error="form.errors.organization_name" :type="'text'" :class="'sm:col-span-6'"/>
                         </div>
                         <div class="mt-5">
                             <FormInput v-model="form.email" :name="$t('Email')" :error="form.errors.email" :type="'email'" :class="'sm:col-span-3'"/>

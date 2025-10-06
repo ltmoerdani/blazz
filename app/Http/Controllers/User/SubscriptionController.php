@@ -34,8 +34,8 @@ class SubscriptionController extends BaseController
     }
 
     public function index(Request $request){
-        $organizationId = session()->get('current_organization');
-        $data['subscription'] = Subscription::with('plan')->where('organization_id', session()->get('current_organization'))->first();
+        $workspaceId = session()->get('current_workspace');
+        $data['subscription'] = Subscription::with('plan')->where('workspace_id', session()->get('current_workspace'))->first();
         $data['taxes'] = TaxRate::where('status', 'active')->where('deleted_at', NULL)->get();
         $data['plans'] = SubscriptionPlanResource::collection(
             SubscriptionPlan::whereNull('deleted_at')
@@ -47,7 +47,7 @@ class SubscriptionController extends BaseController
                 ->paginate(10)
         );
         $data['methods'] = $this->paymentMethods();
-        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($organizationId, $data['subscription']->plan_id);
+        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
         $data['title'] = __('Billing');
         $data['addons'] = Addon::where('status', 1)->where('is_plan_restricted', 1)->pluck('is_active', 'name');
         $data['enable_ai_billing'] = Setting::where('key', 'enable_ai_billing')->value('value') ?? 0;
@@ -58,9 +58,9 @@ class SubscriptionController extends BaseController
     public function store(Request $request){
         $userId = auth()->user()->id;
         $planId = $request->plan;
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
-        $response = SubscriptionService::store($request, $organizationId, $planId, $userId);
+        $response = SubscriptionService::store($request, $workspaceId, $planId, $userId);
 
         if($response){
             if($response->success){
@@ -85,20 +85,20 @@ class SubscriptionController extends BaseController
 
     public function show($id)
     {
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
         return Redirect::back()->with('response_data', [
-            'data' => SubscriptionService::calculateSubscriptionBillingDetails($organizationId, $id),
+            'data' => SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $id),
         ]);
     }
 
     public function applyCoupon(CouponRequest $request, $id)
     {
         session()->put('applied_coupon', $request->input('coupon'));
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
         return Redirect::back()->with('response_data', [
-            'data' => SubscriptionService::calculateSubscriptionBillingDetails($organizationId, $id),
+            'data' => SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $id),
         ]);
 
         /*return Redirect::back()->with(
@@ -112,10 +112,10 @@ class SubscriptionController extends BaseController
     public function removeCoupon(Request $request, $id)
     {
         session()->forget('applied_coupon');
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
         return Redirect::back()->with('response_data', [
-            'data' => SubscriptionService::calculateSubscriptionBillingDetails($organizationId, $id),
+            'data' => SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $id),
         ]);
     }
 

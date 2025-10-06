@@ -9,7 +9,7 @@ use App\Models\Chat;
 use App\Models\ChatLog;
 use App\Models\ChatMedia;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Template;
 use GuzzleHttp\Client;
@@ -28,17 +28,17 @@ class WhatsappService
     private $apiVersion;
     private $appId;
     private $phoneNumberId;
-    private $organizationId;
+    private $workspaceId;
     private $wabaId;
 
-    public function __construct($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $organizationId)
+    public function __construct($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId)
     {
         $this->accessToken = $accessToken;
         $this->apiVersion = $apiVersion;
         $this->appId = $appId;
         $this->phoneNumberId = $phoneNumberId;
         $this->wabaId = $wabaId;
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
 
         Config::set('broadcasting.connections.pusher', [
             'driver' => 'pusher',
@@ -121,7 +121,7 @@ class WhatsappService
             $response['type'] = 'text';
 
             $chat = Chat::create([
-                'organization_id' => $contact->organization_id,
+                'workspace_id' => $contact->organization_id,
                 'wam_id' => $responseObject->data->messages[0]->id,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
@@ -188,7 +188,7 @@ class WhatsappService
             }
 
             $chat = Chat::create([
-                'organization_id' => $contact->organization_id,
+                'workspace_id' => $contact->organization_id,
                 'wam_id' => $responseObject->data->messages[0]->id,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
@@ -295,7 +295,7 @@ class WhatsappService
 
     private function buildTemplateChatMessage($templateContent, $contact){
         //Get the template
-        $template = Template::where('organization_id', $contact->organization_id)
+        $template = Template::where('workspace_id', $contact->organization_id)
             ->where('name', $templateContent['name'])
             ->where('language', $templateContent['language']['code'])
             ->first();
@@ -449,7 +449,7 @@ class WhatsappService
             $mediaSize = $this->getMediaSizeInBytesFromUrl($mediaUrl);
 
             $chat = Chat::create([
-                'organization_id' => $contact->organization_id,
+                'workspace_id' => $contact->organization_id,
                 'wam_id' => $wamId,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
@@ -773,7 +773,7 @@ class WhatsappService
 
             //Save Template To Database
             $template = new Template();
-            $template->organization_id = session()->get('current_organization');
+            $template->organization_id = session()->get('current_workspace');
             $template->meta_id = $responseObject->data->id;
             $template->name = $request->name;
             $template->category = $request->category;
@@ -1004,7 +1004,7 @@ class WhatsappService
 
             //Update Template In Database
             if ($template) {
-                $template->organization_id = session()->get('current_organization');
+                $template->organization_id = session()->get('current_workspace');
                 $template->category = $template->status == 'APPROVED' ? $template->category : $request->category;
                 //$template->metadata = json_encode($requestData);
                 $template->status = 'PENDING';
@@ -1060,7 +1060,7 @@ class WhatsappService
                 //dd($responseObject);
 
                 foreach($responseObject->data as $templateData){
-                    $template = Template::where('organization_id', session()->get('current_organization'))
+                    $template = Template::where('workspace_id', session()->get('current_workspace'))
                         ->where('meta_id', $templateData->id)->first();
 
                     if($template){
@@ -1071,7 +1071,7 @@ class WhatsappService
                         $template->save();
                     } else {
                         $template = new Template();
-                        $template->organization_id = session()->get('current_organization');
+                        $template->organization_id = session()->get('current_workspace');
                         $template->meta_id = $templateData->id;
                         $template->name = $templateData->name;
                         $template->category = $templateData->category;
@@ -1299,8 +1299,8 @@ class WhatsappService
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
         if($responseObject->success === true){
-            $organizationConfig = Organization::where('id', $this->organizationId)->first();
-            $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+            $workspaceConfig = workspace::where('id', $this->organizationId)->first();
+            $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['whatsapp']['business_profile']['about'] = $request->about;
             $metadataArray['whatsapp']['business_profile']['address'] = $request->address;
@@ -1313,8 +1313,8 @@ class WhatsappService
 
             $updatedMetadataJson = json_encode($metadataArray);
 
-            $organizationConfig->metadata = $updatedMetadataJson;
-            $organizationConfig->save();
+            $workspaceConfig->metadata = $updatedMetadataJson;
+            $workspaceConfig->save();
         }
 
         return $responseObject;

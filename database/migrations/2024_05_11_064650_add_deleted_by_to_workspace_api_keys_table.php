@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('tickets', function (Blueprint $table) {
-            $table->unsignedBigInteger('organization_id')->nullable()->after('reference');
+        Schema::table('workspace_api_keys', function (Blueprint $table) {
+            $table->unsignedBigInteger('deleted_by')->after('deleted_at')->nullable();
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('tickets', function (Blueprint $table) {
-            $table->dropColumn('organization_id');
+        Schema::table('workspace_api_keys', function (Blueprint $table) {
+            $table->dropColumn('deleted_by');
         });
     }
 };

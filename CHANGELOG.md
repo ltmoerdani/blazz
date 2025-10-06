@@ -122,7 +122,7 @@ Implementasi comprehensive WhatsApp Business API integration dengan template man
 - 💬 **WhatsApp Business API Integration**: Seamless integration dengan Meta Business API untuk official business messaging
 - 📋 **Template Management System**: Create, edit, dan manage WhatsApp message templates dengan preview functionality
 - 🎯 **Campaign Automation**: Bulk messaging campaigns dengan scheduling dan delivery tracking
-- 📱 **Contact Management**: Enhanced contact organization dengan groups dan custom fields
+- 📱 **Contact Management**: Enhanced contact workspace dengan groups dan custom fields
 - 📊 **Analytics Dashboard**: Real-time messaging analytics dan campaign performance metrics
 
 **Technical Implementation:**
@@ -142,7 +142,7 @@ Implementasi comprehensive WhatsApp Business API integration dengan template man
 **API Endpoints:**
 - `/api/send/message` - Send individual WhatsApp messages
 - `/api/send/template` - Send template-based messages
-- `/webhook/whatsapp/{organization}` - Meta webhook processing
+- `/webhook/whatsapp/{workspace}` - Meta webhook processing
 - `/api/templates/*` - Template CRUD operations
 - `/api/campaigns/*` - Campaign management endpoints
 
@@ -155,7 +155,7 @@ _1 September 2025 — Impact: High_
 Peluncuran initial version dari Blazz sebagai multi-tenant enterprise chat platform dengan foundational features untuk WhatsApp business communication, user management, dan subscription billing system.
 
 **Foundation Features:**
-- 🏢 **Multi-tenant Architecture**: Complete organization isolation dengan database partitioning
+- 🏢 **Multi-tenant Architecture**: Complete workspace isolation dengan database partitioning
 - 👥 **User & Team Management**: Role-based access control (Admin, Manager, Agent)
 - 💳 **Subscription Billing**: Integrated billing system dengan multiple payment gateways (Stripe, PayPal, Paystack)
 - 🔐 **Authentication System**: Secure user authentication dengan email verification
@@ -169,7 +169,7 @@ Peluncuran initial version dari Blazz sebagai multi-tenant enterprise chat platf
 - File storage dengan AWS S3 integration
 
 **Business Logic:**
-- Organization subscription management
+- workspace subscription management
 - Contact import/export functionality  
 - Basic auto-reply system
 - Email notification system
@@ -207,11 +207,11 @@ Peluncuran initial version dari Blazz sebagai multi-tenant enterprise chat platf
 - **Templates**: Message template creation, approval workflow, compliance checking
 - **Campaigns**: Bulk messaging, scheduling, delivery optimization, analytics
 
-### 🏢 Organization & Multi-tenancy
+### 🏢 workspace & Multi-tenancy
 - **Tenant Isolation**: Data separation, resource allocation, performance isolation
 - **User Management**: RBAC, team collaboration, permission systems
 - **Billing & Subscriptions**: Payment processing, plan management, usage tracking
-- **API Management**: Organization API keys, rate limiting, usage analytics
+- **API Management**: workspace API keys, rate limiting, usage analytics
 
 ### 🔧 Infrastructure & Performance
 - **Database**: Schema optimization, indexing, query performance tuning
