@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Fix P3.2 Security Tables Schema Issues
      * - audit_logs: Use request_id as primary key dengan auto-increment fallback
-     * - security_incidents: Add missing organization_id column for multi-tenant logging
+     * - security_incidents: Add missing workspace_id column for multi-tenant logging
      */
     public function up(): void
     {
@@ -27,7 +27,7 @@ return new class extends Migration
             }
         });
         
-        // Fix security_incidents table - add organization_id for multi-tenant
+        // Fix security_incidents table - add workspace_id for multi-tenant
         Schema::table('security_incidents', function (Blueprint $table) {
             if (!Schema::hasColumn('security_incidents', 'workspace_id')) {
                 $table->unsignedBigInteger('workspace_id')->nullable()->after('user_id')->index();
@@ -42,7 +42,7 @@ return new class extends Migration
             $table->foreign('audit_id')->references('id')->on('audit_logs')->onDelete('cascade');
         });
         
-        // Ensure rate_limit_violations has organization_id
+        // Ensure rate_limit_violations has workspace_id
         Schema::table('rate_limit_violations', function (Blueprint $table) {
             if (!Schema::hasColumn('rate_limit_violations', 'workspace_id')) {
                 $table->unsignedBigInteger('workspace_id')->nullable()->after('user_id')->index();
@@ -60,7 +60,7 @@ return new class extends Migration
         if (Schema::hasTable('data_access_logs')) {
             Schema::table('data_access_logs', function (Blueprint $table) {
                 // Add composite index untuk better performance
-                $table->index(['workspace_id', 'data_type', 'created_at'], 'data_access_organization_created_idx');
+                $table->index(['workspace_id', 'data_type', 'created_at'], 'data_access_workspace_created_idx');
             });
         }
     }
