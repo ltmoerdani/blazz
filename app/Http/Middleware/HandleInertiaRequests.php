@@ -48,7 +48,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $workspace = array();
-        $organizations = array();
+        $workspaces = array();
         $user = $request->user();
         $language = session('locale') ?? 'en';
         $unreadMessages = 0;
@@ -83,7 +83,7 @@ class HandleInertiaRequests extends Middleware
                 $query->where('workspace_id', $workspaceId);
             }]);
 
-            $organizations = Team::with('workspace')->where('user_id', $user->id)->get();
+            $workspaces = Team::with('workspace')->where('user_id', $user->id)->get();
             $workspace = workspace::where('id', $workspaceId)->first();
             $unreadMessages = Chat::where('workspace_id', $workspaceId)
                 ->where('type', 'inbound')
@@ -115,7 +115,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user ?: null,
             ],
             'workspace' => $workspace,
-            'organizations' => $organizations,
+            'workspaces' => $workspaces,
             'flash' => [
                 'status'=> session('status')
             ],

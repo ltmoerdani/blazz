@@ -122,7 +122,7 @@ class WhatsappService
             $response['type'] = 'text';
 
             $chat = Chat::create([
-                'workspace_id' => $contact->organization_id,
+                'workspace_id' => $contact->Workspace_id,
                 'wam_id' => $responseObject->data->messages[0]->id,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
@@ -147,13 +147,13 @@ class WhatsappService
                 'value' => $chatLogArray->relatedEntities
             ]);
             
-            event(new NewChatEvent($chatArray, $contact->organization_id));
+            event(new NewChatEvent($chatArray, $contact->Workspace_id));
         }
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('message.sent', [
             'data' => $responseObject,
-        ], $contact->organization_id);
+        ], $contact->Workspace_id);
 
         return $responseObject;
     }
@@ -189,7 +189,7 @@ class WhatsappService
             }
 
             $chat = Chat::create([
-                'workspace_id' => $contact->organization_id,
+                'workspace_id' => $contact->Workspace_id,
                 'wam_id' => $responseObject->data->messages[0]->id,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
@@ -215,13 +215,13 @@ class WhatsappService
                 'value' => $chatLogArray->relatedEntities
             ]);
 
-            event(new NewChatEvent($chatArray, $contact->organization_id));
+            event(new NewChatEvent($chatArray, $contact->Workspace_id));
         }
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('message.sent', [
             'data' => $responseObject,
-        ], $contact->organization_id);
+        ], $contact->Workspace_id);
 
         return $responseObject;
     }
@@ -296,7 +296,7 @@ class WhatsappService
 
     private function buildTemplateChatMessage($templateContent, $contact){
         //Get the template
-        $template = Template::where('workspace_id', $contact->organization_id)
+        $template = Template::where('workspace_id', $contact->Workspace_id)
             ->where('name', $templateContent['name'])
             ->where('language', $templateContent['language']['code'])
             ->first();
@@ -393,7 +393,7 @@ class WhatsappService
      * @param string $imageUrl The URL of the stored image.
      * @return mixed Returns the response from the HTTP request.
      */
-    public function sendMedia($contactUuId, $mediaType, $mediaFileName, $mediaFilePath, $mediaUrl, $location, $caption = null, $transcription = null)
+    public function sendMedia($contactUuId, $mediaType, $mediaFileName, $mediaUrl, $location, $caption = null, $transcription = null)
     {
         $contact = Contact::where('uuid', $contactUuId)->first();
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
@@ -423,7 +423,7 @@ class WhatsappService
             $mediaSize = $this->getMediaSizeInBytesFromUrl($mediaUrl);
 
             $chat = Chat::create([
-                'workspace_id' => $contact->organization_id,
+                'workspace_id' => $contact->Workspace_id,
                 'wam_id' => $wamId,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
@@ -459,7 +459,7 @@ class WhatsappService
                 'value' => $chatLogArray->relatedEntities
             ]);
 
-            event(new NewChatEvent($chatArray, $contact->organization_id));
+            event(new NewChatEvent($chatArray, $contact->Workspace_id));
         }
 
         
@@ -467,7 +467,7 @@ class WhatsappService
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('message.sent', [
             'data' => $responseObject,
-        ], $contact->organization_id);
+        ], $contact->Workspace_id);
 
         return $responseObject;
     }
@@ -490,7 +490,7 @@ class WhatsappService
         }
     }
 
-    public function formatMediaResponse($wamId, $mediaUrl, $mediaType, $contentType, $transcription = null){
+    public function formatMediaResponse($wamId, $mediaType, $contentType, $transcription = null){
         $response = [
             "id" => $wamId,
             "type" => $mediaType,
@@ -598,7 +598,7 @@ class WhatsappService
             }
         
 
-            if(($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT')){
+            if($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT'){
                 if(isset($request->header['example'])){
                     $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
 
@@ -747,7 +747,7 @@ class WhatsappService
 
             //Save Template To Database
             $template = new Template();
-            $template->organization_id = session()->get('current_workspace');
+            $template->Workspace_id = session()->get('current_workspace');
             $template->meta_id = $responseObject->data->id;
             $template->name = $request->name;
             $template->category = $request->category;
@@ -816,7 +816,7 @@ class WhatsappService
                 }
             }
 
-            if(($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT')){
+            if($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT'){
                 if(isset($request->header['example'])){
                     $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
 
@@ -979,7 +979,7 @@ class WhatsappService
 
             //Update Template In Database
             if ($template) {
-                $template->organization_id = session()->get('current_workspace');
+                $template->Workspace_id = session()->get('current_workspace');
                 $template->category = $template->status == 'APPROVED' ? $template->category : $request->category;
                 $template->status = 'PENDING';
                 $template->created_by = Auth::id();
@@ -1044,7 +1044,7 @@ class WhatsappService
                         $template->save();
                     } else {
                         $template = new Template();
-                        $template->organization_id = session()->get('current_workspace');
+                        $template->Workspace_id = session()->get('current_workspace');
                         $template->meta_id = $templateData->id;
                         $template->name = $templateData->name;
                         $template->category = $templateData->category;
@@ -1056,7 +1056,7 @@ class WhatsappService
                         $template->updated_at = now();
                         $template->save();
                     }
-                };
+                }
 
                 if(isset($responseObject->paging) && isset($responseObject->paging->next)) {
                     $url = $responseObject->paging->next;
@@ -1198,9 +1198,7 @@ class WhatsappService
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('DELETE', $url, null, $headers);
-
-        return $responseObject;
+        return $this->sendHttpRequest('DELETE', $url, null, $headers);
     }
 
     public function getBusinessProfile(){
@@ -1494,7 +1492,6 @@ class WhatsappService
                 ]
             ]);
         
-            $status = $response->getStatusCode();
             $responseObject->success = true;
             $responseObject->data = json_decode($response->getBody()->getContents());
         } catch (ConnectException $e) {

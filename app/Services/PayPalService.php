@@ -201,7 +201,7 @@ class PayPalService
 					return response('Payment execution failed', 400);
 				}
 
-				$transaction = DB::transaction(function () use ($request) {
+				DB::transaction(function () use ($request) {
 					$transactionData = $request->resource['transactions'][0];
 					$metadata = $transactionData['custom'] ?? null;
 

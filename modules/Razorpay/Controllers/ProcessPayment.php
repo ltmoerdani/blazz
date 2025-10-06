@@ -106,7 +106,7 @@ class ProcessPayment extends BaseController
         // Validate the webhook signature
         if (hash_equals($computedSignature, $signature)) {
             if ($payload['event'] === 'payment.authorized') {
-                $transaction = DB::transaction(function () use ($payload) {
+                DB::transaction(function () use ($payload) {
                     $notes = $payload['payload']['payment']['entity']['notes'];
                     $workspaceId = $notes['workspace_id'] ?? null;
                     $userId = $notes['user_id'] ?? null;

@@ -216,7 +216,6 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
     {
         $subscription = Subscription::where('workspace_id', $workspaceId)->first();
         $subscriptionPlan = SubscriptionPlan::find($subscription->plan_id);
-        $count = Contact::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
 
         if($subscription->status === 'trial' && $subscription->valid_until > now()){
             $limit = optional(Setting::where('key', 'trial_limits')->first())->value;

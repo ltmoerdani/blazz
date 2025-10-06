@@ -65,7 +65,6 @@ class StripeService
             } else {
                 $plan = SubscriptionPlan::where('id', $planId)->first();
                 $metadata = json_decode($plan->metadata, true);
-                $productId = $metadata['stripe']['product']['id'] ?? null;
                 $priceId = $metadata['stripe']['price']['id'] ?? null;
 
                 $stripeSession = $this->stripe->checkout->sessions->create([
@@ -276,7 +275,7 @@ class StripeService
             $productId = $metadata['stripe']['product']['id'] ?? null;
 
             //Archive the product
-            $product = $this->stripe->products->update(
+            $this->stripe->products->update(
                 $productId,
                 [
                     'active' => false,
@@ -350,9 +349,9 @@ class StripeService
             // Get the metadata
             $metadata = $stripeEvent->data->object->lines->data[0]->metadata ?? ($stripeEvent->data->object->metadata ?? null);
 
-            if (isset($metadata->organization_id)) {
-                $transaction = DB::transaction(function () use ($stripeEvent, $metadata) {
-                    $workspace = workspace::where('id', $metadata->organization_id)->first();
+            if (isset($metadata->Workspace_id)) {
+                DB::transaction(function () use ($stripeEvent, $metadata) {
+                    $workspace = workspace::where('id', $metadata->Workspace_id)->first();
                     $orgMetadata = json_decode($workspace->metadata, true);
                     $orgMetadata['stripe_id'] = $stripeEvent->data->object->customer;
                     $workspace->metadata = json_encode($orgMetadata);
@@ -360,13 +359,13 @@ class StripeService
 
                     if($stripeEvent->data->object->mode == 'subscription'){
                         if($metadata->plan_id != null){
-                            $subscription = Subscription::where('workspace_id', $metadata->organization_id)->update([
+                            Subscription::where('workspace_id', $metadata->Workspace_id)->update([
                                 'plan_id' => $metadata->plan_id
                             ]);
                         }
                     } else {
                         $payment = BillingPayment::create([
-                            'workspace_id' => $metadata->organization_id,
+                            'workspace_id' => $metadata->Workspace_id,
                             'processor' => 'stripe',
                             'details' => $stripeEvent->data->object->payment_intent,
                             'amount' => $metadata->amount
@@ -374,7 +373,7 @@ class StripeService
 
                         
                         $transaction = BillingTransaction::create([
-                            'workspace_id' => $metadata->organization_id,
+                            'workspace_id' => $metadata->Workspace_id,
                             'entity_type' => 'payment',
                             'entity_id' => $payment->id,
                             'description' => 'Stripe Payment',
@@ -383,9 +382,9 @@ class StripeService
                         ]);
 
                         if($metadata->plan_id == null){
-                            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($metadata->organization_id, $metadata->user_id);
+                            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($metadata->Workspace_id, $metadata->user_id);
                         } else {
-                            $this->subscriptionService->updateSubscriptionPlan($metadata->organization_id, $metadata->plan_id, $metadata->user_id);
+                            $this->subscriptionService->updateSubscriptionPlan($metadata->Workspace_id, $metadata->plan_id, $metadata->user_id);
                         }
 
                         return $transaction;
@@ -399,7 +398,7 @@ class StripeService
         }
 
         if($stripeEvent->type == 'invoice.paid'){
-            $transaction = DB::transaction(function () use ($stripeEvent) {
+            DB::transaction(function () use ($stripeEvent) {
                 $customerId = $stripeEvent->data->object->customer;
 
                 // Query the workspace using the stripe_id (customer ID)
@@ -420,7 +419,7 @@ class StripeService
                     ]);
 
                     
-                    $transaction = BillingTransaction::create([
+                    BillingTransaction::create([
                         'workspace_id' => $workspaceId,
                         'entity_type' => 'payment',
                         'entity_id' => $payment->id,

@@ -576,7 +576,7 @@ class RegisterController extends BaseController
                         $template->save();
                     } else {
                         $template = new Template();
-                        $template->organization_id = session()->get('current_workspace');
+                        $template->Workspace_id = session()->get('current_workspace');
                         $template->meta_id = $templateData['id'];
                         $template->name = $templateData['name'];
                         $template->category = $templateData['category'];
@@ -588,7 +588,7 @@ class RegisterController extends BaseController
                         $template->updated_at = now();
                         $template->save();
                     }
-                };
+                }
 
                 if(isset($response['paging']) && isset($response['paging']['next'])) {
                     $url = $response['paging']['next'];

@@ -320,7 +320,7 @@ class ApiSecurityRequest extends FormRequest
             'url' => $this->fullUrl(),
             'timestamp' => now()->toISOString(),
             'user_id' => Auth::id(),
-            'workspace_id' => session('current_organization_id'),
+            'workspace_id' => session('current_Workspace_id'),
             'context' => $context,
         ];
 
@@ -335,7 +335,7 @@ class ApiSecurityRequest extends FormRequest
             'request_method' => $this->method(),
             'request_url' => substr($this->fullUrl(), 0, 500),
             'user_id' => Auth::id(),
-            'workspace_id' => session('current_organization_id'),
+            'workspace_id' => session('current_Workspace_id'),
             'context' => json_encode($context),
             'created_at' => now(),
             'updated_at' => now(),

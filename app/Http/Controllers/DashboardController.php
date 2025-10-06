@@ -56,7 +56,7 @@ class DashboardController extends BaseController
             ->whereIn('status', ['pending', 'scheduled'])
             ->limit(5)
             ->get();
-        $data['setupWhatsapp'] = isset($config['whatsapp']) ? false : true;;
+        $data['setupWhatsapp'] = isset($config['whatsapp']) ? false : true;
         $data['period'] = $this->period();
         $data['inbound'] = $this->getChatCounts('inbound');
         $data['outbound'] = $this->getChatCounts('outbound');

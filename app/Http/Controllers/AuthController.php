@@ -109,11 +109,11 @@ class AuthController extends BaseController
             Auth::guard($guard)->login($user, $remember);
         }
 
-        //Check number of organizations
+        //Check number of workspaces
         if($guard == 'user'){
             $teams = Team::where('user_id', Auth::guard($guard)->user()->id);
             if($teams->count() == 1){
-                session()->put('current_workspace', $teams->first()->organization_id);
+                session()->put('current_workspace', $teams->first()->Workspace_id);
             }
         }
 
@@ -158,7 +158,7 @@ class AuthController extends BaseController
 
                     if(!$team){
                         //Create workspace
-                        $workspace = $this->createOrganization($user);
+                        $workspace = $this->createWorkspace($user);
 
                         session()->put('current_workspace', $workspace->id);
                     }
@@ -183,7 +183,7 @@ class AuthController extends BaseController
 
                         if(!$team){
                             //Create workspace
-                            $workspace = $this->createOrganization($user);
+                            $workspace = $this->createWorkspace($user);
 
                             session()->put('current_workspace', $workspace->id);
                         }
@@ -205,7 +205,7 @@ class AuthController extends BaseController
                         $user->save();
                 
                         //Create workspace
-                        $workspace = $this->createOrganization($user);
+                        $workspace = $this->createWorkspace($user);
                 
                         // Send Registration Email
                         Email::send('Registration', $user);
@@ -315,7 +315,7 @@ class AuthController extends BaseController
         }
     }
 
-    private function createOrganization($user){
+    private function createWorkspace($user){
         $timestamp = now()->format('YmdHis');
         $randomString = Str::random(4);
 
@@ -383,7 +383,7 @@ class AuthController extends BaseController
                 ]
             );
         } else {
-            $data['workspace'] = workspace::where('id', $invite->organization_id)->first();
+            $data['workspace'] = workspace::where('id', $invite->Workspace_id)->first();
             $data['user'] = User::where('email', $invite->email)->where('role', 'user')->first();
             $data['invite'] = $invite;
             $data['code'] = $uuid;

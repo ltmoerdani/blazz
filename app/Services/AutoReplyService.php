@@ -111,7 +111,7 @@ class AutoReplyService
 
     public function checkAutoReply(Chat $chat, $isNewContact)
     {
-        $workspaceId = $chat->organization_id;
+        $workspaceId = $chat->Workspace_id;
 
         $this->replySequence($workspaceId, $chat, $isNewContact);
     }
@@ -176,7 +176,7 @@ class AutoReplyService
 
     private function handleBasicReplies($chat)
     {
-        $workspaceId = $chat->organization_id;
+        $workspaceId = $chat->Workspace_id;
         $text = '';
         $metadata = json_decode($chat->metadata, true);
 
@@ -297,7 +297,7 @@ class AutoReplyService
     protected function sendReply(Chat $chat, AutoReply $autoreply)
     {
         $contact = Contact::where('id', $chat->contact_id)->first();
-        $workspace_id = $chat->organization_id;
+        $workspace_id = $chat->Workspace_id;
         $metadata = json_decode($autoreply->metadata);
         $replyType = $metadata->type;
 
@@ -341,7 +341,7 @@ class AutoReplyService
             'full_name' => $contact->full_name ?? null,
             'email' => $contact->email ?? null,
             'phone' => $contact->phone ?? null,
-            'organization_name' => $workspace->name,
+            'Workspace_name' => $workspace->name,
             'full_address' => $full_address,
             'street' => $address['street'] ?? null,
             'city' => $address['city'] ?? null,

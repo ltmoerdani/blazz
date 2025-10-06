@@ -119,10 +119,10 @@ class FlutterwaveService
             $request = $verifiedTrans->data;
 
             if($request->status === 'success'){
-                $transaction = DB::transaction(function () use ($request) {
+                DB::transaction(function () use ($request) {
                     $metadata = $request->data->meta;
 
-                    $workspaceId = $metadata->organization_id ?? null;
+                    $workspaceId = $metadata->Workspace_id ?? null;
                     $userId = $metadata->user_id ?? null;
                     $planId = $metadata->plan_id ?? null;
                     $amount = $request->data->amount;

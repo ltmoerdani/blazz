@@ -29,7 +29,7 @@ class UniquePhone implements Rule
             $phone = new PhoneNumber($value);
             $formattedPhone = $phone->formatE164();
 
-            // Check if the phone number is unique for the given organization_id
+            // Check if the phone number is unique for the given Workspace_id
             $query = DB::table('contacts')
                 ->where('workspace_id', $this->workspaceId)
                 ->where('phone', $formattedPhone)

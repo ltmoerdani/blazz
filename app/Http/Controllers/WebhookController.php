@@ -67,7 +67,7 @@ class WebhookController extends BaseController
 
     public function handle(Request $request, $identifier = null)
     {
-        $workspace = $this->getOrganizationByIdentifier($identifier);
+        $workspace = $this->getWorkspaceByIdentifier($identifier);
 
         if (!$workspace) {
             return $this->forbiddenResponse();
@@ -76,7 +76,7 @@ class WebhookController extends BaseController
         return $this->handleMethod($request, $workspace);
     }
 
-    protected function getOrganizationByIdentifier($identifier)
+    protected function getWorkspaceByIdentifier($identifier)
     {
         return workspace::where('identifier', $identifier)->first();
     }
@@ -219,7 +219,7 @@ class WebhookController extends BaseController
                                 (new ChatService($workspace->id))->handleTicketAssignment($contact->id);
 
                                 $chat = new Chat;
-                                $chat->organization_id = $workspace->id;
+                                $chat->Workspace_id = $workspace->id;
                                 $chat->wam_id = $response['id'];
                                 $chat->contact_id = $contact->id;
                                 $chat->type = 'inbound';

@@ -22,7 +22,7 @@ class StoreProfileAddress extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'organization_name' => 'required',
+            'Workspace_name' => 'required',
             'address' => 'required',
             'country' => 'required',
             'state' => 'required',

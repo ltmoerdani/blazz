@@ -33,8 +33,8 @@ class StoreUser extends FormRequest
         } else {
             $rules['email'] = ['required', 'email', new UniqueEmail];
 
-            if ($this->has('organization_name')) {
-                $rules['organization_name'] = 'required';
+            if ($this->has('Workspace_name')) {
+                $rules['Workspace_name'] = 'required';
             }
         }
 

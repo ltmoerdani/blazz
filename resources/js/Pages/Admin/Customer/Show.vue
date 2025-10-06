@@ -60,8 +60,8 @@
                     </div>
                     <div class="sm:w-[60%] sm:flex space-x-6">
                         <div class="sm:w-[80%] grid gap-x-6 gap-y-4 sm:grid-cols-6">
-                            <FormCheckbox  @input="toggleCreateOrganization" v-model="create_organization" :name="$t('Create workspace')" :label="$t('Create workspace')" :value="'workspace'" :type="'checkbox'" :class="'sm:col-span-3'"/>
-                            <FormInput v-if="create_organization" v-model="form.organization_name" :name="$t('workspace name')" :error="form.errors.organization_name" :type="'text'" :class="'sm:col-span-6'"/>
+                            <FormCheckbox  @input="toggleCreateWorkspace" v-model="create_Workspace" :name="$t('Create workspace')" :label="$t('Create workspace')" :value="'workspace'" :type="'checkbox'" :class="'sm:col-span-3'"/>
+                            <FormInput v-if="create_Workspace" v-model="form.Workspace_name" :name="$t('workspace name')" :error="form.errors.Workspace_name" :type="'text'" :class="'sm:col-span-6'"/>
                         </div>
                     </div>
                 </div>
@@ -99,7 +99,7 @@
     import WorkspaceTable from '@/Components/Tables/WorkspaceTable.vue';
 
     const props = defineProps({ title: String, user: Object, roles: Object, workspaces: Object, filters: Object });
-    const create_organization = ref(false);
+    const create_Workspace = ref(false);
     const tab = ref('user');
 
     const getAddressDetail = (value, key) => {
@@ -111,11 +111,11 @@
         }
     };
 
-    const toggleCreateOrganization = () => {
-        if(!create_organization.value){
-            form.organization_name = null;
+    const toggleCreateWorkspace = () => {
+        if(!create_Workspace.value){
+            form.Workspace_name = null;
         } else {
-            form.organization_name = undefined;
+            form.Workspace_name = undefined;
         }
     }
 
@@ -132,7 +132,7 @@
         zip: getAddressDetail(props.user?.address, 'zip'),
         country: getAddressDetail(props.user?.address, 'country'),
         ...(props.user ? {} : { password: null, password_confirmation: null }),
-        organization_name: undefined,
+        Workspace_name: undefined,
     });
 
     const changeTab = (value) => {

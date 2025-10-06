@@ -49,7 +49,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
                     $lockedLog->status = 'ongoing';
                     $lockedLog->save();
             
-                    $this->workspaceId = $this->campaignLog->campaign->organization_id;
+                    $this->workspaceId = $this->campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
             
                     $template = $this->buildTemplateRequest($this->campaignLog->campaign_id, $this->campaignLog->contact);
@@ -120,7 +120,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
                     $delayHours = $retryIntervals[$retryCount] ?? null;
 
                     if ($delayHours !== null) {
-                        RetryCampaignLogJob::dispatch($campaign->organization_id, $log->id, $retryCount)->onQueue('campaign-messages')->delay(now()->addMinutes($delayHours));
+                        RetryCampaignLogJob::dispatch($campaign->Workspace_id, $log->id, $retryCount)->onQueue('campaign-messages')->delay(now()->addMinutes($delayHours));
                     }
                 }  
             }

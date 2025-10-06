@@ -16,11 +16,11 @@ use Inertia\Inertia;
 
 class DeveloperController extends BaseController
 {
-    private $organizationApiService;
+    private $WorkspaceApiService;
 
-    public function __construct(WorkspaceApiService $organizationApiService)
+    public function __construct(WorkspaceApiService $WorkspaceApiService)
     {
-        $this->organizationApiService = $organizationApiService;
+        $this->WorkspaceApiService = $WorkspaceApiService;
     }
 
     public function index(){
@@ -39,7 +39,7 @@ class DeveloperController extends BaseController
     }
 
     public function store(Request $request){
-        $this->organizationApiService->generate($request);
+        $this->WorkspaceApiService->generate($request);
 
         return Redirect::back()->with(
             'status', [
@@ -51,6 +51,6 @@ class DeveloperController extends BaseController
 
     public function delete($uuid)
     {
-        $this->organizationApiService->destroy($uuid);
+        $this->WorkspaceApiService->destroy($uuid);
     }
 }

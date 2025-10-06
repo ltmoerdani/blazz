@@ -108,11 +108,11 @@ class AdvancedRateLimitMiddleware
         }
         
         // Layer 4: workspace-based rate limiting (untuk multi-tenant)
-        $orgId = $this->getOrganizationContext($request);
+        $orgId = $this->getWorkspaceContext($request);
         if ($orgId && $user) {
             $keys[] = [
                 'key' => "rate_limit:org:{$orgId}:{$type}",
-                'limit' => $config['attempts'] * 5, // Organizations get much higher limits
+                'limit' => $config['attempts'] * 5, // Workspaces get much higher limits
                 'window' => $config['window'],
                 'type' => 'workspace'
             ];
@@ -348,7 +348,7 @@ class AdvancedRateLimitMiddleware
     /**
      * Get workspace context dari request (session atau API)
      */
-    private function getOrganizationContext(Request $request): ?int
+    private function getWorkspaceContext(Request $request): ?int
     {
         // Web routes: workspace dari session (SetWorkspaceFromSession middleware)
         $orgId = $request->session()->get('current_workspace');

@@ -316,7 +316,7 @@ class SettingController extends BaseController
         );
     }
 
-    private function saveWhatsappSettings($accessToken, $appId, $phoneNumberId, $wabaId, $subscribeToWebhook = false) {
+    private function saveWhatsappSettings($accessToken, $appId, $phoneNumberId, $wabaId) {
         $workspaceId = session()->get('current_workspace');
         $apiVersion = config('graph.api_version');
     

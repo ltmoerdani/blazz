@@ -19,7 +19,7 @@ class DateTimeHelper
         return $dt->format($dateFormat . ' ' . $timeFormat);
     }
 
-    public static function convertToOrganizationTimezone($date)
+    public static function convertToWorkspaceTimezone($date)
     {
         $timezone = 'UTC'; // Default to UTC
         $workspaceId = session()->get('current_workspace');

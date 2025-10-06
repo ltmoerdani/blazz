@@ -39,7 +39,7 @@ class TemplateService
         $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
 
-    public function getTemplates(Request $request, $uuid = null, $searchTerm = null)
+    public function getTemplates(Request $request, $uuid = null)
     {
         $response = [];
 
@@ -98,7 +98,7 @@ class TemplateService
             $data['settings'] = workspace::where('id', $this->workspaceId)->first();
             
             return Inertia::render('User/Templates/Add', $data);
-        } else if ($request->isMethod('post')){
+        } elseif ($request->isMethod('post')){
             if ($response = $this->abortIfDemo('create')) {
                 return $response;
             }

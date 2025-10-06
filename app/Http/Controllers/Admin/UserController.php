@@ -61,7 +61,7 @@ class UserController extends BaseController
         return Inertia::render('Admin/Customer/Show', [
             'title' => __('View user'),
             'user' => $res['user'], 
-            'organizations' => $res['organizations'], 
+            'workspaces' => $res['workspaces'], 
             'filters' => $request->all()
         ]);
     }
@@ -77,7 +77,7 @@ class UserController extends BaseController
         return Inertia::render('Admin/Customer/Show', [
             'title' => __('Create user'),
             'user' => $res['user'], 
-            'organizations' => $res['organizations'], 
+            'workspaces' => $res['workspaces'], 
             'filters' => $request->all()
         ]);
     }
