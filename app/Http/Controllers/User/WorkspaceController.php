@@ -5,10 +5,11 @@ namespace App\Http\Controllers\User;
 use DB;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\StoreUserWorkspace;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Team;
 use App\Services\WorkspaceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class WorkspaceController extends BaseController
@@ -26,13 +27,13 @@ class WorkspaceController extends BaseController
     }
     
     public function index(){
-        $data['organizations'] = Team::with('workspace')->where('user_id', auth()->user()->id)->get();
+        $data['organizations'] = Team::with('workspace')->where('user_id', Auth::id())->get();
         
-        return Inertia::render('User/OrganizationSelect', $data);
+        return Inertia::render('User/WorkspaceSelect', $data);
     }
 
     public function selectOrganization(Request $request){
-        $workspace = workspace::where('uuid', $request->uuid)->first();
+        $workspace = Workspace::where('uuid', $request->uuid)->first();
 
         if($workspace){
             session()->put('current_workspace', $workspace->id);
