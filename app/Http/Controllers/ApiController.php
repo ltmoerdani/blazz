@@ -11,7 +11,7 @@ use App\Http\Resources\TemplateResource;
 use App\Models\AutoReply;
 use App\Models\Contact;
 use App\Models\ContactGroup;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Template;
 use App\Rules\CannedReplyLimit;
 use App\Rules\ContactLimit;
@@ -52,7 +52,7 @@ class ApiController extends Controller
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 10);
 
-        $contacts = Contact::where('organization_id', $request->organization)
+        $contacts = Contact::where('workspace_id', $request->workspace)
             ->where('deleted_at', NULL)
             ->paginate($perPage, ['*'], 'page', $page);
 
@@ -74,7 +74,7 @@ class ApiController extends Controller
                 'string',
                 'max:255',
                 'phone:AUTO',
-                new UniquePhone($request->organization, $uuid),
+                new UniquePhone($request->workspace, $uuid),
             ],
             //'email' => 'required|string|email|max:255',
         ]);
@@ -87,7 +87,7 @@ class ApiController extends Controller
             ], 400);
         }
 
-        if(!SubscriptionService::isSubscriptionActive($request->organization)){
+        if(!SubscriptionService::isSubscriptionActive($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please renew or subscribe to a plan to continue!'),
@@ -104,7 +104,7 @@ class ApiController extends Controller
         }
 
         try {
-            $contactService = new ContactService($request->organization);
+            $contactService = new ContactService($request->workspace);
             $contact = $contactService->store($request, $uuid);
 
             return response()->json([
@@ -128,7 +128,7 @@ class ApiController extends Controller
      */
     public function destroyContact(Request $request, $uuid){
         try {
-            $contactService = new ContactService($request->organization);
+            $contactService = new ContactService($request->workspace);
             $contactService->delete([$uuid]);
 
             return response()->json([
@@ -162,7 +162,7 @@ class ApiController extends Controller
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 10);
 
-        $contactGroups = ContactGroup::where('organization_id', $request->organization)
+        $contactGroups = ContactGroup::where('workspace_id', $request->workspace)
             ->where('deleted_at', NULL)
             ->paginate($perPage, ['*'], 'page', $page);
 
@@ -176,14 +176,14 @@ class ApiController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function storeContactGroup(Request $request, $uuid = NULL){
-        $organizationId = $request->organization;
+        $workspaceId = $request->workspace;
 
         if ($request->isMethod('post')) {
             $rules = [
                 'name' => [
                     'required',
-                    Rule::unique('contact_groups', 'name')->where(function ($query) use ($organizationId) {
-                        return $query->where('organization_id', $organizationId)
+                    Rule::unique('contact_groups', 'name')->where(function ($query) use ($workspaceId) {
+                        return $query->where('workspace_id', $workspaceId)
                             ->where('deleted_at', null);
                     }),
                 ],
@@ -192,8 +192,8 @@ class ApiController extends Controller
             $rules = [
                 'name' => [ 
                     'required',
-                    Rule::unique('contact_groups', 'name')->where(function ($query) use ($organizationId, $uuid) {
-                        return $query->where('organization_id', $organizationId)
+                    Rule::unique('contact_groups', 'name')->where(function ($query) use ($workspaceId, $uuid) {
+                        return $query->where('workspace_id', $workspaceId)
                             ->where('deleted_at', null)
                             ->whereNotIn('uuid', [$uuid]);
                     }),
@@ -211,7 +211,7 @@ class ApiController extends Controller
             ], 400);
         }
 
-        if(!SubscriptionService::isSubscriptionActive($request->organization)){
+        if(!SubscriptionService::isSubscriptionActive($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please renew or subscribe to a plan to continue!'),
@@ -220,16 +220,16 @@ class ApiController extends Controller
 
         try {
             $contactGroup = $request->isMethod('post') ? new ContactGroup() : ContactGroup::where('uuid', $uuid)->firstOrFail();
-            $contactGroup->organization_id = $request->organization;
+            $contactGroup->organization_id = $request->workspace;
             $contactGroup->name = $request->name;
             $contactGroup->created_by = 0;
             $contactGroup->save();
 
             // Prepare a clean contact object for webhook
-            $cleanContactGroup = $contactGroup->makeHidden(['id', 'organization_id', 'created_by']);
+            $cleanContactGroup = $contactGroup->makeHidden(['id', 'workspace_id', 'created_by']);
 
             // Trigger webhook
-            WebhookHelper::triggerWebhookEvent($request->isMethod('post') ? 'group.created' : 'group.updated', $cleanContactGroup, $request->organization);
+            WebhookHelper::triggerWebhookEvent($request->isMethod('post') ? 'group.created' : 'group.updated', $cleanContactGroup, $request->workspace);
 
             return response()->json([
                 'statusCode' => 200,
@@ -252,7 +252,7 @@ class ApiController extends Controller
      */
     public function destroyContactGroup(Request $request, $uuid){
         try {
-            $contactGroup = ContactGroup::where('organization_id', $request->organization)->where('uuid', $uuid)->firstOrFail();
+            $contactGroup = ContactGroup::where('workspace_id', $request->workspace)->where('uuid', $uuid)->firstOrFail();
             $contactGroup->deleted_at = date('Y-m-d H:i:s');
             $contactGroup->save();
 
@@ -269,7 +269,7 @@ class ApiController extends Controller
 
             WebhookHelper::triggerWebhookEvent('group.deleted', [
                 'list' => $deletedGroups
-            ], $request->organization);
+            ], $request->workspace);
 
             return response()->json([
                 'statusCode' => 200,
@@ -297,7 +297,7 @@ class ApiController extends Controller
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 10);
 
-        $rows = AutoReply::where('organization_id', $request->organization)
+        $rows = AutoReply::where('workspace_id', $request->workspace)
             ->where('deleted_at', NULL)
             ->paginate($perPage, ['*'], 'page', $page);
 
@@ -329,7 +329,7 @@ class ApiController extends Controller
             ], 400);
         }
 
-        if(!SubscriptionService::isSubscriptionActive($request->organization)){
+        if(!SubscriptionService::isSubscriptionActive($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please renew or subscribe to a plan to continue!'),
@@ -373,7 +373,7 @@ class ApiController extends Controller
             $model['updated_at'] = now();
 
             if($uuid === null){
-                $model['organization_id'] = $request->organization;
+                $model['workspace_id'] = $request->workspace;
                 $model['created_by'] = 0;
                 $model['created_at'] = now();
             }
@@ -381,10 +381,10 @@ class ApiController extends Controller
             $model->save();
 
             // Prepare a clean contact object for webhook
-            $cleanModel = $model->makeHidden(['id', 'organization_id', 'created_by']);
+            $cleanModel = $model->makeHidden(['id', 'workspace_id', 'created_by']);
 
             // Trigger webhook
-            WebhookHelper::triggerWebhookEvent($uuid === null ? 'autoreply.created' : 'autoreply.updated', $cleanModel, $request->organization);
+            WebhookHelper::triggerWebhookEvent($uuid === null ? 'autoreply.created' : 'autoreply.updated', $cleanModel, $request->workspace);
 
             return response()->json([
                 'statusCode' => 200,
@@ -407,7 +407,7 @@ class ApiController extends Controller
      */
     public function destroyCannedReply(Request $request, $uuid){
         try {
-            $autoreply = AutoReply::where('organization_id', $request->organization)->where('uuid', $uuid)->firstOrFail();
+            $autoreply = AutoReply::where('workspace_id', $request->workspace)->where('uuid', $uuid)->firstOrFail();
             $autoreply->deleted_at = now();
             $autoreply->deleted_by = 0;
             $autoreply->save();
@@ -418,7 +418,7 @@ class ApiController extends Controller
                     'uuid' => $uuid,
                     'deleted_at' => now()->toISOString()
                 ],
-            ], $request->organization);
+            ], $request->workspace);
 
             return response()->json([
                 'statusCode' => 200,
@@ -455,7 +455,7 @@ class ApiController extends Controller
             ], 400);
         }
 
-        if(!SubscriptionService::isSubscriptionActive($request->organization)){
+        if(!SubscriptionService::isSubscriptionActive($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please renew or subscribe to a plan to continue!'),
@@ -463,7 +463,7 @@ class ApiController extends Controller
         }
 
         //Check if the whatsapp connection exists
-        if(!$this->isWhatsAppConnected($request->organization)){
+        if(!$this->isWhatsAppConnected($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please setup your whatsapp account!'),
@@ -480,11 +480,11 @@ class ApiController extends Controller
         $phone = new PhoneNumber($phone);
         $phone = $phone->formatE164();
 
-        $contact = Contact::where('organization_id', $request->organization)->where('phone', $phone)->first();
+        $contact = Contact::where('workspace_id', $request->workspace)->where('phone', $phone)->first();
 
         if(!$contact){
             $contact = new Contact();
-            $contact->organization_id = $request->organization;
+            $contact->organization_id = $request->workspace;
             $contact->first_name = $request->first_name;
             $contact->last_name = $request->last_name;
             $contact->email = $request->email;
@@ -494,7 +494,7 @@ class ApiController extends Controller
         }
 
         // Extract the UUID of the contact
-        $this->initializeWhatsappService($request->organization);
+        $this->initializeWhatsappService($request->workspace);
         $type = !isset($request->buttons) ? 'text' : 'interactive buttons';
 
         $header = [];
@@ -528,7 +528,7 @@ class ApiController extends Controller
             ], 400);
         }
 
-        if(!SubscriptionService::isSubscriptionActive($request->organization)){
+        if(!SubscriptionService::isSubscriptionActive($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please renew or subscribe to a plan to continue!'),
@@ -536,7 +536,7 @@ class ApiController extends Controller
         }
 
         //Check if the whatsapp connection exists
-        if(!$this->isWhatsAppConnected($request->organization)){
+        if(!$this->isWhatsAppConnected($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please setup your whatsapp account!'),
@@ -553,12 +553,12 @@ class ApiController extends Controller
         $phone = new PhoneNumber($phone);
         $phone = $phone->formatE164();
 
-        $contact = Contact::where('phone', $phone)->where('organization_id', $request->organization)
+        $contact = Contact::where('phone', $phone)->where('workspace_id', $request->workspace)
             ->whereNull('deleted_at')->first();
 
         if(!$contact){
             $contact = new Contact();
-            $contact->organization_id = $request->organization;
+            $contact->organization_id = $request->workspace;
             $contact->first_name = $request->first_name;
             $contact->last_name = $request->last_name;
             $contact->email = $request->email;
@@ -568,7 +568,7 @@ class ApiController extends Controller
         }
 
         // Extract the UUID of the contact
-        $this->initializeWhatsappService($request->organization);
+        $this->initializeWhatsappService($request->workspace);
         $responseObject = $this->whatsappService->sendTemplateMessage($contact->uuid, $request->template, 0);
 
         return response()->json([
@@ -596,7 +596,7 @@ class ApiController extends Controller
             ], 400);
         }
 
-        if(!SubscriptionService::isSubscriptionActive($request->organization)){
+        if(!SubscriptionService::isSubscriptionActive($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please renew or subscribe to a plan to continue!'),
@@ -604,7 +604,7 @@ class ApiController extends Controller
         }
 
         //Check if the whatsapp connection exists
-        if(!$this->isWhatsAppConnected($request->organization)){
+        if(!$this->isWhatsAppConnected($request->workspace)){
             return response()->json([
                 'statusCode' => 403,
                 'message' => __('Please setup your whatsapp account!'),
@@ -621,11 +621,11 @@ class ApiController extends Controller
         $phone = new PhoneNumber($phone);
         $phone = $phone->formatE164();
 
-        $contact = Contact::where('organization_id', $request->organization)->where('phone', $phone)->first();
+        $contact = Contact::where('workspace_id', $request->workspace)->where('phone', $phone)->first();
 
         if(!$contact){
             $contact = new Contact();
-            $contact->organization_id = $request->organization;
+            $contact->organization_id = $request->workspace;
             $contact->first_name = $request->first_name;
             $contact->last_name = $request->last_name;
             $contact->email = $request->email;
@@ -635,7 +635,7 @@ class ApiController extends Controller
         }
 
         // Extract the UUID of the contact
-        $this->initializeWhatsappService($request->organization);
+        $this->initializeWhatsappService($request->workspace);
         $type = !isset($request->buttons) ? 'text' : 'interactive';
 
         $message = $this->whatsappService->sendMedia($contact->uuid, $request->media_type, $request->file_name, $request->media_url, $request->media_url, 'amazon');
@@ -656,16 +656,16 @@ class ApiController extends Controller
         
     }
 
-    private function isWhatsAppConnected($organizationId){
-        $settings = Organization::where('id', $organizationId)->first();
+    private function isWhatsAppConnected($workspaceId){
+        $settings = workspace::where('id', $workspaceId)->first();
         $metadata = $settings->metadata ? json_decode($settings->metadata, true) : [];
 
         return isset($metadata['whatsapp']);
     }
 
-    private function initializeWhatsappService($organizationId)
+    private function initializeWhatsappService($workspaceId)
     {
-        $config = Organization::where('id', $organizationId)->first()->metadata;
+        $config = workspace::where('id', $workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -674,7 +674,7 @@ class ApiController extends Controller
         $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $organizationId);
+        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
     }
 
     /**
@@ -695,7 +695,7 @@ class ApiController extends Controller
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 10);
 
-        $templates = Template::where('organization_id', $request->organization)
+        $templates = Template::where('workspace_id', $request->workspace)
             ->where('deleted_at', NULL)
             ->paginate($perPage, ['uuid', 'name', 'metadata', 'updated_at'], 'page', $page);
 
@@ -720,7 +720,7 @@ class ApiController extends Controller
         }
 
         try {
-            $token = DB::table('organization_api_keys')
+            $token = DB::table('workspace_api_keys')
                 ->where('token', $bearerToken)
                 ->whereNull('deleted_at')
                 ->first();
@@ -732,9 +732,9 @@ class ApiController extends Controller
                 ], 401);
             }
 
-            $organizationId = $token->organization_id;
+            $workspaceId = $token->organization_id;
 
-            if (!SubscriptionService::isSubscriptionActive($organizationId)) {
+            if (!SubscriptionService::isSubscriptionActive($workspaceId)) {
                 return response()->json([
                     'statusCode' => 403,
                     'message' => __('API key is inactive. Please renew or subscribe to a plan to continue!')

@@ -61,7 +61,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return "{$this->first_name} {$this->last_name}";
     }
     
-    public function listAll($role, $searchTerm, $organizationId = null)
+    public function listAll($role, $searchTerm, $workspaceId = null)
     {
         $query = $this->where(function ($query) use ($role) {
                 if ($role === 'user') {
@@ -78,9 +78,9 @@ class User extends Authenticatable implements MustVerifyEmail
             })
             ->latest('users.created_at');
 
-        if ($organizationId !== null) {
+        if ($workspaceId !== null) {
             $query->join('teams', 'teams.user_id', '=', 'users.id')
-                ->where('teams.organization_id', '=', $organizationId)
+                ->where('teams.organization_id', '=', $workspaceId)
                 ->select('users.*', 'teams.role');
         }
 
@@ -93,7 +93,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     public function teamsWithOrganizations(){
-        return $this->teams()->with('organization');
+        return $this->teams()->with('workspace');
     }
 
     public function role(){

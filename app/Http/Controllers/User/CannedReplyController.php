@@ -42,9 +42,9 @@ class CannedReplyController extends BaseController
     public function create(){
         $data['title'] = __('Canned replies');
         $placeholders = config('formats.placeholders');
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
         $additionalFields = DB::table('contact_fields')
-            ->where('organization_id', $organizationId)
+            ->where('workspace_id', $workspaceId)
             ->where('deleted_at', null)
             ->pluck('name');
 
@@ -77,9 +77,9 @@ class CannedReplyController extends BaseController
         $data['title'] = __('Canned replies');
         $data['autoreply'] = AutoReply::where('uuid', $uuid)->first();
         $placeholders = config('formats.placeholders');
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
         $additionalFields = DB::table('contact_fields')
-            ->where('organization_id', $organizationId)
+            ->where('workspace_id', $workspaceId)
             ->where('deleted_at', null)
             ->pluck('name');
 

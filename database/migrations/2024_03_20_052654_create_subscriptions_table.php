@@ -16,8 +16,8 @@ class CreateSubscriptionsTable extends Migration
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->unsignedBigInteger('organization_id');
-            $table->foreign('organization_id')->references('id')->on('organizations')->onDelete('cascade');
+            $table->unsignedBigInteger('workspace_id');
+            $table->foreign('workspace_id')->references('id')->on('workspaces')->onDelete('cascade');
             $table->unsignedBigInteger('plan_id')->nullable();
             $table->text('payment_details')->nullable();
             $table->timestamp('start_date')->nullable();

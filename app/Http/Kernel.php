@@ -40,8 +40,8 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
-            \App\Http\Middleware\SetOrganizationFromSession::class, // FIRST: Set organization context
-            \App\Http\Middleware\AuditLoggingMiddleware::class,       // SECOND: Log dengan organization context
+            \App\Http\Middleware\SetWorkspaceFromSession::class, // FIRST: Set workspace context
+            \App\Http\Middleware\AuditLoggingMiddleware::class,       // SECOND: Log dengan workspace context
             \App\Http\Middleware\Localization::class,
         ],
 
@@ -49,8 +49,8 @@ class Kernel extends HttpKernel
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             // REMOVED: \Illuminate\Routing\Middleware\ThrottleRequests::class.':api', // Replaced by AdvancedRateLimitMiddleware
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \App\Http\Middleware\AdvancedRateLimitMiddleware::class,  // Organization-aware rate limiting
-            \App\Http\Middleware\AuditLoggingMiddleware::class,       // API audit dengan organization context
+            \App\Http\Middleware\AdvancedRateLimitMiddleware::class,  // workspace-aware rate limiting
+            \App\Http\Middleware\AuditLoggingMiddleware::class,       // API audit dengan workspace context
         ],
     ];
 
@@ -74,11 +74,11 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'check.subscription' => \App\Http\Middleware\CheckSubscriptionStatus::class,
-        'check.organization' => \App\Http\Middleware\CheckOrganizationId::class,
+        'check.workspace' => \App\Http\Middleware\CheckWorkspaceId::class,
         'check.email.verification' => \App\Http\Middleware\CheckEmailVerification::class,
         'check.client.role' => \App\Http\Middleware\CheckClientRole::class,
         'auth.bearer' => \App\Http\Middleware\AuthenticateBearerToken::class,
-        'setOrganization' => \App\Http\Middleware\SetOrganizationFromSession::class,
+        'setOrganization' => \App\Http\Middleware\SetWorkspaceFromSession::class,
         'advanced.rate.limit' => \App\Http\Middleware\AdvancedRateLimitMiddleware::class,
         'audit.logging' => \App\Http\Middleware\AuditLoggingMiddleware::class,
         'security.headers' => \App\Http\Middleware\SecurityHeadersMiddleware::class,

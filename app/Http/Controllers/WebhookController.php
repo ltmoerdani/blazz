@@ -11,7 +11,7 @@ use App\Models\Chat;
 use App\Models\ChatLog;
 use App\Models\ChatStatusLog;
 use App\Models\ChatMedia;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Template;
 use App\Resolvers\PaymentPlatformResolver;
@@ -67,26 +67,26 @@ class WebhookController extends BaseController
     public function handle(Request $request, $identifier = null)
     {
         //Log::info('Webhook Handler: Start processing for identifier ' . $identifier);
-        $organization = $this->getOrganizationByIdentifier($identifier);
+        $workspace = $this->getOrganizationByIdentifier($identifier);
 
-        if (!$organization) {
+        if (!$workspace) {
             return $this->forbiddenResponse();
         }
 
-        return $this->handleMethod($request, $organization);
+        return $this->handleMethod($request, $workspace);
     }
 
     protected function getOrganizationByIdentifier($identifier)
     {
-        return Organization::where('identifier', $identifier)->first();
+        return workspace::where('identifier', $identifier)->first();
     }
 
-    protected function handleMethod(Request $request, Organization $organization)
+    protected function handleMethod(Request $request, workspace $workspace)
     {
         if ($request->isMethod('get')) {
-            return $this->handleGetRequest($request, $organization);
+            return $this->handleGetRequest($request, $workspace);
         } elseif ($request->isMethod('post')) {
-            $metadata = json_decode($organization->metadata);
+            $metadata = json_decode($workspace->metadata);
 
             if (empty($metadata)) {
                 return $this->forbiddenResponse();
@@ -101,7 +101,7 @@ class WebhookController extends BaseController
                 return $this->invalidSignatureResponse();
             }*/
 
-            return $this->handlePostRequest($request, $organization);
+            return $this->handlePostRequest($request, $workspace);
         }
 
         return Response::json(['error' => 'Method Not Allowed'], 405);
@@ -122,10 +122,10 @@ class WebhookController extends BaseController
         return Response::json(['status' => 'error', 'message' => __('Invalid payload signature')], 400);
     }
 
-    protected function handleGetRequest(Request $request, Organization $organization)
+    protected function handleGetRequest(Request $request, workspace $workspace)
     {
         try {
-            $verifyToken = $organization->identifier;
+            $verifyToken = $workspace->identifier;
 
             $mode = $request->input('hub_mode');
             $token = $request->input('hub_verify_token');
@@ -142,7 +142,7 @@ class WebhookController extends BaseController
         }
     }
 
-    protected function handlePostRequest(Request $request, Organization $organization)
+    protected function handlePostRequest(Request $request, workspace $workspace)
     {
         $res = $request->entry[0]['changes'][0];
 
@@ -175,9 +175,9 @@ class WebhookController extends BaseController
                 // Trigger webhook
                 WebhookHelper::triggerWebhookEvent('message.status.update', [
                     'data' => $res,
-                ], $organization->id);
+                ], $workspace->id);
             } else if($messages) {
-                $isLimitReached = SubscriptionService::isSubscriptionLimitReachedForInboundMessages($organization->id);
+                $isLimitReached = SubscriptionService::isSubscriptionLimitReachedForInboundMessages($workspace->id);
                 //Log::info($messages);
 
                 if(!$isLimitReached){
@@ -191,8 +191,8 @@ class WebhookController extends BaseController
                         $phone = new PhoneNumber($phone);
                         $phone = $phone->formatE164();
 
-                        //Check if contact exists in organization
-                        $contact = Contact::where('organization_id', $organization->id)->where('phone', $phone)->whereNull('deleted_at')->first();
+                        //Check if contact exists in workspace
+                        $contact = Contact::where('workspace_id', $workspace->id)->where('phone', $phone)->whereNull('deleted_at')->first();
                         $isNewContact = false;
 
                         if(!$contact){
@@ -204,7 +204,7 @@ class WebhookController extends BaseController
                                 'last_name' => null,
                                 'email' => null,
                                 'phone' => $phone,
-                                'organization_id' => $organization->id,
+                                'workspace_id' => $workspace->id,
                                 'created_by' => 0,
                                 'created_at' => now(),
                                 'updated_at' => now(),
@@ -220,14 +220,14 @@ class WebhookController extends BaseController
                                 ]);
                             }
 
-                            $chat = Chat::where('wam_id', $response['id'])->where('organization_id', $organization->id)->first();
+                            $chat = Chat::where('wam_id', $response['id'])->where('workspace_id', $workspace->id)->first();
 
                             if(!$chat){
                                 //First open the chat
-                                (new ChatService($organization->id))->handleTicketAssignment($contact->id);
+                                (new ChatService($workspace->id))->handleTicketAssignment($contact->id);
 
                                 $chat = new Chat;
-                                $chat->organization_id = $organization->id;
+                                $chat->organization_id = $workspace->id;
                                 $chat->wam_id = $response['id'];
                                 $chat->contact_id = $contact->id;
                                 $chat->type = 'inbound';
@@ -241,8 +241,8 @@ class WebhookController extends BaseController
                                         $mediaId = $response[$type]['id'];
 
                                         //Get & Download media file
-                                        $media = $this->getMedia($mediaId, $organization);
-                                        $downloadedFile = $this->downloadMedia($media, $organization);
+                                        $media = $this->getMedia($mediaId, $workspace);
+                                        $downloadedFile = $this->downloadMedia($media, $workspace);
 
                                         //Upload media
                                         $chatMedia = new ChatMedia;
@@ -276,9 +276,9 @@ class WebhookController extends BaseController
                                     'value' => $chatLogArray->relatedEntities
                                 ]);
 
-                                event(new NewChatEvent($chatArray, $organization->id));
+                                event(new NewChatEvent($chatArray, $workspace->id));
 
-                                $isMessageLimitReached = SubscriptionService::isSubscriptionFeatureLimitReached($organization->id, 'message_limit');
+                                $isMessageLimitReached = SubscriptionService::isSubscriptionFeatureLimitReached($workspace->id, 'message_limit');
 
                                 if(!$isMessageLimitReached){
                                     if($response['type'] === 'text' || $response['type'] === 'button'|| $response['type'] === 'audio'|| $response['type'] === 'interactive'){
@@ -292,7 +292,7 @@ class WebhookController extends BaseController
                     // Trigger webhook
                     WebhookHelper::triggerWebhookEvent('message.received', [
                         'data' => $res,
-                    ], $organization->id);
+                    ], $workspace->id);
                 }
             }
         } else if($res['field'] === 'message_template_status_update'){
@@ -306,59 +306,59 @@ class WebhookController extends BaseController
         } else if($res['field'] === 'account_review_update'){
             //Account Status
             $response = $res['value'] ?? null;
-            $organizationConfig = Organization::where('id', $organization->id)->first();
-            $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+            $workspaceConfig = workspace::where('id', $workspace->id)->first();
+            $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['whatsapp']['account_review_status'] = $response['decision'] ?? NULL;
 
             $updatedMetadataJson = json_encode($metadataArray);
-            $organizationConfig->metadata = $updatedMetadataJson;
-            $organizationConfig->save();
+            $workspaceConfig->metadata = $updatedMetadataJson;
+            $workspaceConfig->save();
         } else if($res['field'] === 'phone_number_name_update'){
             //Display Name
             $response = $res['value'] ?? null;
 
             if($response['decision'] == 'APPROVED'){
-                $organizationConfig = Organization::where('id', $organization->id)->first();
-                $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+                $workspaceConfig = workspace::where('id', $workspace->id)->first();
+                $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
                 $metadataArray['whatsapp']['verified_name'] = $response['requested_verified_name'] ?? NULL;
 
                 $updatedMetadataJson = json_encode($metadataArray);
-                $organizationConfig->metadata = $updatedMetadataJson;
-                $organizationConfig->save();
+                $workspaceConfig->metadata = $updatedMetadataJson;
+                $workspaceConfig->save();
             }
         } else if($res['field'] === 'phone_number_quality_update'){
             //messaging_tier_limit
             $response = $res['value'] ?? null;
-            $organizationConfig = Organization::where('id', $organization->id)->first();
-            $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+            $workspaceConfig = workspace::where('id', $workspace->id)->first();
+            $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['whatsapp']['messaging_limit_tier'] = $response['current_limit'] ?? NULL;
 
             $updatedMetadataJson = json_encode($metadataArray);
-            $organizationConfig->metadata = $updatedMetadataJson;
-            $organizationConfig->save();
+            $workspaceConfig->metadata = $updatedMetadataJson;
+            $workspaceConfig->save();
         } else if($res['field'] === 'business_capability_update'){
             //messaging_tier_limit
             $response = $res['value'] ?? null;
-            $organizationConfig = Organization::where('id', $organization->id)->first();
-            $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+            $workspaceConfig = workspace::where('id', $workspace->id)->first();
+            $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = $response['max_daily_conversation_per_phone'] ?? NULL;
             $metadataArray['whatsapp']['max_phone_numbers_per_business'] = $response['max_phone_numbers_per_business'] ?? NULL;
 
             $updatedMetadataJson = json_encode($metadataArray);
-            $organizationConfig->metadata = $updatedMetadataJson;
-            $organizationConfig->save();
+            $workspaceConfig->metadata = $updatedMetadataJson;
+            $workspaceConfig->save();
         }
 
         return Response::json(['status' => 'success'], 200);
     }
 
-    private function downloadMedia($mediaInfo, Organization $organization)
+    private function downloadMedia($mediaInfo, workspace $workspace)
     {
-        $metadata = json_decode($organization->metadata);
+        $metadata = json_decode($workspace->metadata);
 
         if (empty($metadata) || empty($metadata->whatsapp->access_token)) {
             return $this->forbiddenResponse();
@@ -389,7 +389,7 @@ class WebhookController extends BaseController
                 $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . 'public/' . $fileName;
             } else if($storage === 'aws') {
                 $location = 'amazon';
-                $filePath = 'uploads/media/received/'  . $organization->id . '/' . Str::random(40) . time();
+                $filePath = 'uploads/media/received/'  . $workspace->id . '/' . Str::random(40) . time();
                 $file = Storage::disk('s3')->put($filePath, $fileContent, [
                     'ContentType' => $mimeType
                 ]);
@@ -422,9 +422,9 @@ class WebhookController extends BaseController
         return $filename;
     }
 
-    private function getMedia($mediaId, Organization $organization)
+    private function getMedia($mediaId, workspace $workspace)
     {
-        $metadata = json_decode($organization->metadata);
+        $metadata = json_decode($workspace->metadata);
 
         if (empty($metadata) || empty($metadata->whatsapp->access_token)) {
             return $this->forbiddenResponse();

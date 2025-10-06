@@ -121,7 +121,7 @@ class PayPalService
                                 'currency' => $currency,
                             ],
                             'description' => 'Subscription Payment',
-                            'custom' => session()->get('current_organization') . '_' . auth()->user()->id . '_' . $planId,
+                            'custom' => session()->get('current_workspace') . '_' . auth()->user()->id . '_' . $planId,
                         ],
                     ],
                     'application_context' => [
@@ -206,20 +206,20 @@ class PayPalService
 
 					if($metadata){
 						$metadata = explode('_', $metadata);
-						$organizationId = $metadata[0] ?? null;
+						$workspaceId = $metadata[0] ?? null;
 						$userId = $metadata[1] ?? null;
 						$planId = ($metadata[2] !== '') ? $metadata[2] : null;
 						$amount = $transactionData['amount']['total'];
 
 						$payment = BillingPayment::create([
-							'organization_id' => $organizationId,
+							'workspace_id' => $workspaceId,
 							'processor' => 'paypal',
 							'details' => $request->resource['id'],
 							'amount' => $amount
 						]);
 
 						$transaction = BillingTransaction::create([
-							'organization_id' => $organizationId,
+							'workspace_id' => $workspaceId,
 							'entity_type' => 'payment',
 							'entity_id' => $payment->id,
 							'description' => 'PayPal Payment',
@@ -228,12 +228,12 @@ class PayPalService
 						]);
 
 						if($planId == null){
-							$this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($organizationId, $userId);
+							$this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
 						} else {
-							$this->subscriptionService->updateSubscriptionPlan($organizationId, $planId, $userId);
+							$this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
 						}
 
-						event(new NewPaymentEvent($transaction, $organizationId));
+						event(new NewPaymentEvent($transaction, $workspaceId));
 						return $transaction;
 					}
 				});

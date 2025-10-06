@@ -21,13 +21,13 @@ class ContactGroup extends Model {
             ->withTimestamps();
     }
 
-    public function countAllContacts($organizationId){
-        return $this->contacts->where('organization_id', $organizationId)->count();
+    public function countAllContacts($workspaceId){
+        return $this->contacts->where('workspace_id', $workspaceId)->count();
     }
 
-    public function getAll($organizationId, $searchTerm)
+    public function getAll($workspaceId, $searchTerm)
     {
-        return $this->where('organization_id', $organizationId)
+        return $this->where('workspace_id', $workspaceId)
             ->where('deleted_at', null)
             ->where(function ($query) use ($searchTerm) {
                 $query->where('name', 'like', '%' . $searchTerm . '%');
@@ -36,18 +36,18 @@ class ContactGroup extends Model {
             ->paginate(10);
     }
 
-    public function getRow($uuid, $organizationId)
+    public function getRow($uuid, $workspaceId)
     {
-        return $this->withCount(['contacts as contact_count' => function ($query) use ($organizationId) {
-            $query->where('organization_id', $organizationId);
+        return $this->withCount(['contacts as contact_count' => function ($query) use ($workspaceId) {
+            $query->where('workspace_id', $workspaceId);
         }])
         ->where('uuid', $uuid)
         ->where('deleted_at', null)
         ->first();
     }
 
-    public function countAll($organizationId)
+    public function countAll($workspaceId)
     {
-        return $this->where('organization_id', $organizationId)->where('deleted_at', null)->count();
+        return $this->where('workspace_id', $workspaceId)->where('deleted_at', null)->count();
     }
 }

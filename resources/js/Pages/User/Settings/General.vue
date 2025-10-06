@@ -6,19 +6,19 @@
                     <div class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4 pb-2">
                         <div class="flex px-4 pt-2 pb-4">
                             <div>
-                                <h2 class="text-[17px]">{{ $t('Organization details') }}</h2>
+                                <h2 class="text-[17px]">{{ $t('workspace details') }}</h2>
                                 <span class="flex items-center mt-1">
                                     <svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v5m0 5a9 9 0 1 1 0-18a9 9 0 0 1 0 18Zm.05-13v.1h-.1V8h.1Z"/></svg>
-                                    {{ $t('Update your organization settings') }}
+                                    {{ $t('Update your workspace settings') }}
                                 </span>
                             </div>
                         </div>
                         <div class="flex space-x-10 border-b w-full px-4 py-6">
                             <div class="w-[40%]">
-                                <span class="text-slate-600">{{ $t('Organization name') }}</span>
+                                <span class="text-slate-600">{{ $t('workspace name') }}</span>
                                 <div class="text-xs text-slate-700 flex items-center">
                                     <svg class="mr-1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v5m0 5a9 9 0 1 1 0-18a9 9 0 0 1 0 18Zm.05-13v.1h-.1V8h.1Z"/></svg>
-                                    <span>{{ $t('Specify the name of your business/organization') }}</span>
+                                    <span>{{ $t('Specify the name of your business/workspace') }}</span>
                                 </div>
                             </div>
                             <div class="w-[60%]">
@@ -70,7 +70,7 @@
                                 <span class="text-slate-600">{{ $t('Enable notification sound') }}</span>
                                 <div class="text-xs text-slate-700 flex items-center">
                                     <svg class="mr-1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v5m0 5a9 9 0 1 1 0-18a9 9 0 0 1 0 18Zm.05-13v.1h-.1V8h.1Z"/></svg>
-                                    <span>{{ $t('Specify the name of your business/organization') }}</span>
+                                    <span>{{ $t('Specify the name of your business/workspace') }}</span>
                                 </div>
                             </div>
                             <div class="w-[60%] flex justify-end">
@@ -186,7 +186,7 @@
     import { trans } from 'laravel-vue-i18n';
     import { router, useForm } from "@inertiajs/vue3";
 
-    const props = defineProps(['contactGroups', 'settings', 'timezones', 'modules', 'organization', 'countries', 'sounds']);
+    const props = defineProps(['contactGroups', 'settings', 'timezones', 'modules', 'workspace', 'countries', 'sounds']);
     const statusView = ref(false);
     const config = ref(props.settings.metadata);
     const settings = ref(config.value ? JSON.parse(config.value) : null);
@@ -261,7 +261,7 @@
     }
 
     const submitForm2 = () => {
-        form2.put('./profile/organization', {
+        form2.put('./profile/workspace', {
             preserveScroll: true
         });
     }

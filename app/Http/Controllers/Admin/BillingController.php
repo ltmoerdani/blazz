@@ -22,7 +22,7 @@ class BillingController extends BaseController
      */
     public function index()
     {
-        return Inertia::render('Admin/Organization/Index', [
+        return Inertia::render('Admin/workspace/Index', [
             'title' => __('Billing'),
             'allowCreate' => true,
             'rows' => $this->billingService->get($request), 

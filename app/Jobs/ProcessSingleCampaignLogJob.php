@@ -6,7 +6,7 @@ use App\Jobs\RetryCampaignLogJob;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
 use App\Models\CampaignLogRetry;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Services\WhatsappService;
 use App\Traits\TemplateTrait;
 use Illuminate\Bus\Batchable;
@@ -23,7 +23,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, TemplateTrait, Batchable;
 
     private $campaignLog;
-    private $organizationId;
+    private $workspaceId;
     private $whatsappService;
     
     public $timeout = 300; // 5 minutes timeout for single message
@@ -91,7 +91,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
     protected function checkAndUpdateCampaignStatus($campaignId)
     {
         $campaign = Campaign::find($campaignId);
-        $orgMetadata = json_decode($campaign->organization->metadata ?? '{}', true);
+        $orgMetadata = json_decode($campaign->workspace->metadata ?? '{}', true);
         $retryEnabled = $orgMetadata['campaigns']['enable_resend'] ?? false;
         $retryIntervals = $orgMetadata['campaigns']['resend_intervals'] ?? [];
     
@@ -138,11 +138,11 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
 
     private function initializeWhatsappService()
     {
-        $config = cache()->remember("organization.{$this->organizationId}.metadata", 3600, function() {
-            return Organization::find($this->organizationId)->metadata ?? [];
+        $config = cache()->remember("workspace.{$this->organizationId}.metadata", 3600, function() {
+            return workspace::find($this->organizationId)->metadata ?? [];
         });
 
-        $config = Organization::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->organizationId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -163,7 +163,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
 
     /*private function initializeWhatsappService()
     {
-        $config = Organization::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->organizationId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;

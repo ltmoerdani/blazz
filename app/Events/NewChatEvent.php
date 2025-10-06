@@ -17,18 +17,18 @@ class NewChatEvent implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $chat;
-    public $organizationId;
+    public $workspaceId;
 
     /**
      * Create a new event instance.
      *
      * @param mixed $chat
-     * @param int $organizationId
+     * @param int $workspaceId
      */
-    public function __construct($chat, $organizationId)
+    public function __construct($chat, $workspaceId)
     {
         $this->chat = $chat;
-        $this->organizationId = $organizationId;
+        $this->organizationId = $workspaceId;
     }
 
     /**

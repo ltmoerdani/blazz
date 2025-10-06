@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('contacts', function (Blueprint $table) {
             $table->timestamp('latest_chat_created_at')->nullable()->after('email');
-            $table->index('organization_id');
+            $table->index('workspace_id');
             $table->index('deleted_at');
             $table->index('latest_chat_created_at');
         });
@@ -35,7 +35,7 @@ return new class extends Migration
     {
         Schema::table('contacts', function (Blueprint $table) {
             $table->dropColumn('latest_chat_created_at');
-            $table->dropIndex(['organization_id']);
+            $table->dropIndex(['workspace_id']);
             $table->dropIndex(['deleted_at']);
             $table->dropIndex(['latest_chat_created_at']);
         });

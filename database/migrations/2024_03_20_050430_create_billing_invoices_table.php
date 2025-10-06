@@ -16,7 +16,7 @@ class CreateBillingInvoicesTable extends Migration
         Schema::create('billing_invoices', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->integer('organization_id');
+            $table->integer('workspace_id');
             $table->integer('plan_id');
             $table->decimal('subtotal', 13, 2)->default(0.00);
             $table->integer('coupon_id')->nullable();

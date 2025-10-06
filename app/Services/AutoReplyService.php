@@ -7,7 +7,7 @@ use App\Http\Resources\AutoReplyResource;
 use App\Models\AutoReply;
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Services\MediaService;
 use App\Services\WhatsappService;
@@ -23,11 +23,11 @@ class AutoReplyService
 {
     public function getRows(object $request)
     {
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
         $model = new AutoReply;
         $searchTerm = $request->query('search');
 
-        return AutoReplyResource::collection($model->listAll($organizationId, $searchTerm));
+        return AutoReplyResource::collection($model->listAll($workspaceId, $searchTerm));
     }
 
     public function store(object $request, $uuid = null)
@@ -49,7 +49,7 @@ class AutoReplyService
                     $mediaFilePath = $file;
                     $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
                 } else if($storage === 'aws') {
-                    $filePath = 'uploads/media/received'  . session()->get('current_organization') . '/' . $fileName;
+                    $filePath = 'uploads/media/received'  . session()->get('current_workspace') . '/' . $fileName;
                     $file = Storage::disk('s3')->put($filePath, $fileContent, 'public');
                     $mediaFilePath = Storage::disk('s3')->url($filePath);
                     $mediaUrl = $mediaFilePath;
@@ -76,7 +76,7 @@ class AutoReplyService
         $model['updated_at'] = now();
 
         if($uuid === null){
-            $model['organization_id'] = session()->get('current_organization');
+            $model['workspace_id'] = session()->get('current_workspace');
             $model['created_by'] = auth()->user()->id;
             $model['created_at'] = now();
         }
@@ -84,7 +84,7 @@ class AutoReplyService
         $model->save();
 
         // Prepare a clean contact object for webhook
-        $cleanModel = $model->makeHidden(['id', 'organization_id', 'created_by']);
+        $cleanModel = $model->makeHidden(['id', 'workspace_id', 'created_by']);
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent($uuid === null ? 'autoreply.created' : 'autoreply.updated', $cleanModel);
@@ -108,21 +108,21 @@ class AutoReplyService
 
     public function checkAutoReply(Chat $chat, $isNewContact)
     {
-        $organizationId = $chat->organization_id;
+        $workspaceId = $chat->organization_id;
 
-        $this->replySequence($organizationId, $chat, $isNewContact);
+        $this->replySequence($workspaceId, $chat, $isNewContact);
     }
 
-    private function replySequence($organizationId, $chat, $isNewContact)
+    private function replySequence($workspaceId, $chat, $isNewContact)
     {
-        $organizationConfig = Organization::where('id', $organizationId)->first();
-        $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+        $workspaceConfig = workspace::where('id', $workspaceId)->first();
+        $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
         $activeFlow = false;
         $modulePath = base_path('modules/FlowBuilder');
         
         if (File::exists($modulePath)) {
             if (class_exists(\Modules\FlowBuilder\Services\FlowExecutionService::class)) {
-                $query = new \Modules\FlowBuilder\Services\FlowExecutionService($organizationId);
+                $query = new \Modules\FlowBuilder\Services\FlowExecutionService($workspaceId);
                 $activeFlow = $query->hasActiveFlow($chat);
             }
         }
@@ -140,8 +140,8 @@ class AutoReplyService
             'Basic Replies' => function() use ($chat) {
                 return $this->handleBasicReplies($chat);
             },
-            'Automated Flows' => function() use ($organizationId, $chat, $isNewContact) {
-                return $this->handleAutomatedFlows($organizationId, $chat, $isNewContact);
+            'Automated Flows' => function() use ($workspaceId, $chat, $isNewContact) {
+                return $this->handleAutomatedFlows($workspaceId, $chat, $isNewContact);
             },
             'AI Reply Assistant' => function() use ($chat) {
                 return $this->handleAIReplyAssistant($chat);
@@ -171,7 +171,7 @@ class AutoReplyService
 
     private function handleBasicReplies($chat)
     {
-        $organizationId = $chat->organization_id;
+        $workspaceId = $chat->organization_id;
         $text = '';
         $metadata = json_decode($chat->metadata, true);
 
@@ -190,7 +190,7 @@ class AutoReplyService
         $receivedMessage = " " . strtolower($text);
 
         //Check basic reply flow
-        $autoReplies = AutoReply::where('organization_id', $organizationId)
+        $autoReplies = AutoReply::where('workspace_id', $workspaceId)
             ->where('deleted_at', null)
             ->get();
 
@@ -237,7 +237,7 @@ class AutoReplyService
         return false; // No reply was sent
     }
 
-    private function handleAutomatedFlows($organizationId, $chat, $isNewContact)
+    private function handleAutomatedFlows($workspaceId, $chat, $isNewContact)
     {
         $text = '';
         $metadata = json_decode($chat->metadata, true);
@@ -257,7 +257,7 @@ class AutoReplyService
         $receivedMessage = " " . strtolower($text);
 
         if (file_exists(base_path('modules/FlowBuilder/Services/FlowExecutionService.php'))) {
-            $query = new \Modules\FlowBuilder\Services\FlowExecutionService($organizationId);
+            $query = new \Modules\FlowBuilder\Services\FlowExecutionService($workspaceId);
             return $query->executeFlow($chat, $isNewContact, $receivedMessage);
         }
     }
@@ -288,22 +288,22 @@ class AutoReplyService
     protected function sendReply(Chat $chat, AutoReply $autoreply)
     {
         $contact = Contact::where('id', $chat->contact_id)->first();
-        $organization_id = $chat->organization_id;
+        $workspace_id = $chat->organization_id;
         $metadata = json_decode($autoreply->metadata);
         $replyType = $metadata->type;
 
         if($replyType === 'text'){
-            $message = $this->replacePlaceholders($organization_id, $contact->uuid, $metadata->data->text);
-            $this->initializeWhatsappService($organization_id)->sendMessage($contact->uuid, $message);
+            $message = $this->replacePlaceholders($workspace_id, $contact->uuid, $metadata->data->text);
+            $this->initializeWhatsappService($workspace_id)->sendMessage($contact->uuid, $message);
         } else if($replyType === 'audio' || $replyType === 'image'){
             $location = strpos($metadata->data->file->location, 'public\\') === 0 ? 'local' : 'amazon';
-            $this->initializeWhatsappService($organization_id)->sendMedia($contact->uuid, $replyType, $metadata->data->file->name, $metadata->data->file->location, $metadata->data->file->url, $location);
+            $this->initializeWhatsappService($workspace_id)->sendMedia($contact->uuid, $replyType, $metadata->data->file->name, $metadata->data->file->location, $metadata->data->file->url, $location);
         }
     }
 
-    private function initializeWhatsappService($organizationId)
+    private function initializeWhatsappService($workspaceId)
     {
-        $config = Organization::where('id', $organizationId)->first()->metadata;
+        $config = workspace::where('id', $workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -312,11 +312,11 @@ class AutoReplyService
         $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-        return new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $organizationId);
+        return new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
     }
 
-    private function replacePlaceholders($organizationId, $contactUuid, $message){
-        $organization = Organization::where('id', $organizationId)->first();
+    private function replacePlaceholders($workspaceId, $contactUuid, $message){
+        $workspace = workspace::where('id', $workspaceId)->first();
         $contact = Contact::with('contactGroups')->where('uuid', $contactUuid)->first();
         $address = $contact->address ? json_decode($contact->address, true) : [];
         $metadata = $contact->metadata ? json_decode($contact->metadata, true) : [];
@@ -332,7 +332,7 @@ class AutoReplyService
             'full_name' => $contact->full_name ?? Null,
             'email' => $contact->email ?? Null,
             'phone' => $contact->phone ?? Null,
-            'organization_name' => $organization->name,
+            'organization_name' => $workspace->name,
             'full_address' => $full_address,
             'street' => $address['street'] ?? Null,
             'city' => $address['city'] ?? Null,

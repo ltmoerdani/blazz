@@ -33,7 +33,7 @@ class StoreContact extends FormRequest
                 'string',
                 'max:255',
                 'phone:AUTO',
-                new UniquePhone($this->organization, $uuid),
+                new UniquePhone($this->workspace, $uuid),
             ],
             'email' => 'nullable|email|max:255',
         ];

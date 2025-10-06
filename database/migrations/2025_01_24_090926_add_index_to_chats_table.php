@@ -15,7 +15,7 @@ return new class extends Migration
         // Check if the index already exists before attempting to create it
         if (!$this->indexExists('chats', 'idx_chats_contact_org_deleted_at')) {
             Schema::table('chats', function (Blueprint $table) {
-                $table->index(['contact_id', 'organization_id', 'deleted_at'], 'idx_chats_contact_org_deleted_at');
+                $table->index(['contact_id', 'workspace_id', 'deleted_at'], 'idx_chats_contact_org_deleted_at');
             });
         }
     }

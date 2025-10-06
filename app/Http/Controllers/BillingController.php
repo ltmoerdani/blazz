@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\PaymentRequest;
 use App\Models\Addon;
 use App\Models\BillingPayment;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\PaymentGateway;
 use App\Models\Setting;
 use App\Models\Subscription;
@@ -32,14 +32,14 @@ class BillingController extends BaseController
     }
     
     public function index(Request $request){
-        $organizationId = session()->get('current_organization');
-        $organization = Organization::where('id', $organizationId)->first();
-        $data['subscription'] = Subscription::with('plan')->where('organization_id', $organizationId)->first();
-        $data['subscriptionIsActive'] = SubscriptionService::isSubscriptionActive($organizationId);
-        $data['rows'] = $this->billingService->get($request, $organization->uuid);
+        $workspaceId = session()->get('current_workspace');
+        $workspace = workspace::where('id', $workspaceId)->first();
+        $data['subscription'] = Subscription::with('plan')->where('workspace_id', $workspaceId)->first();
+        $data['subscriptionIsActive'] = SubscriptionService::isSubscriptionActive($workspaceId);
+        $data['rows'] = $this->billingService->get($request, $workspace->uuid);
         $data['filters'] = $request->all();
         $data['methods'] = $this->paymentMethods();
-        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($organizationId, $data['subscription']->plan_id);
+        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
         $data['title'] = __('Billing');
         $data['isPaymentLoading'] = false;
         $data['pusherSettings'] = Setting::whereIn('key', [
@@ -49,7 +49,7 @@ class BillingController extends BaseController
             'pusher_app_cluster',
         ])->pluck('value', 'key')->toArray();
         $data['setting'] = Setting::whereIn('key', ['enable_custom_payment'])->pluck('value', 'key')->toArray();
-        $data['organizationId'] = $organizationId;
+        $data['organizationId'] = $workspaceId;
 
         if($request->has('paymentId') && $request->has('token')){
             //Check if payment id exists in DB

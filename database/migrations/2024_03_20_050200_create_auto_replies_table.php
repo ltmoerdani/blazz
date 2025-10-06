@@ -16,7 +16,7 @@ class CreateAutoRepliesTable extends Migration
         Schema::create('auto_replies', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->integer('organization_id');
+            $table->integer('workspace_id');
             $table->string('name', 128);
             $table->text('trigger');
             $table->string('match_criteria', 100);

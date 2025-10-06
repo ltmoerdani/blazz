@@ -24,9 +24,9 @@ class TeamService
         $invite = TeamInvite::where('email', $request->email)->first();
 
         if(!$invite){     
-            $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_organization') . Str::random(32)); 
+            $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_workspace') . Str::random(32)); 
             $invite = TeamInvite::create([
-                'organization_id' => session()->get('current_organization'),
+                'workspace_id' => session()->get('current_workspace'),
                 'email' => $request->email,
                 'code' => $inviteCode,
                 'role' => $request->role,
@@ -36,7 +36,7 @@ class TeamService
         } else  {
             $inviteCode = $invite->code;
             if($invite->expire_at <= now()){
-                $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_organization') . Str::random(32));
+                $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_workspace') . Str::random(32));
                 $invite->code = $inviteCode;
                 $invite->expire_at = now()->addDay();
                 $invite->invited_by = auth()->user()->id;
@@ -85,7 +85,7 @@ class TeamService
 
             $team = Team::updateOrCreate(
                 [
-                    'organization_id' => $invite->organization_id,
+                    'workspace_id' => $invite->organization_id,
                     'user_id' => $user->id,
                 ],
                 [
@@ -100,7 +100,7 @@ class TeamService
 
             Auth::guard('user')->loginUsingId($user->id);
 
-            session()->put('current_organization', $invite->organization_id);
+            session()->put('current_workspace', $invite->organization_id);
         } catch (\Exception $e) {
             Log::error('Exception: ' . $e->getMessage());
             //dd($e->getMessage());

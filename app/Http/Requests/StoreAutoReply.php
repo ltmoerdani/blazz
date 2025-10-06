@@ -31,7 +31,7 @@ class StoreAutoReply extends FormRequest
 
         // Add the CannedReplyLimit rule only for POST requests
         if ($this->isMethod('post')) {
-            $rules['name'] = ['required', new CannedReplyLimit($this->organization)];
+            $rules['name'] = ['required', new CannedReplyLimit($this->workspace)];
         } else {
             $rules['name'] = ['required'];
         }
