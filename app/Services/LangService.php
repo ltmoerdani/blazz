@@ -8,7 +8,8 @@ use App\Models\Language;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
-use Excel;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LangService
 {
@@ -37,7 +38,7 @@ class LangService
      * @param string $id
      * @return \App\Models\Language
      */
-    public function store(object $request, $id = NULL)
+    public function store(object $request, $id = null)
     {
         try {
             $language = $id === null ? new Language() : Language::where('id', $id)->firstOrFail();
@@ -110,7 +111,7 @@ class LangService
             }
 
             return Language::where('id', $id)->update([
-                'deleted_by' => auth()->user()->id,
+                'deleted_by' => Auth::id(),
                 'deleted_at' => date('Y-m-d H:i:s')
             ]);
         } catch (\Exception $e) {

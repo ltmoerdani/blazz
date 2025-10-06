@@ -20,21 +20,21 @@ class PaymentGatewaysTableSeeder extends Seeder
         $gateways = [
             [
                 'name' => 'Paypal',
-                'metadata' => NULL,
+                'metadata' => null,
                 'is_active' => 0,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
                 'name' => 'Stripe',
-                'metadata' => NULL,
+                'metadata' => null,
                 'is_active' => 0,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
                 'name' => 'Flutterwave',
-                'metadata' => NULL,
+                'metadata' => null,
                 'is_active' => 0,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),

@@ -12,7 +12,7 @@ use Inertia\Inertia;
 
 class SubscriptionPlanController extends BaseController
 {
-    private $SubscriptionPlanService;
+    protected $subscriptionPlanService;
 
     /**
      * SubscriptionController constructor.
@@ -46,7 +46,7 @@ class SubscriptionPlanController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show($uuid = NULL)
+    public function show($uuid = null)
     {
         $plan = $this->subscriptionPlanService->getByUuid($uuid);
 
@@ -65,7 +65,7 @@ class SubscriptionPlanController extends BaseController
      */
     public function create(Request $request)
     {
-        $plan = $this->subscriptionPlanService->getByUuid(NULL);
+        $plan = $this->subscriptionPlanService->getByUuid(null);
 
         return Inertia::render('Admin/SubscriptionPlan/Show', [
             'title' => __('Subscription plans'), 

@@ -54,7 +54,7 @@ class ApiController extends Controller
         $perPage = $request->input('per_page', 10);
 
         $contacts = Contact::where('workspace_id', $request->workspace)
-            ->where('deleted_at', NULL)
+            ->where('deleted_at', null)
             ->paginate($perPage, ['*'], 'page', $page);
 
         return ContactResource::collection($contacts);
@@ -66,7 +66,7 @@ class ApiController extends Controller
      * @param  \App\Http\Requests\CreateContactRequest  $request
      * @return \Illuminate\Http\Response
      */
-    public function storeContact(Request $request, $uuid = NULL){
+    public function storeContact(Request $request, $uuid = null){
         $validator = Validator::make($request->all(), [
             'first_name' => $request->isMethod('post') ? 'required' : 'required|sometimes',
             //'last_name' => 'required',
@@ -164,7 +164,7 @@ class ApiController extends Controller
         $perPage = $request->input('per_page', 10);
 
         $contactGroups = ContactGroup::where('workspace_id', $request->workspace)
-            ->where('deleted_at', NULL)
+            ->where('deleted_at', null)
             ->paginate($perPage, ['*'], 'page', $page);
 
         return ContactGroupResource::collection($contactGroups);
@@ -176,7 +176,7 @@ class ApiController extends Controller
      * @param  \App\Http\Requests\CreateContactGroupRequest  $request
      * @return \Illuminate\Http\Response
      */
-    public function storeContactGroup(Request $request, $uuid = NULL){
+    public function storeContactGroup(Request $request, $uuid = null){
         $workspaceId = $request->workspace;
 
         if ($request->isMethod('post')) {
@@ -299,7 +299,7 @@ class ApiController extends Controller
         $perPage = $request->input('per_page', 10);
 
         $rows = AutoReply::where('workspace_id', $request->workspace)
-            ->where('deleted_at', NULL)
+            ->where('deleted_at', null)
             ->paginate($perPage, ['*'], 'page', $page);
 
         return AutoReplyResource::collection($rows);
@@ -311,7 +311,7 @@ class ApiController extends Controller
      * @param  \App\Http\Requests\CreateCannedReplyRequest  $request
      * @return \Illuminate\Http\Response
      */
-    public function storeCannedReply(Request $request, $uuid = NULL){
+    public function storeCannedReply(Request $request, $uuid = null){
         $rules = [
             'name' => 'required',
             'trigger' => 'required',
@@ -697,7 +697,7 @@ class ApiController extends Controller
         $perPage = $request->input('per_page', 10);
 
         $templates = Template::where('workspace_id', $request->workspace)
-            ->where('deleted_at', NULL)
+            ->where('deleted_at', null)
             ->paginate($perPage, ['uuid', 'name', 'metadata', 'updated_at'], 'page', $page);
 
         return TemplateResource::collection($templates);

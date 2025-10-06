@@ -393,18 +393,18 @@ class SettingController extends BaseController
         $metadataArray['whatsapp']['verified_name'] = $phoneNumberResponse->data->verified_name;
         $metadataArray['whatsapp']['quality_rating'] = $phoneNumberResponse->data->quality_rating;
         $metadataArray['whatsapp']['name_status'] = $phoneNumberResponse->data->name_status;
-        $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneNumberResponse->data->messaging_limit_tier ?? NULL;
-        $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = NULL;
-        $metadataArray['whatsapp']['max_phone_numbers_per_business'] = NULL;
+        $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneNumberResponse->data->messaging_limit_tier ?? null;
+        $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = null;
+        $metadataArray['whatsapp']['max_phone_numbers_per_business'] = null;
         $metadataArray['whatsapp']['number_status'] = $phoneNumberStatusResponse->data->status;
         $metadataArray['whatsapp']['code_verification_status'] = $phoneNumberStatusResponse->data->code_verification_status;
         $metadataArray['whatsapp']['business_verification'] = '';
         $metadataArray['whatsapp']['account_review_status'] = $accountReviewStatusResponse->data->account_review_status;
-        $metadataArray['whatsapp']['business_profile']['about'] = $businessProfileResponse->data->about ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['address'] = $businessProfileResponse->data->address ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['description'] = $businessProfileResponse->data->description ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['industry'] = $businessProfileResponse->data->vertical ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['email'] = $businessProfileResponse->data->email ?? NULL;
+        $metadataArray['whatsapp']['business_profile']['about'] = $businessProfileResponse->data->about ?? null;
+        $metadataArray['whatsapp']['business_profile']['address'] = $businessProfileResponse->data->address ?? null;
+        $metadataArray['whatsapp']['business_profile']['description'] = $businessProfileResponse->data->description ?? null;
+        $metadataArray['whatsapp']['business_profile']['industry'] = $businessProfileResponse->data->vertical ?? null;
+        $metadataArray['whatsapp']['business_profile']['email'] = $businessProfileResponse->data->email ?? null;
 
         $updatedMetadataJson = json_encode($metadataArray);
         $workspaceConfig->metadata = $updatedMetadataJson;

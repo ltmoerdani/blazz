@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\ContactContactGroup;
 use App\Models\ContactGroup;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
@@ -42,7 +43,9 @@ class ContactService
             } else if($storage === 'aws') {
                 $file = $request->file('file');
                 $uploadedFile = $file->store('uploads/media/contacts/' . $this->workspaceId, 's3');
-                $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                $s3Disk = Storage::disk('s3');
+                $mediaFilePath = $s3Disk->url($uploadedFile);
 
                 $contact->avatar = $mediaFilePath;
             }
@@ -50,7 +53,7 @@ class ContactService
 
         if($uuid === null){
             $contact->organization_id = $this->workspaceId;
-            $contact->created_by = auth()->user() ? auth()->user()->id : 0;
+            $contact->created_by = Auth::check() ? Auth::id() : 0;
             $contact->created_at = now();
         }
 

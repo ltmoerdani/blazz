@@ -41,7 +41,7 @@ class PagesController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show(Request $request, $id = NULL)
+    public function show(Request $request, $id = null)
     {
         $row = $this->pageService->getPageByID($request, $id);
 

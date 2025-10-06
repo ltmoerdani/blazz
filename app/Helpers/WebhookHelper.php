@@ -8,9 +8,9 @@ use App\Models\Setting;
 
 class WebhookHelper
 {
-    public static function triggerWebhookEvent($event, $data, $workspaceId = NULL)
+    public static function triggerWebhookEvent($event, $data, $workspaceId = null)
     {
-        $workspaceId = $workspaceId = NULL ? session()->get('current_workspace') : $workspaceId;
+        $workspaceId = $workspaceId = null ? session()->get('current_workspace') : $workspaceId;
 
         if(CustomHelper::isModuleEnabled('Webhooks', $workspaceId)){
             // Check if MainController exists

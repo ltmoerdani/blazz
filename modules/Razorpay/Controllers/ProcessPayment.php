@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -44,7 +45,7 @@ class ProcessPayment extends BaseController
         $this->webhook_secret = $settings['razorpay_webhook_secret'] ?? null;
     }
     
-    public function handlePayment($amount, $planId = NULL)
+    public function handlePayment($amount, $planId = null)
     {
         try {
             $httpClient = new HttpClient();
@@ -61,13 +62,13 @@ class ProcessPayment extends BaseController
                         'callback_url'    => url('billing'),
                         'callback_method' => 'get',
                         'customer' => [
-                            'name'         => auth()->user()->first_name. ' ' .auth()->user()->last_name,
+                            'name'         => Auth::user()->first_name. ' ' .Auth::user()->last_name,
                             'contact'      => null,
-                            'email'        => auth()->user()->email,
+                            'email'        => Auth::user()->email,
                         ],
                         'notes' => [
                             'workspace_id' => session()->get('current_workspace'),
-                            'user_id' => auth()->user()->id,
+                            'user_id' => Auth::id(),
                             'plan_id' => $planId
                         ],
                         'reminder_enable' => false

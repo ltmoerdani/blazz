@@ -20,7 +20,7 @@ class AddonsTableSeeder7 extends Seeder
             ],
             [
                 'name' => 'Google Authenticator',
-                'metadata' => NULL,
+                'metadata' => null,
             ],
             [
                 'name' => 'Google Recaptcha',
@@ -28,15 +28,15 @@ class AddonsTableSeeder7 extends Seeder
             ],
             [
                 'name' => 'AI Assistant',
-                'metadata' => NULL,
+                'metadata' => null,
             ],
             [
                 'name' => 'Webhooks',
-                'metadata' => NULL,
+                'metadata' => null,
             ],
             [
                 'name' => 'Flow builder',
-                'metadata' => NULL,
+                'metadata' => null,
             ],
             [
                 'name' => 'Embedded Signup',

@@ -47,7 +47,7 @@ class TeamController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show(Request $request, $uuid = NULL)
+    public function show(Request $request, $uuid = null)
     {
         $res = $this->userService->getByUuid($request, $uuid);
 

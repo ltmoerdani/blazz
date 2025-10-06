@@ -37,7 +37,7 @@ class SubscriptionController extends BaseController
     public function index(Request $request){
         $workspaceId = session()->get('current_workspace');
         $data['subscription'] = Subscription::with('plan')->where('workspace_id', session()->get('current_workspace'))->first();
-        $data['taxes'] = TaxRate::where('status', 'active')->where('deleted_at', NULL)->get();
+        $data['taxes'] = TaxRate::where('status', 'active')->where('deleted_at', null)->get();
         $data['plans'] = SubscriptionPlanResource::collection(
             SubscriptionPlan::whereNull('deleted_at')
                 ->where(function ($query) use ($request) {

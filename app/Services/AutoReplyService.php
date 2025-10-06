@@ -14,10 +14,11 @@ use App\Services\WhatsappService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use DB;
-use Validator;
 
 class AutoReplyService
 {
@@ -51,7 +52,9 @@ class AutoReplyService
                 } else if($storage === 'aws') {
                     $filePath = 'uploads/media/received'  . session()->get('current_workspace') . '/' . $fileName;
                     $file = Storage::disk('s3')->put($filePath, $fileContent, 'public');
-                    $mediaFilePath = Storage::disk('s3')->url($filePath);
+                    /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                    $s3Disk = Storage::disk('s3');
+                    $mediaFilePath = $s3Disk->url($filePath);
                     $mediaUrl = $mediaFilePath;
                 }
 
@@ -77,7 +80,7 @@ class AutoReplyService
 
         if($uuid === null){
             $model['workspace_id'] = session()->get('current_workspace');
-            $model['created_by'] = auth()->user()->id;
+            $model['created_by'] = Auth::id();
             $model['created_at'] = now();
         }
 
@@ -93,7 +96,7 @@ class AutoReplyService
     public function destroy($uuid)
     {
         AutoReply::where('uuid', $uuid)->update([
-            'deleted_by' => auth()->user()->id,
+            'deleted_by' => Auth::id(),
             'deleted_at' => now()
         ]);
 
@@ -121,8 +124,10 @@ class AutoReplyService
         $modulePath = base_path('modules/FlowBuilder');
         
         if (File::exists($modulePath)) {
-            if (class_exists(\Modules\FlowBuilder\Services\FlowExecutionService::class)) {
-                $query = new \Modules\FlowBuilder\Services\FlowExecutionService($workspaceId);
+            $flowServiceClass = '\Modules\FlowBuilder\Services\FlowExecutionService';
+            if (class_exists($flowServiceClass)) {
+                /** @var object $query */
+                $query = new $flowServiceClass($workspaceId);
                 $activeFlow = $query->hasActiveFlow($chat);
             }
         }
@@ -156,8 +161,8 @@ class AutoReplyService
             if (isset($sequenceFunctions[$sequenceItem])) {
                 $response = $sequenceFunctions[$sequenceItem]();
 
-                \Log::info($sequenceItem);
-                \Log::info($response);
+                Log::info($sequenceItem);
+                Log::info($response);
 
                 if ($response) {
                     // If a response is found, exit the loop
@@ -228,7 +233,9 @@ class AutoReplyService
         $receivedMessage = " " . strtolower($text);
 
         if (file_exists(base_path('modules/IntelliReply/Services/AIResponseService.php'))) {
-            $query = new \Modules\IntelliReply\Services\AIResponseService();
+            $aiServiceClass = '\Modules\IntelliReply\Services\AIResponseService';
+            /** @var object $query */
+            $query = new $aiServiceClass();
             if ($query->handleAIResponse($chat, $receivedMessage)) {
                 return true;
             }
@@ -257,7 +264,9 @@ class AutoReplyService
         $receivedMessage = " " . strtolower($text);
 
         if (file_exists(base_path('modules/FlowBuilder/Services/FlowExecutionService.php'))) {
-            $query = new \Modules\FlowBuilder\Services\FlowExecutionService($workspaceId);
+            $flowServiceClass = '\Modules\FlowBuilder\Services\FlowExecutionService';
+            /** @var object $query */
+            $query = new $flowServiceClass($workspaceId);
             return $query->executeFlow($chat, $isNewContact, $receivedMessage);
         }
     }

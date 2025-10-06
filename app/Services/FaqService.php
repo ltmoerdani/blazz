@@ -32,7 +32,7 @@ class FaqService
      * @param string $id
      * @return \App\Models\Faq
      */
-    public function store(object $request, $id = NULL)
+    public function store(object $request, $id = null)
     {
         $faq = $id === null ? new Faq() : Faq::where('id', $id)->firstOrFail();
         $faq->question = clean($request->question);

@@ -87,7 +87,7 @@ class HandleInertiaRequests extends Middleware
             $workspace = workspace::where('id', $workspaceId)->first();
             $unreadMessages = Chat::where('workspace_id', $workspaceId)
                 ->where('type', 'inbound')
-                ->where('deleted_at', NULL)
+                ->where('deleted_at', null)
                 ->where('is_read', 0)
                 ->count();
         }

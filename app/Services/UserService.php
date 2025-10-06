@@ -11,14 +11,16 @@ use App\Models\Subscription;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\WorkspaceService;
-use DB;
-use Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
 class UserService
 {
-    private $workspace;
-    private $role;
+    protected $organizationService;
+    protected $workspace;
+    protected $role;
 
     public function __construct($role)
     {
@@ -47,7 +49,7 @@ class UserService
      *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
-    public function getByUuid($request, $id = NULL)
+    public function getByUuid($request, $id = null)
     {
         $roles = Role::all();
     
@@ -114,7 +116,7 @@ class UserService
                 $timestamp = now()->format('YmdHis');
                 $randomString = Str::random(4);
                 $userId = $newUser->id;
-                $creatorId = auth()->check() ? auth()->user()->id : $newUser->id;
+                $creatorId = Auth::check() ? Auth::id() : $newUser->id;
 
                 //Create workspace
                 $newOrganization = workspace::create([

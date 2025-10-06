@@ -45,7 +45,7 @@ class WorkspaceController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show(Request $request, $uuid = NULL, $mode = NULL)
+    public function show(Request $request, $uuid = null, $mode = null)
     {
         $res = $this->organizationService->getByUuid($request, $uuid);
         return Inertia::render('Admin/workspace/Show', [

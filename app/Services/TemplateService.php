@@ -9,10 +9,10 @@ use App\Models\Template;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use DB;
-use Validator;
 
 class TemplateService
 {

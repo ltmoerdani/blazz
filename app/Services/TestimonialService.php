@@ -27,7 +27,7 @@ class TestimonialService
      * @param string $id
      * @return \App\Models\Review
      */
-    public function store(object $request, $id = NULL)
+    public function store(object $request, $id = null)
     {
         $review = $id === null ? new Review() : Review::where('id', $id)->firstOrFail();
         $review->name = $request->name;
