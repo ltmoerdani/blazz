@@ -17,6 +17,9 @@ use Validator;
 
 class FaqController extends BaseController
 {
+    // Constants for repeated string literals
+    const ADMIN_FAQS_ROUTE = '/admin/faqs';
+    
     protected $faqService;
 
     public function __construct(FaqService $faqService)
@@ -58,7 +61,7 @@ class FaqController extends BaseController
     {
         $this->faqService->store($request);
 
-        return redirect('/admin/faqs')->with(
+        return redirect(self::ADMIN_FAQS_ROUTE)->with(
             'status', [
                 'type' => 'success',
                 'message' => __('Faq added successfully!')
@@ -89,7 +92,7 @@ class FaqController extends BaseController
     {
         $this->faqService->store($request, $id);
 
-        return redirect('/admin/faqs')->with(
+        return redirect(self::ADMIN_FAQS_ROUTE)->with(
             'status', [
                 'type' => 'success',
                 'message' => __('Faq updated successfully!')
@@ -107,7 +110,7 @@ class FaqController extends BaseController
     {
         $this->faqService->delete($id);
 
-        return redirect('/admin/faqs')->with(
+        return redirect(self::ADMIN_FAQS_ROUTE)->with(
             'status', [
                 'type' => 'success',
                 'message' => __('Faq deleted successfully!')

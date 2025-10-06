@@ -20,6 +20,9 @@ use Redirect;
 
 class BillingController extends BaseController
 {
+    // Constants for repeated string literals
+    const BILLING_ROUTE = '/billing';
+    
     protected $billingService;
     protected $subscriptionService;
     protected $paymentPlatformResolver;
@@ -57,7 +60,7 @@ class BillingController extends BaseController
             if(!$payment){
                 $data['isPaymentLoading'] = true;
             } else {
-                return redirect('/billing')->with(
+                return redirect(self::BILLING_ROUTE)->with(
                     'status', [
                         'type' => 'success',
                         'message' => __('Payment processed successfully!')
@@ -74,7 +77,7 @@ class BillingController extends BaseController
                 $response = $pabblyService->subscribeToPlan($request->hostedpage);
                 $data = $response->getData();
                 
-                return redirect('/billing')->with(
+                return redirect(self::BILLING_ROUTE)->with(
                     'status', [
                         'type' => $response->status() === '200' ? 'success' : 'error',
                         'message' => $data->message
@@ -95,7 +98,7 @@ class BillingController extends BaseController
         if ($response->success === true) {
             return inertia::location($response->data);
         } else {
-            return redirect('/billing')->with(
+            return redirect(self::BILLING_ROUTE)->with(
                 'status', [
                     'type' => 'error',
                     'message' => __('Could not process your payment successfully!')

@@ -34,7 +34,7 @@ class WorkspaceController extends BaseController
         return Inertia::render('Admin/workspace/Index', [
             'title' => __('Workspaces'),
             'allowCreate' => true,
-            'rows' => $this->WorkspaceService->get($request), 
+            'rows' => $this->WorkspaceService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -50,9 +50,9 @@ class WorkspaceController extends BaseController
         $res = $this->WorkspaceService->getByUuid($request, $uuid);
         return Inertia::render('Admin/workspace/Show', [
             'title' => __('workspace'),
-            'workspace' => $res['workspace'], 
+            'workspace' => $res['workspace'],
             'users' => $res['users'],
-            'plans' => $res['plans'], 
+            'plans' => $res['plans'],
             'invoices' => $res['billing'],
             'mode' => $mode,
             'filters' => $request->all()
@@ -69,9 +69,9 @@ class WorkspaceController extends BaseController
         $res = $this->WorkspaceService->getByUuid($request);
         return Inertia::render('Admin/workspace/Show', [
             'title' => __('Create Org.'),
-            'workspace' => $res['workspace'], 
+            'workspace' => $res['workspace'],
             'users' => $res['users'],
-            'plans' => $res['plans'], 
+            'plans' => $res['plans'],
             'invoices' => $res['billing'],
             'filters' => $request->all()
         ]);
@@ -88,7 +88,7 @@ class WorkspaceController extends BaseController
 
         return redirect('/admin/workspaces')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('workspace created successfully!')
             ]
         );
@@ -105,7 +105,7 @@ class WorkspaceController extends BaseController
 
         return redirect('/admin/workspaces/'.$uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('workspace updated successfully!')
             ]
         );
@@ -122,7 +122,7 @@ class WorkspaceController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => $query ? 'success' : 'error', 
+                'type' => $query ? 'success' : 'error',
                 'message' => $query ? __('workspace deleted successfully!') : __('This workspace does not exist!')
             ]
         );

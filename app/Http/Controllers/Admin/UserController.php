@@ -36,14 +36,14 @@ class UserController extends BaseController
             return response()->json([
                 'title' => __('Users'),
                 'allowCreate' => true,
-                'rows' => $this->userService->get($request), 
+                'rows' => $this->userService->get($request),
                 'filters' => $request->all()
             ]);
         } else {
             return Inertia::render('Admin/Customer/Index', [
                 'title' => __('Users'),
                 'allowCreate' => true,
-                'rows' => $this->userService->get($request), 
+                'rows' => $this->userService->get($request),
                 'filters' => $request->all()
             ]);
         }
@@ -60,8 +60,8 @@ class UserController extends BaseController
         $res = $this->userService->getByUuid($request, $uuid);
         return Inertia::render('Admin/Customer/Show', [
             'title' => __('View user'),
-            'user' => $res['user'], 
-            'workspaces' => $res['workspaces'], 
+            'user' => $res['user'],
+            'workspaces' => $res['workspaces'],
             'filters' => $request->all()
         ]);
     }
@@ -76,8 +76,8 @@ class UserController extends BaseController
         $res = $this->userService->getByUuid($request);
         return Inertia::render('Admin/Customer/Show', [
             'title' => __('Create user'),
-            'user' => $res['user'], 
-            'workspaces' => $res['workspaces'], 
+            'user' => $res['user'],
+            'workspaces' => $res['workspaces'],
             'filters' => $request->all()
         ]);
     }
@@ -93,7 +93,7 @@ class UserController extends BaseController
 
         return redirect('/admin/users')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('User created successfully!')
             ]
         );
@@ -110,7 +110,7 @@ class UserController extends BaseController
 
         return redirect('/admin/users')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('User updated successfully!')
             ]
         );

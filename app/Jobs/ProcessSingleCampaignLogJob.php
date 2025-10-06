@@ -25,7 +25,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
     private $campaignLog;
     private $workspaceId;
     private $whatsappService;
-    
+
     public $timeout = 300; // 5 minutes timeout for single message
     public $tries = 3;
 
@@ -43,20 +43,20 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
                     ->whereIn('status', ['pending', 'failed'])
                     ->lockForUpdate()
                     ->first();
-                       
+
                 if ($lockedLog) {
                     $campaign_user_id = Campaign::find($this->campaignLog->campaign_id)?->created_by;
                     $lockedLog->status = 'ongoing';
                     $lockedLog->save();
-            
+
                     $this->workspaceId = $this->campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
-            
+
                     $template = $this->buildTemplateRequest($this->campaignLog->campaign_id, $this->campaignLog->contact);
                     $responseObject = $this->whatsappService->sendTemplateMessage(
-                        $this->campaignLog->contact->uuid, 
-                        $template, 
-                        $campaign_user_id, 
+                        $this->campaignLog->contact->uuid,
+                        $template,
+                        $campaign_user_id,
                         $this->campaignLog->campaign_id
                     );
 
@@ -73,13 +73,13 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
     {
         $log->chat_id = $responseObject->data->chat->id ?? null;
         $log->status = ($responseObject->success === true) ? 'success' : 'failed';
-        
+
         // Clean up response object
         unset($responseObject->success);
         if (property_exists($responseObject, 'data') && property_exists($responseObject->data, 'chat')) {
             unset($responseObject->data->chat);
         }
-        
+
         $log->metadata = json_encode($responseObject);
         $log->updated_at = now();
         $log->save();
@@ -94,7 +94,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
         $orgMetadata = json_decode($campaign->workspace->metadata ?? '{}', true);
         $retryEnabled = $orgMetadata['campaigns']['enable_resend'] ?? false;
         $retryIntervals = $orgMetadata['campaigns']['resend_intervals'] ?? [];
-    
+
         $pendingOrOngoing = CampaignLog::where('campaign_id', $campaignId)
             ->whereIn('status', ['pending', 'ongoing'])
             ->exists();
@@ -105,7 +105,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
 
         if ($retryEnabled) {
             $logs = CampaignLog::where('campaign_id', $campaignId)->get();
-    
+
             foreach ($logs as $log) {
                 $retryCount = $log->retries()->count();
                 $maxRetries = count($retryIntervals);
@@ -122,7 +122,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
                     if ($delayHours !== null) {
                         RetryCampaignLogJob::dispatch($campaign->Workspace_id, $log->id, $retryCount)->onQueue('campaign-messages')->delay(now()->addMinutes($delayHours));
                     }
-                }  
+                }
             }
         } else {
             // Check again after potential changes
@@ -152,11 +152,11 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
         $this->whatsappService = new WhatsappService(
-            $accessToken, 
-            $apiVersion, 
-            $appId, 
-            $phoneNumberId, 
-            $wabaId, 
+            $accessToken,
+            $apiVersion,
+            $appId,
+            $phoneNumberId,
+            $wabaId,
             $this->workspaceId
         );
     }
@@ -173,11 +173,11 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
         $this->whatsappService = new WhatsappService(
-            $accessToken, 
-            $apiVersion, 
-            $appId, 
-            $phoneNumberId, 
-            $wabaId, 
+            $accessToken,
+            $apiVersion,
+            $appId,
+            $phoneNumberId,
+            $wabaId,
             $this->workspaceId
         );
     }*/

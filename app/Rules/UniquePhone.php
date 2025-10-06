@@ -10,7 +10,7 @@ use Exception;
 class UniquePhone implements Rule
 {
     private $workspaceId;
-    private $uuid; 
+    private $uuid;
 
     public function __construct($workspaceId, $uuid = null)
     {
@@ -25,7 +25,7 @@ class UniquePhone implements Rule
             if (!str_starts_with($value, '+')) {
                 $value = '+' . $value;
             }
-            
+
             $phone = new PhoneNumber($value);
             $formattedPhone = $phone->formatE164();
 
@@ -41,7 +41,6 @@ class UniquePhone implements Rule
 
             return !$query->exists();
         } catch (Exception $e) {
-            // \Log::error($e->getMessage());
             return false;
         }
     }

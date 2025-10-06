@@ -36,6 +36,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class ChatService
 {
     use TemplateTrait;
+    
+    // Constants for repeated string literals
+    const AI_ASSISTANT_MODULE = 'AI Assistant';
 
     private $whatsappService;
     private $workspaceId;
@@ -70,7 +73,7 @@ class ChatService
         $sortDirection = $request->session()->get('chat_sort_direction') ?? 'desc';
         $allowAgentsToViewAllChats = true;
         $ticketingActive = false;
-        $aimodule = CustomHelper::isModuleEnabled('AI Assistant');
+        $aimodule = CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE);
 
         //Check if tickets module has been enabled
         if($config->metadata != null){
@@ -149,7 +152,7 @@ class ChatService
                 return Inertia::render('User/Chat/Index', [
                     'title' => 'Chats',
                     'rows' => ContactResource::collection($contacts),
-                    'simpleForm' => CustomHelper::isModuleEnabled('AI Assistant') && optional(optional($settings)->ai)->ai_chat_form_active ? false : true,
+                    'simpleForm' => CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) && optional(optional($settings)->ai)->ai_chat_form_active ? false : true,
                     'rowCount' => $rowCount,
                     'filters' => request()->all(),
                     'pusherSettings' => $pusherSettings,
@@ -185,7 +188,7 @@ class ChatService
             return Inertia::render('User/Chat/Index', [
                 'title' => 'Chats',
                 'rows' => ContactResource::collection($contacts),
-                'simpleForm' => !CustomHelper::isModuleEnabled('AI Assistant') || empty($settings->ai->ai_chat_form_active),
+                'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty($settings->ai->ai_chat_form_active),
                 'rowCount' => $rowCount,
                 'filters' => request()->all(),
                 'pusherSettings' => $pusherSettings,

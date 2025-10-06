@@ -22,6 +22,9 @@ use Illuminate\Validation\ValidationException;
 
 class AutoReplyService
 {
+    // Constants for repeated string literals
+    const AUTOMATED_FLOWS = 'Automated Flows';
+    
     public function getRows(object $request)
     {
         $workspaceId = session()->get('current_workspace');
@@ -134,10 +137,10 @@ class AutoReplyService
 
         // Override response sequence if there is an active flow
         if ($activeFlow) {
-            $response_sequence = ['Automated Flows'];
+            $response_sequence = [self::AUTOMATED_FLOWS];
         } else {
             // Use the response sequence from metadata or fallback to default
-            $response_sequence = $metadataArray['automation']['response_sequence'] ?? ['Basic Replies', 'Automated Flows', 'AI Reply Assistant'];
+            $response_sequence = $metadataArray['automation']['response_sequence'] ?? ['Basic Replies', self::AUTOMATED_FLOWS, 'AI Reply Assistant'];
         }
 
         // Define mapping of sequence items to functions
@@ -145,7 +148,7 @@ class AutoReplyService
             'Basic Replies' => function() use ($chat) {
                 return $this->handleBasicReplies($chat);
             },
-            'Automated Flows' => function() use ($workspaceId, $chat, $isNewContact) {
+            self::AUTOMATED_FLOWS => function() use ($workspaceId, $chat, $isNewContact) {
                 return $this->handleAutomatedFlows($workspaceId, $chat, $isNewContact);
             },
             'AI Reply Assistant' => function() use ($chat) {

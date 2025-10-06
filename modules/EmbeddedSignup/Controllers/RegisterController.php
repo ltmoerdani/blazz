@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\URL;
 
 class RegisterController extends BaseController
 {
+    // Constants for repeated string literals
+    const BEARER_PREFIX = 'Bearer ';
+    
     private $apiVersion;
 
     public function __construct(){
@@ -221,7 +224,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->get("https://graph.facebook.com/{$this->apiVersion}/debug_token", [
             'input_token' => $token
         ]);
@@ -304,7 +307,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->get("https://graph.facebook.com/{$this->apiVersion}/{$phoneNumberId}", [
             'fields' => 'status',
         ]);
@@ -337,7 +340,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->get("https://graph.facebook.com/{$this->apiVersion}/{$wabaId}", [
             'fields' => 'account_review_status',
         ]);
@@ -370,7 +373,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->get("https://graph.facebook.com/{$this->apiVersion}/{$phoneNumberId}/whatsapp_business_profile", [
             'fields' => 'about,address,description,email,profile_picture_url,websites,vertical',
         ]);
@@ -404,7 +407,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->post("https://graph.facebook.com/{$this->apiVersion}/{$wabaId}/subscribed_apps");
 
         if ($response->successful()) {
@@ -428,7 +431,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->get("https://graph.facebook.com/{$this->apiVersion}/{$wabaId}/subscribed_apps");
 
         if ($response->successful()) {
@@ -452,7 +455,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->post("https://graph.facebook.com/{$this->apiVersion}/{$wabaId}/subscribed_apps", [
             'override_callback_uri' => $callbackUrl,
             'verify_token' => $verifyToken
@@ -479,7 +482,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->post("https://graph.facebook.com/{$this->apiVersion}/{$phoneId}", [
             'webhook_configuration' => [
                 'override_callback_uri' => $callbackUrl,
@@ -508,7 +511,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->delete("https://graph.facebook.com/{$this->apiVersion}/{$wabaId}/subscribed_apps");
 
         if ($response->successful()) {
@@ -532,7 +535,7 @@ class RegisterController extends BaseController
         $responseObject = new \stdClass();
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken
+            'Authorization' => self::BEARER_PREFIX . $accessToken
         ])->post("https://graph.facebook.com/{$this->apiVersion}/".$phoneNumberID."/register", [
             'messaging_product' => "whatsapp",
             'pin' => "123456",
@@ -561,7 +564,7 @@ class RegisterController extends BaseController
         try {
             do {
                 $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $accessToken
+                    'Authorization' => self::BEARER_PREFIX . $accessToken
                 ])->get("https://graph.facebook.com/{$this->apiVersion}/{$wabaId}/message_templates")->throw()->json();
 
                 foreach($response['data'] as $templateData){

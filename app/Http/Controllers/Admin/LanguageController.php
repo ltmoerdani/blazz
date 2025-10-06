@@ -18,6 +18,10 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class LanguageController extends BaseController
 {
+    // Constants for repeated string literals
+    const JSON_EXTENSION = '.json';
+    const ADMIN_LANGUAGES_ROUTE = '/admin/languages';
+    
     protected $langService;
 
     public function __construct(LangService $langService){
@@ -86,7 +90,7 @@ class LanguageController extends BaseController
     public function store(StoreLanguage $request){
         $this->langService->store($request);
 
-        return redirect('/admin/languages')->with(
+        return redirect(self::ADMIN_LANGUAGES_ROUTE)->with(
             'status', [
                 'type' => 'success',
                 'message' => __('Language added successfully!')
@@ -102,7 +106,7 @@ class LanguageController extends BaseController
     public function import(Request $request, $languageCode){
         // Retrieve the path to the JSON language file
         $langDirectory = base_path('lang');
-        $langFilePath = $langDirectory . '/' . $languageCode . '.json';
+        $langFilePath = $langDirectory . '/' . $languageCode . self::JSON_EXTENSION;
 
         // Check if the language file exists
         if (!file_exists($langFilePath)) {
@@ -165,7 +169,7 @@ class LanguageController extends BaseController
     public function update(StoreLanguage $request, $id){
         $this->langService->store($request, $id);
 
-        return redirect('/admin/languages')->with(
+        return redirect(self::ADMIN_LANGUAGES_ROUTE)->with(
             'status', [
                 'type' => 'success',
                 'message' => __('Language updated successfully!')
@@ -176,7 +180,7 @@ class LanguageController extends BaseController
     public function updateTranslation(Request $request, $languageCode, $key){
         // Retrieve the path to the JSON language file
         $langDirectory = base_path('lang');
-        $langFilePath = $langDirectory . '/' . $languageCode . '.json';
+        $langFilePath = $langDirectory . '/' . $languageCode . self::JSON_EXTENSION;
 
         // Check if the language file exists
         if (!file_exists($langFilePath)) {
@@ -232,7 +236,7 @@ class LanguageController extends BaseController
         // Set the application's default locale
         App::setLocale($languageCode);
 
-        return redirect('/admin/languages')->with(
+        return redirect(self::ADMIN_LANGUAGES_ROUTE)->with(
             'status', [
                 'type' => 'success',
                 'message' => __('Language updated successfully!')
@@ -243,7 +247,7 @@ class LanguageController extends BaseController
     public function destroy(Request $request, $id){
         $this->langService->delete($request, $id);
 
-        return redirect('/admin/languages')->with(
+        return redirect(self::ADMIN_LANGUAGES_ROUTE)->with(
             'status', [
                 'type' => 'success',
                 'message' => __('Language deleted successfully!')
