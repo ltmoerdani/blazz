@@ -68,7 +68,7 @@ class SubscriptionController extends BaseController
             } else {
                 return Redirect::back()->with(
                     'status', [
-                        'type' => 'error', 
+                        'type' => 'error',
                         'message' => $response->error
                     ]
                 );
@@ -76,7 +76,7 @@ class SubscriptionController extends BaseController
         } else {
             return Redirect::route('user.billing.index')->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Your subscription has been updated successfully!')
                 ]
             );
@@ -103,7 +103,7 @@ class SubscriptionController extends BaseController
 
         /*return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Coupon applied successfully!')
             ]
         );*/

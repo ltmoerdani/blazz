@@ -265,7 +265,7 @@ class SendCampaignJob implements ShouldQueue
                     $log->save();
             
                     //Set workspace Id & initialize whatsapp service
-                    $this->organizationId = $campaignLog->campaign->workspace_id;
+                    $this->workspaceId = $campaignLog->campaign->workspace_id;
                     $this->initializeWhatsappService();
             
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
@@ -303,7 +303,7 @@ class SendCampaignJob implements ShouldQueue
                     $retryLog->save();
             
                     //Set workspace Id & initialize whatsapp service
-                    $this->organizationId = $campaignLog->campaign->workspace_id;
+                    $this->workspaceId = $campaignLog->campaign->workspace_id;
                     $this->initializeWhatsappService();
             
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
@@ -360,7 +360,7 @@ class SendCampaignJob implements ShouldQueue
 
     private function initializeWhatsappService()
     {
-        $config = workspace::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -369,7 +369,7 @@ class SendCampaignJob implements ShouldQueue
         $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->organizationId);
+        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
 
     protected function addContactToFailedGroup($campaignLog)

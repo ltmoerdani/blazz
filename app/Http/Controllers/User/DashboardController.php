@@ -67,8 +67,8 @@ class DashboardController extends BaseController
     }
 
     public function dismissNotification(Request $request, $type){
-        $currentOrganizationId = session()->get('current_workspace');
-        $workspaceConfig = workspace::where('id', $currentOrganizationId)->first();
+        $currentworkspaceId = session()->get('current_workspace');
+        $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
 
         $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
@@ -83,7 +83,7 @@ class DashboardController extends BaseController
 
         return redirect()->route('dashboard')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Notification dismissed successfully!')
             ]
         );

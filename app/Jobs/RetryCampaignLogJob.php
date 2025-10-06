@@ -27,7 +27,7 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
 
     public function __construct(int $workspaceId, int $campaignLogId, int $retryIndex)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
         $this->campaignLogId = $campaignLogId;
         $this->retryIndex = $retryIndex;
     }
@@ -104,7 +104,7 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
                 if (isset($intervals[$this->retryIndex])) {
                     if($this->retryIndex + 1 < $maxRetries){
                         $nextInterval = $intervals[$this->retryIndex + 1];
-                        self::dispatch($this->organizationId, $log->id, $this->retryIndex + 1)->onQueue('campaign-messages')->delay(now()->addMinutes($nextInterval));
+                        self::dispatch($this->workspaceId, $log->id, $this->retryIndex + 1)->onQueue('campaign-messages')->delay(now()->addMinutes($nextInterval));
                     }
                 } 
                 
@@ -142,11 +142,11 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
 
     private function initializeWhatsappService()
     {
-        $config = cache()->remember("workspace.{$this->organizationId}.metadata", 3600, function() {
-            return workspace::find($this->organizationId)->metadata ?? [];
+        $config = cache()->remember("workspace.{$this->workspaceId}.metadata", 3600, function() {
+            return workspace::find($this->workspaceId)->metadata ?? [];
         });
 
-        $config = workspace::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -161,7 +161,7 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
             $appId, 
             $phoneNumberId, 
             $wabaId, 
-            $this->organizationId
+            $this->workspaceId
         );
     }
 }

@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
 use App\Rules\ContactLimit;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
@@ -117,7 +118,7 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
             $metadata = [];
 
             foreach ($contactFields as $field) {
-                $normalizedField = strtolower($field); 
+                $normalizedField = strtolower($field);
 
                 if (isset($row[$normalizedField])) {
                     $metadata[$field] = $row[$normalizedField];
@@ -128,7 +129,7 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
                 'workspace_id'  => $workspaceId,
                 'first_name'  => $row['first_name'],
                 'last_name'   => $row['last_name'],
-                'phone'       => phone($phoneNumberValue)->formatE164(), 
+                'phone'       => phone($phoneNumberValue)->formatE164(),
                 'email'       => $row['email'],
                 'address'     => json_encode([
                     'street'  => $row['street'] ?? null,
@@ -137,8 +138,8 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
                     'zip'     => $row['zip'] ?? null,
                     'country' => $row['country'] ?? null
                 ]),
-                'metadata'    => !empty($metadata) ? json_encode($metadata) : null, 
-                'created_by'  => auth()->user()->id,
+                'metadata'    => !empty($metadata) ? json_encode($metadata) : null,
+                'created_by'  => Auth::id(),
             ]);
 
             if($contact){
@@ -155,7 +156,7 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
                             'name'            => $groupName,
                             'deleted_at'      => null
                         ], [
-                            'created_by' => auth()->user()->id,
+                            'created_by' => Auth::id(),
                         ]);
 
                         // Attach contact to the group via pivot table

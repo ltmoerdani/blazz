@@ -13,13 +13,13 @@ class CannedReplyLimit implements Rule
 
     public function __construct($workspaceId, $ignoreId = null)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
         $this->ignoreId = $ignoreId;
     }
     
     public function passes($attribute, $value)
     {
-        return !SubscriptionService::isSubscriptionFeatureLimitReached($this->organizationId, 'canned_replies_limit');
+        return !SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'canned_replies_limit');
     }
 
     public function message()

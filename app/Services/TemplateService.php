@@ -21,13 +21,13 @@ class TemplateService
 
     public function __construct($workspaceId)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
         $this->initializeWhatsappService();
     }
 
     private function initializeWhatsappService()
     {
-        $config = workspace::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -36,7 +36,7 @@ class TemplateService
         $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->organizationId);
+        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
 
     public function getTemplates(Request $request, $uuid = null, $searchTerm = null)
@@ -57,7 +57,7 @@ class TemplateService
     private function getTemplatesListResponse(Request $request)
     {
         if ($request->expectsJson()) {
-            $rows = Template::where('workspace_id', $this->organizationId)->where('deleted_at', null)
+            $rows = Template::where('workspace_id', $this->workspaceId)->where('deleted_at', null)
                 ->get()
                 ->map(function ($row) {
                     return [
@@ -73,7 +73,7 @@ class TemplateService
             'title' => __('templates'),
             'allowCreate' => true,
             'rows' => TemplateResource::collection(
-                Template::where('workspace_id', $this->organizationId)->where('deleted_at', null)->latest()->paginate(10)
+                Template::where('workspace_id', $this->workspaceId)->where('deleted_at', null)->latest()->paginate(10)
             ),
         ]);
     }
@@ -95,7 +95,7 @@ class TemplateService
     {
         if ($request->isMethod('get')){
             $data['languages'] = config('languages');
-            $data['settings'] = workspace::where('id', $this->organizationId)->first();
+            $data['settings'] = workspace::where('id', $this->workspaceId)->first();
             
             return Inertia::render('User/Templates/Add', $data);
         } else if ($request->isMethod('post')){
@@ -159,7 +159,7 @@ class TemplateService
 
     protected function abortIfDemo($type)
     {
-        if (app()->environment('demo') && $this->organizationId == 1) {
+        if (app()->environment('demo') && $this->workspaceId == 1) {
             if($type == 'delete'){
                 return response()->json([
                     'success' => false,

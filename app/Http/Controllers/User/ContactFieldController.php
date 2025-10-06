@@ -8,7 +8,7 @@ use App\Http\Requests\StoreContactField;
 use App\Services\ContactFieldService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
-use Illuminate\Validation\Rule; 
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ContactFieldController extends BaseController
@@ -28,7 +28,7 @@ class ContactFieldController extends BaseController
 
         return redirect('/settings/contacts')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact field added successfully')
             ]
         );
@@ -48,7 +48,7 @@ class ContactFieldController extends BaseController
 
         return redirect('/settings/contacts')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact field updated successfully')
             ]
         );
@@ -60,7 +60,7 @@ class ContactFieldController extends BaseController
 
         return redirect('/settings/contacts')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact field deleted successfully')
             ]
         );

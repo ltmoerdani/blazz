@@ -11,14 +11,15 @@ use App\Models\ContactGroup;
 use App\Http\Requests\StoreContactGroup;
 use App\Http\Resources\ContactGroupResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
-use Excel;
-use Validator;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ContactGroupController extends BaseController
 {
-    private function getCurrentOrganizationId()
+    private function getCurrentworkspaceId()
     {
         return session()->get('current_workspace');
     }
@@ -28,7 +29,7 @@ class ContactGroupController extends BaseController
         if($uuid === 'export') {
             return Excel::download(new ContactGroupsExport, 'contact-groups.xlsx');
         } else {
-            $workspaceId = $this->getCurrentOrganizationId();
+            $workspaceId = $this->getCurrentworkspaceId();
             $contactGroupModel = new ContactGroup;
 
             $searchTerm = $request->query('search');
@@ -48,7 +49,7 @@ class ContactGroupController extends BaseController
         }
     }
 
-    public function import(Request $request) 
+    public function import(Request $request)
     {
         $import = new ContactGroupsImport();
         Excel::import($import, $request->file);
@@ -72,7 +73,7 @@ class ContactGroupController extends BaseController
 
         return redirect('/contact-groups')->with(
             'status', [
-                'type' => $statusType, 
+                'type' => $statusType,
                 'message' => $statusMessage,
                 'import_summary' => array(
                     'total_imports' => $totalImports,
@@ -90,9 +91,9 @@ class ContactGroupController extends BaseController
     public function store(StoreContactGroup $request)
     {
         $contactGroup = new ContactGroup();
-        $contactGroup->organization_id = $this->getCurrentOrganizationId();
+        $contactGroup->organization_id = $this->getCurrentworkspaceId();
         $contactGroup->name = $request->name;
-        $contactGroup->created_by = auth()->user()->id;
+        $contactGroup->created_by = Auth::id();
         $contactGroup->created_at = now();
         $contactGroup->updated_at = now();
         $contactGroup->save();

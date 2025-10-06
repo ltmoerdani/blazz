@@ -38,7 +38,7 @@ class WhatsappService
         $this->appId = $appId;
         $this->phoneNumberId = $phoneNumberId;
         $this->wabaId = $wabaId;
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
 
         Config::set('broadcasting.connections.pusher', [
             'driver' => 'pusher',
@@ -1284,7 +1284,7 @@ class WhatsappService
                 $profile_picture_url = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
             } else if($storage === 'aws') {
                 $file = $request->file('profile_picture_url');
-                $uploadedFile = $file->store('uploads/media/sent/' . $this->organizationId, 's3');
+                $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
                 $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
                 $profile_picture_url = $mediaFilePath;
             }
@@ -1299,7 +1299,7 @@ class WhatsappService
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
         if($responseObject->success === true){
-            $workspaceConfig = workspace::where('id', $this->organizationId)->first();
+            $workspaceConfig = workspace::where('id', $this->workspaceId)->first();
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['whatsapp']['business_profile']['about'] = $request->about;

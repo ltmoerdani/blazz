@@ -17,7 +17,7 @@ class ContactService
 
     public function __construct($workspaceId)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
     }
 
     public function store(object $request, $uuid = null){
@@ -41,7 +41,7 @@ class ContactService
                 $contact->avatar = '/media/' . ltrim($mediaFilePath, '/');
             } else if($storage === 'aws') {
                 $file = $request->file('file');
-                $uploadedFile = $file->store('uploads/media/contacts/' . $this->organizationId, 's3');
+                $uploadedFile = $file->store('uploads/media/contacts/' . $this->workspaceId, 's3');
                 $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
 
                 $contact->avatar = $mediaFilePath;
@@ -49,7 +49,7 @@ class ContactService
         }
 
         if($uuid === null){
-            $contact->organization_id = $this->organizationId;
+            $contact->organization_id = $this->workspaceId;
             $contact->created_by = auth()->user() ? auth()->user()->id : 0;
             $contact->created_at = now();
         }
@@ -77,7 +77,7 @@ class ContactService
         $cleanContact = $contact->makeHidden(['id', 'workspace_id', 'created_by']);
 
         // Trigger webhook
-        WebhookHelper::triggerWebhookEvent($uuid === null ? 'contact.created' : 'contact.updated', $cleanContact, $this->organizationId);
+        WebhookHelper::triggerWebhookEvent($uuid === null ? 'contact.created' : 'contact.updated', $cleanContact, $this->workspaceId);
 
         return $contact;
     }
@@ -94,8 +94,8 @@ class ContactService
 
         if (empty($uuids)) {
             // Delete all contacts (soft delete)
-            $contacts = Contact::where('workspace_id', $this->organizationId)->get();
-            Contact::whereNotNull('id')->where('workspace_id', $this->organizationId)->delete();
+            $contacts = Contact::where('workspace_id', $this->workspaceId)->get();
+            Contact::whereNotNull('id')->where('workspace_id', $this->workspaceId)->delete();
 
             // Prepare deleted contacts for the webhook
             foreach ($contacts as $contact) {
@@ -106,7 +106,7 @@ class ContactService
             }
 
             //Mark all unread chats as read
-            Chat::where('workspace_id', $this->organizationId)
+            Chat::where('workspace_id', $this->workspaceId)
                 ->where('type', 'inbound')
                 ->whereNull('deleted_at')
                 ->where('is_read', 0)
@@ -134,12 +134,12 @@ class ContactService
                     ]);
             }
 
-            Contact::whereIn('uuid', $uuids)->where('workspace_id', $this->organizationId)->delete();
+            Contact::whereIn('uuid', $uuids)->where('workspace_id', $this->workspaceId)->delete();
         }
 
         // Trigger webhook with deleted contacts
         WebhookHelper::triggerWebhookEvent('contact.deleted', [
             'list' => $deletedContacts
-        ], $this->organizationId);
+        ], $this->workspaceId);
     }
 }

@@ -17,6 +17,7 @@ use App\Services\BillingService;
 use App\Services\SubscriptionService;
 use App\Services\SubscriptionPlanService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
@@ -56,7 +57,7 @@ class SubscriptionController extends BaseController
     }
 
     public function store(Request $request){
-        $userId = auth()->user()->id;
+        $userId = Auth::id();
         $planId = $request->plan;
         $workspaceId = session()->get('current_workspace');
 
@@ -68,7 +69,7 @@ class SubscriptionController extends BaseController
             } else {
                 return Redirect::back()->with(
                     'status', [
-                        'type' => 'error', 
+                        'type' => 'error',
                         'message' => $response->error
                     ]
                 );
@@ -76,7 +77,7 @@ class SubscriptionController extends BaseController
         } else {
             return Redirect::route('user.billing.index')->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Your subscription has been updated successfully!')
                 ]
             );
@@ -103,7 +104,7 @@ class SubscriptionController extends BaseController
 
         /*return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Coupon applied successfully!')
             ]
         );*/

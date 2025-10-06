@@ -18,15 +18,16 @@ use App\Rules\ContactLimit;
 use App\Rules\UniquePhone;
 use App\Services\ChatService;
 use App\Services\ContactService;
+use App\Services\MediaService;
 use App\Services\SubscriptionService;
 use App\Services\WhatsappService;
 use App\Traits\TemplateTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Propaganistas\LaravelPhone\PhoneNumber;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use DB;
 
 class ApiController extends Controller
 {
@@ -95,7 +96,7 @@ class ApiController extends Controller
         }
 
         if ($request->isMethod('post')) {
-            if(!SubscriptionService::isSubscriptionFeatureLimitReached($request->organizationId, 'contacts_limit')){
+            if(!SubscriptionService::isSubscriptionFeatureLimitReached($request->workspaceId, 'contacts_limit')){
                 return response()->json([
                     'statusCode' => 403,
                     'message' => __('You have reached your limit of contacts. Please upgrade your account to add more!'),
@@ -190,7 +191,7 @@ class ApiController extends Controller
             ];
         } else {
             $rules = [
-                'name' => [ 
+                'name' => [
                     'required',
                     Rule::unique('contact_groups', 'name')->where(function ($query) use ($workspaceId, $uuid) {
                         return $query->where('workspace_id', $workspaceId)
@@ -337,7 +338,7 @@ class ApiController extends Controller
         }
 
         if ($request->isMethod('post')) {
-            if(!SubscriptionService::isSubscriptionFeatureLimitReached($request->organizationId, 'canned_replies_limit')){
+            if(!SubscriptionService::isSubscriptionFeatureLimitReached($request->workspaceId, 'canned_replies_limit')){
                 return response()->json([
                     'statusCode' => 403,
                     'message' => __('You\'ve reached your limit. Upgrade your account'),

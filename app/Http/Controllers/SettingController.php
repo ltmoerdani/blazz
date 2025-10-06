@@ -16,11 +16,13 @@ use App\Services\ContactFieldService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
-use Validator;
 
 class SettingController extends BaseController
 {
+    protected $contactFieldService;
+
     public function __construct(ContactFieldService $contactFieldService)
     {
         $this->contactFieldService = $contactFieldService;
@@ -139,8 +141,8 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_workspace');
-            $workspaceConfig = workspace::where('id', $currentOrganizationId)->first();
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
@@ -153,7 +155,7 @@ class SettingController extends BaseController
 
             return back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Settings updated successfully')
                 ]
             );
@@ -173,8 +175,8 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_workspace');
-            $workspaceConfig = workspace::where('id', $currentOrganizationId)->first();
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
@@ -190,7 +192,7 @@ class SettingController extends BaseController
 
             /*return back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Settings updated successfully')
                 ]
             );*/
@@ -207,8 +209,8 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_workspace');
-            $workspaceConfig = workspace::where('id', $currentOrganizationId)->first();
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
             $metadataArray['automation']['response_sequence'] = $request->response_sequence;
@@ -219,7 +221,7 @@ class SettingController extends BaseController
 
             /*return back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Settings updated successfully')
                 ]
             );*/
@@ -249,14 +251,14 @@ class SettingController extends BaseController
             if($response->success === true){
                 return back()->with(
                     'status', [
-                        'type' => 'success', 
+                        'type' => 'success',
                         'message' => __('Your whatsapp business profile has been changed successfully!')
                     ]
                 );
             } else {
                 return back()->with(
                     'status', [
-                        'type' => 'error', 
+                        'type' => 'error',
                         'message' => __('Something went wrong! Your business profile could not be updated!')
                     ]
                 );
@@ -265,7 +267,7 @@ class SettingController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => 'error', 
+                'type' => 'error',
                 'message' => __('Setup your whatsapp integration first!')
             ]
         );
@@ -314,7 +316,7 @@ class SettingController extends BaseController
 
             return back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Your integration has been removed successfully!')
                 ]
             );
@@ -322,7 +324,7 @@ class SettingController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => 'error', 
+                'type' => 'error',
                 'message' => __('Setup your whatsapp integration first!')
             ]
         );
@@ -339,19 +341,19 @@ class SettingController extends BaseController
         if(!$phoneNumberResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $phoneNumberResponse->data->error->message
                 ]
             );
         }
 
         //Get Phone Number Status
-        $phoneNumberStatusResponse = $whatsappService->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id); 
+        $phoneNumberStatusResponse = $whatsappService->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id);
         
         if(!$phoneNumberStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $phoneNumberStatusResponse->data->error->message
                 ]
             );
@@ -363,19 +365,19 @@ class SettingController extends BaseController
         if(!$accountReviewStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $accountReviewStatusResponse->data->error->message
                 ]
             );
         }
 
         //Get business profile
-        $businessProfileResponse = $whatsappService->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);  
+        $businessProfileResponse = $whatsappService->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);
         
         if(!$businessProfileResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $businessProfileResponse->data->error->message
                 ]
             );
@@ -414,14 +416,14 @@ class SettingController extends BaseController
 
             return back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Whatsapp settings updated successfully')
                 ]
             );
         } else {
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Something went wrong. Refresh the page and try again')
                 ]
             );
@@ -434,7 +436,7 @@ class SettingController extends BaseController
         if (app()->environment('demo') && $workspaceId == 1) {
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('You cannot perform this action using the demo account. To test this feature, please create your own account.')
                 ]
             );
