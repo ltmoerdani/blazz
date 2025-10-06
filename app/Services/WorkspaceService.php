@@ -25,16 +25,16 @@ use Propaganistas\LaravelPhone\PhoneNumber;
 class WorkspaceService
 {
     /**
-     * Get all organizations based on the provided request filters.
+     * Get all workspaces based on the provided request filters.
      *
      * @param Request $request
      * @return mixed
      */
     public function get(object $request, $userId = null)
     {
-        $organizations = (new workspace)->listAll($request->query('search'), $userId);
+        $workspaces = (new workspace)->listAll($request->query('search'), $userId);
 
-        return WorkspacesResource::collection($organizations);
+        return WorkspacesResource::collection($workspaces);
     }
 
     /**

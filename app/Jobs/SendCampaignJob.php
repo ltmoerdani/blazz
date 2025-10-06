@@ -91,7 +91,7 @@ class SendCampaignJob implements ShouldQueue
     protected function getContactsForCampaign(Campaign $campaign)
     {
         if (empty($campaign->contact_group_id) || $campaign->contact_group_id === '0') {
-            return Contact::where('workspace_id', $campaign->organization_id)
+            return Contact::where('workspace_id', $campaign->Workspace_id)
                 ->whereNull('deleted_at')
                 ->get();
         }
@@ -265,7 +265,7 @@ class SendCampaignJob implements ShouldQueue
                     $log->save();
             
                     //Set workspace Id & initialize whatsapp service
-                    $this->workspaceId = $campaignLog->campaign->organization_id;
+                    $this->workspaceId = $campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
             
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
@@ -303,7 +303,7 @@ class SendCampaignJob implements ShouldQueue
                     $retryLog->save();
             
                     //Set workspace Id & initialize whatsapp service
-                    $this->workspaceId = $campaignLog->campaign->organization_id;
+                    $this->workspaceId = $campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
             
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);

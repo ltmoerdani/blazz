@@ -85,7 +85,7 @@ class AuditLoggingMiddleware
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'user_id' => $request->user()?->id,
-            'workspace_id' => $this->getOrganizationContext($request),
+            'workspace_id' => $this->getWorkspaceContext($request),
             'session_id' => session()->getId(),
             'request_id' => $this->generateRequestId(),
             'timestamp' => now(),
@@ -371,7 +371,7 @@ class AuditLoggingMiddleware
             'severity' => $this->determineIncidentSeverity($response),
             'ip_address' => $request->ip(),
             'user_id' => $request->user()?->id,
-            'workspace_id' => $this->getOrganizationContext($request),
+            'workspace_id' => $this->getWorkspaceContext($request),
             'endpoint' => $request->route()?->getName(),
             'status_code' => $response->getStatusCode(),
         ];
@@ -477,7 +477,7 @@ class AuditLoggingMiddleware
     /**
      * Get workspace context dari request (session atau API)
      */
-    private function getOrganizationContext(Request $request): ?int
+    private function getWorkspaceContext(Request $request): ?int
     {
         // Web routes: workspace dari session (SetWorkspaceFromSession middleware)
         $orgId = session('current_workspace');

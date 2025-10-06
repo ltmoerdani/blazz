@@ -64,7 +64,7 @@ class BillingController extends BaseController
                     ]
                 );
             }
-        } else if($request->has('hostedpage')){
+        } elseif($request->has('hostedpage')){
             if (file_exists(base_path('modules/Pabbly/Services/PabblyService.php'))) {
                 $data['isPaymentLoading'] = true;
 

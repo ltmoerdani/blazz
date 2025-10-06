@@ -221,7 +221,7 @@ class ApiController extends Controller
 
         try {
             $contactGroup = $request->isMethod('post') ? new ContactGroup() : ContactGroup::where('uuid', $uuid)->firstOrFail();
-            $contactGroup->organization_id = $request->workspace;
+            $contactGroup->Workspace_id = $request->workspace;
             $contactGroup->name = $request->name;
             $contactGroup->created_by = 0;
             $contactGroup->save();
@@ -364,7 +364,7 @@ class ApiController extends Controller
                     $metadata['data']['file']['name'] = $media->file->name;
                     $metadata['data']['file']['location'] = $media->file->location;
                 }
-            } else if($request->response_type === 'text') {
+            } elseif($request->response_type === 'text') {
                 $metadata['data']['text'] = $request->response;
             } else {
                 $metadata['data']['template'] = $request->response;
@@ -485,7 +485,7 @@ class ApiController extends Controller
 
         if(!$contact){
             $contact = new Contact();
-            $contact->organization_id = $request->workspace;
+            $contact->Workspace_id = $request->workspace;
             $contact->first_name = $request->first_name;
             $contact->last_name = $request->last_name;
             $contact->email = $request->email;
@@ -559,7 +559,7 @@ class ApiController extends Controller
 
         if(!$contact){
             $contact = new Contact();
-            $contact->organization_id = $request->workspace;
+            $contact->Workspace_id = $request->workspace;
             $contact->first_name = $request->first_name;
             $contact->last_name = $request->last_name;
             $contact->email = $request->email;
@@ -626,7 +626,7 @@ class ApiController extends Controller
 
         if(!$contact){
             $contact = new Contact();
-            $contact->organization_id = $request->workspace;
+            $contact->Workspace_id = $request->workspace;
             $contact->first_name = $request->first_name;
             $contact->last_name = $request->last_name;
             $contact->email = $request->email;
@@ -637,7 +637,6 @@ class ApiController extends Controller
 
         // Extract the UUID of the contact
         $this->initializeWhatsappService($request->workspace);
-        $type = !isset($request->buttons) ? 'text' : 'interactive';
 
         $message = $this->whatsappService->sendMedia($contact->uuid, $request->media_type, $request->file_name, $request->media_url, $request->media_url, 'amazon');
         
@@ -733,7 +732,7 @@ class ApiController extends Controller
                 ], 401);
             }
 
-            $workspaceId = $token->organization_id;
+            $workspaceId = $token->Workspace_id;
 
             if (!SubscriptionService::isSubscriptionActive($workspaceId)) {
                 return response()->json([

@@ -20,10 +20,10 @@ class BillingService
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request, $organizationUuid = null)
+    public function get(object $request, $WorkspaceUuid = null)
     {
-        if ($organizationUuid !== null) {
-            $workspace = workspace::with('subscription.plan')->where('uuid', $organizationUuid)->first();
+        if ($WorkspaceUuid !== null) {
+            $workspace = workspace::with('subscription.plan')->where('uuid', $WorkspaceUuid)->first();
             $workspaceId = optional($workspace)->id;
         } else {
             $workspaceId = null;
@@ -75,7 +75,7 @@ class BillingService
 
             //Activate workspace's plan if credits cover cost of plan
             $subscriptionService = new SubscriptionService();
-            $activate = $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, Auth::id());
+            $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, Auth::id());
 
             return $transaction;
         });

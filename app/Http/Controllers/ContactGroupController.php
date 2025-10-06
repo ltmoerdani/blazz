@@ -91,7 +91,7 @@ class ContactGroupController extends BaseController
     public function store(StoreContactGroup $request)
     {
         $contactGroup = new ContactGroup();
-        $contactGroup->organization_id = $this->getCurrentworkspaceId();
+        $contactGroup->Workspace_id = $this->getCurrentworkspaceId();
         $contactGroup->name = $request->name;
         $contactGroup->created_by = Auth::id();
         $contactGroup->created_at = now();

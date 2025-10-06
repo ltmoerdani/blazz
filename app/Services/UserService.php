@@ -18,13 +18,13 @@ use Propaganistas\LaravelPhone\PhoneNumber;
 
 class UserService
 {
-    protected $organizationService;
+    protected $WorkspaceService;
     protected $workspace;
     protected $role;
 
     public function __construct($role)
     {
-        $this->organizationService = new WorkspaceService();
+        $this->WorkspaceService = new WorkspaceService();
         $this->role = $role;
     }
 
@@ -57,7 +57,7 @@ class UserService
             $result = ['user' => null];
     
             if ($this->role === 'user') {
-                $result['organizations'] = null;
+                $result['workspaces'] = null;
             } else {
                 $result['roles'] = $roles;
             }
@@ -69,8 +69,8 @@ class UserService
 
         if ($this->role === 'user') {
             $query->where('role', '=', 'user');
-            $organizations = $this->organizationService->get($request, $query->first()->id);
-            $result = ['user' => $query->first(), 'organizations' => $organizations];
+            $workspaces = $this->WorkspaceService->get($request, $query->first()->id);
+            $result = ['user' => $query->first(), 'workspaces' => $workspaces];
         } else {
             $query->where('role', '!=', 'user');
             $result = ['user' => $query->first(), 'roles' => $roles];
@@ -112,22 +112,22 @@ class UserService
                 'password' => $request->input('password'),
             ]);
 
-            if($this->role === 'user' && $request->has('organization_name')){
+            if($this->role === 'user' && $request->has('Workspace_name')){
                 $timestamp = now()->format('YmdHis');
                 $randomString = Str::random(4);
                 $userId = $newUser->id;
                 $creatorId = Auth::check() ? Auth::id() : $newUser->id;
 
                 //Create workspace
-                $newOrganization = workspace::create([
+                $newWorkspace = workspace::create([
                     'identifier' => $timestamp . $userId . $randomString,
-                    'name' => $request->input('organization_name'),
+                    'name' => $request->input('Workspace_name'),
                     'created_by' => $creatorId
                 ]);
 
                 //Create Team
-                $team = Team::create([
-                    'workspace_id' => $newOrganization->id,
+                Team::create([
+                    'workspace_id' => $newWorkspace->id,
                     'user_id' => $userId,
                     'role' => 'owner',
                     'status' => 'active',
@@ -139,7 +139,7 @@ class UserService
 
                 //Create Subscription
                 Subscription::create([
-                    'workspace_id' => $newOrganization->id,
+                    'workspace_id' => $newWorkspace->id,
                     'status' => $has_trial ? 'trial' : 'active',
                     'plan_id' => null,
                     'start_date' => now(),

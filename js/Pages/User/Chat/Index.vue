@@ -82,7 +82,7 @@
         rows: Array,
         rowCount: Number,
         pusherSettings: Object,
-        organizationId: Number,
+        WorkspaceId: Number,
         isChatLimitReached: Boolean,
         toggleNavBar: Function,
         state: String,
@@ -185,7 +185,7 @@
             props.pusherSettings['pusher_app_cluster']
         );
 
-        echo.channel('chats.ch' + props.organizationId)
+        echo.channel('chats.ch' + props.WorkspaceId)
             .listen('NewChatEvent', (event) => {
                 updateSidePanel(event.chat);
             });

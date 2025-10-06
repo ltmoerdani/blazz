@@ -38,7 +38,7 @@ class Chat extends Model {
     
     public function getCreatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
     
     public function contact()

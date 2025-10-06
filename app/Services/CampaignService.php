@@ -31,8 +31,8 @@ class CampaignService
 
         $timezone = Setting::where('key', 'timezone')->value('value');
         $workspace = workspace::find($workspaceId);
-        $organizationMetadata = json_decode($workspace->metadata ?? '{}', true);
-        $timezone = $organizationMetadata['timezone'] ?? $timezone;
+        $WorkspaceMetadata = json_decode($workspace->metadata ?? '{}', true);
+        $timezone = $WorkspaceMetadata['timezone'] ?? $timezone;
 
         $template = Template::where('uuid', $request->template)->first();
         $contactGroup = ContactGroup::where('uuid', $request->contacts)->first();

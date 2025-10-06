@@ -51,7 +51,7 @@
     });
 
     const categoryOptions = ref([]);
-    const organizationOptions = ref([]);
+    const WorkspaceOptions = ref([]);
 
     function loadUsers(query, setOptions) {
         fetch("/admin/users?search=" + query, {

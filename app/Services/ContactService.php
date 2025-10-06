@@ -32,7 +32,6 @@ class ContactService
 
         if($request->hasFile('file')){
             $storage = Setting::where('key', 'storage_system')->first()->value;
-            $fileName = $request->file('file')->getClientOriginalName();
             $fileContent = $request->file('file');
 
             if($storage === 'local'){
@@ -52,7 +51,7 @@ class ContactService
         }
 
         if($uuid === null){
-            $contact->organization_id = $this->workspaceId;
+            $contact->Workspace_id = $this->workspaceId;
             $contact->created_by = Auth::check() ? Auth::id() : 0;
             $contact->created_at = now();
         }

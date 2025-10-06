@@ -85,7 +85,7 @@ class TeamService
 
             $team = Team::updateOrCreate(
                 [
-                    'workspace_id' => $invite->organization_id,
+                    'workspace_id' => $invite->Workspace_id,
                     'user_id' => $user->id,
                 ],
                 [
@@ -100,7 +100,7 @@ class TeamService
 
             Auth::guard('user')->loginUsingId($user->id);
 
-            session()->put('current_workspace', $invite->organization_id);
+            session()->put('current_workspace', $invite->Workspace_id);
         } catch (\Exception $e) {
             Log::error('Exception: ' . $e->getMessage());
             //dd($e->getMessage());

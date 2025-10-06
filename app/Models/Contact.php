@@ -21,12 +21,12 @@ class Contact extends Model {
 
     public function getCreatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function getUpdatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function getAllContacts($workspaceId, $searchTerm)
@@ -105,7 +105,7 @@ class Contact extends Model {
     public function contactsWithChats($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
     {
         $query = $this->newQuery()
-            ->where('contacts.organization_id', $workspaceId)
+            ->where('contacts.Workspace_id', $workspaceId)
             ->whereNotNull('contacts.latest_chat_created_at')
             ->with(['lastChat', 'lastInboundChat'])
             ->whereNull('contacts.deleted_at')
@@ -115,7 +115,7 @@ class Contact extends Model {
                     ->selectRaw('MAX(created_at)')
                     ->whereColumn('chats.contact_id', 'contacts.id')
                     ->whereNull('chats.deleted_at')
-                    ->where('chats.organization_id', $workspaceId);
+                    ->where('chats.Workspace_id', $workspaceId);
             }, 'last_chat_created_at');
 
         // Apply ticketing conditions if active
@@ -153,7 +153,7 @@ class Contact extends Model {
         return $contacts;
 
         /*$query = $this->newQuery()
-            ->where('contacts.organization_id', $workspaceId)
+            ->where('contacts.Workspace_id', $workspaceId)
             ->whereNotNull('contacts.latest_chat_created_at')
             ->whereNull('contacts.deleted_at')
             ->with(['lastChat', 'lastInboundChat'])
@@ -206,7 +206,7 @@ class Contact extends Model {
     public function contactsWithChatsCount($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
     {
         $query = $this->newQuery()
-            ->where('contacts.organization_id', $workspaceId)
+            ->where('contacts.Workspace_id', $workspaceId)
             ->whereNotNull('contacts.latest_chat_created_at')
             ->whereNull('contacts.deleted_at')
             ->with(['lastChat', 'lastInboundChat'])

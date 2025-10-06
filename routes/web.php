@@ -255,7 +255,7 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::post('/translations/{languageCode}/{key}', [App\Http\Controllers\Admin\LanguageController::class, 'updateTranslation']);
 
     //* Route::get('/pages', [App\Http\Controllers\Admin\PageController::class, 'index']);
-    //* Route::get('/users/{uuid}/organizations', [App\Http\Controllers\Admin\CustomerController::class, 'userWorkspaces']);
+    //* Route::get('/users/{uuid}/workspaces', [App\Http\Controllers\Admin\CustomerController::class, 'userWorkspaces']);
     //* Route::get('/subscriptions', [App\Http\Controllers\Admin\SubscriptionController::class, 'index']);
     Route::get('/payment-logs', [App\Http\Controllers\Admin\PaymentController::class, 'index']);
 

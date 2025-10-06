@@ -14,7 +14,7 @@ class CouponService
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request)
+    public function get()
     {
         $rows = Coupon::where('deleted_at', null)->latest()->paginate(10);
 
@@ -46,7 +46,7 @@ class CouponService
      * @param string $uuid
      * @return bool
      */
-    public function deletePost($request, $uuid)
+    public function deletePost($uuid)
     {
         return Coupon::where('uuid', $uuid)->update(['deleted' => 1]);
     }

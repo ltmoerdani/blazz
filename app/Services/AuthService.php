@@ -26,7 +26,7 @@ class AuthService
             Auth::guard('user')->attempt(['email' => $request->email, 'password' => $request->password]);
             $team = Team::where('user_id', $this->user->id)->first();
 
-            session()->put('current_workspace', $team->organization_id);
+            session()->put('current_workspace', $team->Workspace_id);
         }
     }
 }

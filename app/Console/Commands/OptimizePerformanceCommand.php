@@ -190,12 +190,12 @@ class OptimizePerformanceCommand extends Command
     {
         try {
             // Cache workspace metrics untuk dashboard
-            DB::table('organizations')
+            DB::table('workspaces')
                 ->select('id')
                 ->limit(10)
                 ->get()
                 ->each(function ($org) {
-                    $this->cacheService->getOrganizationMetrics($org->id);
+                    $this->cacheService->getWorkspaceMetrics($org->id);
                 });
             
             // Cache user dashboard data
@@ -217,7 +217,7 @@ class OptimizePerformanceCommand extends Command
      */
     private function analyzeDatabaseTables(): void
     {
-        $tables = ['chats', 'organizations', 'users', 'teams', 'contacts'];
+        $tables = ['chats', 'workspaces', 'users', 'teams', 'contacts'];
         
         foreach ($tables as $table) {
             try {
@@ -233,7 +233,7 @@ class OptimizePerformanceCommand extends Command
      */
     private function optimizeDatabaseTables(): void
     {
-        $tables = ['chats', 'organizations', 'users', 'teams', 'contacts'];
+        $tables = ['chats', 'workspaces', 'users', 'teams', 'contacts'];
         
         foreach ($tables as $table) {
             try {

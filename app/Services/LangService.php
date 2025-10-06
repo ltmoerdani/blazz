@@ -19,7 +19,7 @@ class LangService
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request)
+    public function get()
     {
         $rows = Language::where('deleted_at', null)->latest()->paginate(10);
 
@@ -95,7 +95,7 @@ class LangService
      * @param string $uuid
      * @return \App\Models\Language
      */
-    public function delete($request, $id)
+    public function delete($id)
     {
         try {
             $language = Language::findOrFail($id);

@@ -30,7 +30,7 @@ class TeamController extends BaseController
         if($request->expectsJson()){
             $rows = DB::table('users')
                 ->join('teams', 'users.id', '=', 'teams.user_id')
-                ->where('teams.organization_id', '=', session()->get('current_workspace'))
+                ->where('teams.Workspace_id', '=', session()->get('current_workspace'))
                 ->whereNull('teams.deleted_at')
                 ->select('users.*')
                 ->get();

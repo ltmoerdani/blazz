@@ -10,21 +10,21 @@ use Inertia\Inertia;
 
 class WorkspaceController extends BaseController
 {
-    private $organizationService;
+    private $WorkspaceService;
     private $role;
 
     /**
      * WorkspaceController constructor.
      *
-     * @param UserService $organizationService
+     * @param UserService $WorkspaceService
      */
     public function __construct()
     {
-        $this->organizationService = new WorkspaceService();
+        $this->WorkspaceService = new WorkspaceService();
     }
 
     /**
-     * Display a listing of organizations.
+     * Display a listing of workspaces.
      *
      * @param Request $request
      * @return \Inertia\Response
@@ -32,9 +32,9 @@ class WorkspaceController extends BaseController
     public function index(Request $request)
     {
         return Inertia::render('Admin/workspace/Index', [
-            'title' => __('Organizations'),
+            'title' => __('Workspaces'),
             'allowCreate' => true,
-            'rows' => $this->organizationService->get($request), 
+            'rows' => $this->WorkspaceService->get($request), 
             'filters' => $request->all()
         ]);
     }
@@ -47,7 +47,7 @@ class WorkspaceController extends BaseController
      */
     public function show(Request $request, $uuid = null, $mode = null)
     {
-        $res = $this->organizationService->getByUuid($request, $uuid);
+        $res = $this->WorkspaceService->getByUuid($request, $uuid);
         return Inertia::render('Admin/workspace/Show', [
             'title' => __('workspace'),
             'workspace' => $res['workspace'], 
@@ -66,7 +66,7 @@ class WorkspaceController extends BaseController
      */
     public function create(Request $request)
     {
-        $res = $this->organizationService->getByUuid($request);
+        $res = $this->WorkspaceService->getByUuid($request);
         return Inertia::render('Admin/workspace/Show', [
             'title' => __('Create Org.'),
             'workspace' => $res['workspace'], 
@@ -84,9 +84,9 @@ class WorkspaceController extends BaseController
      */
     public function store(StoreWorkspace $request)
     {
-        $this->organizationService->store($request);
+        $this->WorkspaceService->store($request);
 
-        return redirect('/admin/organizations')->with(
+        return redirect('/admin/workspaces')->with(
             'status', [
                 'type' => 'success', 
                 'message' => __('workspace created successfully!')
@@ -101,9 +101,9 @@ class WorkspaceController extends BaseController
      */
     public function update(StoreWorkspace $request, $uuid)
     {
-        $this->organizationService->update($request, $uuid);
+        $this->WorkspaceService->update($request, $uuid);
 
-        return redirect('/admin/organizations/'.$uuid)->with(
+        return redirect('/admin/workspaces/'.$uuid)->with(
             'status', [
                 'type' => 'success', 
                 'message' => __('workspace updated successfully!')
@@ -118,7 +118,7 @@ class WorkspaceController extends BaseController
      */
     public function destroy($uuid)
     {
-        $query = $this->organizationService->destroy($uuid);
+        $query = $this->WorkspaceService->destroy($uuid);
 
         return back()->with(
             'status', [
