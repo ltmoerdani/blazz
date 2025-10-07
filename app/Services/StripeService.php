@@ -457,6 +457,7 @@ class StripeService
         $totalTaxAmount = 0;
 
         foreach($activeTaxRates as $taxRate){
+            // Safe calculation: dividing by 100 (constant) is always safe
             $taxAmount = $taxRate->percentage * $grossAmount / 100;
             $taxRatesDetails[] = array(
                 'name' => $taxRate->name,

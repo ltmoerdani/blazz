@@ -21,22 +21,14 @@ use App\Models\User;
 use App\Resolvers\PaymentPlatformResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use DB;
 
 class SubscriptionService
 {
     public static function isSubscriptionActive(string $workspaceId)
     {
         $subscription = Subscription::where('workspace_id', $workspaceId)->first();
-
-        /*if($subscription->status != 'trial'){
-            $billingDetails = self::calculateSubscriptionBillingDetails($workspaceId, $subscription->plan_id);
-
-            if($billingDetails['accountBalance'] < 0){
-                return false;
-            }
-        }*/
 
         if ($subscription && $subscription->valid_until >= now()) {
             return true;
@@ -49,43 +41,38 @@ class SubscriptionService
     {
         $billingDetails = self::calculateSubscriptionBillingDetails($workspaceId, $planId);
 
-        $response = false;
-
         if($billingDetails['amountDue'] == 0){
-            self::createBillingInvoice($billingDetails, $workspaceId, $planId, $userId);
-        } else {
-            $paymentPlatform = (new PaymentPlatformResolver())->resolveService($request->method);
-            session()->put('paymentPlatform', $request->method);
-
-            $amountDue = str_replace(',', '', $billingDetails['amountDue']);
-            $amountDue = (float)$amountDue;
-            $response = $paymentPlatform->handlePayment($amountDue, $request->plan);
-
-            return $response;
+            return self::createBillingInvoice($billingDetails, $workspaceId, $planId, $userId);
         }
+
+        $paymentPlatform = (new PaymentPlatformResolver())->resolveService($request->method);
+        session()->put('paymentPlatform', $request->method);
+
+        $amountDue = str_replace(',', '', $billingDetails['amountDue']);
+        $amountDue = (float)$amountDue;
+        
+        return $paymentPlatform->handlePayment($amountDue, $request->plan);
     }
 
     public static function activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId = 0)
     {
         $subscription = Subscription::where('workspace_id', $workspaceId)->first();
 
-        if($subscription->valid_until < now()){
-            if($subscription->plan_id){
-                $planId = $subscription->plan_id;
+        if($subscription->valid_until < now() && $subscription->plan_id){
+            $planId = $subscription->plan_id;
 
-                $billingDetails = self::calculateSubscriptionBillingDetails($workspaceId, $planId);
+            $billingDetails = self::calculateSubscriptionBillingDetails($workspaceId, $planId);
 
-                if($billingDetails['amountDue'] == 0){
-                    self::createBillingInvoice($billingDetails, $workspaceId, $planId, $userId);
+            if($billingDetails['amountDue'] == 0){
+                self::createBillingInvoice($billingDetails, $workspaceId, $planId, $userId);
 
-                    $team = Team::where('workspace_id', $workspaceId)->where('role', 'owner')->first();
-                    $user = User::where('id', $team->user_id)->first();
-                    $plan = SubscriptionPlan::where('id', $planId)->first();
+                $team = Team::where('workspace_id', $workspaceId)->where('role', 'owner')->first();
+                $user = User::where('id', $team->user_id)->first();
+                $plan = SubscriptionPlan::where('id', $planId)->first();
 
-                    //Send subscription email
-                    Email::sendSubscriptionEmail('Subscription Renewal', $user, $plan);
-                }
-            } 
+                //Send subscription email
+                Email::sendSubscriptionEmail('Subscription Renewal', $user, $plan);
+            }
         }
 
         return false;
@@ -130,14 +117,14 @@ class SubscriptionService
 
             foreach($billingDetails['taxRates'] as $taxRate){
                 $taxRateAmount = str_replace(',', '', $taxRate['amount']);
-                $taxrate = BillingTaxRate::create([
+                BillingTaxRate::create([
                     'invoice_id' => $invoice->id,
                     'rate' => $taxRateAmount,
                     'amount' => $taxRate['percentage'],
                 ]);
             }
 
-            $invoiceBillingTransaction = BillingTransaction::create([
+            BillingTransaction::create([
                 'workspace_id' => $workspaceId,
                 'entity_type' => 'invoice',
                 'entity_id' => $invoice->id,
@@ -153,7 +140,7 @@ class SubscriptionService
                     'amount' => abs($billingDetails['credit']['new'])
                 ]);
 
-                $creditBillingTransaction = BillingTransaction::create([
+                BillingTransaction::create([
                     'workspace_id' => $workspaceId,
                     'entity_type' => 'credit',
                     'entity_id' => $invoice->id,
@@ -187,13 +174,12 @@ class SubscriptionService
 
         $totalTaxPercentage = self::calculateTotalTaxPercentage();
 
-        if($selectedSubscriptionPlan){
-            $basePrice = ($subscriptionStatus == 'trial') ? $selectedSubscriptionPlan->price : $selectedSubscriptionPlan->price;
-        } else {
-            $basePrice = 0;
-        }
+        $basePrice = $selectedSubscriptionPlan ? $selectedSubscriptionPlan->price : 0;
 
-        $grossAmount = $isTaxInclusive ? $basePrice - ($basePrice * $totalTaxPercentage / (100 + $totalTaxPercentage)) : $basePrice;
+        // Prevent division by zero: check if (100 + $totalTaxPercentage) is not zero
+        $grossAmount = $isTaxInclusive && (100 + $totalTaxPercentage) != 0
+            ? $basePrice - ($basePrice * $totalTaxPercentage / (100 + $totalTaxPercentage))
+            : $basePrice;
 
         $proratedCreditAmount = 0;
 
@@ -233,20 +219,18 @@ class SubscriptionService
                 ->whereNull('deleted_at')
                 ->first();
 
-            if ($couponData) {
-                if ($couponData->quantity_redeemed < $couponData->quantity) {
-                    $discount = ($amountDue * $couponData->percentage) / 100;
-                    $discount = min($discount, $amountDue);
+            if ($couponData && $couponData->quantity_redeemed < $couponData->quantity) {
+                $discount = ($amountDue * $couponData->percentage) / 100;
+                $discount = min($discount, $amountDue);
 
-                    $coupon = [
-                        'code' => $couponData->code,
-                        'type' => 'percentage',
-                        'amount' => $couponData->percentage,
-                        'discount' => number_format($discount, 2)
-                    ];
+                $coupon = [
+                    'code' => $couponData->code,
+                    'type' => 'percentage',
+                    'amount' => $couponData->percentage,
+                    'discount' => number_format($discount, 2)
+                ];
 
-                    $amountDue = max(0, $amountDue - $discount);
-                }
+                $amountDue = max(0, $amountDue - $discount);
             }
         }
 
@@ -293,6 +277,7 @@ class SubscriptionService
         $totalTaxAmount = 0;
 
         foreach($activeTaxRates as $taxRate){
+            // Safe calculation: this is always safe since we're dividing by 100 (constant)
             $taxAmount = $taxRate->percentage * $grossAmount / 100;
             $taxRatesDetails[] = array(
                 'name' => $taxRate->name,
@@ -313,6 +298,7 @@ class SubscriptionService
         // Calculate the prorated amount based on the remaining days
         $periodInDays = self::subscriptionPeriodInDays($workspaceId);
 
+        // Prevent division by zero: ensure periodInDays is greater than 0
         if($periodInDays > 0){
             $amountPerDay = $amount / $periodInDays;
             $proratedAmount = $amountPerDay * self::subscriptionPeriodRemainingDays($workspaceId);
