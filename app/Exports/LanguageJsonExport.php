@@ -34,11 +34,9 @@ class LanguageJsonExport implements FromCollection, WithHeadings
         $translations = json_decode($contents, true);
 
         // Prepare collection from translations
-        $collection = collect($translations)->map(function ($value, $key) {
+        return collect($translations)->map(function ($value, $key) {
             return ['Key' => $key, 'Translation' => $value];
         });
-
-        return $collection;
     }
 
     public function headings(): array

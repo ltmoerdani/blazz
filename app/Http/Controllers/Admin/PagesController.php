@@ -30,7 +30,7 @@ class PagesController extends BaseController
      */
     public function index(Request $request){
         return Inertia::render('Admin/Setting/Page/Index', [
-            'rows' => $this->pageService->getAll($request), 
+            'rows' => $this->pageService->getAll($request),
             'filters' => $request->all()
         ]);
     }
@@ -56,7 +56,7 @@ class PagesController extends BaseController
 
         return redirect('/admin/settings/page/' . $page->id)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Page created successfully!')
             ]
         );
@@ -73,7 +73,7 @@ class PagesController extends BaseController
 
         return redirect('/admin/settings/pages')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Page updated successfully!')
             ]
         );
@@ -85,7 +85,7 @@ class PagesController extends BaseController
 
         return redirect('/admin/settings/pages')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Page deleted successfully!')
             ]
         );

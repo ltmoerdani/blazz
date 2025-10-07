@@ -27,7 +27,7 @@ class CampaignDetailsExport implements FromCollection, WithHeadings
             ->orderBy('id')
             ->get();
 
-        $logs = $campaignLogs->map(function ($log) use ($campaign) {
+        return $campaignLogs->map(function ($log) use ($campaign) {
             return [
                 'campaign_name' => $campaign->name,
                 'template_name' => $campaign->template->name,
@@ -38,8 +38,6 @@ class CampaignDetailsExport implements FromCollection, WithHeadings
                 'status' => $log->status == 'success' ? $log->chat->status : $log->status
             ];
         });
-
-        return $logs;
     }
 
     public function headings(): array

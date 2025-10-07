@@ -9,7 +9,7 @@ use Inertia\Inertia;
 
 class EmailLogController extends BaseController
 {
-    private $EmailService;
+    private $emailService;
 
     /**
      * EmailController constructor.
@@ -30,7 +30,7 @@ class EmailLogController extends BaseController
     public function index(Request $request)
     {
         return Inertia::render('Admin/UserLog/Email', [
-            'rows' => $this->emailService->get($request), 
+            'rows' => $this->emailService->get($request),
             'filters' => $request->all()
         ]);
     }
