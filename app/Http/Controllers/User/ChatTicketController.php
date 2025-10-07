@@ -23,7 +23,8 @@ class ChatTicketController extends BaseController
 {
     public function index(Request $request, $uuid = null)
     {
-        //
+        // This method is intentionally left empty as it's not currently used.
+        // The chat ticket functionality is handled through other methods (update, assign).
     }
 
     public function update(Request $request, $uuid)

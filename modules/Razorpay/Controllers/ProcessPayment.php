@@ -19,17 +19,17 @@ use Illuminate\Support\Facades\Log;
 
 class ProcessPayment extends BaseController
 {
-    protected $base_url;
+    protected $baseUrl;
     protected $currency;
-    protected $key_id;
-    protected $key_secret;
+    protected $keyId;
+    protected $keySecret;
     protected $razorpay;
     protected $subscriptionService;
-    protected $webhook_secret;
+    protected $webhookSecret;
 
     public function __construct()
     {
-        $this->base_url = 'https://api.razorpay.com/v1';
+        $this->baseUrl = 'https://api.razorpay.com/v1';
         $this->subscriptionService = new SubscriptionService();
 
         $settings = Setting::whereIn('key', [
@@ -39,10 +39,10 @@ class ProcessPayment extends BaseController
             'razorpay_webhook_secret'
         ])->pluck('value', 'key');
 
-        $this->key_id = $settings['razorpay_key_id'] ?? null;
-        $this->key_secret = $settings['razorpay_secret_key'] ?? null;
+        $this->keyId = $settings['razorpay_key_id'] ?? null;
+        $this->keySecret = $settings['razorpay_secret_key'] ?? null;
         $this->currency = $settings['currency'] ?? null;
-        $this->webhook_secret = $settings['razorpay_webhook_secret'] ?? null;
+        $this->webhookSecret = $settings['razorpay_webhook_secret'] ?? null;
     }
     
     public function handlePayment($amount, $planId = null)
@@ -51,7 +51,7 @@ class ProcessPayment extends BaseController
             $httpClient = new HttpClient();
             $response = $httpClient->request('POST', 'https://api.razorpay.com/v1/payment_links', [
                     'headers' => [
-                        'Authorization' => 'Basic ' . base64_encode($this->key_id . ':' . $this->key_secret),
+                        'Authorization' => 'Basic ' . base64_encode($this->keyId . ':' . $this->keySecret),
                         'Content-Type' => 'application/json',
                         'Cache-Control' => 'no-cache'
                     ],
@@ -101,7 +101,7 @@ class ProcessPayment extends BaseController
             return response()->json(['status' => 'error', 'message' => 'Missing signature'], 400);
         }
         
-        $computedSignature = hash_hmac('sha256', $request->getContent(), $this->webhook_secret);
+        $computedSignature = hash_hmac('sha256', $request->getContent(), $this->webhookSecret);
 
         // Validate the webhook signature
         if (hash_equals($computedSignature, $signature)) {

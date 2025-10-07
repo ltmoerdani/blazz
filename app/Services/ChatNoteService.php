@@ -11,9 +11,7 @@ class ChatNoteService
 {
     public function get(object $request)
     {
-        $rows = (new ChatNote)->listAll($request->query('search'));
-
-        return $rows;
+        return (new ChatNote)->listAll($request->query('search'));
     }
 
     public function getByUuid($uuid = null)

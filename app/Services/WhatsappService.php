@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\NewChatEvent;
+use App\Exceptions\TemplateNotFoundException;
 use App\Helpers\WebhookHelper;
 use App\Models\Campaign;
 use App\Models\Chat;
@@ -982,7 +983,7 @@ class WhatsappService
                 $template->save();
             } else {
                 // Handle case where template is not found (optional)
-                throw new \Exception('Template not found');
+                throw new TemplateNotFoundException('Template not found');
             }
         } catch (ConnectException $e) {
             $responseObject->success = false;
@@ -1116,9 +1117,7 @@ class WhatsappService
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$mediaId}";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, null, $headers);
-
-        return $responseObject;
+        return $this->sendHttpRequest('GET', $url, null, $headers);
     }
 
     public function checkHealth()
@@ -1126,9 +1125,7 @@ class WhatsappService
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}?fields=health_status";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, null, $headers);
-
-        return $responseObject;
+        return $this->sendHttpRequest('GET', $url, null, $headers);
     }
 
     public function subscribeToWaba()
@@ -1158,9 +1155,7 @@ class WhatsappService
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, null, $headers);
-
-        return $responseObject;
+        return $this->sendHttpRequest('GET', $url, null, $headers);
     }
 
     public function overrideCallbackUrl($callbackUrl, $verifyToken)
