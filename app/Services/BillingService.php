@@ -20,10 +20,10 @@ class BillingService
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request, $WorkspaceUuid = null)
+    public function get(object $request, $workspaceUuid = null)
     {
-        if ($WorkspaceUuid !== null) {
-            $workspace = workspace::with('subscription.plan')->where('uuid', $WorkspaceUuid)->first();
+        if ($workspaceUuid !== null) {
+            $workspace = workspace::with('subscription.plan')->where('uuid', $workspaceUuid)->first();
             $workspaceId = optional($workspace)->id;
         } else {
             $workspaceId = null;

@@ -10,16 +10,16 @@ use Inertia\Inertia;
 
 class WorkspaceController extends BaseController
 {
-    private $WorkspaceService;
+    private $workspaceService;
 
     /**
      * WorkspaceController constructor.
      *
-     * @param UserService $WorkspaceService
+     * @param UserService $workspaceService
      */
     public function __construct()
     {
-        $this->WorkspaceService = new WorkspaceService();
+        $this->workspaceService = new WorkspaceService();
     }
 
     /**
@@ -33,7 +33,7 @@ class WorkspaceController extends BaseController
         return Inertia::render('Admin/workspace/Index', [
             'title' => __('Workspaces'),
             'allowCreate' => true,
-            'rows' => $this->WorkspaceService->get($request),
+            'rows' => $this->workspaceService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -46,7 +46,7 @@ class WorkspaceController extends BaseController
      */
     public function show(Request $request, $uuid = null, $mode = null)
     {
-        $res = $this->WorkspaceService->getByUuid($request, $uuid);
+        $res = $this->workspaceService->getByUuid($request, $uuid);
         return Inertia::render('Admin/workspace/Show', [
             'title' => __('workspace'),
             'workspace' => $res['workspace'],
@@ -65,7 +65,7 @@ class WorkspaceController extends BaseController
      */
     public function create(Request $request)
     {
-        $res = $this->WorkspaceService->getByUuid($request);
+        $res = $this->workspaceService->getByUuid($request);
         return Inertia::render('Admin/workspace/Show', [
             'title' => __('Create Org.'),
             'workspace' => $res['workspace'],
@@ -83,7 +83,7 @@ class WorkspaceController extends BaseController
      */
     public function store(StoreWorkspace $request)
     {
-        $this->WorkspaceService->store($request);
+        $this->workspaceService->store($request);
 
         return redirect('/admin/workspaces')->with(
             'status', [
@@ -100,7 +100,7 @@ class WorkspaceController extends BaseController
      */
     public function update(StoreWorkspace $request, $uuid)
     {
-        $this->WorkspaceService->update($request, $uuid);
+        $this->workspaceService->update($request, $uuid);
 
         return redirect('/admin/workspaces/'.$uuid)->with(
             'status', [
@@ -117,7 +117,7 @@ class WorkspaceController extends BaseController
      */
     public function destroy($uuid)
     {
-        $query = $this->WorkspaceService->destroy($uuid);
+        $query = $this->workspaceService->destroy($uuid);
 
         return back()->with(
             'status', [

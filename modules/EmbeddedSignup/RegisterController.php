@@ -224,13 +224,13 @@ class RegisterController extends BaseController
     }
 
     public function debugToken($token){
-        $accessToken = Setting::where('key', 'whatsapp_access_token')->value('value');
+        $systemAccessToken = Setting::where('key', 'whatsapp_access_token')->value('value');
         
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => self::BEARER_PREFIX . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $systemAccessToken
             ])->get('https://graph.facebook.com/v20.0/debug_token', [
                 'input_token' => $token
             ])->throw()->json();
@@ -276,16 +276,16 @@ class RegisterController extends BaseController
     }
 
     public function addSystemUser($accessToken, $wabaId, $userId){
-        $accessToken = Setting::where('key', 'whatsapp_access_token')->value('value');
+        $systemAccessToken = Setting::where('key', 'whatsapp_access_token')->value('value');
         
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => self::BEARER_PREFIX . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $systemAccessToken
             ])->post("https://graph.facebook.com/v20.0/{$wabaId}/assigned_users", [
                 'user' => $userId,
-                'access_token' => $accessToken
+                'access_token' => $systemAccessToken
             ])->throw()->json();
 
             dd($response);
