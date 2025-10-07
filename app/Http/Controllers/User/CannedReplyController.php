@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\User;
 
-use DB;
 use App\Http\Controllers\Controller as BaseController;
+use Illuminate\Support\Facades\DB;
 use App\Helpers\CustomHelper;
 use App\Http\Requests\StoreAutoReply;
 use App\Models\Addon;
@@ -17,6 +17,9 @@ use Helper;
 
 class CannedReplyController extends BaseController
 {
+    // Constants for repeated string literals
+    const CANNED_REPLIES_TITLE = 'Canned replies';
+    
     private $autoReplyService;
 
     public function __construct(AutoReplyService $autoReplyService)
@@ -29,18 +32,18 @@ class CannedReplyController extends BaseController
         $aimodule = CustomHelper::isModuleEnabled('AI Assistant');
         $fbmodule = CustomHelper::isModuleEnabled('Flow builder');
 
-        return Inertia::render('User/Automation/Basic/Index', [ 
-            'title' => __('Canned replies'), 
-            'allowCreate' => true, 
-            'rows' => $rows, 
-            'filters' => request()->all(), 
+        return Inertia::render('User/Automation/Basic/Index', [
+            'title' => __(self::CANNED_REPLIES_TITLE),
+            'allowCreate' => true,
+            'rows' => $rows,
+            'filters' => request()->all(),
             'aimodule' => $aimodule,
             'fbmodule' => $fbmodule,
         ]);
     }
 
     public function create(){
-        $data['title'] = __('Canned replies');
+        $data['title'] = __(self::CANNED_REPLIES_TITLE);
         $placeholders = config('formats.placeholders');
         $workspaceId = session()->get('current_workspace');
         $additionalFields = DB::table('contact_fields')
@@ -67,14 +70,14 @@ class CannedReplyController extends BaseController
 
         return Redirect::route('cannedReply.create')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Data added successfully!')
             ]
         );
     }
 
     public function edit($uuid){
-        $data['title'] = __('Canned replies');
+        $data['title'] = __(self::CANNED_REPLIES_TITLE);
         $data['autoreply'] = AutoReply::where('uuid', $uuid)->first();
         $placeholders = config('formats.placeholders');
         $workspaceId = session()->get('current_workspace');
@@ -102,7 +105,7 @@ class CannedReplyController extends BaseController
 
         return Redirect::route('cannedReply.edit', $uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Data updated successfully!')
             ]
         );
@@ -114,7 +117,7 @@ class CannedReplyController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Row deleted successfully!')
             ]
         );

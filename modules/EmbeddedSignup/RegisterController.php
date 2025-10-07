@@ -8,12 +8,16 @@ use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Template;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 
 class RegisterController extends BaseController
 {
+    // Constants for repeated string literals
+    const BEARER_PREFIX = 'Bearer ';
+    
     public function handleSignup(Request $request){
         $workspaceId = session()->get('current_workspace');
 
@@ -22,12 +26,12 @@ class RegisterController extends BaseController
         if(!$accessTokenResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $accessTokenResponse->data->error->message
                 ]
             );
         }
-        
+
         // Access token
         $accessToken = $accessTokenResponse->data->access_token;
 
@@ -37,7 +41,7 @@ class RegisterController extends BaseController
         if(!$debugTokenResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $debugTokenResponse->data->error->message
                 ]
             );
@@ -49,7 +53,7 @@ class RegisterController extends BaseController
         if(!$systemUserResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $systemUserResponse->data->error->message
                 ]
             );
@@ -63,19 +67,19 @@ class RegisterController extends BaseController
         if(!$phoneNumberResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $phoneNumberResponse->data->error->message
                 ]
             );
         }
 
         //Get Phone Number Status
-        $phoneNumberStatusResponse = $this->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id); 
+        $phoneNumberStatusResponse = $this->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id);
 
         if(!$phoneNumberStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $phoneNumberStatusResponse->data->error->message
                 ]
             );
@@ -87,7 +91,7 @@ class RegisterController extends BaseController
         if(!$accountReviewStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $accountReviewStatusResponse->data->error->message
                 ]
             );
@@ -99,19 +103,19 @@ class RegisterController extends BaseController
         if(!$registerNumber->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $registerNumber->data->error->message
                 ]
             );
         }
 
         //Get business profile
-        $businessProfileResponse = $this->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);  
-        
+        $businessProfileResponse = $this->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);
+
         if(!$businessProfileResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $businessProfileResponse->data->error->message
                 ]
             );
@@ -128,11 +132,11 @@ class RegisterController extends BaseController
         if(!$subscribeToWabaResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $subscribeToWabaResponse->data->error->message
                 ]
             );
-        } 
+        }
 
         //Set Callback Url
         $overridecallbackResponse = $this->overrideCallbackUrl($accessToken, $debugTokenResponse->data->waba_id, $callbackUrl, $token);
@@ -140,7 +144,7 @@ class RegisterController extends BaseController
         if(!$overridecallbackResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $overridecallbackResponse->data->error->message
                 ]
             );
@@ -156,17 +160,17 @@ class RegisterController extends BaseController
         $metadataArray['whatsapp']['verified_name'] = $phoneNumberResponse->data->verified_name;
         $metadataArray['whatsapp']['quality_rating'] = $phoneNumberResponse->data->quality_rating;
         $metadataArray['whatsapp']['name_status'] = $phoneNumberResponse->data->name_status;
-        $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneNumberResponse->data->messaging_limit_tier ?? NULL;
-        $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = NULL;
-        $metadataArray['whatsapp']['max_phone_numbers_per_business'] = NULL;
+        $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneNumberResponse->data->messaging_limit_tier ?? null;
+        $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = null;
+        $metadataArray['whatsapp']['max_phone_numbers_per_business'] = null;
         $metadataArray['whatsapp']['number_status'] = $phoneNumberStatusResponse->data->status;
         $metadataArray['whatsapp']['business_verification'] = '';
         $metadataArray['whatsapp']['account_review_status'] = $accountReviewStatusResponse->data->account_review_status;
-        $metadataArray['whatsapp']['business_profile']['about'] = $businessProfileResponse->data->about ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['address'] = $businessProfileResponse->data->address ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['description'] = $businessProfileResponse->data->description ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['industry'] = $businessProfileResponse->data->vertical ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['email'] = $businessProfileResponse->data->email ?? NULL;
+        $metadataArray['whatsapp']['business_profile']['about'] = $businessProfileResponse->data->about ?? null;
+        $metadataArray['whatsapp']['business_profile']['address'] = $businessProfileResponse->data->address ?? null;
+        $metadataArray['whatsapp']['business_profile']['description'] = $businessProfileResponse->data->description ?? null;
+        $metadataArray['whatsapp']['business_profile']['industry'] = $businessProfileResponse->data->vertical ?? null;
+        $metadataArray['whatsapp']['business_profile']['email'] = $businessProfileResponse->data->email ?? null;
 
         $updatedMetadataJson = json_encode($metadataArray);
 
@@ -178,7 +182,7 @@ class RegisterController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('You\'ve successfully connected your account to whatsapp!')
             ]
         );
@@ -220,13 +224,13 @@ class RegisterController extends BaseController
     }
 
     public function debugToken($token){
-        $accessToken = Setting::where('key', 'whatsapp_access_token')->value('value');
+        $systemAccessToken = Setting::where('key', 'whatsapp_access_token')->value('value');
         
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $systemAccessToken
             ])->get('https://graph.facebook.com/v20.0/debug_token', [
                 'input_token' => $token
             ])->throw()->json();
@@ -272,30 +276,19 @@ class RegisterController extends BaseController
     }
 
     public function addSystemUser($accessToken, $wabaId, $userId){
-        $accessToken = Setting::where('key', 'whatsapp_access_token')->value('value');
+        $systemAccessToken = Setting::where('key', 'whatsapp_access_token')->value('value');
         
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $systemAccessToken
             ])->post("https://graph.facebook.com/v20.0/{$wabaId}/assigned_users", [
                 'user' => $userId,
-                'access_token' => $accessToken
+                'access_token' => $systemAccessToken
             ])->throw()->json();
 
             dd($response);
-            /*if (isset($response['data']['error'])) {
-                $responseObject->success = false;
-                $responseObject->data = new \stdClass();
-                $responseObject->data->error = new \stdClass();
-                $responseObject->data->error->code = $response['data']['error']['code'];
-                $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
-                $responseObject->success = true;
-                $responseObject->data = new \stdClass();
-                $responseObject->data = (object) $response['data'][0];
-            }*/
         } catch (\Exception $e) {
             dd($e->getMessage());
             $responseObject->success = false;
@@ -324,7 +317,7 @@ class RegisterController extends BaseController
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response['data'][0];
@@ -344,7 +337,7 @@ class RegisterController extends BaseController
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $accessToken
             ])->get("https://graph.facebook.com/v20.0/{$phoneNumberId}", [
                 'fields' => 'status',
             ])->throw()->json();
@@ -355,7 +348,7 @@ class RegisterController extends BaseController
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response;
@@ -375,7 +368,7 @@ class RegisterController extends BaseController
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $accessToken
             ])->get("https://graph.facebook.com/v20.0/{$wabaId}", [
                 'fields' => 'account_review_status',
             ])->throw()->json();
@@ -386,7 +379,7 @@ class RegisterController extends BaseController
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response;
@@ -406,7 +399,7 @@ class RegisterController extends BaseController
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $accessToken
             ])->get("https://graph.facebook.com/v20.0/{$phoneNumberId}/whatsapp_business_profile", [
                 'fields' => 'about,address,description,email,profile_picture_url,websites,vertical',
             ])->throw()->json();
@@ -417,7 +410,7 @@ class RegisterController extends BaseController
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response['data'][0];
@@ -432,13 +425,13 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function subscribeToWaba($accessToken, $wabaId)
+    public function subscribeToWaba($accessToken, $wabaId)
     {
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $accessToken
             ])->post("https://graph.facebook.com/v20.0/{$wabaId}/subscribed_apps")->throw()->json();
 
             $responseObject->success = true;
@@ -454,13 +447,13 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function getWabaSubscriptions($accessToken, $wabaId)
+    public function getWabaSubscriptions($accessToken, $wabaId)
     {
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $accessToken
             ])->get("https://graph.facebook.com/v20.0/{$wabaId}/subscribed_apps")->throw()->json();
 
             $responseObject->success = true;
@@ -476,13 +469,13 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function overrideCallbackUrl($accessToken, $wabaId, $callbackUrl, $verifyToken)
+    public function overrideCallbackUrl($accessToken, $wabaId, $callbackUrl, $verifyToken)
     {
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $accessToken
             ])->post("https://graph.facebook.com/v20.0/{$wabaId}/subscribed_apps", [
                 'override_callback_uri' => $callbackUrl,
                 'verify_token' => $verifyToken
@@ -501,13 +494,13 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function unSubscribeToWaba($accessToken, $wabaId)
+    public function unSubscribeToWaba($accessToken, $wabaId)
     {
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $accessToken
             ])->delete("https://graph.facebook.com/v20.0/{$wabaId}/subscribed_apps")->throw()->json();
 
             $responseObject->success = true;
@@ -523,13 +516,13 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function registerNumber($accessToken, $phoneNumberID)
+    public function registerNumber($accessToken, $phoneNumberID)
     {
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken
+                'Authorization' => self::BEARER_PREFIX . $accessToken
             ])->post("https://graph.facebook.com/v20.0/".$phoneNumberID."/register", [
                 'messaging_product' => "whatsapp",
                 'pin' => "123456",
@@ -548,14 +541,14 @@ class RegisterController extends BaseController
         return $responseObject;
     }
 
-    function syncTemplates($accessToken, $wabaId)
+    public function syncTemplates($accessToken, $wabaId)
     {
         $responseObject = new \stdClass();
 
         try {
             do {
                 $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $accessToken
+                    'Authorization' => self::BEARER_PREFIX . $accessToken
                 ])->get("https://graph.facebook.com/v20.0/{$wabaId}/message_templates")->throw()->json();
 
                 foreach($response['data'] as $templateData){
@@ -566,23 +559,23 @@ class RegisterController extends BaseController
                         $template->metadata = json_encode($templateData);
                         $template->status = $templateData['status'];
                         $template->updated_at = now();
-                        $template->deleted_at = NULL;
+                        $template->deleted_at = null;
                         $template->save();
                     } else {
                         $template = new Template();
-                        $template->organization_id = session()->get('current_workspace');
+                        $template->Workspace_id = session()->get('current_workspace');
                         $template->meta_id = $templateData['id'];
                         $template->name = $templateData['name'];
                         $template->category = $templateData['category'];
                         $template->language = $templateData['language'];
                         $template->metadata = json_encode($templateData);
                         $template->status = $templateData['status'];
-                        $template->created_by = auth()->user()->id;
+                        $template->created_by = Auth::id();
                         $template->created_at = now();
                         $template->updated_at = now();
                         $template->save();
                     }
-                };
+                }
 
                 if(isset($response['paging']) && isset($response['paging']['next'])) {
                     $url = $response['paging']['next'];

@@ -8,17 +8,21 @@ use App\Models\Language;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
-use Excel;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LangService
 {
+    // Constants for repeated string literals
+    const JSON_EXTENSION = '.json';
+    
     /**
      * Get all languages based on the provided request filters.
      *
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request)
+    public function get()
     {
         $rows = Language::where('deleted_at', null)->latest()->paginate(10);
 
@@ -37,7 +41,7 @@ class LangService
      * @param string $id
      * @return \App\Models\Language
      */
-    public function store(object $request, $id = NULL)
+    public function store(object $request, $id = null)
     {
         try {
             $language = $id === null ? new Language() : Language::where('id', $id)->firstOrFail();
@@ -58,13 +62,13 @@ class LangService
                 // Read the contents of default_en.json
                 $defaultLangFilePath = $langDirectory . '/default_en.json';
 
-                $oldLangFilePath = $langDirectory . '/' . strtolower($oldCode) . '.json';
+                $oldLangFilePath = $langDirectory . '/' . strtolower($oldCode) . self::JSON_EXTENSION;
                 if (file_exists($oldLangFilePath)) {
-                    $newLangFilePath = $langDirectory . '/' . strtolower($request->code) . '.json';
+                    $newLangFilePath = $langDirectory . '/' . strtolower($request->code) . self::JSON_EXTENSION;
                     rename($oldLangFilePath, $newLangFilePath);
                 } else {
                     $defaultContent = File::get($defaultLangFilePath);
-                    $newLangFilePath = $langDirectory . '/' . strtolower($request->code) . '.json';
+                    $newLangFilePath = $langDirectory . '/' . strtolower($request->code) . self::JSON_EXTENSION;
                     File::put($newLangFilePath, $defaultContent);
                 }
             }
@@ -94,14 +98,14 @@ class LangService
      * @param string $uuid
      * @return \App\Models\Language
      */
-    public function delete($request, $id)
+    public function delete($id)
     {
         try {
             $language = Language::findOrFail($id);
 
             // Delete the language file if it exists
             $langDirectory = base_path('lang');
-            $langFilePath = $langDirectory . '/' . $language->code . '.json';
+            $langFilePath = $langDirectory . '/' . $language->code . self::JSON_EXTENSION;
             if (file_exists($langFilePath)) {
                 unlink($langFilePath);
                 Log::info('Language file deleted: ' . $langFilePath);
@@ -110,12 +114,12 @@ class LangService
             }
 
             return Language::where('id', $id)->update([
-                'deleted_by' => auth()->user()->id,
+                'deleted_by' => Auth::id(),
                 'deleted_at' => date('Y-m-d H:i:s')
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting language: ' . $e->getMessage());
             return response()->json(['message' => 'Failed to delete language'], 500);
         }
-    } 
+    }
 }

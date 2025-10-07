@@ -1,9 +1,9 @@
 <template>
     <div :class="rtlClass">
-        <MobileSidebar :user="user" :config="config" :workspace="workspace" :organizations="organizations" :title="currentPageTitle" :displayCreateBtn="displayCreateBtn" :displayTopBar="viewTopBar"></MobileSidebar>
+        <MobileSidebar :user="user" :config="config" :workspace="workspace" :workspaces="workspaces" :title="currentPageTitle" :displayCreateBtn="displayCreateBtn" :displayTopBar="viewTopBar"></MobileSidebar>
 
         <div class="md:mt-0 md:pt-0 flex md:h-screen w-full tracking-[0.3px] bg-gray-300/10" :class="viewTopBar === false ? 'mt-0 pt-0' : ''">
-            <Sidebar :user="user" :config="config" :workspace="workspace" :organizations="organizations" :unreadMessages="unreadMessages"></Sidebar>
+            <Sidebar :user="user" :config="config" :workspace="workspace" :workspaces="workspaces" :unreadMessages="unreadMessages"></Sidebar>
             <div class="md:min-h-screen flex flex-col w-full min-w-0">
                 <slot :user="user" :toggleNavBar="toggleTopBar" @testEmit="doSomething"></slot>
             </div>
@@ -15,7 +15,7 @@
 <script setup>
     import { usePage } from "@inertiajs/vue3";
     import Sidebar from "./Sidebar.vue";
-    import { defineProps, ref, computed, watch, onMounted } from 'vue';
+    import { ref, computed, watch, onMounted } from 'vue';
     import { toast } from 'vue3-toastify';
     import MobileSidebar from "./MobileSidebar.vue";
     import 'vue3-toastify/dist/index.css';
@@ -28,7 +28,7 @@
     const user = computed(() => usePage().props.auth.user);
     const config = computed(() => usePage().props.config);
     const workspace = computed(() => usePage().props.workspace);
-    const organizations = computed(() => usePage().props.organizations);
+    const workspaces = computed(() => usePage().props.workspaces);
     const currentPageTitle = computed(() => usePage().props.title);
     const displayCreateBtn = computed(() => usePage().props.allowCreate);
     const unreadMessages = ref(usePage().props.unreadMessages);

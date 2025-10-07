@@ -20,7 +20,7 @@ class ModulesTableSeeder extends Seeder
                 'actions' => 'view, create, edit, delete',
             ],
             [
-                'name' => 'organizations',
+                'name' => 'workspaces',
                 'actions' => 'view, create, edit, delete',
             ],
             [

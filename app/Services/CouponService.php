@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Http\Resources\CouponResource;
 use App\Models\Coupon;
+use Illuminate\Support\Facades\Auth;
 
 class CouponService
 {
@@ -13,7 +14,7 @@ class CouponService
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request)
+    public function get()
     {
         $rows = Coupon::where('deleted_at', null)->latest()->paginate(10);
 
@@ -25,14 +26,14 @@ class CouponService
      *
      * @param Request $request
      * @param string $uuid
-     * @return \App\Models\BlogCategory
+     * @return \App\Models\Coupon
      */
-    public function storeCategory(object $request, $uuid = NULL)
+    public function storeCategory(object $request, $uuid = null)
     {
-        $category = $uuid === null ? new BlogCategory() : BlogCategory::where('uuid', $uuid)->firstOrFail();
+        $category = $uuid === null ? new Coupon() : Coupon::where('uuid', $uuid)->firstOrFail();
 
         $category->name = $request->name;
-        $category->created_by = auth()->user()->id;
+        $category->created_by = Auth::id();
         $category->save();
 
         return $category;
@@ -43,10 +44,10 @@ class CouponService
      *
      * @param Request $request
      * @param string $uuid
-     * @return \App\Models\BlogPost
+     * @return bool
      */
-    public function deletePost($request, $uuid)
+    public function deletePost($uuid)
     {
-        return BlogPost::where('uuid', $uuid)->update(['deleted' => 1]);
-    } 
+        return Coupon::where('uuid', $uuid)->update(['deleted' => 1]);
+    }
 }

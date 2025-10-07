@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace App\Helpers;
 
@@ -8,14 +8,17 @@ use App\Models\Setting;
 
 class WebhookHelper
 {
-    public static function triggerWebhookEvent($event, $data, $workspaceId = NULL)
+    public static function triggerWebhookEvent($event, $data, $workspaceId = null)
     {
-        $workspaceId = $workspaceId = NULL ? session()->get('current_workspace') : $workspaceId;
+        $workspaceId = $workspaceId ?? session()->get('current_workspace');
 
         if(CustomHelper::isModuleEnabled('Webhooks', $workspaceId)){
             // Check if MainController exists
-            if (class_exists(\Modules\Webhook\Controllers\MainController::class)) {
-                $webhookController = new \Modules\Webhook\Controllers\MainController();
+            $controllerClass = '\Modules\Webhook\Controllers\MainController';
+            
+            if (class_exists($controllerClass)) {
+                /** @var object $webhookController */
+                $webhookController = new $controllerClass();
                 return $webhookController->trigger($event, $workspaceId, $data);
             }
 

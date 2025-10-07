@@ -10,21 +10,20 @@ use Inertia\Inertia;
 
 class WorkspaceController extends BaseController
 {
-    private $organizationService;
-    private $role;
+    private $workspaceService;
 
     /**
      * WorkspaceController constructor.
      *
-     * @param UserService $organizationService
+     * @param UserService $workspaceService
      */
     public function __construct()
     {
-        $this->organizationService = new WorkspaceService();
+        $this->workspaceService = new WorkspaceService();
     }
 
     /**
-     * Display a listing of organizations.
+     * Display a listing of workspaces.
      *
      * @param Request $request
      * @return \Inertia\Response
@@ -32,9 +31,9 @@ class WorkspaceController extends BaseController
     public function index(Request $request)
     {
         return Inertia::render('Admin/workspace/Index', [
-            'title' => __('Organizations'),
+            'title' => __('Workspaces'),
             'allowCreate' => true,
-            'rows' => $this->organizationService->get($request), 
+            'rows' => $this->workspaceService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -45,14 +44,14 @@ class WorkspaceController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show(Request $request, $uuid = NULL, $mode = NULL)
+    public function show(Request $request, $uuid = null, $mode = null)
     {
-        $res = $this->organizationService->getByUuid($request, $uuid);
+        $res = $this->workspaceService->getByUuid($request, $uuid);
         return Inertia::render('Admin/workspace/Show', [
             'title' => __('workspace'),
-            'workspace' => $res['workspace'], 
+            'workspace' => $res['workspace'],
             'users' => $res['users'],
-            'plans' => $res['plans'], 
+            'plans' => $res['plans'],
             'invoices' => $res['billing'],
             'mode' => $mode,
             'filters' => $request->all()
@@ -66,12 +65,12 @@ class WorkspaceController extends BaseController
      */
     public function create(Request $request)
     {
-        $res = $this->organizationService->getByUuid($request);
+        $res = $this->workspaceService->getByUuid($request);
         return Inertia::render('Admin/workspace/Show', [
             'title' => __('Create Org.'),
-            'workspace' => $res['workspace'], 
+            'workspace' => $res['workspace'],
             'users' => $res['users'],
-            'plans' => $res['plans'], 
+            'plans' => $res['plans'],
             'invoices' => $res['billing'],
             'filters' => $request->all()
         ]);
@@ -84,11 +83,11 @@ class WorkspaceController extends BaseController
      */
     public function store(StoreWorkspace $request)
     {
-        $this->organizationService->store($request);
+        $this->workspaceService->store($request);
 
-        return redirect('/admin/organizations')->with(
+        return redirect('/admin/workspaces')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('workspace created successfully!')
             ]
         );
@@ -101,11 +100,11 @@ class WorkspaceController extends BaseController
      */
     public function update(StoreWorkspace $request, $uuid)
     {
-        $this->organizationService->update($request, $uuid);
+        $this->workspaceService->update($request, $uuid);
 
-        return redirect('/admin/organizations/'.$uuid)->with(
+        return redirect('/admin/workspaces/'.$uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('workspace updated successfully!')
             ]
         );
@@ -118,11 +117,11 @@ class WorkspaceController extends BaseController
      */
     public function destroy($uuid)
     {
-        $query = $this->organizationService->destroy($uuid);
+        $query = $this->workspaceService->destroy($uuid);
 
         return back()->with(
             'status', [
-                'type' => $query ? 'success' : 'error', 
+                'type' => $query ? 'success' : 'error',
                 'message' => $query ? __('workspace deleted successfully!') : __('This workspace does not exist!')
             ]
         );

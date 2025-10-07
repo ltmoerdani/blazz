@@ -23,18 +23,19 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
-        $this->reportable(function (Throwable $e) {
-            //
-        });
+        // Exception reporting registered here if needed
     }
 
-    function render($request, Throwable $exception)
+    public function render($request, Throwable $exception)
     {
         if ($this->isHttpException($exception)) {
-            if ($exception->getStatusCode() == 404) {
+            /** @var \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception */
+            $statusCode = $exception->getStatusCode();
+            
+            if ($statusCode == 404) {
                 return response()->view('errors.404', [], 404);
             }
-            if ($exception->getStatusCode() == 500) {
+            if ($statusCode == 500) {
                 return response()->view('errors.500', [], 500);
             }
         }

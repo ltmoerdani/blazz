@@ -11,18 +11,20 @@ use App\Models\Subscription;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\WorkspaceService;
-use DB;
-use Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
 class UserService
 {
-    private $workspace;
-    private $role;
+    protected $workspaceService;
+    protected $workspace;
+    protected $role;
 
     public function __construct($role)
     {
-        $this->organizationService = new WorkspaceService();
+        $this->workspaceService = new WorkspaceService();
         $this->role = $role;
     }
 
@@ -47,7 +49,7 @@ class UserService
      *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
-    public function getByUuid($request, $id = NULL)
+    public function getByUuid($request, $id = null)
     {
         $roles = Role::all();
     
@@ -55,7 +57,7 @@ class UserService
             $result = ['user' => null];
     
             if ($this->role === 'user') {
-                $result['organizations'] = null;
+                $result['workspaces'] = null;
             } else {
                 $result['roles'] = $roles;
             }
@@ -67,8 +69,8 @@ class UserService
 
         if ($this->role === 'user') {
             $query->where('role', '=', 'user');
-            $organizations = $this->organizationService->get($request, $query->first()->id);
-            $result = ['user' => $query->first(), 'organizations' => $organizations];
+            $workspaces = $this->workspaceService->get($request, $query->first()->id);
+            $result = ['user' => $query->first(), 'workspaces' => $workspaces];
         } else {
             $query->where('role', '!=', 'user');
             $result = ['user' => $query->first(), 'roles' => $roles];
@@ -110,22 +112,22 @@ class UserService
                 'password' => $request->input('password'),
             ]);
 
-            if($this->role === 'user' && $request->has('organization_name')){
+            if($this->role === 'user' && $request->has('Workspace_name')){
                 $timestamp = now()->format('YmdHis');
                 $randomString = Str::random(4);
                 $userId = $newUser->id;
-                $creatorId = auth()->check() ? auth()->user()->id : $newUser->id;
+                $creatorId = Auth::check() ? Auth::id() : $newUser->id;
 
                 //Create workspace
-                $newOrganization = workspace::create([
+                $newWorkspace = workspace::create([
                     'identifier' => $timestamp . $userId . $randomString,
-                    'name' => $request->input('organization_name'),
+                    'name' => $request->input('Workspace_name'),
                     'created_by' => $creatorId
                 ]);
 
                 //Create Team
-                $team = Team::create([
-                    'workspace_id' => $newOrganization->id,
+                Team::create([
+                    'workspace_id' => $newWorkspace->id,
                     'user_id' => $userId,
                     'role' => 'owner',
                     'status' => 'active',
@@ -137,7 +139,7 @@ class UserService
 
                 //Create Subscription
                 Subscription::create([
-                    'workspace_id' => $newOrganization->id,
+                    'workspace_id' => $newWorkspace->id,
                     'status' => $has_trial ? 'trial' : 'active',
                     'plan_id' => null,
                     'start_date' => now(),
@@ -215,32 +217,29 @@ class UserService
             $user->delete();
 
             // Confirm the user has been deleted (soft deleted)
-            if ($user->trashed()) {
-                // Check if the workspace ID is valid
-                if ($workspaceId) {
-                    // Reassign owner role if necessary
-                    if ($isOwner) {
-                        // Find the next user in the team to assign as the new owner
-                        $nextUser = User::whereHas('teams', function ($query) use ($workspaceId) {
-                            $query->where('workspace_id', $workspaceId);
-                        })->where('id', '!=', $user->id)->first();
-
-                        if ($nextUser) {
-                            $team = $nextUser->teams()->where('workspace_id', $workspaceId)->first();
-                            $team->role = 'owner';
-                            $team->save();
-                        }
-                    }
-
-                    // Count the number of users associated with the workspace excluding the user being deleted
-                    $userCount = User::whereHas('teams', function ($query) use ($workspaceId) {
+            if ($user->trashed() && $workspaceId) {
+                // Reassign owner role if necessary
+                if ($isOwner) {
+                    // Find the next user in the team to assign as the new owner
+                    $nextUser = User::whereHas('teams', function ($query) use ($workspaceId) {
                         $query->where('workspace_id', $workspaceId);
-                    })->where('id', '!=', $user->id)->count();
+                    })->where('id', '!=', $user->id)->first();
 
-                    // If the user being deleted is the last user associated with the workspace, soft delete the workspace
-                    if ($userCount === 0) {
-                        workspace::find($workspaceId)->delete();
+                    if ($nextUser) {
+                        $team = $nextUser->teams()->where('workspace_id', $workspaceId)->first();
+                        $team->role = 'owner';
+                        $team->save();
                     }
+                }
+
+                // Count the number of users associated with the workspace excluding the user being deleted
+                $userCount = User::whereHas('teams', function ($query) use ($workspaceId) {
+                    $query->where('workspace_id', $workspaceId);
+                })->where('id', '!=', $user->id)->count();
+
+                // If the user being deleted is the last user associated with the workspace, soft delete the workspace
+                if ($userCount === 0) {
+                    workspace::find($workspaceId)->delete();
                 }
             }
         }

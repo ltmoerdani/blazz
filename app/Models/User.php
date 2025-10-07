@@ -80,7 +80,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         if ($workspaceId !== null) {
             $query->join('teams', 'teams.user_id', '=', 'users.id')
-                ->where('teams.organization_id', '=', $workspaceId)
+                ->where('teams.Workspace_id', '=', $workspaceId)
                 ->select('users.*', 'teams.role');
         }
 
@@ -92,7 +92,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Team::class);
     }
 
-    public function teamsWithOrganizations(){
+    public function teamsWithWorkspaces(){
         return $this->teams()->with('workspace');
     }
 

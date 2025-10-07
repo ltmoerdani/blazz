@@ -40,7 +40,7 @@
     })
 
     const form2 = useForm({
-        organization_name: props.workspace?.name,
+        Workspace_name: props.workspace?.name,
         address: getAddressDetail(props.workspace?.address, 'street'),
         city: getAddressDetail(props.workspace?.address, 'city'),
         state: getAddressDetail(props.workspace?.address, 'state'),

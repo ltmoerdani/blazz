@@ -19,7 +19,7 @@ class AddonsTableSeeder3 extends Seeder
                 'name' => 'AI Assistant',
                 'logo' => 'ai.png',
                 'description' => 'The AI assistant delivers intelligent, AI-driven responses by utilizing user data for training.',
-                'metadata' => NULL,
+                'metadata' => null,
                 'status' => 0,
             ],
         ];

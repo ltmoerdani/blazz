@@ -14,13 +14,17 @@ use App\Services\WhatsappService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use DB;
-use Validator;
 
 class AutoReplyService
 {
+    // Constants for repeated string literals
+    const AUTOMATED_FLOWS = 'Automated Flows';
+    
     public function getRows(object $request)
     {
         $workspaceId = session()->get('current_workspace');
@@ -48,14 +52,16 @@ class AutoReplyService
                     $file = Storage::disk('local')->put('public', $fileContent);
                     $mediaFilePath = $file;
                     $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-                } else if($storage === 'aws') {
+                } elseif($storage === 'aws') {
                     $filePath = 'uploads/media/received'  . session()->get('current_workspace') . '/' . $fileName;
-                    $file = Storage::disk('s3')->put($filePath, $fileContent, 'public');
-                    $mediaFilePath = Storage::disk('s3')->url($filePath);
+                    Storage::disk('s3')->put($filePath, $fileContent, 'public');
+                    /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                    $s3Disk = Storage::disk('s3');
+                    $mediaFilePath = $s3Disk->url($filePath);
                     $mediaUrl = $mediaFilePath;
                 }
 
-                $uploadedMedia = MediaService::upload($request->file('response'));
+                MediaService::upload($request->file('response'));
 
                 $metadata['data']['file']['name'] = $fileName;
                 $metadata['data']['file']['location'] = $mediaFilePath;
@@ -66,7 +72,7 @@ class AutoReplyService
                 $metadata['data']['file']['location'] = $media->file->location;
                 $metadata['data']['file']['url'] = $media->file->url;
             }
-        } else if($request->response_type === 'text') {
+        } elseif($request->response_type === 'text') {
             $metadata['data']['text'] = $request->response;
         } else {
             $metadata['data']['template'] = $request->response;
@@ -77,7 +83,7 @@ class AutoReplyService
 
         if($uuid === null){
             $model['workspace_id'] = session()->get('current_workspace');
-            $model['created_by'] = auth()->user()->id;
+            $model['created_by'] = Auth::id();
             $model['created_at'] = now();
         }
 
@@ -93,7 +99,7 @@ class AutoReplyService
     public function destroy($uuid)
     {
         AutoReply::where('uuid', $uuid)->update([
-            'deleted_by' => auth()->user()->id,
+            'deleted_by' => Auth::id(),
             'deleted_at' => now()
         ]);
 
@@ -108,7 +114,7 @@ class AutoReplyService
 
     public function checkAutoReply(Chat $chat, $isNewContact)
     {
-        $workspaceId = $chat->organization_id;
+        $workspaceId = $chat->Workspace_id;
 
         $this->replySequence($workspaceId, $chat, $isNewContact);
     }
@@ -121,18 +127,20 @@ class AutoReplyService
         $modulePath = base_path('modules/FlowBuilder');
         
         if (File::exists($modulePath)) {
-            if (class_exists(\Modules\FlowBuilder\Services\FlowExecutionService::class)) {
-                $query = new \Modules\FlowBuilder\Services\FlowExecutionService($workspaceId);
+            $flowServiceClass = '\Modules\FlowBuilder\Services\FlowExecutionService';
+            if (class_exists($flowServiceClass)) {
+                /** @var object $query */
+                $query = new $flowServiceClass($workspaceId);
                 $activeFlow = $query->hasActiveFlow($chat);
             }
         }
 
         // Override response sequence if there is an active flow
         if ($activeFlow) {
-            $response_sequence = ['Automated Flows'];
+            $response_sequence = [self::AUTOMATED_FLOWS];
         } else {
             // Use the response sequence from metadata or fallback to default
-            $response_sequence = $metadataArray['automation']['response_sequence'] ?? ['Basic Replies', 'Automated Flows', 'AI Reply Assistant'];
+            $response_sequence = $metadataArray['automation']['response_sequence'] ?? ['Basic Replies', self::AUTOMATED_FLOWS, 'AI Reply Assistant'];
         }
 
         // Define mapping of sequence items to functions
@@ -140,7 +148,7 @@ class AutoReplyService
             'Basic Replies' => function() use ($chat) {
                 return $this->handleBasicReplies($chat);
             },
-            'Automated Flows' => function() use ($workspaceId, $chat, $isNewContact) {
+            self::AUTOMATED_FLOWS => function() use ($workspaceId, $chat, $isNewContact) {
                 return $this->handleAutomatedFlows($workspaceId, $chat, $isNewContact);
             },
             'AI Reply Assistant' => function() use ($chat) {
@@ -156,8 +164,8 @@ class AutoReplyService
             if (isset($sequenceFunctions[$sequenceItem])) {
                 $response = $sequenceFunctions[$sequenceItem]();
 
-                \Log::info($sequenceItem);
-                \Log::info($response);
+                Log::info($sequenceItem);
+                Log::info($response);
 
                 if ($response) {
                     // If a response is found, exit the loop
@@ -171,18 +179,18 @@ class AutoReplyService
 
     private function handleBasicReplies($chat)
     {
-        $workspaceId = $chat->organization_id;
+        $workspaceId = $chat->Workspace_id;
         $text = '';
         $metadata = json_decode($chat->metadata, true);
 
         if($metadata['type'] == 'text'){
             $text = $metadata['text']['body'];
-        } else if(json_decode($chat->metadata)->type == 'button'){
+        } elseif(json_decode($chat->metadata)->type == 'button'){
             $text = $metadata['button']['payload'];
-        } else if(json_decode($chat->metadata)->type == 'interactive'){
+        } elseif(json_decode($chat->metadata)->type == 'interactive'){
             if($metadata['interactive']['type'] == 'button_reply'){
                 $text = $metadata['interactive']['button_reply']['title'];
-            } else if($metadata['interactive']['type'] == 'list_reply'){
+            } elseif($metadata['interactive']['type'] == 'list_reply'){
                 $text = $metadata['interactive']['list_reply']['title'];
             }
         }
@@ -215,12 +223,12 @@ class AutoReplyService
 
         if($metadata['type'] == 'text'){
             $text = $metadata['text']['body'];
-        } else if(json_decode($chat->metadata)->type == 'button'){
+        } elseif(json_decode($chat->metadata)->type == 'button'){
             $text = $metadata['button']['payload'];
-        } else if(json_decode($chat->metadata)->type == 'interactive'){
+        } elseif(json_decode($chat->metadata)->type == 'interactive'){
             if($metadata['interactive']['type'] == 'button_reply'){
                 $text = $metadata['interactive']['button_reply']['title'];
-            } else if($metadata['interactive']['type'] == 'list_reply'){
+            } elseif($metadata['interactive']['type'] == 'list_reply'){
                 $text = $metadata['interactive']['list_reply']['title'];
             }
         }
@@ -228,7 +236,9 @@ class AutoReplyService
         $receivedMessage = " " . strtolower($text);
 
         if (file_exists(base_path('modules/IntelliReply/Services/AIResponseService.php'))) {
-            $query = new \Modules\IntelliReply\Services\AIResponseService();
+            $aiServiceClass = '\Modules\IntelliReply\Services\AIResponseService';
+            /** @var object $query */
+            $query = new $aiServiceClass();
             if ($query->handleAIResponse($chat, $receivedMessage)) {
                 return true;
             }
@@ -244,12 +254,12 @@ class AutoReplyService
 
         if($metadata['type'] == 'text'){
             $text = $metadata['text']['body'];
-        } else if(json_decode($chat->metadata)->type == 'button'){
+        } elseif(json_decode($chat->metadata)->type == 'button'){
             $text = $metadata['button']['payload'];
-        } else if(json_decode($chat->metadata)->type == 'interactive'){
+        } elseif(json_decode($chat->metadata)->type == 'interactive'){
             if($metadata['interactive']['type'] == 'button_reply'){
                 $text = $metadata['interactive']['button_reply']['title'];
-            } else if($metadata['interactive']['type'] == 'list_reply'){
+            } elseif($metadata['interactive']['type'] == 'list_reply'){
                 $text = $metadata['interactive']['list_reply']['title'];
             }
         }
@@ -257,7 +267,9 @@ class AutoReplyService
         $receivedMessage = " " . strtolower($text);
 
         if (file_exists(base_path('modules/FlowBuilder/Services/FlowExecutionService.php'))) {
-            $query = new \Modules\FlowBuilder\Services\FlowExecutionService($workspaceId);
+            $flowServiceClass = '\Modules\FlowBuilder\Services\FlowExecutionService';
+            /** @var object $query */
+            $query = new $flowServiceClass($workspaceId);
             return $query->executeFlow($chat, $isNewContact, $receivedMessage);
         }
     }
@@ -275,7 +287,7 @@ class AutoReplyService
 
         if ($criteria === 'exact match') {
             return $receivedMessage === " " . $normalizedTrigger;
-        } else if ($criteria === 'contains') {
+        } elseif ($criteria === 'contains') {
             $triggerWords = explode(' ', $normalizedTrigger);
             $pattern = '/\b(' . implode('|', array_map('preg_quote', $triggerWords)) . ')\b/i';
 
@@ -288,14 +300,14 @@ class AutoReplyService
     protected function sendReply(Chat $chat, AutoReply $autoreply)
     {
         $contact = Contact::where('id', $chat->contact_id)->first();
-        $workspace_id = $chat->organization_id;
+        $workspace_id = $chat->Workspace_id;
         $metadata = json_decode($autoreply->metadata);
         $replyType = $metadata->type;
 
         if($replyType === 'text'){
             $message = $this->replacePlaceholders($workspace_id, $contact->uuid, $metadata->data->text);
             $this->initializeWhatsappService($workspace_id)->sendMessage($contact->uuid, $message);
-        } else if($replyType === 'audio' || $replyType === 'image'){
+        } elseif($replyType === 'audio' || $replyType === 'image'){
             $location = strpos($metadata->data->file->location, 'public\\') === 0 ? 'local' : 'amazon';
             $this->initializeWhatsappService($workspace_id)->sendMedia($contact->uuid, $replyType, $metadata->data->file->name, $metadata->data->file->location, $metadata->data->file->url, $location);
         }
@@ -320,25 +332,25 @@ class AutoReplyService
         $contact = Contact::with('contactGroups')->where('uuid', $contactUuid)->first();
         $address = $contact->address ? json_decode($contact->address, true) : [];
         $metadata = $contact->metadata ? json_decode($contact->metadata, true) : [];
-        $full_address = ($address['street'] ?? Null) . ', ' .
-                        ($address['city'] ?? Null) . ', ' .
-                        ($address['state'] ?? Null) . ', ' .
-                        ($address['zip'] ?? Null) . ', ' .
-                        ($address['country'] ?? Null);
+        $full_address = ($address['street'] ?? null) . ', ' .
+                        ($address['city'] ?? null) . ', ' .
+                        ($address['state'] ?? null) . ', ' .
+                        ($address['zip'] ?? null) . ', ' .
+                        ($address['country'] ?? null);
 
         $data = [
-            'first_name' => $contact->first_name ?? Null,
-            'last_name' => $contact->last_name ?? Null,
-            'full_name' => $contact->full_name ?? Null,
-            'email' => $contact->email ?? Null,
-            'phone' => $contact->phone ?? Null,
-            'organization_name' => $workspace->name,
+            'first_name' => $contact->first_name ?? null,
+            'last_name' => $contact->last_name ?? null,
+            'full_name' => $contact->full_name ?? null,
+            'email' => $contact->email ?? null,
+            'phone' => $contact->phone ?? null,
+            'Workspace_name' => $workspace->name,
             'full_address' => $full_address,
-            'street' => $address['street'] ?? Null,
-            'city' => $address['city'] ?? Null,
-            'state' => $address['state'] ?? Null,
-            'zip_code' => $address['zip'] ?? Null,
-            'country' => $address['country'] ?? Null,
+            'street' => $address['street'] ?? null,
+            'city' => $address['city'] ?? null,
+            'state' => $address['state'] ?? null,
+            'zip_code' => $address['zip'] ?? null,
+            'country' => $address['country'] ?? null,
         ];
 
         $transformedMetadata = [];
@@ -350,8 +362,6 @@ class AutoReplyService
         }
 
         $mergedData = array_merge($data, $transformedMetadata);
-
-        //Log::info($mergedData);
 
         return preg_replace_callback('/\{(\w+)\}/', function ($matches) use ($mergedData) {
             $key = $matches[1];

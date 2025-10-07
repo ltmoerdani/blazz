@@ -16,17 +16,17 @@ class Campaign extends Model {
 
     public function getCreatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function getDeletedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function getScheduledAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function workspace(){
@@ -99,7 +99,7 @@ class Campaign extends Model {
                 COUNT(*) as total_message_count,
                 SUM(CASE WHEN campaign_logs.status = "success" AND chat.status IN ("accepted", "sent", "delivered", "read") THEN 1 ELSE 0 END) as total_sent_count,
                 SUM(CASE WHEN campaign_logs.status = "success" AND chat.status IN ("delivered", "read") THEN 1 ELSE 0 END) as total_delivered_count,
-                SUM(CASE WHEN campaign_logs.status = "failed" THEN 1 ELSE 0 END) + 
+                SUM(CASE WHEN campaign_logs.status = "failed" THEN 1 ELSE 0 END) +
                     SUM(CASE WHEN campaign_logs.status = "success" AND chat.status = "failed" THEN 1 ELSE 0 END) as total_failed_count,
                 SUM(CASE WHEN campaign_logs.status = "success" AND chat.status = "read" THEN 1 ELSE 0 END) as total_read_count
             ')

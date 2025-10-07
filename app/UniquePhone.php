@@ -14,7 +14,7 @@ class UniquePhone implements Rule
 
     public function __construct($workspaceId, $uuid = null)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
         $this->uuid = $uuid;
     }
 
@@ -31,7 +31,7 @@ class UniquePhone implements Rule
 
             // Check if the phone number is unique for the given workspace_id
             $query = DB::table('contacts')
-                ->where('workspace_id', $this->organizationId)
+                ->where('workspace_id', $this->workspaceId)
                 ->where('phone', $formattedPhone)
                 ->where('deleted_at', null);
 

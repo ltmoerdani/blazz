@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\ContactContactGroup;
 use App\Models\ContactGroup;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
@@ -17,7 +18,7 @@ class ContactService
 
     public function __construct($workspaceId)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
     }
 
     public function store(object $request, $uuid = null){
@@ -27,11 +28,10 @@ class ContactService
         $contact->email = $request->email;
 
         $phone = new PhoneNumber($request->phone);
-        $contact->phone = $phone->formatE164();//$phone->formatInternational();
+        $contact->phone = $phone->formatE164();
 
         if($request->hasFile('file')){
             $storage = Setting::where('key', 'storage_system')->first()->value;
-            $fileName = $request->file('file')->getClientOriginalName();
             $fileContent = $request->file('file');
 
             if($storage === 'local'){
@@ -39,18 +39,20 @@ class ContactService
                 $mediaFilePath = $file;
 
                 $contact->avatar = '/media/' . ltrim($mediaFilePath, '/');
-            } else if($storage === 'aws') {
+            } elseif($storage === 'aws') {
                 $file = $request->file('file');
-                $uploadedFile = $file->store('uploads/media/contacts/' . $this->organizationId, 's3');
-                $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                $uploadedFile = $file->store('uploads/media/contacts/' . $this->workspaceId, 's3');
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                $s3Disk = Storage::disk('s3');
+                $mediaFilePath = $s3Disk->url($uploadedFile);
 
                 $contact->avatar = $mediaFilePath;
             }
         }
 
         if($uuid === null){
-            $contact->organization_id = $this->organizationId;
-            $contact->created_by = auth()->user() ? auth()->user()->id : 0;
+            $contact->Workspace_id = $this->workspaceId;
+            $contact->created_by = Auth::check() ? Auth::id() : 0;
             $contact->created_at = now();
         }
 
@@ -77,7 +79,7 @@ class ContactService
         $cleanContact = $contact->makeHidden(['id', 'workspace_id', 'created_by']);
 
         // Trigger webhook
-        WebhookHelper::triggerWebhookEvent($uuid === null ? 'contact.created' : 'contact.updated', $cleanContact, $this->organizationId);
+        WebhookHelper::triggerWebhookEvent($uuid === null ? 'contact.created' : 'contact.updated', $cleanContact, $this->workspaceId);
 
         return $contact;
     }
@@ -94,8 +96,8 @@ class ContactService
 
         if (empty($uuids)) {
             // Delete all contacts (soft delete)
-            $contacts = Contact::where('workspace_id', $this->organizationId)->get();
-            Contact::whereNotNull('id')->where('workspace_id', $this->organizationId)->delete();
+            $contacts = Contact::where('workspace_id', $this->workspaceId)->get();
+            Contact::whereNotNull('id')->where('workspace_id', $this->workspaceId)->delete();
 
             // Prepare deleted contacts for the webhook
             foreach ($contacts as $contact) {
@@ -106,7 +108,7 @@ class ContactService
             }
 
             //Mark all unread chats as read
-            Chat::where('workspace_id', $this->organizationId)
+            Chat::where('workspace_id', $this->workspaceId)
                 ->where('type', 'inbound')
                 ->whereNull('deleted_at')
                 ->where('is_read', 0)
@@ -134,12 +136,12 @@ class ContactService
                     ]);
             }
 
-            Contact::whereIn('uuid', $uuids)->where('workspace_id', $this->organizationId)->delete();
+            Contact::whereIn('uuid', $uuids)->where('workspace_id', $this->workspaceId)->delete();
         }
 
         // Trigger webhook with deleted contacts
         WebhookHelper::triggerWebhookEvent('contact.deleted', [
             'list' => $deletedContacts
-        ], $this->organizationId);
+        ], $this->workspaceId);
     }
 }

@@ -52,7 +52,7 @@ Blazz menggunakan **Hybrid Service-Oriented Modular Architecture** yang menggabu
 ### Quick Links:
 - [Architecture Overview](./docs/architecture/01-arsitektur-overview.md) - Complete architecture explanation
 - [Component Connections](./docs/architecture/02-component-connections.md) - How components interact
-- [Folder Structure](./docs/architecture/03-folder-structure.md) - Project organization guide
+- [Folder Structure](./docs/architecture/03-folder-structure.md) - Project Workspace guide
 - [Feature Development](./docs/architecture/04-feature-development-guide.md) - Step-by-step new feature guide
 - [Visual Diagrams](./docs/architecture/05-visual-diagrams.md) - Architecture visualization
 

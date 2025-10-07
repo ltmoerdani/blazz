@@ -20,6 +20,9 @@ use Redirect;
 
 class BillingController extends BaseController
 {
+    // Constants for repeated string literals
+    const BILLING_ROUTE = '/billing';
+    
     protected $billingService;
     protected $subscriptionService;
     protected $paymentPlatformResolver;
@@ -49,7 +52,7 @@ class BillingController extends BaseController
             'pusher_app_cluster',
         ])->pluck('value', 'key')->toArray();
         $data['setting'] = Setting::whereIn('key', ['enable_custom_payment'])->pluck('value', 'key')->toArray();
-        $data['organizationId'] = $workspaceId;
+        $data['workspaceId'] = $workspaceId;
 
         if($request->has('paymentId') && $request->has('token')){
             //Check if payment id exists in DB
@@ -57,24 +60,26 @@ class BillingController extends BaseController
             if(!$payment){
                 $data['isPaymentLoading'] = true;
             } else {
-                return redirect('/billing')->with(
+                return redirect(self::BILLING_ROUTE)->with(
                     'status', [
-                        'type' => 'success', 
+                        'type' => 'success',
                         'message' => __('Payment processed successfully!')
                     ]
                 );
             }
-        } else if($request->has('hostedpage')){
+        } elseif($request->has('hostedpage')){
             if (file_exists(base_path('modules/Pabbly/Services/PabblyService.php'))) {
                 $data['isPaymentLoading'] = true;
 
-                $pabblyService = new \Modules\Pabbly\Services\PabblyService();
+                $pabblyServiceClass = '\Modules\Pabbly\Services\PabblyService';
+                /** @var object $pabblyService */
+                $pabblyService = new $pabblyServiceClass();
                 $response = $pabblyService->subscribeToPlan($request->hostedpage);
                 $data = $response->getData();
                 
-                return redirect('/billing')->with(
+                return redirect(self::BILLING_ROUTE)->with(
                     'status', [
-                        'type' => $response->status() === '200' ? 'success' : 'error', 
+                        'type' => $response->status() === '200' ? 'success' : 'error',
                         'message' => $data->message
                     ]
                 );
@@ -93,9 +98,9 @@ class BillingController extends BaseController
         if ($response->success === true) {
             return inertia::location($response->data);
         } else {
-            return redirect('/billing')->with(
+            return redirect(self::BILLING_ROUTE)->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Could not process your payment successfully!')
                 ]
             );

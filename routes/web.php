@@ -207,7 +207,6 @@ Route::middleware(['auth:user'])->group(function () {
                     Route::delete('/developer-tools/access-tokens/{uuid}', [App\Http\Controllers\User\DeveloperController::class, 'delete']);
                 });
 
-                //* Route::get('/whatsapp/message', [App\Http\Controllers\User\WhatsappController::class, 'sendMessage']);
                 Route::resource('notes', App\Http\Controllers\User\ChatNoteController::class);
             });
         });
@@ -219,10 +218,6 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::get(RouteConstants::DASHBOARD_PATH, [App\Http\Controllers\Admin\DashboardController::class, 'index']);
     Route::resource('users', App\Http\Controllers\Admin\UserController::class);
     Route::resource('workspaces', App\Http\Controllers\Admin\WorkspaceController::class);
-    //* Route::resource('blog/posts', App\Http\Controllers\Admin\BlogController::class);
-    //* Route::resource('blog/categories', App\Http\Controllers\Admin\BlogCategoryController::class);
-    //* Route::resource('blog/authors', App\Http\Controllers\Admin\BlogAuthorController::class);
-    //* Route::resource('blog/tags', App\Http\Controllers\Admin\BlogTagController::class);
     Route::resource('tax-rates', App\Http\Controllers\Admin\TaxController::class);
     Route::resource('coupons', App\Http\Controllers\Admin\CouponController::class);
     Route::resource('faqs', App\Http\Controllers\Admin\FaqController::class);
@@ -254,9 +249,6 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::resource('languages', App\Http\Controllers\Admin\LanguageController::class);
     Route::post('/translations/{languageCode}/{key}', [App\Http\Controllers\Admin\LanguageController::class, 'updateTranslation']);
 
-    //* Route::get('/pages', [App\Http\Controllers\Admin\PageController::class, 'index']);
-    //* Route::get('/users/{uuid}/organizations', [App\Http\Controllers\Admin\CustomerController::class, 'userWorkspaces']);
-    //* Route::get('/subscriptions', [App\Http\Controllers\Admin\SubscriptionController::class, 'index']);
     Route::get('/payment-logs', [App\Http\Controllers\Admin\PaymentController::class, 'index']);
 
     Route::get('/support/{uuid?}', [App\Http\Controllers\Admin\TicketController::class, 'index'])->name('tickets');

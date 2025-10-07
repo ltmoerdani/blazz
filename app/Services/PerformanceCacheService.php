@@ -53,7 +53,7 @@ class PerformanceCacheService
     /**
      * workspace dashboard metrics dengan aggressive caching
      */
-    public function getOrganizationMetrics($workspaceId)
+    public function getWorkspaceMetrics($workspaceId)
     {
         $cacheKey = "org_metrics:{$workspaceId}";
         $tags = ['org_metrics', "org:{$workspaceId}"];
@@ -129,13 +129,13 @@ class PerformanceCacheService
     /**
      * workspace list dengan pagination caching
      */
-    public function getOrganizationList($page = 1, $perPage = 10, $searchTerm = null)
+    public function getWorkspaceList($page = 1, $perPage = 10, $searchTerm = null)
     {
         $cacheKey = "org_list:p{$page}:pp{$perPage}:" . md5($searchTerm ?? '');
-        $tags = ['organizations', 'org_list'];
+        $tags = ['workspaces', 'org_list'];
 
         return Cache::tags($tags)->remember($cacheKey, self::CACHE_MEDIUM, function() use ($page, $perPage, $searchTerm) {
-            $query = workspace::with(['teams:organization_id,user_id,role', 'teams.user:id,name,avatar'])
+            $query = workspace::with(['teams:Workspace_id,user_id,role', 'teams.user:id,name,avatar'])
                 ->withCount('teams');
 
             if ($searchTerm) {
@@ -161,7 +161,7 @@ class PerformanceCacheService
         Cache::tags($tags)->flush();
     }
 
-    public function invalidateOrganizationCache($workspaceId)
+    public function invalidateWorkspaceCache($workspaceId)
     {
         Cache::tags(["org:{$workspaceId}", 'org_metrics'])->flush();
     }

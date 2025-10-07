@@ -10,8 +10,8 @@ use App\Models\workspace;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
-use Redirect;
 
 class ChatController extends BaseController
 {
@@ -43,7 +43,7 @@ class ChatController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => $res->success === true ? 'success' : 'error', 
+                'type' => $res->success === true ? 'success' : 'error',
                 'message' => $res->success === true ? __('Message sent successfully!') : $res->message,
                 'res' => $res
             ]
@@ -56,7 +56,7 @@ class ChatController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Chat cleared successfully!')
             ]
         );

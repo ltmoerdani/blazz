@@ -38,7 +38,7 @@ class DashboardController extends BaseController
                 $query->whereNull('deleted_at');
             })->where('entity_type', '=', 'payment')->sum('amount');
         $data['totalRevenue'] = CurrencyHelper::formatCurrency($totalRevenue);
-        $data['userCount'] = User::where('role', '=', 'user')->where('deleted_at', NULL)->count();
+        $data['userCount'] = User::where('role', '=', 'user')->where('deleted_at', null)->count();
         $data['openTickets'] = Ticket::whereHas('user', function ($query) {
                 $query->whereNull('deleted_at');
             })->where('status', '=', 'open')->count();

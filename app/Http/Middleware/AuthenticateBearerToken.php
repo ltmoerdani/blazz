@@ -16,14 +16,14 @@ class AuthenticateBearerToken
             return response()->json(['error' => __('Unauthorized. Bearer Token is missing.')], 401);
         }
 
-        $organizationApiKey = WorkspaceApiKey::where('token', $token)->whereNull('deleted_at')->first();
+        $WorkspaceApiKey = WorkspaceApiKey::where('token', $token)->whereNull('deleted_at')->first();
 
-        if (!$organizationApiKey) {
+        if (!$WorkspaceApiKey) {
             return response()->json(['error' => __('Unauthorized. Invalid Bearer Token.')], 401);
         }
 
         // Attach workspace to the request
-        $request->merge(['workspace' => $organizationApiKey->organization_id]);
+        $request->merge(['workspace' => $WorkspaceApiKey->Workspace_id]);
 
         return $next($request);
     }
