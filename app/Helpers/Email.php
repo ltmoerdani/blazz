@@ -107,9 +107,7 @@ class Email
         ];
 
         // Replace the placeholders
-        $replacedContent = Str::replace(array_keys($replacements), array_values($replacements), $content);
-
-        return $replacedContent;
+        return Str::replace(array_keys($replacements), array_values($replacements), $content);
     }
 }
 

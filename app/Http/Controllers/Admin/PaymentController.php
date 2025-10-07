@@ -9,7 +9,7 @@ use Inertia\Inertia;
 
 class PaymentController extends BaseController
 {
-    private $RoleService;
+    private $billingService;
 
     /**
      * PaymentController constructor.
@@ -24,7 +24,7 @@ class PaymentController extends BaseController
     public function index(Request $request){
         return Inertia::render('Admin/Payment/Index', [
             'title' => __('Billing'),
-            'rows' => $this->billingService->get($request), 
+            'rows' => $this->billingService->get($request),
             'filters' => $request->all()
         ]);
     }

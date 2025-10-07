@@ -9,7 +9,7 @@ use App\Http\Requests\StoreCoupon;
 use App\Http\Resources\CouponResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule; 
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Helper;
 use Session;
@@ -17,6 +17,9 @@ use Validator;
 
 class CouponController extends BaseController
 {
+    private const REDIRECT_ROUTE = '/admin/coupons';
+    private const DATETIME_FORMAT = 'Y-m-d H:i:s';
+
     public function index(Request $request, $id = null){
         return Inertia::render('Admin/Setting/Coupon', [
             'rows' => CouponResource::collection(
@@ -32,13 +35,13 @@ class CouponController extends BaseController
         $coupon->code = $request->code;
         $coupon->percentage = $request->percentage;
         $coupon->quantity = $request->quantity;
-        $coupon->created_at = date('Y-m-d H:i:s');
-        $coupon->updated_at = date('Y-m-d H:i:s');
+        $coupon->created_at = date(self::DATETIME_FORMAT);
+        $coupon->updated_at = date(self::DATETIME_FORMAT);
         $coupon->save();
 
-        return redirect('/admin/coupons')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Coupon added successfully')
             ]
         );
@@ -57,12 +60,12 @@ class CouponController extends BaseController
         $coupon->code = $request->code;
         $coupon->percentage = $request->percentage;
         $coupon->quantity = $request->quantity;
-        $coupon->updated_at = date('Y-m-d H:i:s');
+        $coupon->updated_at = date(self::DATETIME_FORMAT);
         $coupon->save();
 
-        return redirect('/admin/coupons')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Coupon updated successfully')
             ]
         );
@@ -78,12 +81,12 @@ class CouponController extends BaseController
     {
         $coupon = Coupon::findOrFail($id);
         $coupon->status = 'inactive';
-        $coupon->deleted_at = date('Y-m-d H:i:s');
+        $coupon->deleted_at = date(self::DATETIME_FORMAT);
         $coupon->save();
 
-        return redirect('/admin/coupons')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Coupon deleted successfully')
             ]
         );

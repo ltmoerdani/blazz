@@ -10,7 +10,7 @@ use App\Models\PaymentGateway;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule; 
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Helper;
 use Session;
@@ -35,7 +35,7 @@ class PaymentGatewayController extends BaseController
             // Return a response indicating that the function is not allowed in demo environment
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Updating settings is not allowed in demo.')
                 ]
             );
@@ -52,7 +52,7 @@ class PaymentGatewayController extends BaseController
                     'webhook_id' => $request->webhook_id
                 ];
                 break;
-                
+
             case 'stripe':
                 $metadata = [
                     'publishable_key' => $request->publishable_key,
@@ -60,7 +60,7 @@ class PaymentGatewayController extends BaseController
                     'webhook_secret' => $request->webhook_secret
                 ];
                 break;
-                
+
             case 'flutterwave':
             case 'paystack':
                 $metadata = [
@@ -68,16 +68,20 @@ class PaymentGatewayController extends BaseController
                     'secret_key' => $request->secret_key,
                 ];
                 break;
+
+            default:
+                // Unknown payment gateway type - keep empty metadata
+                break;
         }
 
-        $method = PaymentGateway::where('name', '=', $type)->update([
+        PaymentGateway::where('name', '=', $type)->update([
             'metadata' => $metadata,
             'is_active' => $request->status
         ]);
 
         return redirect('/admin/payment-gateways')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => ucfirst($type) . ' updated successfully!'
             ]
         );
