@@ -220,7 +220,7 @@ class SendCampaignJob implements ShouldQueue
         }
 
         // Now check for retryable failed logs
-        $hasRetryable = CampaignLog::where('campaign_id', $campaign->id)
+        return CampaignLog::where('campaign_id', $campaign->id)
             ->where('status', 'failed')
             ->where(function ($query) use ($maxRetries) {
                 $query->whereExists(function ($sub) use ($maxRetries) {
@@ -232,8 +232,6 @@ class SendCampaignJob implements ShouldQueue
                 });
             })
             ->exists();
-
-        return $hasRetryable;
     }
 
     protected function sendTemplateMessage(CampaignLog $campaignLog)

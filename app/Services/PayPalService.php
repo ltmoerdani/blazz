@@ -252,15 +252,13 @@ class PayPalService
     private function executePaymentFromWebhook($paymentId, $payerId)
     {
         try {
-            $request = $this->makeRequest(
+            return $this->makeRequest(
                 'POST',
                 "v1/payments/payment/{$paymentId}/execute",
                 [
                     'payer_id' => $payerId
                 ]
             );
-
-            return $request;
         } catch (\Exception $e) {
             Log::error('PayPal execute payment error: ' . $e->getMessage());
             return (object) array('success' => false, 'error' => $e->getMessage());

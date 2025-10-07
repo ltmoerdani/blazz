@@ -209,7 +209,7 @@ class WorkspaceService
     
             $entry = $modelClass::create($transactionData);
     
-            $transaction = BillingTransaction::create([
+            return BillingTransaction::create([
                 'workspace_id' => $workspace->id,
                 'entity_type' => $request->type,
                 'entity_id' => $entry->id,
@@ -217,8 +217,6 @@ class WorkspaceService
                 'amount' => $request->amount,
                 'created_by' => Auth::id()
             ]);
-    
-            return $transaction;
         });
     }
 

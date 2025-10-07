@@ -149,9 +149,7 @@ class Contact extends Model {
         $query->orderBy('last_chat_created_at', $sortDirection); // Order contacts by last chat created_at
 
         // Paginate contacts
-        $contacts = $query->paginate(10);
-
-        return $contacts;
+        return $query->paginate(10);
 
     }
 
