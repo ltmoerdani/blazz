@@ -18,13 +18,13 @@ use Propaganistas\LaravelPhone\PhoneNumber;
 
 class UserService
 {
-    protected $WorkspaceService;
+    protected $workspaceService;
     protected $workspace;
     protected $role;
 
     public function __construct($role)
     {
-        $this->WorkspaceService = new WorkspaceService();
+        $this->workspaceService = new WorkspaceService();
         $this->role = $role;
     }
 
@@ -69,7 +69,7 @@ class UserService
 
         if ($this->role === 'user') {
             $query->where('role', '=', 'user');
-            $workspaces = $this->WorkspaceService->get($request, $query->first()->id);
+            $workspaces = $this->workspaceService->get($request, $query->first()->id);
             $result = ['user' => $query->first(), 'workspaces' => $workspaces];
         } else {
             $query->where('role', '!=', 'user');
