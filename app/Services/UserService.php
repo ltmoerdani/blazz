@@ -217,32 +217,29 @@ class UserService
             $user->delete();
 
             // Confirm the user has been deleted (soft deleted)
-            if ($user->trashed()) {
-                // Check if the workspace ID is valid
-                if ($workspaceId) {
-                    // Reassign owner role if necessary
-                    if ($isOwner) {
-                        // Find the next user in the team to assign as the new owner
-                        $nextUser = User::whereHas('teams', function ($query) use ($workspaceId) {
-                            $query->where('workspace_id', $workspaceId);
-                        })->where('id', '!=', $user->id)->first();
-
-                        if ($nextUser) {
-                            $team = $nextUser->teams()->where('workspace_id', $workspaceId)->first();
-                            $team->role = 'owner';
-                            $team->save();
-                        }
-                    }
-
-                    // Count the number of users associated with the workspace excluding the user being deleted
-                    $userCount = User::whereHas('teams', function ($query) use ($workspaceId) {
+            if ($user->trashed() && $workspaceId) {
+                // Reassign owner role if necessary
+                if ($isOwner) {
+                    // Find the next user in the team to assign as the new owner
+                    $nextUser = User::whereHas('teams', function ($query) use ($workspaceId) {
                         $query->where('workspace_id', $workspaceId);
-                    })->where('id', '!=', $user->id)->count();
+                    })->where('id', '!=', $user->id)->first();
 
-                    // If the user being deleted is the last user associated with the workspace, soft delete the workspace
-                    if ($userCount === 0) {
-                        workspace::find($workspaceId)->delete();
+                    if ($nextUser) {
+                        $team = $nextUser->teams()->where('workspace_id', $workspaceId)->first();
+                        $team->role = 'owner';
+                        $team->save();
                     }
+                }
+
+                // Count the number of users associated with the workspace excluding the user being deleted
+                $userCount = User::whereHas('teams', function ($query) use ($workspaceId) {
+                    $query->where('workspace_id', $workspaceId);
+                })->where('id', '!=', $user->id)->count();
+
+                // If the user being deleted is the last user associated with the workspace, soft delete the workspace
+                if ($userCount === 0) {
+                    workspace::find($workspaceId)->delete();
                 }
             }
         }

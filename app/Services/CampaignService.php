@@ -49,7 +49,7 @@ class CampaignService
                         $metadata['header']['format'] = $header['format'];
                         $metadata['header']['parameters'] = [];
                 
-                        foreach ($request->header['parameters'] as $key => $parameter) {
+                        foreach ($request->header['parameters'] as $parameter) {
                             if ($parameter['selection'] === 'upload') {
 
                                 $storage = Setting::where('key', 'storage_system')->first()->value;
@@ -61,7 +61,7 @@ class CampaignService
                                     $mediaFilePath = $file;
                     
                                     $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-                                } else if($storage === 'aws') {
+                                } elseif($storage === 'aws') {
                                     $file = $parameter['value'];
                                     $uploadedFile = $file->store('uploads/media/sent/' . $workspaceId, 's3');
                                     /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
@@ -131,17 +131,6 @@ class CampaignService
                 'stack_trace' => $e->getTraceAsString(),
             ]);
         }
-    }
-
-    private function getMediaInfo($path)
-    {
-        $fullPath = storage_path('app/public/' . $path);
-
-        return [
-            'name' => pathinfo($fullPath, PATHINFO_FILENAME),
-            'type' => File::extension($fullPath),
-            'size' => Storage::size($path), // Size in bytes
-        ];
     }
 
     public function sendCampaign(){

@@ -108,13 +108,11 @@ class ApiController extends Controller
             ], 403);
         }
 
-        if ($request->isMethod('post')) {
-            if(!SubscriptionService::isSubscriptionFeatureLimitReached($request->workspaceId, 'contacts_limit')){
-                return response()->json([
-                    'statusCode' => 403,
-                    'message' => __('You have reached your limit of contacts. Please upgrade your account to add more!'),
-                ], 403);
-            }
+        if ($request->isMethod('post') && !SubscriptionService::isSubscriptionFeatureLimitReached($request->workspaceId, 'contacts_limit')) {
+            return response()->json([
+                'statusCode' => 403,
+                'message' => __('You have reached your limit of contacts. Please upgrade your account to add more!'),
+            ], 403);
         }
 
         try {
@@ -350,13 +348,11 @@ class ApiController extends Controller
             ], 403);
         }
 
-        if ($request->isMethod('post')) {
-            if(!SubscriptionService::isSubscriptionFeatureLimitReached($request->workspaceId, 'canned_replies_limit')){
-                return response()->json([
-                    'statusCode' => 403,
-                    'message' => __('You\'ve reached your limit. Upgrade your account'),
-                ], 403);
-            }
+        if ($request->isMethod('post') && !SubscriptionService::isSubscriptionFeatureLimitReached($request->workspaceId, 'canned_replies_limit')) {
+            return response()->json([
+                'statusCode' => 403,
+                'message' => __('You\'ve reached your limit. Upgrade your account'),
+            ], 403);
         }
 
         try {

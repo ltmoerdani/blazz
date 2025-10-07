@@ -10,7 +10,7 @@ class WebhookHelper
 {
     public static function triggerWebhookEvent($event, $data, $workspaceId = null)
     {
-        $workspaceId = $workspaceId = null ? session()->get('current_workspace') : $workspaceId;
+        $workspaceId = $workspaceId ?? session()->get('current_workspace');
 
         if(CustomHelper::isModuleEnabled('Webhooks', $workspaceId)){
             // Check if MainController exists

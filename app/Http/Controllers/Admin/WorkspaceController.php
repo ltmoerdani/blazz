@@ -11,7 +11,6 @@ use Inertia\Inertia;
 class WorkspaceController extends BaseController
 {
     private $WorkspaceService;
-    private $role;
 
     /**
      * WorkspaceController constructor.

@@ -113,11 +113,9 @@ class SettingController extends BaseController
         $config = workspace::findOrFail($workspaceId)->metadata;
         $config = $config ? json_decode($config, true) : [];
 
-        if($config['whatsapp']['is_embedded_signup'] && $config['whatsapp']['is_embedded_signup'] == 1){
-            if (class_exists(\Modules\EmbeddedSignup\Services\MetaService::class)) {
-                $embeddedSetup = new \Modules\EmbeddedSignup\Services\MetaService();
-                $embeddedSetup->overrideWabaCallbackUrl($workspaceId);
-            }
+        if($config['whatsapp']['is_embedded_signup'] && $config['whatsapp']['is_embedded_signup'] == 1 && class_exists(\Modules\EmbeddedSignup\Services\MetaService::class)) {
+            $embeddedSetup = new \Modules\EmbeddedSignup\Services\MetaService();
+            $embeddedSetup->overrideWabaCallbackUrl($workspaceId);
         }
     
         return $this->saveWhatsappSettings(

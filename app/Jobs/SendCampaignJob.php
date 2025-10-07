@@ -77,11 +77,9 @@ class SendCampaignJob implements ShouldQueue
     {
         $contacts = $this->getContactsForCampaign($campaign);
 
-        if($this->createCampaignLogs($campaign, $contacts)){
-            if($this->updateCampaignStatus($campaign, 'ongoing')){
-                $campaign = Campaign::find($campaign->id);
-                $this->processCampaign($campaign);
-            }
+        if($this->createCampaignLogs($campaign, $contacts) && $this->updateCampaignStatus($campaign, 'ongoing')){
+            $campaign = Campaign::find($campaign->id);
+            $this->processCampaign($campaign);
         }
     }
 
