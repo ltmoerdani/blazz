@@ -268,9 +268,14 @@ class QueryPerformanceMiddleware
 
     /**
      * Format bytes untuk human readable display
+     * Protected from DivisionByZeroError when $bytes = 0
      */
     private function formatBytes(int $bytes): string
     {
+        if ($bytes === 0) {
+            return '0 B';
+        }
+        
         $units = ['B', 'KB', 'MB', 'GB'];
         $pow = floor(log($bytes) / log(1024));
         

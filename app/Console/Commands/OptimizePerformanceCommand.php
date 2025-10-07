@@ -417,9 +417,14 @@ class OptimizePerformanceCommand extends Command
 
     /**
      * Format bytes to human readable
+     * Protected from DivisionByZeroError when $bytes = 0
      */
     private function formatBytes(int $bytes): string
     {
+        if ($bytes === 0) {
+            return '0 B';
+        }
+        
         $units = ['B', 'KB', 'MB', 'GB'];
         $pow = floor(log($bytes) / log(1024));
         
