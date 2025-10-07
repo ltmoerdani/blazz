@@ -28,7 +28,7 @@ class NewPaymentEvent implements ShouldBroadcast
     public function __construct($payment, $workspaceId)
     {
         $this->payment = $payment;
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
     }
 
     /**
@@ -41,7 +41,7 @@ class NewPaymentEvent implements ShouldBroadcast
         try {
             // Check if Pusher settings are available
             if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-                $channel = 'payments.' . 'ch' . $this->organizationId;
+                $channel = 'payments.' . 'ch' . $this->workspaceId;
                 return new Channel($channel);
             } else {
                 // Log an error if Pusher settings are not configured

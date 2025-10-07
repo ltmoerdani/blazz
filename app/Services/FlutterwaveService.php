@@ -11,16 +11,23 @@ use App\Services\SubscriptionService;
 use App\Traits\ConsumesExternalServices;
 use Carbon\Carbon;
 use CurrencyHelper;
-use DB;
 use Helper;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class FlutterwaveService
 {
+    protected $subscriptionService;
+    protected $config;
+    protected $baseUri;
+    protected $publicKey;
+    protected $secretKey;
+
     public function __construct()
     {
         $this->subscriptionService = new SubscriptionService();
@@ -33,7 +40,7 @@ class FlutterwaveService
         $this->secretKey = $this->config->secret_key;
     }
 
-    public function makeRequest($method, $url, $body = NULL)
+    public function makeRequest($method, $url, $body = null)
     {
         $httpClient = new HttpClient();
 
@@ -55,26 +62,26 @@ class FlutterwaveService
         }
     }
 
-    public function handlePayment($amount, $planId = NULL)
+    public function handlePayment($amount, $planId = null)
     {
         $currency = strtoupper(Setting::where('key', 'currency')->first()->value);
         $redirectUrl = url('payment/flutterwave');
 
-        $user = User::where('id', auth()->user()->id)->first();
+        $user = User::where('id', Auth::id())->first();
 
         try {
             $pay = $this->makeRequest(
                 'POST',
                 'v3/payments',
                 [
-                    'tx_ref' => 'Ref:' . auth()->user()->id . session()->get('current_workspace') . now()->format('YmdHis'),
+                    'tx_ref' => 'Ref:' . Auth::id() . session()->get('current_workspace') . now()->format('YmdHis'),
                     'amount' => $amount,
                     'currency' => $currency,
                     'redirect_url' => $redirectUrl,
                     'meta' => [
                         'workspace_id' => session()->get('current_workspace'),
                         'plan_id' => $planId,
-                        'user_id' => auth()->user()->id,
+                        'user_id' => Auth::id(),
                     ],
                     'customer' => [
                         'email' => $user->email,
@@ -90,7 +97,7 @@ class FlutterwaveService
             return (object) array('success' => true, 'data' => $pay->data->data->link);
         } catch (\Exception $e) {
             // Log or handle the error as needed
-            \Log::error("Error Code:" . $e->getMessage());
+            Log::error("Error Code:" . $e->getMessage());
 
             return (object) array('success' => false, 'error' => $e->getMessage());
         }
@@ -112,10 +119,10 @@ class FlutterwaveService
             $request = $verifiedTrans->data;
 
             if($request->status === 'success'){
-                $transaction = DB::transaction(function () use ($request) {
+                DB::transaction(function () use ($request) {
                     $metadata = $request->data->meta;
 
-                    $workspaceId = $metadata->organization_id ?? null;
+                    $workspaceId = $metadata->Workspace_id ?? null;
                     $userId = $metadata->user_id ?? null;
                     $planId = $metadata->plan_id ?? null;
                     $amount = $request->data->amount;
@@ -148,7 +155,6 @@ class FlutterwaveService
                             $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
                         }
 
-                        //Log::debug($transaction);
                         return $transaction;
                     }
                 });

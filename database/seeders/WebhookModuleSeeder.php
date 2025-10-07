@@ -19,7 +19,7 @@ class WebhookModuleSeeder extends Seeder
                 'name' => 'Webhooks',
                 'logo' => 'webhook_icon.png',
                 'description' => 'Webhooks enable real-time data transfer by sending automated notifications on specific events.',
-                'metadata' => NULL,
+                'metadata' => null,
                 'status' => 0,
             ],
         ];

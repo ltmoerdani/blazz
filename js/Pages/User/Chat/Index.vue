@@ -57,9 +57,6 @@
                     />
                 </div>
             </div>
-            <!--<div v-if="contact" class="md:w-[25%] min-w-0 bg-cover flex flex-col bg-white border-l">
-                <ChatContact v-if="contact" class="bg-white h-full" :contact="contact" />
-            </div>-->
         </div>
         <button class="hidden" ref="toggleNavbarBtn" @click="slotProps.toggleNavBar"></button>
     </AppLayout>
@@ -82,7 +79,7 @@
         rows: Array,
         rowCount: Number,
         pusherSettings: Object,
-        organizationId: Number,
+        WorkspaceId: Number,
         isChatLimitReached: Boolean,
         toggleNavBar: Function,
         state: String,
@@ -185,7 +182,7 @@
             props.pusherSettings['pusher_app_cluster']
         );
 
-        echo.channel('chats.ch' + props.organizationId)
+        echo.channel('chats.ch' + props.WorkspaceId)
             .listen('NewChatEvent', (event) => {
                 updateSidePanel(event.chat);
             });

@@ -4,14 +4,15 @@ namespace App\Services;
 
 use App\Http\Resources\ContactFieldResource;
 use App\Models\ContactField;
+use Illuminate\Support\Facades\Auth;
 
 class ContactFieldService
 {
     private $workspaceId;
     
-    public function __construct($workspaceId = NULL)
+    public function __construct($workspaceId = null)
     {
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
     }
 
     /**
@@ -20,9 +21,9 @@ class ContactFieldService
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request)
+    public function get()
     {
-        $rows = ContactField::where('workspace_id', $this->organizationId)
+        $rows = ContactField::where('workspace_id', $this->workspaceId)
             ->where('deleted_at', null)->latest()->paginate(5);
 
         return ContactFieldResource::collection($rows);
@@ -30,7 +31,7 @@ class ContactFieldService
 
     public function getByUuid($uuid = null)
     {
-        return ContactField::where('workspace_id', $this->organizationId)->where('uuid', $uuid)->first();;
+        return ContactField::where('workspace_id', $this->workspaceId)->where('uuid', $uuid)->first();
     }
 
     /**
@@ -40,12 +41,12 @@ class ContactFieldService
      * @param string $uuid
      * @return \App\Models\ContactField
      */
-    public function store(object $request, $uuid = NULL)
+    public function store(object $request, $uuid = null)
     {
-        $last_position = ContactField::where('workspace_id', $this->organizationId)->where('deleted_at', null)->count();
+        $last_position = ContactField::where('workspace_id', $this->workspaceId)->where('deleted_at', null)->count();
 
         $field = $uuid === null ? new ContactField() : ContactField::where('uuid', $uuid)->firstOrFail();
-        $field->organization_id = $this->organizationId;
+        $field->Workspace_id = $this->workspaceId;
         $field->name = $request->name;
         $field->type = $request->component;
 
@@ -56,7 +57,7 @@ class ContactFieldService
         if($request->component === 'select'){
             $transformedString = collect($request->options)->pluck('value')->implode(', ');
             $field->value = $transformedString;
-        } else if($request->component === 'input'){
+        } elseif($request->component === 'input'){
             $field->value = $request->type;
         } else {
             $field->value = null;
@@ -79,7 +80,7 @@ class ContactFieldService
     {
         return ContactField::where('uuid', $uuid)->update([
             'deleted_at' => date('Y-m-d H:i:s'),
-            'deleted_by' => auth()->user()->id
+            'deleted_by' => Auth::id()
         ]);
-    } 
+    }
 }

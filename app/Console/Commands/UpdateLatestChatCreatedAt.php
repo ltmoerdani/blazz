@@ -11,11 +11,6 @@ class UpdateLatestChatCreatedAt extends Command
     protected $signature = 'contacts:update-latest-chat-created-at';
     protected $description = 'Update latest_chat_created_at for existing contacts';
 
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
     public function handle()
     {
         Contact::with('chats')

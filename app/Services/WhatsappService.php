@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\NewChatEvent;
+use App\Exceptions\TemplateNotFoundException;
 use App\Helpers\WebhookHelper;
 use App\Models\Campaign;
 use App\Models\Chat;
@@ -16,6 +17,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +26,13 @@ use Session;
 
 class WhatsappService
 {
+    // Constants for repeated string literals
+    const INTERACTIVE_BUTTONS = 'interactive buttons';
+    const INTERACTIVE_CTA_URL = 'interactive call to action url';
+    const INTERACTIVE_LIST = 'interactive list';
+    const BEARER_PREFIX = 'Bearer ';
+    const JSON_CONTENT_TYPE = 'application/json';
+    
     private $accessToken;
     private $apiVersion;
     private $appId;
@@ -38,7 +47,7 @@ class WhatsappService
         $this->appId = $appId;
         $this->phoneNumberId = $phoneNumberId;
         $this->wabaId = $wabaId;
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
 
         Config::set('broadcasting.connections.pusher', [
             'driver' => 'pusher',
@@ -58,7 +67,7 @@ class WhatsappService
      * @param string $messageContent The content of the message to be sent.
      * @return mixed Returns the response from the HTTP request.
      */
-    public function sendMessage($contactUuId, $messageContent, $userId = NULL, $type="text", $buttons = [], $header = [], $footer = null, $buttonLabel = null)
+    public function sendMessage($contactUuId, $messageContent, $userId = null, $type="text", $buttons = [], $header = [], $footer = null, $buttonLabel = null)
     {
         $contact = Contact::where('uuid', $contactUuId)->first();
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
@@ -72,18 +81,18 @@ class WhatsappService
             $requestData['type'] = 'text';
             $requestData['text']['preview_url'] = true; //If you have added url either http or https a preview will be displayed
             $requestData['text']['body'] = clean($messageContent);
-        } else if($type == "interactive buttons" || $type == "interactive call to action url" || $type == "interactive list"){
+        } elseif($type == self::INTERACTIVE_BUTTONS || $type == self::INTERACTIVE_CTA_URL || $type == self::INTERACTIVE_LIST){
             $requestData['type'] = 'interactive';
 
-            if($type == "interactive buttons"){
+            if($type == self::INTERACTIVE_BUTTONS){
                 $requestData['interactive']['type'] = 'button';
-            } else if($type == "interactive call to action url"){
+            } elseif($type == self::INTERACTIVE_CTA_URL){
                 $requestData['interactive']['type'] = 'cta_url';
-            } else if($type == "interactive list"){
+            } elseif($type == self::INTERACTIVE_LIST){
                 $requestData['interactive']['type'] = 'list';
             }
 
-            if($type == "interactive buttons"){
+            if($type == self::INTERACTIVE_BUTTONS){
                 foreach($buttons as $button){
                     $requestData['interactive']['action']['buttons'][] = [
                         'type' => 'reply',
@@ -93,10 +102,10 @@ class WhatsappService
                         ],
                     ];
                 }
-            } else if($type == "interactive call to action url"){
+            } elseif($type == self::INTERACTIVE_CTA_URL){
                 $requestData['interactive']['action']['name'] = "cta_url";
                 $requestData['interactive']['action']['parameters'] = $buttons;
-            } else if($type == "interactive list"){
+            } elseif($type == self::INTERACTIVE_LIST){
                 $requestData['interactive']['action']['sections'] = $buttons;
                 $requestData['interactive']['action']['button'] = $buttonLabel;
             }
@@ -121,7 +130,7 @@ class WhatsappService
             $response['type'] = 'text';
 
             $chat = Chat::create([
-                'workspace_id' => $contact->organization_id,
+                'workspace_id' => $contact->Workspace_id,
                 'wam_id' => $responseObject->data->messages[0]->id,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
@@ -146,13 +155,13 @@ class WhatsappService
                 'value' => $chatLogArray->relatedEntities
             ]);
             
-            event(new NewChatEvent($chatArray, $contact->organization_id));
+            event(new NewChatEvent($chatArray, $contact->Workspace_id));
         }
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('message.sent', [
             'data' => $responseObject,
-        ], $contact->organization_id);
+        ], $contact->Workspace_id);
 
         return $responseObject;
     }
@@ -164,7 +173,7 @@ class WhatsappService
      * @param string $messageContent The content of the message to be sent.
      * @return mixed Returns the response from the HTTP request.
      */
-    public function sendTemplateMessage($contactUuId, $templateContent, $userId = NULL, $campaignId = NULL, $mediaId = NULL)
+    public function sendTemplateMessage($contactUuId, $templateContent, $userId = null, $campaignId = null, $mediaId = null)
     {
         $contact = Contact::where('uuid', $contactUuId)->first();
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
@@ -177,24 +186,24 @@ class WhatsappService
         $requestData['type'] = 'template';
         $requestData['template'] = $templateContent;
 
-        //\Log::info('WhatsApp API Request: ' . json_encode($requestData));
+        
 
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
         if($responseObject->success === true){
-            if($campaignId != NULL){
+            if($campaignId != null){
                 $campaign = Campaign::where('id', $campaignId)->first();
                 $templateMetadata = json_decode($campaign->metadata);
             }
 
             $chat = Chat::create([
-                'workspace_id' => $contact->organization_id,
+                'workspace_id' => $contact->Workspace_id,
                 'wam_id' => $responseObject->data->messages[0]->id,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
                 'user_id' => $userId,
-                'metadata' => $campaignId != NULL ? $this->buildCampaignTemplateChatMessage($templateMetadata, $contactUuId) : $this->buildTemplateChatMessage($templateContent, $contact),
-                'media_id' => $campaignId != NULL ? $this->getMediaIdFromCampaign($campaignId) : $mediaId,
+                'metadata' => $campaignId != null ? $this->buildCampaignTemplateChatMessage($templateMetadata, $contactUuId) : $this->buildTemplateChatMessage($templateContent, $contact),
+                'media_id' => $campaignId != null ? $this->getMediaIdFromCampaign($campaignId) : $mediaId,
                 'status' => isset($responseObject->data->messages[0]->message_status) ? $responseObject->data->messages[0]->message_status : 'sent',
                 'created_at' => now()
             ]);
@@ -214,13 +223,13 @@ class WhatsappService
                 'value' => $chatLogArray->relatedEntities
             ]);
 
-            event(new NewChatEvent($chatArray, $contact->organization_id));
+            event(new NewChatEvent($chatArray, $contact->Workspace_id));
         }
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('message.sent', [
             'data' => $responseObject,
-        ], $contact->organization_id);
+        ], $contact->Workspace_id);
 
         return $responseObject;
     }
@@ -289,13 +298,13 @@ class WhatsappService
             }
         }
 
-        //dd(json_encode($array));
+        
         return json_encode($array);
     }
 
     private function buildTemplateChatMessage($templateContent, $contact){
         //Get the template
-        $template = Template::where('workspace_id', $contact->organization_id)
+        $template = Template::where('workspace_id', $contact->Workspace_id)
             ->where('name', $templateContent['name'])
             ->where('language', $templateContent['language']['code'])
             ->first();
@@ -306,35 +315,31 @@ class WhatsappService
         $array['type'] = 'text';
 
         foreach($templateMetadatas as $templateMetadata){
-            if($templateMetadata->type == 'HEADER'){
-                if($templateMetadata->format == 'IMAGE' || $templateMetadata->format == 'VIDEO' || $templateMetadata->format == 'DOCUMENT' || $templateMetadata->format == 'LOCATION'){
-                    $array['type'] = strtolower($templateMetadata->format);
-                }
+            if($templateMetadata->type == 'HEADER' && ($templateMetadata->format == 'IMAGE' || $templateMetadata->format == 'VIDEO' || $templateMetadata->format == 'DOCUMENT' || $templateMetadata->format == 'LOCATION')){
+                $array['type'] = strtolower($templateMetadata->format);
             }
 
             //BODY
-            if($templateMetadata->type == 'BODY'){
-                if(isset($templateMetadata->text)){
-                    $bodyText = $templateMetadata->text;
+            if($templateMetadata->type == 'BODY' && isset($templateMetadata->text)){
+                $bodyText = $templateMetadata->text;
 
-                    if (isset($templateMetadata->parameters) && !empty($templateMetadata->parameters)) {
-                        $bodyParameters = $templateMetadata->parameters;
+                if (isset($templateMetadata->parameters) && !empty($templateMetadata->parameters)) {
+                    $bodyParameters = $templateMetadata->parameters;
 
-                        if($bodyParameters && count($bodyParameters) > 1){
-                            foreach($bodyParameters as $index => $parameter){
-                                $placeholder = '{{' . ($index + 1) . '}}';
-                                $value = $parameter->selection === 'static' ? $parameter->value : $this->getParameters($contact, $parameter->value);
+                    if($bodyParameters && count($bodyParameters) > 1){
+                        foreach($bodyParameters as $index => $parameter){
+                            $placeholder = '{{' . ($index + 1) . '}}';
+                            $value = $parameter->selection === 'static' ? $parameter->value : $this->getParameters($contact, $parameter->value);
 
-                                $bodyText = str_replace($placeholder, $value, $bodyText);
-                            }
+                            $bodyText = str_replace($placeholder, $value, $bodyText);
                         }
                     }
+                }
 
-                    if($array['type'] == 'text'){
-                        $array[$array['type']]['body'] = $bodyText;
-                    } else {
-                        $array[$array['type']]['caption'] = $bodyText;
-                    }
+                if($array['type'] == 'text'){
+                    $array[$array['type']]['body'] = $bodyText;
+                } else {
+                    $array[$array['type']]['caption'] = $bodyText;
                 }
             }
 
@@ -357,20 +362,20 @@ class WhatsappService
             }
         }
 
-        //\Log::info(json_encode($array));
+        
         return json_encode($array);
     }
 
     private function getParameters($contact, $parameter){
         if($parameter === 'first name'){
             return $contact->first_name;
-        } else if($parameter === 'last name'){
+        } elseif($parameter === 'last name'){
             return $contact->last_name;
-        } else if($parameter === 'name'){
+        } elseif($parameter === 'name'){
             return $contact->first_name . ' ' . $contact->last_name;
-        } else if($parameter === 'email'){
+        } elseif($parameter === 'email'){
             return $contact->email;
-        } else if($parameter === 'phone'){
+        } elseif($parameter === 'phone'){
             return $contact->phone;
         }
     }
@@ -384,30 +389,6 @@ class WhatsappService
      * @param string $mediaFile The file to be uploaded as media.
      * @return mixed Returns the response from the HTTP request.
      */
-    /*public function sendMedia($contactUuid, $mediaType, $mediaFile)
-    {
-        $contact = Contact::where('uuid', $contactUuId)->first();
-        $mediaFilePath = Storage::path("media/{$mediaFileName}");
-
-        $fileUploadResponse = $this->initiateResumableUploadSession($mediaFilePath);
-
-        if(!$fileUploadResponse->success){
-            return $fileUploadResponse;
-        }
-
-        $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
-        $headers = $this->setHeaders();
-
-        $requestData['messaging_product'] = 'whatsapp';
-        $requestData['recipient_type'] = 'individual';
-        $requestData['to'] = $contact->phone;
-        $requestData['type'] = $mediaType;
-        $requestData[$mediaType]['id'] = $fileUploadResponse->data->h;
-
-        $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
-
-        dd($responseObject);
-    }*/
 
     /**
      * This function sends a stored image as a media file via a POST request to the specified phone number using Facebook's messaging API.
@@ -416,7 +397,7 @@ class WhatsappService
      * @param string $imageUrl The URL of the stored image.
      * @return mixed Returns the response from the HTTP request.
      */
-    public function sendMedia($contactUuId, $mediaType, $mediaFileName, $mediaFilePath, $mediaUrl, $location, $caption = NULL, $transcription = NULL)
+    public function sendMedia($contactUuId, $mediaType, $mediaFileName, $mediaUrl, $location, $caption = null, $transcription = null)
     {
         $contact = Contact::where('uuid', $contactUuId)->first();
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
@@ -433,23 +414,20 @@ class WhatsappService
             $requestData[$mediaType]['filename'] = $mediaFileName;
         }
 
-        if($caption != NULL && $mediaType != 'audio'){
+        if($caption != null && $mediaType != 'audio'){
             $requestData[$mediaType]['caption'] = $caption;
         }
 
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
-        //Log::info(json_encode($responseObject));
-
         if($responseObject->success === true){
-            //Log::info($mediaUrl);
             $wamId = $responseObject->data->messages[0]->id;
             $contentType = $this->getContentTypeFromUrl($mediaUrl);
             $mediaData = $this->formatMediaResponse($wamId, $mediaUrl, $mediaType, $contentType, $transcription);
             $mediaSize = $this->getMediaSizeInBytesFromUrl($mediaUrl);
 
             $chat = Chat::create([
-                'workspace_id' => $contact->organization_id,
+                'workspace_id' => $contact->Workspace_id,
                 'wam_id' => $wamId,
                 'contact_id' => $contact->id,
                 'type' => 'outbound',
@@ -485,20 +463,20 @@ class WhatsappService
                 'value' => $chatLogArray->relatedEntities
             ]);
 
-            event(new NewChatEvent($chatArray, $contact->organization_id));
+            event(new NewChatEvent($chatArray, $contact->Workspace_id));
         }
 
-        //\Log::info(json_encode($responseObject, true));
+        
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('message.sent', [
             'data' => $responseObject,
-        ], $contact->organization_id);
+        ], $contact->Workspace_id);
 
         return $responseObject;
     }
 
-    function getContentTypeFromUrl($url) {
+    public function getContentTypeFromUrl($url) {
         try {
             // Make a HEAD request to fetch headers only
             $response = Http::head($url);
@@ -516,7 +494,7 @@ class WhatsappService
         }
     }
 
-    function formatMediaResponse($wamId, $mediaUrl, $mediaType, $contentType, $transcription = null){
+    public function formatMediaResponse($wamId, $mediaType, $contentType, $transcription = null){
         $response = [
             "id" => $wamId,
             "type" => $mediaType,
@@ -532,7 +510,7 @@ class WhatsappService
         return $response;
     }
 
-    function getMediaSizeInBytesFromUrl($url) {
+    public function getMediaSizeInBytesFromUrl($url) {
         $imageContent = file_get_contents($url);
     
         if ($imageContent !== false) {
@@ -607,41 +585,37 @@ class WhatsappService
         }
 
         if($request->category != 'AUTHENTICATION'){
-            if($request->header['format'] === 'TEXT'){
-                if(isset($request->header['text'])){
-                    $headerComponent = [];
+            if($request->header['format'] === 'TEXT' && isset($request->header['text'])){
+                $headerComponent = [];
 
-                    $headerComponent['type'] = "HEADER";
-                    $headerComponent['format'] = $request->header['format'];
-                    $headerComponent['text'] = $request->header['text'];
+                $headerComponent['type'] = "HEADER";
+                $headerComponent['format'] = $request->header['format'];
+                $headerComponent['text'] = $request->header['text'];
 
-                    if (!empty($request->header['example'])) {
-                        $headerComponent['example']['header_text'] = $request->header['example'];
-                    }
-
-                    $requestData['components'][] = $headerComponent;
+                if (!empty($request->header['example'])) {
+                    $headerComponent['example']['header_text'] = $request->header['example'];
                 }
+
+                $requestData['components'][] = $headerComponent;
             }
         
 
-            if(($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT')){
-                if(isset($request->header['example'])){
-                    $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
+            if(($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT') && isset($request->header['example'])){
+                $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
 
-                    if(!$fileUploadResponse->success){
-                        return $fileUploadResponse;
-                    }
-
-                    $requestData['components'][] = [
-                        "type" => "HEADER",
-                        "format" => $request->header['format'],
-                        "example" => [
-                            "header_handle" => [
-                                $fileUploadResponse->data->h
-                            ]
-                        ]
-                    ];
+                if(!$fileUploadResponse->success){
+                    return $fileUploadResponse;
                 }
+
+                $requestData['components'][] = [
+                    "type" => "HEADER",
+                    "format" => $request->header['format'],
+                    "example" => [
+                        "header_handle" => [
+                            $fileUploadResponse->data->h
+                        ]
+                    ]
+                ];
             }
         }
         
@@ -757,13 +731,13 @@ class WhatsappService
         $client = new Client();
         $responseObject = new \stdClass();
 
-        //\Log::info($requestData);
+        
 
         try {
             $response = $client->post($url, [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->accessToken,
-                    'Content-Type' => 'application/json',
+                    'Authorization' => self::BEARER_PREFIX . $this->accessToken,
+                    'Content-Type' => self::JSON_CONTENT_TYPE,
                 ],
                 'json' => $requestData,
             ]);
@@ -773,14 +747,14 @@ class WhatsappService
 
             //Save Template To Database
             $template = new Template();
-            $template->organization_id = session()->get('current_workspace');
+            $template->Workspace_id = session()->get('current_workspace');
             $template->meta_id = $responseObject->data->id;
             $template->name = $request->name;
             $template->category = $request->category;
             $template->language = $request->language;
             $template->metadata = json_encode($requestData);
             $template->status = $responseObject->data->status;
-            $template->created_by = auth()->user()->id;
+            $template->created_by = Auth::id();
             $template->created_at = now();
             $template->updated_at = now();
             $template->save();
@@ -790,6 +764,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -799,7 +774,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();
@@ -825,56 +800,52 @@ class WhatsappService
         }
 
         if($request->category != 'AUTHENTICATION'){
-            if($request->header['format'] === 'TEXT'){
-                if(isset($request->header['text'])){
-                    $headerComponent = [];
+            if($request->header['format'] === 'TEXT' && isset($request->header['text'])){
+                $headerComponent = [];
 
-                    $headerComponent['type'] = "HEADER";
-                    $headerComponent['format'] = $request->header['format'];
-                    $headerComponent['text'] = $request->header['text'];
+                $headerComponent['type'] = "HEADER";
+                $headerComponent['format'] = $request->header['format'];
+                $headerComponent['text'] = $request->header['text'];
 
-                    if (!empty($request->header['example'])) {
-                        $headerComponent['example']['header_text'] = $request->header['example'];
-                    }
-
-                    $requestData['components'][] = $headerComponent;
+                if (!empty($request->header['example'])) {
+                    $headerComponent['example']['header_text'] = $request->header['example'];
                 }
+
+                $requestData['components'][] = $headerComponent;
             }
 
-            if(($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT')){
-                if(isset($request->header['example'])){
-                    $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
+            if(($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT') && isset($request->header['example'])){
+                $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
 
-                    if(!$fileUploadResponse->success){
-                        return $fileUploadResponse;
-                    }
+                if(!$fileUploadResponse->success){
+                    return $fileUploadResponse;
+                }
 
-                    $requestData['components'][] = [
-                        "type" => "HEADER",
-                        "format" => $request->header['format'],
-                        "example" => [
-                            "header_handle" => [
-                                $fileUploadResponse->data->h
-                            ]
+                $requestData['components'][] = [
+                    "type" => "HEADER",
+                    "format" => $request->header['format'],
+                    "example" => [
+                        "header_handle" => [
+                            $fileUploadResponse->data->h
                         ]
-                    ];
-                } else {
-                    // Decode existing metadata
-                    $metadata = json_decode($template->metadata, true);
+                    ]
+                ];
+            } elseif($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT'){
+                // Decode existing metadata
+                $metadata = json_decode($template->metadata, true);
 
-                    // Extract existing header if available
-                    $existingHeader = [];
-                    if (isset($metadata['components'])) {
-                        foreach ($metadata['components'] as $component) {
-                            if ($component['type'] === 'HEADER') {
-                                $existingHeader = $component;
-                                break;
-                            }
+                // Extract existing header if available
+                $existingHeader = [];
+                if (isset($metadata['components'])) {
+                    foreach ($metadata['components'] as $component) {
+                        if ($component['type'] === 'HEADER') {
+                            $existingHeader = $component;
+                            break;
                         }
                     }
-
-                    $requestData['components'][] = $existingHeader;
                 }
+
+                $requestData['components'][] = $existingHeader;
             }
         }
 
@@ -993,8 +964,8 @@ class WhatsappService
         try {
             $response = $client->post($url, [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->accessToken,
-                    'Content-Type' => 'application/json',
+                    'Authorization' => self::BEARER_PREFIX . $this->accessToken,
+                    'Content-Type' => self::JSON_CONTENT_TYPE,
                 ],
                 'json' => $requestData,
             ]);
@@ -1004,16 +975,15 @@ class WhatsappService
 
             //Update Template In Database
             if ($template) {
-                $template->organization_id = session()->get('current_workspace');
+                $template->Workspace_id = session()->get('current_workspace');
                 $template->category = $template->status == 'APPROVED' ? $template->category : $request->category;
-                //$template->metadata = json_encode($requestData);
                 $template->status = 'PENDING';
-                $template->created_by = auth()->user()->id;
+                $template->created_by = Auth::id();
                 $template->updated_at = now(); // No need to set `created_at` when updating
                 $template->save();
             } else {
                 // Handle case where template is not found (optional)
-                throw new \Exception('Template not found');
+                throw new TemplateNotFoundException('Template not found');
             }
         } catch (ConnectException $e) {
             $responseObject->success = false;
@@ -1021,6 +991,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1030,7 +1001,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();
@@ -1040,7 +1011,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function syncTemplates()
+    public function syncTemplates()
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/message_templates";
 
@@ -1057,8 +1028,6 @@ class WhatsappService
 
                 $responseObject = json_decode($response->getBody()->getContents());
 
-                //dd($responseObject);
-
                 foreach($responseObject->data as $templateData){
                     $template = Template::where('workspace_id', session()->get('current_workspace'))
                         ->where('meta_id', $templateData->id)->first();
@@ -1067,23 +1036,23 @@ class WhatsappService
                         $template->metadata = json_encode($templateData);
                         $template->status = $templateData->status;
                         $template->updated_at = now();
-                        $template->deleted_at = NULL;
+                        $template->deleted_at = null;
                         $template->save();
                     } else {
                         $template = new Template();
-                        $template->organization_id = session()->get('current_workspace');
+                        $template->Workspace_id = session()->get('current_workspace');
                         $template->meta_id = $templateData->id;
                         $template->name = $templateData->name;
                         $template->category = $templateData->category;
                         $template->language = $templateData->language;
                         $template->metadata = json_encode($templateData);
                         $template->status = $templateData->status;
-                        $template->created_by = auth()->user()->id;
+                        $template->created_by = Auth::id();
                         $template->created_at = now();
                         $template->updated_at = now();
                         $template->save();
                     }
-                };
+                }
 
                 if(isset($responseObject->paging) && isset($responseObject->paging->next)) {
                     $url = $responseObject->paging->next;
@@ -1097,6 +1066,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->data->error->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1106,7 +1076,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();
@@ -1142,33 +1112,29 @@ class WhatsappService
         return $responseObject;
     }
 
-    function getMedia($mediaId)
+    public function getMedia($mediaId)
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$mediaId}";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, NULL, $headers);
-
-        return $responseObject;
+        return $this->sendHttpRequest('GET', $url, null, $headers);
     }
 
-    function checkHealth()
+    public function checkHealth()
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}?fields=health_status";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, NULL, $headers);
-
-        return $responseObject;
+        return $this->sendHttpRequest('GET', $url, null, $headers);
     }
 
-    function subscribeToWaba()
+    public function subscribeToWaba()
     {
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->post("https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps")->throw()->json();
 
             $responseObject->success = true;
@@ -1184,23 +1150,21 @@ class WhatsappService
         return $responseObject;
     }
 
-    function getWabaSubscriptions()
+    public function getWabaSubscriptions()
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, NULL, $headers);
-
-        return $responseObject;
+        return $this->sendHttpRequest('GET', $url, null, $headers);
     }
 
-    function overrideCallbackUrl($callbackUrl, $verifyToken)
+    public function overrideCallbackUrl($callbackUrl, $verifyToken)
     {
         $responseObject = new \stdClass();
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->post("https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps", [
                 'override_callback_uri' => $callbackUrl,
                 'verify_token' => $verifyToken
@@ -1219,14 +1183,12 @@ class WhatsappService
         return $responseObject;
     }
 
-    function unSubscribeToWaba()
+    public function unSubscribeToWaba()
     {
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}/subscribed_apps";
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('DELETE', $url, NULL, $headers);
-
-        return $responseObject;
+        return $this->sendHttpRequest('DELETE', $url, null, $headers);
     }
 
     public function getBusinessProfile(){
@@ -1234,7 +1196,7 @@ class WhatsappService
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->get("https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/whatsapp_business_profile", [
                 'fields' => 'about,address,description,email,profile_picture_url,websites,vertical',
             ])->throw()->json();
@@ -1245,7 +1207,7 @@ class WhatsappService
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response['data'][0];
@@ -1272,7 +1234,7 @@ class WhatsappService
         $requestData['vertical'] = $request->industry;
         $requestData['email'] = $request->email;
             
-        $profile_picture_url = NULL;
+        $profile_picture_url = null;
 
         if($request->hasFile('profile_picture_url')){
             $storage = Setting::where('key', 'storage_system')->first()->value;
@@ -1282,10 +1244,12 @@ class WhatsappService
                 $file = Storage::disk('local')->put('public', $fileContent);
                 $mediaFilePath = $file;
                 $profile_picture_url = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-            } else if($storage === 'aws') {
+            } elseif($storage === 'aws') {
                 $file = $request->file('profile_picture_url');
-                $uploadedFile = $file->store('uploads/media/sent/' . $this->organizationId, 's3');
-                $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                $s3Disk = Storage::disk('s3');
+                $mediaFilePath = $s3Disk->url($uploadedFile);
                 $profile_picture_url = $mediaFilePath;
             }
 
@@ -1299,7 +1263,7 @@ class WhatsappService
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
         if($responseObject->success === true){
-            $workspaceConfig = workspace::where('id', $this->organizationId)->first();
+            $workspaceConfig = workspace::where('id', $this->workspaceId)->first();
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['whatsapp']['business_profile']['about'] = $request->about;
@@ -1307,7 +1271,7 @@ class WhatsappService
             $metadataArray['whatsapp']['business_profile']['description'] = $request->description;
             $metadataArray['whatsapp']['business_profile']['industry'] = $request->industry;
             $metadataArray['whatsapp']['business_profile']['email'] = $request->email;
-            if($profile_picture_url != NULL){
+            if($profile_picture_url != null){
                 $metadataArray['whatsapp']['business_profile']['profile_picture_url'] = $profile_picture_url;
             }
 
@@ -1325,7 +1289,7 @@ class WhatsappService
         
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('POST', $url, NULL, $headers);
+        $responseObject = $this->sendHttpRequest('POST', $url, null, $headers);
 
         if($responseObject->success === true){
             dd($responseObject);
@@ -1352,7 +1316,7 @@ class WhatsappService
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response['data'][0];
@@ -1372,7 +1336,7 @@ class WhatsappService
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->get("https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}", [
                 'fields' => 'status, code_verification_status , quality_score, health_status',
             ])->throw()->json();
@@ -1383,7 +1347,7 @@ class WhatsappService
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response;
@@ -1403,7 +1367,7 @@ class WhatsappService
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken
+                'Authorization' => self::BEARER_PREFIX . $this->accessToken
             ])->get("https://graph.facebook.com/{$this->apiVersion}/{$this->wabaId}", [
                 'fields' => 'account_review_status',
             ])->throw()->json();
@@ -1414,7 +1378,7 @@ class WhatsappService
                 $responseObject->data->error = new \stdClass();
                 $responseObject->data->error->code = $response['data']['error']['code'];
                 $responseObject->data->error->message = $response['data']['error']['message'];
-            } else {    
+            } else {
                 $responseObject->success = true;
                 $responseObject->data = new \stdClass();
                 $responseObject->data = (object) $response;
@@ -1429,7 +1393,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function viewMedia($mediaId)
+    public function viewMedia($mediaId)
     {
         $response = $this->getMedia($mediaId);
 
@@ -1440,14 +1404,14 @@ class WhatsappService
         $url = $response->data->url;
         $headers = $this->setHeaders();
 
-        $responseObject = $this->sendHttpRequest('GET', $url, NULL, $headers);
+        $responseObject = $this->sendHttpRequest('GET', $url, null, $headers);
 
         dd($responseObject);
 
         return $responseObject;
     }
 
-    function initiateResumableUploadSession($file)
+    public function initiateResumableUploadSession($file)
     {
         $sessionResponse = $this->createResumableUploadSession($file);
 
@@ -1480,6 +1444,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->data->error->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1489,7 +1454,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();
@@ -1499,7 +1464,7 @@ class WhatsappService
         return $responseObject;
     }
 
-    function createResumableUploadSession($file)
+    public function createResumableUploadSession($file)
     {
         $fileLength = $file->getSize();
         $fileType = $file->getMimeType();
@@ -1517,7 +1482,6 @@ class WhatsappService
                 ]
             ]);
         
-            $status = $response->getStatusCode();
             $responseObject->success = true;
             $responseObject->data = json_decode($response->getBody()->getContents());
         } catch (ConnectException $e) {
@@ -1526,6 +1490,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->data->error->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1535,10 +1500,11 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
-            $response = $e->getResponse();
+        } catch (\Exception $e) {
             $responseObject->success = false;
-            $responseObject->data = json_decode($response->getBody()->getContents());
+            $responseObject->data = new \stdClass();
+            $responseObject->data->error = new \stdClass();
+            $responseObject->data->error->message = $e->getMessage();
         }
 
         return $responseObject;
@@ -1548,8 +1514,8 @@ class WhatsappService
     public function setHeaders()
     {
         return [
-            'Authorization' => 'Bearer ' . $this->accessToken,
-            'Content-Type' => 'application/json',
+            'Authorization' => self::BEARER_PREFIX . $this->accessToken,
+            'Content-Type' => self::JSON_CONTENT_TYPE,
         ];
     }
 
@@ -1577,6 +1543,7 @@ class WhatsappService
             $responseObject->data->error = new \stdClass();
             $responseObject->data->error->message = $e->getMessage();
         } catch (GuzzleException $e) {
+            /** @var \GuzzleHttp\Exception\RequestException $e */
             $response = $e->getResponse();
             $responseObject->success = false;
             $responseObject->data = json_decode($response->getBody()->getContents());
@@ -1586,7 +1553,7 @@ class WhatsappService
             } else {
                 $responseObject->message = $responseObject->data->error->message;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $responseObject->success = false;
             $responseObject->data = new \stdClass();
             $responseObject->data->error = new \stdClass();

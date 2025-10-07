@@ -17,7 +17,7 @@ class UniqueEmail implements Rule
     public function passes($attribute, $value)
     {
         // Check if the email does not already exist in the users table
-        $query = User::where('email', $value)->where('deleted_at', NULL);
+        $query = User::where('email', $value)->where('deleted_at', null);
 
         // Exclude the user with the specified ID
         if ($this->ignoreId !== null) {

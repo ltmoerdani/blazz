@@ -16,16 +16,16 @@ use Inertia\Inertia;
 
 class DeveloperController extends BaseController
 {
-    private $organizationApiService;
+    private $WorkspaceApiService;
 
-    public function __construct(WorkspaceApiService $organizationApiService)
+    public function __construct(WorkspaceApiService $WorkspaceApiService)
     {
-        $this->organizationApiService = $organizationApiService;
+        $this->WorkspaceApiService = $WorkspaceApiService;
     }
 
     public function index(){
         $rows = WorkspaceApiKey::where('workspace_id', session()->get('current_workspace'))
-            ->where('deleted_at', NULL)
+            ->where('deleted_at', null)
             ->paginate(9);
         $data['rows'] = DeveloperResource::collection($rows);
         $data['title'] = __('API keys');
@@ -39,11 +39,11 @@ class DeveloperController extends BaseController
     }
 
     public function store(Request $request){
-        $this->organizationApiService->generate($request);
+        $this->WorkspaceApiService->generate($request);
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Your API token has been generated successfully')
             ]
         );
@@ -51,6 +51,6 @@ class DeveloperController extends BaseController
 
     public function delete($uuid)
     {
-        $this->organizationApiService->destroy($uuid);
+        $this->WorkspaceApiService->destroy($uuid);
     }
 }

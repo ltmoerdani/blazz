@@ -20,21 +20,17 @@ class ContactGroupsExport implements FromCollection, WithHeadings
 
         // Modify the collection to include formatted phone numbers and group names
         return $contactgroups->map(function ($group) {
-            $row = [
+            return [
                 'group_name' => $group->name,
             ];
-
-            return $row;
         });
     }
 
     public function headings(): array
     {
         // Define your headers here
-        $headers = [
+        return [
             'Group name'
         ];
-
-        return $headers;
     }
 }

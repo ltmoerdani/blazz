@@ -12,7 +12,7 @@ use Inertia\Inertia;
 
 class SubscriptionPlanController extends BaseController
 {
-    private $SubscriptionPlanService;
+    protected $subscriptionPlanService;
 
     /**
      * SubscriptionController constructor.
@@ -35,7 +35,7 @@ class SubscriptionPlanController extends BaseController
         return Inertia::render('Admin/SubscriptionPlan/Index', [
             'title' => __('Plans'),
             'allowCreate' => true,
-            'rows' => $this->subscriptionPlanService->get($request), 
+            'rows' => $this->subscriptionPlanService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -46,12 +46,12 @@ class SubscriptionPlanController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show($uuid = NULL)
+    public function show($uuid = null)
     {
         $plan = $this->subscriptionPlanService->getByUuid($uuid);
 
         return Inertia::render('Admin/SubscriptionPlan/Show', [
-            'title' => __('Subscription plans'), 
+            'title' => __('Subscription plans'),
             'plan' => $plan,
             'addons' => Addon::where('status', 1)->where('is_plan_restricted', 1)->pluck('name'),
             'enable_ai_billing' => Setting::where('key', 'enable_ai_billing')->value('value') ?? 0,
@@ -65,10 +65,10 @@ class SubscriptionPlanController extends BaseController
      */
     public function create(Request $request)
     {
-        $plan = $this->subscriptionPlanService->getByUuid(NULL);
+        $plan = $this->subscriptionPlanService->getByUuid(null);
 
         return Inertia::render('Admin/SubscriptionPlan/Show', [
-            'title' => __('Subscription plans'), 
+            'title' => __('Subscription plans'),
             'plan' => $plan,
             'addons' => Addon::where('status', 1)->where('is_plan_restricted', 1)->pluck('name'),
             'enable_ai_billing' => Setting::where('key', 'enable_ai_billing')->value('value') ?? 0,
@@ -86,7 +86,7 @@ class SubscriptionPlanController extends BaseController
 
         return redirect('/admin/plans')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Plan created successfully!')
             ]
         );
@@ -103,7 +103,7 @@ class SubscriptionPlanController extends BaseController
 
         return redirect('/admin/plans')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Plan updated successfully!')
             ]
         );

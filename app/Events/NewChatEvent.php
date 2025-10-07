@@ -28,7 +28,7 @@ class NewChatEvent implements ShouldBroadcast
     public function __construct($chat, $workspaceId)
     {
         $this->chat = $chat;
-        $this->organizationId = $workspaceId;
+        $this->workspaceId = $workspaceId;
     }
 
     /**
@@ -41,7 +41,7 @@ class NewChatEvent implements ShouldBroadcast
         try {
             // Check if Pusher settings are available
             if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-                $channel = 'chats.' . 'ch' . $this->organizationId;
+                $channel = 'chats.' . 'ch' . $this->workspaceId;
                 return new Channel($channel);
             } else {
                 // Log an error if Pusher settings are not configured

@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace App\Helpers;
 
@@ -16,10 +16,10 @@ class DateTimeHelper
         $dateFormat = Setting::where('key', '=', 'date_format')->first()->value;
         $timeFormat = Setting::where('key', '=', 'time_format')->first()->value;
 
-        return $dt->format($dateFormat . ' ' . $timeFormat); 
+        return $dt->format($dateFormat . ' ' . $timeFormat);
     }
 
-    public static function convertToOrganizationTimezone($date)
+    public static function convertToWorkspaceTimezone($date)
     {
         $timezone = 'UTC'; // Default to UTC
         $workspaceId = session()->get('current_workspace');

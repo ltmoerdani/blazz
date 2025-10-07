@@ -6,6 +6,7 @@ use App\Helpers\DateTimeHelper;
 use App\Http\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Propaganistas\LaravelPhone\PhoneNumber;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -21,12 +22,12 @@ class Contact extends Model {
 
     public function getCreatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function getUpdatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function getAllContacts($workspaceId, $searchTerm)
@@ -105,7 +106,7 @@ class Contact extends Model {
     public function contactsWithChats($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
     {
         $query = $this->newQuery()
-            ->where('contacts.organization_id', $workspaceId)
+            ->where('contacts.Workspace_id', $workspaceId)
             ->whereNotNull('contacts.latest_chat_created_at')
             ->with(['lastChat', 'lastInboundChat'])
             ->whereNull('contacts.deleted_at')
@@ -115,7 +116,7 @@ class Contact extends Model {
                     ->selectRaw('MAX(created_at)')
                     ->whereColumn('chats.contact_id', 'contacts.id')
                     ->whereNull('chats.deleted_at')
-                    ->where('chats.organization_id', $workspaceId);
+                    ->where('chats.Workspace_id', $workspaceId);
             }, 'last_chat_created_at');
 
         // Apply ticketing conditions if active
@@ -129,7 +130,7 @@ class Contact extends Model {
             }
 
             if ($role === 'agent' && !$allowAgentsViewAllChats) {
-                $query->where('chat_tickets.assigned_to', auth()->user()->id);
+                $query->where('chat_tickets.assigned_to', Auth::user()->id);
             }
         }
 
@@ -148,65 +149,14 @@ class Contact extends Model {
         $query->orderBy('last_chat_created_at', $sortDirection); // Order contacts by last chat created_at
 
         // Paginate contacts
-        $contacts = $query->paginate(10);
+        return $query->paginate(10);
 
-        return $contacts;
-
-        /*$query = $this->newQuery()
-            ->where('contacts.organization_id', $workspaceId)
-            ->whereNotNull('contacts.latest_chat_created_at')
-            ->whereNull('contacts.deleted_at')
-            ->with(['lastChat', 'lastInboundChat'])
-            ->select('contacts.*')
-            ->orderBy('contacts.latest_chat_created_at', $sortDirection);
-
-        if($ticketingActive){
-            // Conditional join with chat_tickets table and comparison with ticketState
-            if ($ticketState === 'unassigned') {
-                $query->leftJoin('chat_tickets', 'contacts.id', '=', 'chat_tickets.contact_id')
-                    ->whereNull('chat_tickets.assigned_to');
-            } elseif ($ticketState !== null && $ticketState !== 'all') {
-                $query->leftJoin('chat_tickets', 'contacts.id', '=', 'chat_tickets.contact_id')
-                    ->where('chat_tickets.status', $ticketState);
-            } else if($ticketState === 'all'){
-                $query->leftJoin('chat_tickets', 'contacts.id', '=', 'chat_tickets.contact_id');
-            }
-
-            if($role == 'agent' && $allowAgentsViewAllChats == false){
-                $query->where(function($q) {
-                    $q->where('chat_tickets.assigned_to', auth()->user()->id);
-                });
-            }
-        }
-
-        // Include the search term in the query if provided
-        if ($searchTerm) {
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('contacts.first_name', 'like', '%' . $searchTerm . '%')
-                ->orWhere('contacts.last_name', 'like', '%' . $searchTerm . '%')
-                
-                // Split the search term into parts and check for matches in both columns
-                ->orWhere(function ($subQuery) use ($searchTerm) {
-                    $searchParts = explode(' ', $searchTerm);
-                    if (count($searchParts) > 1) {
-                        $subQuery->where('contacts.first_name', 'like', '%' . $searchParts[0] . '%')
-                                ->where('contacts.last_name', 'like', '%' . $searchParts[1] . '%');
-                    }
-                })
-                
-                // Match phone or email
-                ->orWhere('contacts.phone', 'like', '%' . $searchTerm . '%')
-                ->orWhere('contacts.email', 'like', '%' . $searchTerm . '%');
-            });
-        }
-
-        return $query->paginate(10);*/
     }
 
     public function contactsWithChatsCount($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
     {
         $query = $this->newQuery()
-            ->where('contacts.organization_id', $workspaceId)
+            ->where('contacts.Workspace_id', $workspaceId)
             ->whereNotNull('contacts.latest_chat_created_at')
             ->whereNull('contacts.deleted_at')
             ->with(['lastChat', 'lastInboundChat'])
@@ -221,21 +171,21 @@ class Contact extends Model {
             } elseif ($ticketState !== null && $ticketState !== 'all') {
                 $query->leftJoin('chat_tickets', 'contacts.id', '=', 'chat_tickets.contact_id')
                     ->where('chat_tickets.status', $ticketState);
-            } else if($ticketState === 'all'){
+            } elseif($ticketState === 'all'){
                 $query->leftJoin('chat_tickets', 'contacts.id', '=', 'chat_tickets.contact_id');
             }
 
-            if($role == 'agent' && $allowAgentsViewAllChats == false){
+            if($role == 'agent' && !$allowAgentsViewAllChats){
                 $query->where(function($q) {
-                    $q->where('chat_tickets.assigned_to', auth()->user()->id);
+                    $q->where('chat_tickets.assigned_to', Auth::user()->id);
                 });
             }
         }
 
-        if($role == 'agent' && $allowAgentsViewAllChats == false){
+        if($role == 'agent' && !$allowAgentsViewAllChats){
             $query->where(function($q) {
                 $q->whereNull('chat_tickets.assigned_to')
-                  ->orWhere('chat_tickets.assigned_to', auth()->user()->id);
+                  ->orWhere('chat_tickets.assigned_to', Auth::user()->id);
             });
         }
 
@@ -291,7 +241,6 @@ class Contact extends Model {
         // Return the full name combining first name and last name
         return $firstName . ' ' . $lastName;
 
-        //return "{$this->first_name} {$this->last_name}";
     }
 
     public function getFormattedPhoneNumberAttribute($value)

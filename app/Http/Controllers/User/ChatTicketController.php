@@ -15,23 +15,25 @@ use App\Models\User;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
-use Redirect;
 
 class ChatTicketController extends BaseController
 {
     public function index(Request $request, $uuid = null)
     {
-        //
+        // This method is intentionally left empty as it's not currently used.
+        // The chat ticket functionality is handled through other methods (update, assign).
     }
 
     public function update(Request $request, $uuid)
-    { 
+    {
         $contact = Contact::where('uuid', $uuid)->first();
 
         ChatTicket::where('contact_id', $contact->id)->update([
             'status' => $request->status,
-            'assigned_to' => auth()->user()->id
+            'assigned_to' => Auth::id()
         ]);
 
         $statusDescription = $request->status == 'closed' ? 'opened to closed' : 'closed to open';
@@ -51,14 +53,14 @@ class ChatTicketController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Status updated successfully!')
             ]
         );
     }
 
     public function assign(Request $request, $uuid)
-    { 
+    {
         $contact = Contact::where('uuid', $uuid)->first();
         $team = Team::where('workspace_id', session()->get('current_workspace'))->where('user_id', $request->id)->first();
         $user = User::where('id', $request->id)->first();
@@ -83,7 +85,7 @@ class ChatTicketController extends BaseController
 
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Ticket assigned successfully!')
                 ]
             );

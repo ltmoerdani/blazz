@@ -2,9 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Exceptions\SecurityDisabledException;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -47,41 +45,5 @@ class CheckModuleUpdates extends Command
         );
 
         return 1; // Return error code to indicate feature disabled
-    }
-
-    /**
-     * Fetch API response - Disabled for security
-     *
-     * @param string $url
-     * @return array|null
-     */
-    private function fetchApiResponse(string $url): ?array
-    {
-        // External API calls disabled for security
-        throw new SecurityDisabledException('External API calls have been disabled for security. Please check updates manually.');
-    }
-
-    /**
-     * Check Blazz updates - Disabled for security
-     *
-     * @param array|null $blazz
-     * @return void
-     */
-    private function checkBlazzUpdate(?array $blazz): void
-    {
-        // External update checking disabled for security
-        throw new SecurityDisabledException('External update checking has been disabled for security. Please check updates manually.');
-    }
-
-    /**
-     * Check addon updates - Disabled for security
-     *
-     * @param array $addons
-     * @return void
-     */
-    private function checkAddonUpdates(array $addons): void
-    {
-        // External addon update checking disabled for security
-        throw new SecurityDisabledException('External addon update checking has been disabled for security. Please check addon updates manually.');
     }
 }

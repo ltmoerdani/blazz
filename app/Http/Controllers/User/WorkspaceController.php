@@ -14,25 +14,25 @@ use Inertia\Inertia;
 
 class WorkspaceController extends BaseController
 {
-    private $organizationService;
+    private $WorkspaceService;
 
     /**
      * WorkspaceController constructor.
      *
-     * @param UserService $organizationService
+     * @param UserService $WorkspaceService
      */
     public function __construct()
     {
-        $this->organizationService = new WorkspaceService();
+        $this->WorkspaceService = new WorkspaceService();
     }
     
     public function index(){
-        $data['organizations'] = Team::with('workspace')->where('user_id', Auth::id())->get();
+        $data['workspaces'] = Team::with('workspace')->where('user_id', Auth::id())->get();
         
         return Inertia::render('User/WorkspaceSelect', $data);
     }
 
-    public function selectOrganization(Request $request){
+    public function selectWorkspace(Request $request){
         $workspace = Workspace::where('uuid', $request->uuid)->first();
 
         if($workspace){
@@ -44,7 +44,7 @@ class WorkspaceController extends BaseController
 
     public function store(StoreUserWorkspace $request)
     {
-        $workspace = $this->organizationService->store($request);
+        $workspace = $this->WorkspaceService->store($request);
 
         if($workspace){
             session()->put('current_workspace', $workspace->id);

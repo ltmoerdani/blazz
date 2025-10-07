@@ -9,7 +9,7 @@ use App\Models\Review;
 use App\Services\TestimonialService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule; 
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Helper;
 use Session;
@@ -17,6 +17,9 @@ use Validator;
 
 class TestimonialController extends BaseController
 {
+    private const REDIRECT_ROUTE = '/admin/testimonials';
+    private $testimonialService;
+
     public function __construct(TestimonialService $testimonialService)
     {
         $this->testimonialService = $testimonialService;
@@ -25,7 +28,7 @@ class TestimonialController extends BaseController
     public function index(Request $request){
         return Inertia::render('Admin/Testimonial/Index', [
             'title' => __('Reviews'),
-            'rows' => $this->testimonialService->get($request), 
+            'rows' => $this->testimonialService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -34,9 +37,9 @@ class TestimonialController extends BaseController
     {
         $this->testimonialService->store($request);
 
-        return redirect('/admin/testimonials')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Review added successfully!')
             ]
         );
@@ -52,9 +55,9 @@ class TestimonialController extends BaseController
     {
         $this->testimonialService->store($request, $id);
 
-        return redirect('/admin/testimonials')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Review updated successfully!')
             ]
         );
@@ -64,9 +67,9 @@ class TestimonialController extends BaseController
     {
         $this->testimonialService->delete($id);
 
-        return redirect('/admin/testimonials')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Review deleted successfully!')
             ]
         );

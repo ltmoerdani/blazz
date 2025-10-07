@@ -132,7 +132,7 @@ php artisan tinker
 - ✅ Table `workspaces` exists
 - ✅ Table `workspace_api_keys` exists
 - ✅ Table `teams` has `workspace_id` column
-- ❌ Table `organizations` does NOT exist
+- ❌ Table `workspaces` does NOT exist
 - ❌ Table `organization_api_keys` does NOT exist
 
 ---
@@ -165,7 +165,7 @@ Critical migrations run in this order:
 **All migration files are clean and ready for fresh installation!**
 
 When running `php artisan migrate:fresh`, the system will:
-1. Create `workspaces` table (not `organizations`)
+1. Create `workspaces` table (not `workspaces`)
 2. Create `workspace_api_keys` table (not `organization_api_keys`)
 3. All related tables will have `workspace_id` foreign key
 4. No references to "organization" will exist in the database

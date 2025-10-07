@@ -22,7 +22,7 @@
                                 </div>
                             </div>
                             <div class="w-[60%]">
-                                <FormInput v-model="form2.organization_name" :error="form2.errors.organization_name" :name="''" :type="'text'" :class="'col-span-4'"/>
+                                <FormInput v-model="form2.Workspace_name" :error="form2.errors.Workspace_name" :name="''" :type="'text'" :class="'col-span-4'"/>
                             </div>
                         </div>
                         <div class="flex space-x-10 w-full px-4 py-6">
@@ -176,15 +176,10 @@
 <script setup>
     import SettingLayout from "./Layout.vue";
     import { ref } from 'vue';
-    import EmbeddedSignupBtn from '@/Components/EmbeddedSignupBtn.vue';
-    import FormModal from '@/Components/FormModal.vue';
     import FormInput from '@/Components/FormInput.vue';
     import FormSelect from '@/Components/FormSelect.vue';
-    import FormTextArea from '@/Components/FormTextArea.vue';
     import FormToggleSwitch from '@/Components/FormToggleSwitch.vue';
-    import Modal from '@/Components/Modal.vue';
-    import { trans } from 'laravel-vue-i18n';
-    import { router, useForm } from "@inertiajs/vue3";
+    import { useForm } from "@inertiajs/vue3";
 
     const props = defineProps(['contactGroups', 'settings', 'timezones', 'modules', 'workspace', 'countries', 'sounds']);
     const statusView = ref(false);
@@ -233,7 +228,7 @@
     };
 
     const form2 = useForm({
-        organization_name: props.settings?.name,
+        Workspace_name: props.settings?.name,
         address: getAddressDetail(props.settings?.address, 'street'),
         city: getAddressDetail(props.settings?.address, 'city'),
         state: getAddressDetail(props.settings?.address, 'state'),

@@ -22,6 +22,8 @@ use Inertia\Inertia;
 
 class DashboardController extends BaseController
 {
+    protected $subscriptionService;
+
     public function __construct()
     {
         $this->subscriptionService = new SubscriptionService();
@@ -54,7 +56,7 @@ class DashboardController extends BaseController
             ->whereIn('status', ['pending', 'scheduled'])
             ->limit(5)
             ->get();
-        $data['setupWhatsapp'] = isset($config['whatsapp']) ? false : true;;
+        $data['setupWhatsapp'] = isset($config['whatsapp']) ? false : true;
         $data['period'] = $this->period();
         $data['inbound'] = $this->getChatCounts('inbound');
         $data['outbound'] = $this->getChatCounts('outbound');
@@ -67,8 +69,8 @@ class DashboardController extends BaseController
     }
 
     public function dismissNotification(Request $request, $type){
-        $currentOrganizationId = session()->get('current_workspace');
-        $workspaceConfig = workspace::where('id', $currentOrganizationId)->first();
+        $currentworkspaceId = session()->get('current_workspace');
+        $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
 
         $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
@@ -83,7 +85,7 @@ class DashboardController extends BaseController
 
         return redirect()->route('dashboard')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Notification dismissed successfully!')
             ]
         );

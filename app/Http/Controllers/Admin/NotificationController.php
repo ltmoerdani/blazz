@@ -9,7 +9,7 @@ use Inertia\Inertia;
 
 class NotificationController extends BaseController
 {
-    private $NotificationService;
+    private $notificationService;
 
     /**
      * NotificationController constructor.
@@ -30,7 +30,7 @@ class NotificationController extends BaseController
     public function index(Request $request)
     {
         return Inertia::render('Admin/UserLog/Notification', [
-            'rows' => $this->notificationService->get($request), 
+            'rows' => $this->notificationService->get($request),
             'filters' => $request->all()
         ]);
     }

@@ -78,7 +78,7 @@ class Kernel extends HttpKernel
         'check.email.verification' => \App\Http\Middleware\CheckEmailVerification::class,
         'check.client.role' => \App\Http\Middleware\CheckClientRole::class,
         'auth.bearer' => \App\Http\Middleware\AuthenticateBearerToken::class,
-        'setOrganization' => \App\Http\Middleware\SetWorkspaceFromSession::class,
+        'setWorkspace' => \App\Http\Middleware\SetWorkspaceFromSession::class,
         'advanced.rate.limit' => \App\Http\Middleware\AdvancedRateLimitMiddleware::class,
         'audit.logging' => \App\Http\Middleware\AuditLoggingMiddleware::class,
         'security.headers' => \App\Http\Middleware\SecurityHeadersMiddleware::class,

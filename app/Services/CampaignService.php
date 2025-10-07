@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Validator;
 
@@ -31,8 +32,8 @@ class CampaignService
 
         $timezone = Setting::where('key', 'timezone')->value('value');
         $workspace = workspace::find($workspaceId);
-        $organizationMetadata = json_decode($workspace->metadata ?? '{}', true);
-        $timezone = $organizationMetadata['timezone'] ?? $timezone;
+        $workspaceMetadata = json_decode($workspace->metadata ?? '{}', true);
+        $timezone = $workspaceMetadata['timezone'] ?? $timezone;
 
         $template = Template::where('uuid', $request->template)->first();
         $contactGroup = ContactGroup::where('uuid', $request->contacts)->first();
@@ -48,10 +49,8 @@ class CampaignService
                         $metadata['header']['format'] = $header['format'];
                         $metadata['header']['parameters'] = [];
                 
-                        foreach ($request->header['parameters'] as $key => $parameter) {
+                        foreach ($request->header['parameters'] as $parameter) {
                             if ($parameter['selection'] === 'upload') {
-                                //$path = $parameter['value']->store('public');
-                                //$imageUrl = config('app.url') . '/media/' . $path;
 
                                 $storage = Setting::where('key', 'storage_system')->first()->value;
                                 $fileName = $parameter['value']->getClientOriginalName();
@@ -62,10 +61,12 @@ class CampaignService
                                     $mediaFilePath = $file;
                     
                                     $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-                                } else if($storage === 'aws') {
+                                } elseif($storage === 'aws') {
                                     $file = $parameter['value'];
                                     $uploadedFile = $file->store('uploads/media/sent/' . $workspaceId, 's3');
-                                    $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                                    /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                                    $s3Disk = Storage::disk('s3');
+                                    $mediaFilePath = $s3Disk->url($uploadedFile);
                     
                                     $mediaUrl = $mediaFilePath;
                                 }
@@ -113,7 +114,7 @@ class CampaignService
                 $campaign['template_id'] = $template->id;
                 $campaign['contact_group_id'] = $request->contacts === 'all' ? 0 : $contactGroup->id;
                 $campaign['metadata'] = json_encode($metadata);
-                $campaign['created_by'] = auth()->user()->id;
+                $campaign['created_by'] = Auth::user()->id;
                 $campaign['status'] = 'scheduled';
                 $campaign['scheduled_at'] = $scheduledAt;
                 $campaign->save();
@@ -126,21 +127,10 @@ class CampaignService
                 'workspace_id' => $workspaceId,
                 'template' => $request->template,
                 'contacts' => $request->contacts,
-                'user_id' => auth()->user()->id,
+                'user_id' => Auth::user()->id,
                 'stack_trace' => $e->getTraceAsString(),
             ]);
         }
-    }
-
-    private function getMediaInfo($path)
-    {
-        $fullPath = storage_path('app/public/' . $path);
-
-        return [
-            'name' => pathinfo($fullPath, PATHINFO_FILENAME),
-            'type' => File::extension($fullPath),
-            'size' => Storage::size($path), // Size in bytes
-        ];
     }
 
     public function sendCampaign(){
@@ -151,7 +141,7 @@ class CampaignService
     public function destroy($uuid)
     {
         Campaign::where('uuid', $uuid)->update([
-            'deleted_by' => auth()->user()->id,
+            'deleted_by' => Auth::user()->id,
             'deleted_at' => now()
         ]);
     }
