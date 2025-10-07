@@ -180,90 +180,90 @@ class PayPalService
             return false;
         }
     }
-	
+    
     public function handleWebhook(Request $request)
-	{
-		if (!$this->isValidWebhook($request)) {
-			Log::error('Received invalid webhook');
-			return response('Invalid webhook', 400);
-		}
+    {
+        if (!$this->isValidWebhook($request)) {
+            Log::error('Received invalid webhook');
+            return response('Invalid webhook', 400);
+        }
 
 
-		if ($request->event_type == "PAYMENTS.PAYMENT.CREATED") {
-			try {
-				$paymentId = $request->resource['id'];
-				$payerId = $request->resource['payer']['payer_info']['payer_id'];
+        if ($request->event_type == "PAYMENTS.PAYMENT.CREATED") {
+            try {
+                $paymentId = $request->resource['id'];
+                $payerId = $request->resource['payer']['payer_info']['payer_id'];
 
-				$executionResult = $this->executePaymentFromWebhook($paymentId, $payerId);
+                $executionResult = $this->executePaymentFromWebhook($paymentId, $payerId);
 
-				if (!$executionResult->success) {
-					Log::error('Failed to execute payment: ' . json_encode($executionResult->error));
-					return response('Payment execution failed', 400);
-				}
+                if (!$executionResult->success) {
+                    Log::error('Failed to execute payment: ' . json_encode($executionResult->error));
+                    return response('Payment execution failed', 400);
+                }
 
-				DB::transaction(function () use ($request) {
-					$transactionData = $request->resource['transactions'][0];
-					$metadata = $transactionData['custom'] ?? null;
+                DB::transaction(function () use ($request) {
+                    $transactionData = $request->resource['transactions'][0];
+                    $metadata = $transactionData['custom'] ?? null;
 
-					if($metadata){
-						$metadata = explode('_', $metadata);
-						$workspaceId = $metadata[0] ?? null;
-						$userId = $metadata[1] ?? null;
-						$planId = ($metadata[2] !== '') ? $metadata[2] : null;
-						$amount = $transactionData['amount']['total'];
+                    if($metadata){
+                        $metadata = explode('_', $metadata);
+                        $workspaceId = $metadata[0] ?? null;
+                        $userId = $metadata[1] ?? null;
+                        $planId = ($metadata[2] !== '') ? $metadata[2] : null;
+                        $amount = $transactionData['amount']['total'];
 
-						$payment = BillingPayment::create([
-							'workspace_id' => $workspaceId,
-							'processor' => 'paypal',
-							'details' => $request->resource['id'],
-							'amount' => $amount
-						]);
+                        $payment = BillingPayment::create([
+                            'workspace_id' => $workspaceId,
+                            'processor' => 'paypal',
+                            'details' => $request->resource['id'],
+                            'amount' => $amount
+                        ]);
 
-						$transaction = BillingTransaction::create([
-							'workspace_id' => $workspaceId,
-							'entity_type' => 'payment',
-							'entity_id' => $payment->id,
-							'description' => 'PayPal Payment',
-							'amount' => $amount,
-							'created_by' => $userId,
-						]);
+                        $transaction = BillingTransaction::create([
+                            'workspace_id' => $workspaceId,
+                            'entity_type' => 'payment',
+                            'entity_id' => $payment->id,
+                            'description' => 'PayPal Payment',
+                            'amount' => $amount,
+                            'created_by' => $userId,
+                        ]);
 
-						if($planId == null){
-							$this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
-						} else {
-							$this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
-						}
+                        if($planId == null){
+                            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
+                        } else {
+                            $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
+                        }
 
-						event(new NewPaymentEvent($transaction, $workspaceId));
-						return $transaction;
-					}
-				});
+                        event(new NewPaymentEvent($transaction, $workspaceId));
+                        return $transaction;
+                    }
+                });
 
-				return response('Webhook processed', 200);
-			} catch (\Exception $e) {
-				Log::error('Error processing PayPal webhook: ' . $e->getMessage());
-				return response('Error processing webhook', 500);
-			}
-		}
+                return response('Webhook processed', 200);
+            } catch (\Exception $e) {
+                Log::error('Error processing PayPal webhook: ' . $e->getMessage());
+                return response('Error processing webhook', 500);
+            }
+        }
 
-		return response('Webhook received', 200);
-	}
+        return response('Webhook received', 200);
+    }
 
-	private function executePaymentFromWebhook($paymentId, $payerId)
-	{
-		try {
-			$request = $this->makeRequest(
-				'POST',
-				"v1/payments/payment/{$paymentId}/execute",
-				[
-					'payer_id' => $payerId
-				]
-			);
+    private function executePaymentFromWebhook($paymentId, $payerId)
+    {
+        try {
+            $request = $this->makeRequest(
+                'POST',
+                "v1/payments/payment/{$paymentId}/execute",
+                [
+                    'payer_id' => $payerId
+                ]
+            );
 
-			return $request;
-		} catch (\Exception $e) {
-			Log::error('PayPal execute payment error: ' . $e->getMessage());
-			return (object) array('success' => false, 'error' => $e->getMessage());
-		}
-	}
+            return $request;
+        } catch (\Exception $e) {
+            Log::error('PayPal execute payment error: ' . $e->getMessage());
+            return (object) array('success' => false, 'error' => $e->getMessage());
+        }
+    }
 }

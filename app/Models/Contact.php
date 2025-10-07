@@ -173,7 +173,7 @@ class Contact extends Model {
             } elseif ($ticketState !== null && $ticketState !== 'all') {
                 $query->leftJoin('chat_tickets', 'contacts.id', '=', 'chat_tickets.contact_id')
                     ->where('chat_tickets.status', $ticketState);
-            } else if($ticketState === 'all'){
+            } elseif($ticketState === 'all'){
                 $query->leftJoin('chat_tickets', 'contacts.id', '=', 'chat_tickets.contact_id');
             }
 

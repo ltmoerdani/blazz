@@ -314,35 +314,31 @@ class WhatsappService
         $array['type'] = 'text';
 
         foreach($templateMetadatas as $templateMetadata){
-            if($templateMetadata->type == 'HEADER'){
-                if($templateMetadata->format == 'IMAGE' || $templateMetadata->format == 'VIDEO' || $templateMetadata->format == 'DOCUMENT' || $templateMetadata->format == 'LOCATION'){
-                    $array['type'] = strtolower($templateMetadata->format);
-                }
+            if($templateMetadata->type == 'HEADER' && ($templateMetadata->format == 'IMAGE' || $templateMetadata->format == 'VIDEO' || $templateMetadata->format == 'DOCUMENT' || $templateMetadata->format == 'LOCATION')){
+                $array['type'] = strtolower($templateMetadata->format);
             }
 
             //BODY
-            if($templateMetadata->type == 'BODY'){
-                if(isset($templateMetadata->text)){
-                    $bodyText = $templateMetadata->text;
+            if($templateMetadata->type == 'BODY' && isset($templateMetadata->text)){
+                $bodyText = $templateMetadata->text;
 
-                    if (isset($templateMetadata->parameters) && !empty($templateMetadata->parameters)) {
-                        $bodyParameters = $templateMetadata->parameters;
+                if (isset($templateMetadata->parameters) && !empty($templateMetadata->parameters)) {
+                    $bodyParameters = $templateMetadata->parameters;
 
-                        if($bodyParameters && count($bodyParameters) > 1){
-                            foreach($bodyParameters as $index => $parameter){
-                                $placeholder = '{{' . ($index + 1) . '}}';
-                                $value = $parameter->selection === 'static' ? $parameter->value : $this->getParameters($contact, $parameter->value);
+                    if($bodyParameters && count($bodyParameters) > 1){
+                        foreach($bodyParameters as $index => $parameter){
+                            $placeholder = '{{' . ($index + 1) . '}}';
+                            $value = $parameter->selection === 'static' ? $parameter->value : $this->getParameters($contact, $parameter->value);
 
-                                $bodyText = str_replace($placeholder, $value, $bodyText);
-                            }
+                            $bodyText = str_replace($placeholder, $value, $bodyText);
                         }
                     }
+                }
 
-                    if($array['type'] == 'text'){
-                        $array[$array['type']]['body'] = $bodyText;
-                    } else {
-                        $array[$array['type']]['caption'] = $bodyText;
-                    }
+                if($array['type'] == 'text'){
+                    $array[$array['type']]['body'] = $bodyText;
+                } else {
+                    $array[$array['type']]['caption'] = $bodyText;
                 }
             }
 
@@ -588,41 +584,37 @@ class WhatsappService
         }
 
         if($request->category != 'AUTHENTICATION'){
-            if($request->header['format'] === 'TEXT'){
-                if(isset($request->header['text'])){
-                    $headerComponent = [];
+            if($request->header['format'] === 'TEXT' && isset($request->header['text'])){
+                $headerComponent = [];
 
-                    $headerComponent['type'] = "HEADER";
-                    $headerComponent['format'] = $request->header['format'];
-                    $headerComponent['text'] = $request->header['text'];
+                $headerComponent['type'] = "HEADER";
+                $headerComponent['format'] = $request->header['format'];
+                $headerComponent['text'] = $request->header['text'];
 
-                    if (!empty($request->header['example'])) {
-                        $headerComponent['example']['header_text'] = $request->header['example'];
-                    }
-
-                    $requestData['components'][] = $headerComponent;
+                if (!empty($request->header['example'])) {
+                    $headerComponent['example']['header_text'] = $request->header['example'];
                 }
+
+                $requestData['components'][] = $headerComponent;
             }
         
 
-            if($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT'){
-                if(isset($request->header['example'])){
-                    $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
+            if(($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT') && isset($request->header['example'])){
+                $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
 
-                    if(!$fileUploadResponse->success){
-                        return $fileUploadResponse;
-                    }
-
-                    $requestData['components'][] = [
-                        "type" => "HEADER",
-                        "format" => $request->header['format'],
-                        "example" => [
-                            "header_handle" => [
-                                $fileUploadResponse->data->h
-                            ]
-                        ]
-                    ];
+                if(!$fileUploadResponse->success){
+                    return $fileUploadResponse;
                 }
+
+                $requestData['components'][] = [
+                    "type" => "HEADER",
+                    "format" => $request->header['format'],
+                    "example" => [
+                        "header_handle" => [
+                            $fileUploadResponse->data->h
+                        ]
+                    ]
+                ];
             }
         }
         
@@ -807,56 +799,52 @@ class WhatsappService
         }
 
         if($request->category != 'AUTHENTICATION'){
-            if($request->header['format'] === 'TEXT'){
-                if(isset($request->header['text'])){
-                    $headerComponent = [];
+            if($request->header['format'] === 'TEXT' && isset($request->header['text'])){
+                $headerComponent = [];
 
-                    $headerComponent['type'] = "HEADER";
-                    $headerComponent['format'] = $request->header['format'];
-                    $headerComponent['text'] = $request->header['text'];
+                $headerComponent['type'] = "HEADER";
+                $headerComponent['format'] = $request->header['format'];
+                $headerComponent['text'] = $request->header['text'];
 
-                    if (!empty($request->header['example'])) {
-                        $headerComponent['example']['header_text'] = $request->header['example'];
-                    }
-
-                    $requestData['components'][] = $headerComponent;
+                if (!empty($request->header['example'])) {
+                    $headerComponent['example']['header_text'] = $request->header['example'];
                 }
+
+                $requestData['components'][] = $headerComponent;
             }
 
-            if($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT'){
-                if(isset($request->header['example'])){
-                    $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
+            if(($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT') && isset($request->header['example'])){
+                $fileUploadResponse = $this->initiateResumableUploadSession($request->header['example']);
 
-                    if(!$fileUploadResponse->success){
-                        return $fileUploadResponse;
-                    }
+                if(!$fileUploadResponse->success){
+                    return $fileUploadResponse;
+                }
 
-                    $requestData['components'][] = [
-                        "type" => "HEADER",
-                        "format" => $request->header['format'],
-                        "example" => [
-                            "header_handle" => [
-                                $fileUploadResponse->data->h
-                            ]
+                $requestData['components'][] = [
+                    "type" => "HEADER",
+                    "format" => $request->header['format'],
+                    "example" => [
+                        "header_handle" => [
+                            $fileUploadResponse->data->h
                         ]
-                    ];
-                } else {
-                    // Decode existing metadata
-                    $metadata = json_decode($template->metadata, true);
+                    ]
+                ];
+            } elseif($request->header['format'] === 'IMAGE' || $request->header['format'] === 'VIDEO' || $request->header['format'] === 'DOCUMENT'){
+                // Decode existing metadata
+                $metadata = json_decode($template->metadata, true);
 
-                    // Extract existing header if available
-                    $existingHeader = [];
-                    if (isset($metadata['components'])) {
-                        foreach ($metadata['components'] as $component) {
-                            if ($component['type'] === 'HEADER') {
-                                $existingHeader = $component;
-                                break;
-                            }
+                // Extract existing header if available
+                $existingHeader = [];
+                if (isset($metadata['components'])) {
+                    foreach ($metadata['components'] as $component) {
+                        if ($component['type'] === 'HEADER') {
+                            $existingHeader = $component;
+                            break;
                         }
                     }
-
-                    $requestData['components'][] = $existingHeader;
                 }
+
+                $requestData['components'][] = $existingHeader;
             }
         }
 
