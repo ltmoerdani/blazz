@@ -324,130 +324,149 @@ class StripeService
 
     public function handleWebhook(Request $request)
     {
-        // Attempt to validate the Webhook
-        try {
-            $stripeEvent = \Stripe\Webhook::constructEvent($request->getContent(), $request->server('HTTP_STRIPE_SIGNATURE'), $this->config->webhook_secret);
-        } catch(\UnexpectedValueException $e) {
-            // Invalid payload
-            //Log::info($e->getMessage());
-
-            return response()->json([
-                'status' => 400,
-                'message' => $e->getMessage()
-            ], 400);
-        } catch(\Stripe\Exception\SignatureVerificationException $e) {
-            // Invalid signature
-            //Log::info($e->getMessage());
-
-            return response()->json([
-                'status' => 400,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+        $stripeEvent = $this->validateWebhookEvent($request);
         
-        if($stripeEvent->type == 'checkout.session.completed'){
-            // Get the metadata
-            $metadata = $stripeEvent->data->object->lines->data[0]->metadata ?? ($stripeEvent->data->object->metadata ?? null);
+        if (!$stripeEvent) {
+            return response()->json(['status' => 400, 'message' => 'Invalid webhook'], 400);
+        }
 
-            if (isset($metadata->Workspace_id)) {
-                DB::transaction(function () use ($stripeEvent, $metadata) {
-                    $workspace = workspace::where('id', $metadata->Workspace_id)->first();
-                    $orgMetadata = json_decode($workspace->metadata, true);
-                    $orgMetadata['stripe_id'] = $stripeEvent->data->object->customer;
-                    $workspace->metadata = json_encode($orgMetadata);
-                    $workspace->save();
+        if ($stripeEvent->type == 'checkout.session.completed') {
+            return $this->handleCheckoutSessionCompleted($stripeEvent);
+        }
 
-                    if($stripeEvent->data->object->mode == 'subscription'){
-                        if($metadata->plan_id != null){
-                            Subscription::where('workspace_id', $metadata->Workspace_id)->update([
-                                'plan_id' => $metadata->plan_id
-                            ]);
-                        }
-                    } else {
-                        $payment = BillingPayment::create([
-                            'workspace_id' => $metadata->Workspace_id,
-                            'processor' => 'stripe',
-                            'details' => $stripeEvent->data->object->payment_intent,
-                            'amount' => $metadata->amount
-                        ]);
+        if ($stripeEvent->type == 'invoice.paid') {
+            return $this->handleInvoicePaid($stripeEvent);
+        }
 
-                        
-                        $transaction = BillingTransaction::create([
-                            'workspace_id' => $metadata->Workspace_id,
-                            'entity_type' => 'payment',
-                            'entity_id' => $payment->id,
-                            'description' => 'Stripe Payment',
-                            'amount' => $metadata->amount,
-                            'created_by' => $metadata->user_id,
-                        ]);
+        return response()->json(['status' => 200], 200);
+    }
 
-                        if($metadata->plan_id == null){
-                            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($metadata->Workspace_id, $metadata->user_id);
-                        } else {
-                            $this->subscriptionService->updateSubscriptionPlan($metadata->Workspace_id, $metadata->plan_id, $metadata->user_id);
-                        }
+    private function validateWebhookEvent(Request $request)
+    {
+        try {
+            return \Stripe\Webhook::constructEvent(
+                $request->getContent(),
+                $request->server('HTTP_STRIPE_SIGNATURE'),
+                $this->config->webhook_secret
+            );
+        } catch (\UnexpectedValueException | \Stripe\Exception\SignatureVerificationException $e) {
+            Log::error('Webhook validation failed: ' . $e->getMessage());
+            return null;
+        }
+    }
 
-                        return $transaction;
-                    }
+    private function handleCheckoutSessionCompleted($stripeEvent)
+    {
+        $metadata = $stripeEvent->data->object->lines->data[0]->metadata
+            ?? ($stripeEvent->data->object->metadata ?? null);
 
-                    return response()->json([
-                        'status' => 200
-                    ], 200);
-                });
+        if (!isset($metadata->Workspace_id)) {
+            return response()->json(['status' => 200], 200);
+        }
+
+        DB::transaction(function () use ($stripeEvent, $metadata) {
+            $this->updateWorkspaceStripeId($metadata->Workspace_id, $stripeEvent->data->object->customer);
+
+            if ($stripeEvent->data->object->mode == 'subscription') {
+                $this->handleSubscriptionMode($metadata);
+            } else {
+                $this->handlePaymentMode($stripeEvent, $metadata);
             }
+        });
+
+        return response()->json(['status' => 200], 200);
+    }
+
+    private function handleInvoicePaid($stripeEvent)
+    {
+        $customerId = $stripeEvent->data->object->customer;
+        $workspace = workspace::whereJsonContains('metadata->stripe_id', $customerId)->first();
+
+        if (!$workspace) {
+            return response()->json(['status' => 404], 404);
         }
 
-        if($stripeEvent->type == 'invoice.paid'){
-            DB::transaction(function () use ($stripeEvent) {
-                $customerId = $stripeEvent->data->object->customer;
+        DB::transaction(function () use ($stripeEvent, $workspace) {
+            $subscription = Subscription::where('workspace_id', $workspace->id)->first();
+            $amount = $stripeEvent->data->object->total / 100;
 
-                // Query the workspace using the stripe_id (customer ID)
-                $workspace = workspace::whereJsonContains('metadata->stripe_id', $customerId)->first();
+            $payment = $this->createPayment($workspace->id, $stripeEvent->data->object->id, $amount);
+            $this->createTransaction($workspace->id, $payment->id, $amount, 0);
+            $this->updateSubscriptionPlanIfNeeded($workspace->id, $subscription->plan_id, 0);
+        });
 
-                if ($workspace) {
-                    $subscription = Subscription::where('workspace_id', $workspace->id)->first();
-                    $workspaceId = $workspace->id;
-                    $planId = $subscription->plan_id;
-                    $amount = $stripeEvent->data->object->total/100;
-                    $userId = 0;
+        return response()->json(['status' => 200], 200);
+    }
 
-                    $payment = BillingPayment::create([
-                        'workspace_id' => $workspaceId,
-                        'processor' => 'stripe',
-                        'details' => $stripeEvent->data->object->id,
-                        'amount' => $amount,
-                    ]);
+    private function updateWorkspaceStripeId($workspaceId, $stripeCustomerId)
+    {
+        $workspace = workspace::where('id', $workspaceId)->first();
+        $orgMetadata = json_decode($workspace->metadata, true);
+        $orgMetadata['stripe_id'] = $stripeCustomerId;
+        $workspace->metadata = json_encode($orgMetadata);
+        $workspace->save();
+    }
 
-                    
-                    BillingTransaction::create([
-                        'workspace_id' => $workspaceId,
-                        'entity_type' => 'payment',
-                        'entity_id' => $payment->id,
-                        'description' => 'Stripe Payment',
-                        'amount' => $amount,
-                        'created_by' => $userId,
-                    ]);
-
-                    if($planId == null){
-                        $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
-                    } else {
-                        $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
-                    }
-
-                    return response()->json([
-                        'status' => 200
-                    ], 200);
-                }
-
-                return response()->json([
-                    'status' => 404
-                ], 404);
-            });
+    private function handleSubscriptionMode($metadata)
+    {
+        if ($metadata->plan_id != null) {
+            Subscription::where('workspace_id', $metadata->Workspace_id)->update([
+                'plan_id' => $metadata->plan_id
+            ]);
         }
+    }
 
-        return response()->json([
-            'status' => 200
-        ], 200);
+    private function handlePaymentMode($stripeEvent, $metadata)
+    {
+        $payment = $this->createPayment(
+            $metadata->Workspace_id,
+            $stripeEvent->data->object->payment_intent,
+            $metadata->amount
+        );
+
+        $this->createTransaction(
+            $metadata->Workspace_id,
+            $payment->id,
+            $metadata->amount,
+            $metadata->user_id
+        );
+
+        $this->updateSubscriptionPlanIfNeeded(
+            $metadata->Workspace_id,
+            $metadata->plan_id,
+            $metadata->user_id
+        );
+    }
+
+    private function createPayment($workspaceId, $details, $amount)
+    {
+        return BillingPayment::create([
+            'workspace_id' => $workspaceId,
+            'processor' => 'stripe',
+            'details' => $details,
+            'amount' => $amount
+        ]);
+    }
+
+    private function createTransaction($workspaceId, $paymentId, $amount, $userId)
+    {
+        return BillingTransaction::create([
+            'workspace_id' => $workspaceId,
+            'entity_type' => 'payment',
+            'entity_id' => $paymentId,
+            'description' => 'Stripe Payment',
+            'amount' => $amount,
+            'created_by' => $userId,
+        ]);
+    }
+
+    private function updateSubscriptionPlanIfNeeded($workspaceId, $planId, $userId)
+    {
+        if ($planId == null) {
+            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
+        } else {
+            $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
+        }
     }
 
     private static function calculateTaxRates($grossAmount)

@@ -234,7 +234,7 @@ class SubscriptionService
             }
         }
 
-        $response = [
+        return [
             'isTaxInclusive' => $isTaxInclusive,
             'basePrice' => number_format($basePrice, 2),
             'grossAmount' => number_format($grossAmount, 2),
@@ -254,8 +254,6 @@ class SubscriptionService
             'coupon' => $coupon,
             'amountDue' => number_format($amountDue, 2)
         ];
-
-        return $response;
     }
 
     private static function calculateTotalTaxPercentage()
@@ -301,9 +299,7 @@ class SubscriptionService
         // Prevent division by zero: ensure periodInDays is greater than 0
         if($periodInDays > 0){
             $amountPerDay = $amount / $periodInDays;
-            $proratedAmount = $amountPerDay * self::subscriptionPeriodRemainingDays($workspaceId);
-
-            return $proratedAmount;
+            return $amountPerDay * self::subscriptionPeriodRemainingDays($workspaceId);
         }
 
         return 0;
@@ -339,102 +335,71 @@ class SubscriptionService
     {
         $subscription = Subscription::where('workspace_id', $workspaceId)->first();
 
-        if (!$subscription) {
+        if (!$subscription || $subscription->valid_until < now()) {
             return true;
         }
 
-        if($subscription->valid_until < now()){
-            return true;
+        $count = self::getFeatureCount($workspaceId, $feature);
+        
+        if ($subscription->status === 'trial' && $subscription->valid_until > now()) {
+            return self::checkTrialLimit($feature, $count);
         }
 
         $subscriptionPlan = SubscriptionPlan::find($subscription->plan_id);
-
-        if ($subscriptionPlan) {
-            $subscriptionPlanLimits = json_decode($subscriptionPlan->metadata, true);
-
-            if (!array_key_exists($feature, $subscriptionPlanLimits)) {
-                return false;
-            }
-
-            $featureLimit = $subscriptionPlanLimits[$feature];
+        
+        if (!$subscriptionPlan) {
+            return false;
         }
 
-        if ($feature == 'canned_replies_limit') {
-            $count = AutoReply::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
+        return self::checkPlanLimit($subscriptionPlan, $feature, $count);
+    }
 
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['automated_replies'] ?? '-1' : '-1';
+    private static function getFeatureCount($workspaceId, $feature)
+    {
+        $featureCounts = [
+            'canned_replies_limit' => AutoReply::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count(),
+            'contacts_limit' => Contact::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count(),
+            'campaign_limit' => Campaign::where('workspace_id', $workspaceId)->count(),
+            'message_limit' => Chat::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count(),
+            'team_limit' => Team::where('workspace_id', $workspaceId)->count(),
+        ];
 
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
+        return $featureCounts[$feature] ?? 0;
+    }
 
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
+    private static function checkTrialLimit($feature, $count)
+    {
+        $trialLimitMapping = [
+            'canned_replies_limit' => 'automated_replies',
+            'contacts_limit' => 'contacts',
+            'campaign_limit' => 'campaigns',
+            'message_limit' => 'messages',
+            'team_limit' => 'users',
+        ];
+
+        $limitKey = $trialLimitMapping[$feature] ?? null;
+        
+        if (!$limitKey) {
+            return false;
         }
 
-        if ($feature == 'contacts_limit') {
-            $count = Contact::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
+        $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
+        $usageLimit = $limit ? json_decode($limit, true)[$limitKey] ?? '-1' : '-1';
 
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['contacts'] ?? '-1' : '-1';
+        return $usageLimit == -1 ? false : $count >= $usageLimit;
+    }
 
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
+    private static function checkPlanLimit($subscriptionPlan, $feature, $count)
+    {
+        $subscriptionPlanLimits = json_decode($subscriptionPlan->metadata, true);
 
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
+        if (!array_key_exists($feature, $subscriptionPlanLimits)) {
+            return false;
         }
 
-        if ($feature == 'campaign_limit') {
-            $count = Campaign::where('workspace_id', $workspaceId)->count();
+        $featureLimit = $subscriptionPlanLimits[$feature];
 
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['campaigns'] ?? '-1' : '-1';
-
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
-
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
-        }
-
-        if ($feature == 'message_limit') {
-            $count = Chat::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
-
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['messages'] ?? '-1' : '-1';
-
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
-
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
-        }
-
-        if ($feature == 'team_limit') {
-            $count = Team::where('workspace_id', $workspaceId)->count();
-
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['users'] ?? '-1' : '-1';
-
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
-
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
-        }
-
-        return false;
+        return $featureLimit == -1 ? false : $count >= $featureLimit;
     }
 
     public static function isSubscriptionLimitReachedForInboundMessages($workspaceId)
