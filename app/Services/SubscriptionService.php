@@ -346,12 +346,8 @@ class SubscriptionService
         }
 
         $subscriptionPlan = SubscriptionPlan::find($subscription->plan_id);
-        
-        if (!$subscriptionPlan) {
-            return false;
-        }
 
-        return self::checkPlanLimit($subscriptionPlan, $feature, $count);
+        return $subscriptionPlan ? self::checkPlanLimit($subscriptionPlan, $feature, $count) : false;
     }
 
     private static function getFeatureCount($workspaceId, $feature)
@@ -411,21 +407,16 @@ class SubscriptionService
             return true;
         }
 
-        // If no subscription is found, assume the limit is reached
-        if(isset($subscription->plan->metadata)){
+        // Check if receiving messages after expiration is allowed
+        if (isset($subscription->plan->metadata)) {
             $subscriptionMetadata = json_decode($subscription->plan->metadata, true);
             
-            // Check if receiving messages after expiration is allowed
-            if(isset($subscriptionMetadata['receive_messages_after_expiration']) && $subscriptionMetadata['receive_messages_after_expiration']){
+            if (isset($subscriptionMetadata['receive_messages_after_expiration']) && $subscriptionMetadata['receive_messages_after_expiration']) {
                 return false;
             }
         }
 
         // Check if the subscription has expired
-        if($subscription->valid_until < now()){
-            return true;
-        }
-
-        return false;
+        return $subscription->valid_until < now();
     }
 }

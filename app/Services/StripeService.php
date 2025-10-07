@@ -330,15 +330,15 @@ class StripeService
             return response()->json(['status' => 400, 'message' => 'Invalid webhook'], 400);
         }
 
+        $response = null;
+
         if ($stripeEvent->type == 'checkout.session.completed') {
-            return $this->handleCheckoutSessionCompleted($stripeEvent);
+            $response = $this->handleCheckoutSessionCompleted($stripeEvent);
+        } elseif ($stripeEvent->type == 'invoice.paid') {
+            $response = $this->handleInvoicePaid($stripeEvent);
         }
 
-        if ($stripeEvent->type == 'invoice.paid') {
-            return $this->handleInvoicePaid($stripeEvent);
-        }
-
-        return response()->json(['status' => 200], 200);
+        return $response ?? response()->json(['status' => 200], 200);
     }
 
     private function validateWebhookEvent(Request $request)
