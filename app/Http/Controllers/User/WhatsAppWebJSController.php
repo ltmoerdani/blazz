@@ -14,11 +14,11 @@ class WhatsAppWebJSController extends Controller
      */
     public function setup(Request $request)
     {
-        $workspace = session('current_workspace_data');
-        
-        if (!$workspace) {
-            return redirect('/dashboard')->with('error', 'Please select a workspace first.');
+        $workspaceId = session()->get('current_workspace');
+        if (!$workspaceId) {
+            return redirect('/select-workspace');
         }
+        $workspace = \App\Models\Workspace::find($workspaceId);
 
         // Get broadcast settings for frontend Echo configuration
         $broadcastDriver = Setting::where('key', 'broadcast_driver')->value('value') ?: 'reverb';

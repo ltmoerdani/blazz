@@ -23,6 +23,8 @@ export function getEchoInstance(pusherKey, pusherCluster, broadcasterType = 'pus
             config = {
                 broadcaster: 'pusher',  // Reverb uses Pusher protocol compatibility
                 key: reverbConfig.key || 'default-reverb-key',
+                // pusher-js requires a cluster option even when using wsHost/wsPort
+                cluster: 'mt1',
                 wsHost: reverbConfig.host || '127.0.0.1',
                 wsPort: reverbConfig.port || 8080,
                 wssPort: reverbConfig.port || 8080,
@@ -54,13 +56,24 @@ export function getEchoInstance(pusherKey, pusherCluster, broadcasterType = 'pus
             // Fallback to Pusher if Reverb fails
             if (broadcasterType === 'reverb') {
                 console.warn('Echo: Falling back to Pusher broadcaster...');
-                echoInstance = new Echo({
-                    broadcaster: 'pusher',
-                    key: pusherKey,
-                    cluster: pusherCluster,
-                    encrypted: true,
-                });
-                console.log('Echo: Fallback to Pusher successful');
+                if (pusherKey) {
+                    echoInstance = new Echo({
+                        broadcaster: 'pusher',
+                        key: pusherKey,
+                        cluster: pusherCluster || 'mt1',
+                        encrypted: true,
+                    });
+                    console.log('Echo: Fallback to Pusher successful');
+                } else {
+                    console.warn('Echo: Pusher key missing. Using no-op Echo to prevent runtime errors.');
+                    const noop = {
+                        channel: () => ({ listen: () => noop, stopListening: () => noop }),
+                        private: () => ({ listen: () => noop, stopListening: () => noop }),
+                        leave: () => {},
+                        disconnect: () => {},
+                    };
+                    echoInstance = noop;
+                }
             } else {
                 throw error;
             }

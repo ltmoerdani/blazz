@@ -1,11 +1,11 @@
 <script setup>
-    import { Link, useForm } from "@inertiajs/vue3";
+    import { useForm, usePage, router } from "@inertiajs/vue3";
     import { defineProps, ref } from "vue";
-    import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle, TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue';
+    import { TransitionRoot, TransitionChild, Dialog, DialogPanel, TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue';
     import FormInput from '@/Components/FormInput.vue';
     import FormPhoneInput from '@/Components/FormPhoneInput.vue';
     import FormSelect from '@/Components/FormSelect.vue';
-    import { usePage, router } from '@inertiajs/vue3';
+    
 
     const props = defineProps({
         user: Object,
@@ -16,13 +16,20 @@
 
     const isLoading = ref(false);
 
+    const safeParseJson = (val) => {
+        if (val == null) return null;
+        if (typeof val === 'object') return val;
+        if (typeof val === 'string') { try { return JSON.parse(val); } catch { return val; } }
+        return null;
+    };
+
     const getAddressDetail = (value, key) => {
-        if(value){
-            const address = JSON.parse(value);
-            return address?.[key] ?? null;
-        } else {
-            return null;
+        if (!value) return null;
+        const address = safeParseJson(value);
+        if (typeof address === 'string') {
+            return key === 'country' ? address : null;
         }
+        return address?.[key] ?? null;
     };
 
     const config = usePage().props.config;
@@ -134,7 +141,7 @@
                     class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all min-w-[20em]"
                     >
                     <div>
-                        <h2 class="text-base text-xl leading-7 text-gray-900">{{ $t('Personal information') }}</h2>
+                        <h2 class="text-xl leading-7 text-gray-900">{{ $t('Personal information') }}</h2>
                         <p class="mb-4 text-sm leading-6 text-gray-600">{{ $t('Update your account details and credentials') }}</p>
 
                         <TabGroup>
@@ -249,7 +256,7 @@
                                                     <img :src="tfa.qrcode" alt="qrcode" width="200" />
                                                 </div>
                                                 <div>
-                                                    <label>Can't scan the QR Code?</label>
+                                                    <span class="font-medium">Can't scan the QR Code?</span>
                                                     <p class="text-gray-600 text-sm">
                                                         Try inserting the following secret code into your app if you can't scan the QR Code.
                                                     </p>

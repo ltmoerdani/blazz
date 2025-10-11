@@ -112,7 +112,7 @@
             
             <!-- Debug Info (development only) -->
             <button 
-                v-if="$page.props.app.debug"
+                v-if="$page.props.app?.debug"
                 @click="debugInfo = !debugInfo"
                 class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm"
             >
@@ -121,7 +121,7 @@
         </div>
         
         <!-- Debug Information (development only) -->
-        <div v-if="$page.props.app.debug && debugInfo" class="mt-6 p-4 bg-gray-100 rounded-lg">
+    <div v-if="$page.props.app?.debug && debugInfo" class="mt-6 p-4 bg-gray-100 rounded-lg">
             <h3 class="font-bold mb-2">Debug Information</h3>
             <pre class="text-xs bg-white p-2 rounded overflow-x-auto">{{ JSON.stringify({
                 status: status,

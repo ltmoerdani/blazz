@@ -176,20 +176,18 @@
 <script setup>
     import SettingLayout from "./Layout.vue";
     import { ref } from 'vue';
-    import EmbeddedSignupBtn from '@/Components/EmbeddedSignupBtn.vue';
-    import FormModal from '@/Components/FormModal.vue';
     import FormInput from '@/Components/FormInput.vue';
     import FormSelect from '@/Components/FormSelect.vue';
-    import FormTextArea from '@/Components/FormTextArea.vue';
     import FormToggleSwitch from '@/Components/FormToggleSwitch.vue';
-    import Modal from '@/Components/Modal.vue';
-    import { trans } from 'laravel-vue-i18n';
-    import { router, useForm } from "@inertiajs/vue3";
+    import { useForm } from "@inertiajs/vue3";
 
     const props = defineProps(['contactGroups', 'settings', 'timezones', 'modules', 'workspace', 'countries', 'sounds']);
     const statusView = ref(false);
     const config = ref(props.settings.metadata);
-    const settings = ref(config.value ? JSON.parse(config.value) : null);
+    const settings = ref((() => {
+        if (!config.value) return null;
+        try { return JSON.parse(config.value); } catch { return null; }
+    })());
     const audioPlayer = ref(null);
 
     const reduceVolume = () => {
@@ -223,13 +221,23 @@
         }));
     };
 
-    const getAddressDetail = (value, key) => {
-        if(value){
-            const address = JSON.parse(value);
-            return address?.[key] ?? null;
-        } else {
-            return null;
+    const safeParseJson = (val) => {
+        if (val == null) return null;
+        if (typeof val === 'object') return val;
+        if (typeof val === 'string') {
+            try { return JSON.parse(val); } catch { return val; }
         }
+        return null;
+    };
+
+    const getAddressDetail = (value, key) => {
+        if (!value) return null;
+        const address = safeParseJson(value);
+        // If address is a string (e.g., country name stored directly), only return for 'country'
+        if (typeof address === 'string') {
+            return key === 'country' ? address : null;
+        }
+        return address?.[key] ?? null;
     };
 
     const form2 = useForm({

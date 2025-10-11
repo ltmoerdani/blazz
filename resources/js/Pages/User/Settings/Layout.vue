@@ -70,10 +70,15 @@
     import AppLayout from "./../Layout/App.vue";
     import { Link } from "@inertiajs/vue3";
 
-    const props = defineProps(['modules']);
+    const props = defineProps({
+        modules: {
+            type: Array,
+            default: () => []
+        }
+    });
 
     const moduleActive = (moduleName) => {
-        const module = props.modules.find((mod) => mod.name === moduleName);
+        const module = (props.modules ?? []).find((mod) => mod.name === moduleName);
         return module && module.status === 1;
     };
 </script>
