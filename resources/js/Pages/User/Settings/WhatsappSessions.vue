@@ -185,8 +185,13 @@ export default {
       try {
         const response = await axios.post('/api/whatsapp-webjs/sessions/create', { workspace_id: workspaceId });
         if (response.data.success) {
-          status.value = 'qr_required';
-          sessionId.value = response.data.data?.session_id || null;
+          // If session just created, we expect a QR event shortly; if already exists, wait for status event
+          if (response.data.data?.already_exists) {
+            status.value = 'connecting';
+          } else {
+            status.value = 'qr_required';
+            sessionId.value = response.data.data?.session_id || null;
+          }
         } else {
           throw new Error(response.data.error || 'Unknown error');
         }
@@ -260,17 +265,18 @@ export default {
         );
         const channelName = `whatsapp.${workspaceId}`;
         echoChannel = echo.channel(channelName)
-          .listen('WhatsAppQRGenerated', (event) => {
-            qrCode.value = event.qr_code;
+          .listen('.whatsapp.qr.generated', (event) => {
+            // Backend broadcasts payload as { qr, session_id }
+            qrCode.value = event.qr || event.qr_code || null;
             sessionId.value = event.session_id;
             status.value = 'qr_required';
             startExpiryTimer();
           })
-          .listen('WhatsAppSessionStatusChanged', (event) => {
+          .listen('.whatsapp.session.status', (event) => {
             status.value = event.status;
             sessionId.value = event.session_id;
             if (event.status === 'connected') {
-              connectedPhoneNumber.value = event.phone_number;
+              connectedPhoneNumber.value = event.phone_number || null;
               qrCode.value = null;
               if (expiryInterval) clearInterval(expiryInterval);
             } else if (event.status === 'disconnected') {

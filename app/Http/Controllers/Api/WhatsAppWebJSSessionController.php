@@ -64,9 +64,28 @@ class WhatsAppWebJSSessionController extends Controller
             ]);
 
         } catch (RequestException $e) {
+            $status = $e->getResponse() ? $e->getResponse()->getStatusCode() : null;
+            $body = $e->getResponse() ? (string) $e->getResponse()->getBody() : '';
+
+            // If Node reports the session already exists, respond gracefully so UI can continue
+            if ($status === 400 && str_contains($body, 'Session already exists')) {
+                Log::info('WhatsApp session already exists; returning graceful response', [
+                    'workspace_id' => $workspaceId,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'already_exists' => true,
+                    ],
+                ]);
+            }
+
             Log::error('Failed to create WhatsApp session', [
                 'workspace_id' => $workspaceId,
+                'status' => $status,
                 'error' => $e->getMessage(),
+                'body' => $body,
             ]);
 
             return response()->json([

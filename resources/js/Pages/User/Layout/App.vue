@@ -114,11 +114,11 @@
 
         // WhatsApp Web JS event listeners (new functionality)
         echo.channel('whatsapp.' + workspace.value.id)
-            .listen('WhatsAppQRGenerated', (event) => {
+            .listen('.whatsapp.qr.generated', (event) => {
                 console.log('App Layout: WhatsApp QR Generated:', event);
                 // This will be handled by WhatsAppSetup.vue component
             })
-            .listen('WhatsAppSessionStatusChanged', (event) => {
+            .listen('.whatsapp.session.status', (event) => {
                 console.log('App Layout: WhatsApp Session Status Changed:', event);
                 // This will be handled by WhatsAppSetup.vue component
             });

@@ -45,6 +45,7 @@ class WhatsAppWebJSController extends Controller
                 'session.qr' => $this->handleSessionQR($request, $workspaceId),
                 'session.ready' => $this->handleSessionReady($request, $workspaceId),
                 'session.disconnected' => $this->handleSessionDisconnected($request, $workspaceId),
+                'session.destroyed' => $this->handleSessionDestroyed($request, $workspaceId),
                 default => $this->handleUnknownEvent($eventType),
             };
         } catch (\Exception $e) {
@@ -232,8 +233,8 @@ class WhatsAppWebJSController extends Controller
             $workspace->save();
         }
 
-        // Broadcast status update to frontend
-        event(new WhatsAppSessionStatusChanged($workspaceId, 'connected', $sessionId));
+    // Broadcast status update to frontend (include phone number)
+    event(new WhatsAppSessionStatusChanged($workspaceId, 'connected', $sessionId, $phoneNumber));
 
         Log::info("Session connected", [
             'workspace_id' => $workspaceId,
@@ -270,10 +271,46 @@ class WhatsAppWebJSController extends Controller
             $workspace->save();
         }
 
-        // Broadcast status update to frontend
-        event(new WhatsAppSessionStatusChanged($workspaceId, 'disconnected', $sessionId));
+    // Broadcast status update to frontend
+    event(new WhatsAppSessionStatusChanged($workspaceId, 'disconnected', $sessionId));
 
         Log::warning("Session disconnected", [
+            'workspace_id' => $workspaceId,
+            'session_id' => $sessionId,
+            'reason' => $reason,
+        ]);
+
+        return response()->json(['status' => 'success'], 200);
+    }
+
+    /**
+     * Process session destroyed event (force disconnected and cleanup)
+     */
+    private function handleSessionDestroyed(Request $request, int $workspaceId)
+    {
+        $data = $request->input('data');
+        $sessionId = $data['session_id'] ?? null;
+        $reason = $data['reason'] ?? 'Destroyed';
+
+        // Update workspace metadata - clear session references
+        $workspace = WorkspaceModel::find($workspaceId);
+        if ($workspace) {
+            $metadata = json_decode($workspace->metadata, true) ?: [];
+            if (!isset($metadata['whatsapp'])) {
+                $metadata['whatsapp'] = [];
+            }
+            $metadata['whatsapp']['webjs_status'] = 'disconnected';
+            $metadata['whatsapp']['webjs_disconnected_at'] = now()->toIso8601String();
+            $metadata['whatsapp']['webjs_disconnect_reason'] = $reason;
+            $metadata['whatsapp']['webjs_session_id'] = null;
+            $workspace->metadata = json_encode($metadata);
+            $workspace->save();
+        }
+
+    // Broadcast status update
+    event(new WhatsAppSessionStatusChanged($workspaceId, 'disconnected', $sessionId));
+
+        Log::warning("Session destroyed", [
             'workspace_id' => $workspaceId,
             'session_id' => $sessionId,
             'reason' => $reason,

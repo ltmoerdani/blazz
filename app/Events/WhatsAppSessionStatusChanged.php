@@ -15,12 +15,14 @@ class WhatsAppSessionStatusChanged implements ShouldBroadcast
     public int $workspaceId;
     public string $status; // connected | disconnected | qr_required | connecting
     public ?string $sessionId;
+    public ?string $phoneNumber;
 
-    public function __construct(int $workspaceId, string $status, ?string $sessionId = null)
+    public function __construct(int $workspaceId, string $status, ?string $sessionId = null, ?string $phoneNumber = null)
     {
         $this->workspaceId = $workspaceId;
         $this->status = $status;
         $this->sessionId = $sessionId;
+        $this->phoneNumber = $phoneNumber;
     }
 
     public function broadcastOn(): Channel
@@ -39,6 +41,7 @@ class WhatsAppSessionStatusChanged implements ShouldBroadcast
             'workspace_id' => $this->workspaceId,
             'status' => $this->status,
             'session_id' => $this->sessionId,
+            'phone_number' => $this->phoneNumber,
         ];
     }
 }
