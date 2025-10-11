@@ -35,7 +35,7 @@ class WhatsAppWebJSController extends Controller
             'reverb_scheme' => Setting::where('key', 'reverb_scheme')->value('value') ?: 'http',
         ];
 
-        return Inertia::render('User/Settings/WhatsAppSetup', [
+        return Inertia::render('User/Settings/WhatsappSessions', [
             'workspace' => $workspace,
             'broadcastDriver' => $broadcastDriver,
             'pusherSettings' => $pusherSettings,

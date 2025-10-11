@@ -194,6 +194,14 @@ Route::middleware(['auth:user'])->group(function () {
                     Route::post('/settings/whatsapp', [App\Http\Controllers\User\SettingController::class, 'storeWhatsappSettings']);
                     Route::post('/settings/whatsapp/business-profile', [App\Http\Controllers\User\SettingController::class, 'whatsappBusinessProfileUpdate']);
                     Route::delete('/settings/whatsapp/business-profile', [App\Http\Controllers\User\SettingController::class, 'deleteWhatsappIntegration']);
+                
+                    // WhatsApp Web JS session management endpoints (require web session)
+                    Route::prefix('api/whatsapp-webjs')->group(function () {
+                        Route::post('/sessions/create', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'create']);
+                        Route::post('/sessions/disconnect', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'disconnect']);
+                        Route::post('/sessions/refresh-qr', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'refreshQr']);
+                        Route::get('/sessions/status/{workspaceId?}', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'status']);
+                    });
                     Route::match(['get', 'post'], '/settings/contacts', [App\Http\Controllers\User\SettingController::class, 'contacts']);
                     Route::match(['get', 'post'], '/settings/tickets', [App\Http\Controllers\User\SettingController::class, 'tickets']);
                     Route::match(['get', 'post'], '/settings/automation', [App\Http\Controllers\User\SettingController::class, 'automation']);

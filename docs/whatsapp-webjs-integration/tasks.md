@@ -53,7 +53,7 @@
 - [x] **TASK-5:** Node.js Service Implementation
 - [x] **TASK-6:** Webhook Security & Message Processing
 - [x] **TASK-7:** Frontend QR Component & Echo Enhancement
-- [ ] **TASK-8:** Admin Settings UI Enhancement
+- [x] **TASK-8:** Admin Settings UI Enhancement
 - [ ] **TASK-9:** Testing & Quality Assurance
 - [ ] **TASK-10:** Deployment & Monitoring Setup
 
@@ -380,9 +380,9 @@ echo.channel('whatsapp.1').listen('WhatsAppQRGenerated', (e) => console.log('QR:
 **Scope:** Add broadcast driver selection UI untuk admin settings
 
 ### Subtasks Checklist
-- [ ] **TASK-8.1:** Create Broadcasting.vue Settings Page (DES-6)
-- [ ] **TASK-8.2:** Add Broadcasting Settings Backend (controller + validation)
-- [ ] **TASK-8.3:** Integrate to Admin Navigation (menu + authorization)
+- [x] **TASK-8.1:** Create Broadcasting.vue Settings Page (DES-6)
+- [x] **TASK-8.2:** Add Broadcasting Settings Backend (controller + validation)
+- [x] **TASK-8.3:** Integrate to Admin Navigation (menu + authorization)
 
 ### Acceptance Criteria
 - ✅ Admin dapat pilih broadcast driver: "Laravel Reverb (Free) - Default" atau "Pusher"
@@ -398,6 +398,14 @@ SELECT * FROM settings WHERE `key` LIKE 'broadcast_driver';
 
 **Dependencies:** TASK-7  
 **Definition of Done:** Admin can configure driver, settings persist, system uses selected driver
+
+### Status Update (Oktober 11, 2025)
+- Admin Broadcast settings page updated (`resources/js/Pages/Admin/Setting/Broadcast.vue`) with driver selector (Reverb default, Pusher optional) and conditional fields:
+  - Pusher: app_id, app_key, app_secret, app_cluster
+  - Reverb: app_id, app_key, app_secret, host, port, scheme
+- Backend validation updated in `app/Http/Requests/StoreConfig.php` to require fields conditionally based on `broadcast_driver`.
+- Settings persist to the `settings` table via existing `SettingService`; `BroadcastConfigServiceProvider` applies `broadcast_driver`, `reverb_*`, and `pusher_*` from DB at boot when database config is enabled.
+- Admin navigation already contains "Broadcast driver" entry; saving via `PUT /admin/settings?type=broadcast` works. Frontend build completed without errors.
 
 ---
 

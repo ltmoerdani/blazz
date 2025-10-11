@@ -4,6 +4,12 @@ import VueApexCharts from 'vue3-apexcharts';
 import VueTelInput from 'vue-tel-input';
 import { createI18n } from 'vue-i18n';
 import axios from 'axios';
+// Configure axios for SPA CSRF protection and AJAX header
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+if (csrfToken) {
+  axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfToken;
+}
+axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 // Function to load locale messages via API
 async function loadLocaleMessages(locale) {

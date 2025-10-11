@@ -59,10 +59,4 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
 Route::post('/webhooks/whatsapp-webjs', [App\Http\Controllers\Webhooks\WhatsAppWebJSController::class, 'handle'])
     ->middleware('verify.whatsapp.hmac');
 
-// WhatsApp Web JS session management API endpoints
-Route::prefix('whatsapp-webjs')->group(function () {
-    Route::post('/sessions/create', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'create']);
-    Route::post('/sessions/disconnect', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'disconnect']);
-    Route::post('/sessions/refresh-qr', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'refreshQr']);
-    Route::get('/sessions/status/{workspaceId?}', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'status']);
-});
+// Note: Session management endpoints moved to routes/web.php under web middleware to access session

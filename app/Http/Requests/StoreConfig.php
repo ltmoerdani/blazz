@@ -40,11 +40,23 @@ class StoreConfig extends FormRequest
         }
 
         if ($this->type == 'broadcast') {
-            $rules['broadcast_driver'] = 'required';
-            $rules['pusher_app_key'] = 'required';
-            $rules['pusher_app_id'] = 'required';
-            $rules['pusher_app_secret'] = 'required';
-            $rules['pusher_app_cluster'] = 'required';
+            $rules['broadcast_driver'] = 'required|in:reverb,pusher';
+
+            if ($this->broadcast_driver === 'pusher') {
+                $rules['pusher_app_key'] = 'required|string';
+                $rules['pusher_app_id'] = 'required|string';
+                $rules['pusher_app_secret'] = 'required|string';
+                $rules['pusher_app_cluster'] = 'required|string';
+            }
+
+            if ($this->broadcast_driver === 'reverb') {
+                $rules['reverb_app_id'] = 'required|string';
+                $rules['reverb_app_key'] = 'required|string';
+                $rules['reverb_app_secret'] = 'required|string';
+                $rules['reverb_host'] = 'required|string';
+                $rules['reverb_port'] = 'required|integer';
+                $rules['reverb_scheme'] = 'required|in:http,https';
+            }
         }
 
         if ($this->type == 'socials') {
@@ -80,10 +92,10 @@ class StoreConfig extends FormRequest
                 $rules['mail_config.port'] = 'required';
                 $rules['mail_config.username'] = 'required';
                 $rules['mail_config.password'] = 'required';
-            } else if($this->mail_config['driver'] === 'mailgun'){
+            } elseif($this->mail_config['driver'] === 'mailgun'){
                 $rules['mail_config.mg_domain'] = 'required';
                 $rules['mail_config.mg_secret'] = 'required';
-            } else if($this->mail_config['driver'] === 'ses'){
+            } elseif($this->mail_config['driver'] === 'ses'){
                 $rules['mail_config.ses_key'] = 'required';
                 $rules['mail_config.ses_secret'] = 'required';
                 $rules['mail_config.ses_region'] = 'required';

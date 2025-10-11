@@ -10,12 +10,27 @@
         <form @submit.prevent="submitForm()">
             <div class="space-y-12">
                 <div class="pb-12">
-                    <div v-if="form.broadcast_driver === 'pusher'" class="grid gap-6 grid-cols-2 pb-10 border-b md:w-2/3">
+                    <div class="grid gap-6 grid-cols-2 pb-10 border-b md:w-2/3">
+                        <!-- Driver selector -->
                         <FormSelect v-model="form.broadcast_driver" :name="$t('Broadcast driver')" :type="'text'"  :options="methods" :error="form.errors.broadcast_driver" :class="'col-span-2'"/>
-                        <FormInput v-model="form.pusher_app_id" :name="$t('Pusher app id')" :type="'text'" :error="form.errors.pusher_app_id" :class="'col-span-1'"/>
-                        <FormInput v-model="form.pusher_app_key" :name="$t('Pusher app key')" :type="'text'" :error="form.errors.pusher_app_key" :class="'col-span-1'"/>
-                        <FormInput v-model="form.pusher_app_secret" :name="$t('Pusher app secret')" :type="'password'" :error="form.errors.pusher_app_secret" :class="'col-span-1'"/>
-                        <FormInput v-model="form.pusher_app_cluster" :name="$t('Pusher app cluster')" :type="'text'" :error="form.errors.pusher_app_cluster" :class="'col-span-1'"/>
+
+                        <!-- Pusher fields -->
+                        <template v-if="form.broadcast_driver === 'pusher'">
+                            <FormInput v-model="form.pusher_app_id" :name="$t('Pusher app id')" :type="'text'" :error="form.errors.pusher_app_id" :class="'col-span-1'"/>
+                            <FormInput v-model="form.pusher_app_key" :name="$t('Pusher app key')" :type="'text'" :error="form.errors.pusher_app_key" :class="'col-span-1'"/>
+                            <FormInput v-model="form.pusher_app_secret" :name="$t('Pusher app secret')" :type="'password'" :error="form.errors.pusher_app_secret" :class="'col-span-1'"/>
+                            <FormInput v-model="form.pusher_app_cluster" :name="$t('Pusher app cluster')" :type="'text'" :error="form.errors.pusher_app_cluster" :class="'col-span-1'"/>
+                        </template>
+
+                        <!-- Reverb fields -->
+                        <template v-else-if="form.broadcast_driver === 'reverb'">
+                            <FormInput v-model="form.reverb_app_id" :name="$t('Reverb app id')" :type="'text'" :error="form.errors.reverb_app_id" :class="'col-span-1'"/>
+                            <FormInput v-model="form.reverb_app_key" :name="$t('Reverb app key')" :type="'text'" :error="form.errors.reverb_app_key" :class="'col-span-1'"/>
+                            <FormInput v-model="form.reverb_app_secret" :name="$t('Reverb app secret')" :type="'password'" :error="form.errors.reverb_app_secret" :class="'col-span-1'"/>
+                            <FormInput v-model="form.reverb_host" :name="$t('Reverb host')" :type="'text'" :error="form.errors.reverb_host" :class="'col-span-1'"/>
+                            <FormInput v-model="form.reverb_port" :name="$t('Reverb port')" :type="'number'" :error="form.errors.reverb_port" :class="'col-span-1'"/>
+                            <FormInput v-model="form.reverb_scheme" :name="$t('Reverb scheme')" :type="'text'" :error="form.errors.reverb_scheme" :class="'col-span-1'"/>
+                        </template>
                     </div>
 
                     <div class="mt-6 flex items-center justify-end gap-x-6 md:w-2/3">
@@ -54,14 +69,23 @@
 
     const isLoading = ref(false);
     const form = useForm({
-        broadcast_driver: getValueByKey('broadcast_driver'),
+        broadcast_driver: getValueByKey('broadcast_driver') || 'reverb',
+        // Pusher
         pusher_app_key: getValueByKey('pusher_app_key'),
         pusher_app_id: getValueByKey('pusher_app_id'),
         pusher_app_secret: getValueByKey('pusher_app_secret'),
         pusher_app_cluster: getValueByKey('pusher_app_cluster'),
+        // Reverb
+        reverb_app_id: getValueByKey('reverb_app_id'),
+        reverb_app_key: getValueByKey('reverb_app_key'),
+        reverb_app_secret: getValueByKey('reverb_app_secret'),
+        reverb_host: getValueByKey('reverb_host') || '127.0.0.1',
+        reverb_port: getValueByKey('reverb_port') || '8080',
+        reverb_scheme: getValueByKey('reverb_scheme') || 'http',
     })
 
     const methods = [
+        { label: 'Laravel Reverb (Free) - Default', value: 'reverb' },
         { label: 'Pusher', value: 'pusher' },
     ]
 
