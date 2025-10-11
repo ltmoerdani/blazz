@@ -187,7 +187,7 @@ Route::middleware(['auth:user'])->group(function () {
                     Route::get('/settings/m', [App\Http\Controllers\User\SettingController::class, 'mobileView']);
 
                     Route::get('/settings/whatsapp', [App\Http\Controllers\User\SettingController::class, 'viewWhatsappSettings']);
-                    Route::get('/settings/whatsapp-webjs', [App\Http\Controllers\User\WhatsAppWebJSController::class, 'setup']);
+                    Route::get('/settings/whatsapp-number', [App\Http\Controllers\User\WhatsAppWebJSController::class, 'setup']);
                     Route::get('/settings/plugins', [App\Http\Controllers\User\PluginController::class, 'index']);
                     Route::get('/settings/whatsapp/refresh', [App\Http\Controllers\User\SettingController::class, 'refreshWhatsappData']);
                     Route::post('/settings/whatsapp/token', [App\Http\Controllers\User\SettingController::class, 'updateToken']);
