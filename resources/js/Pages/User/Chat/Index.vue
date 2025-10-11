@@ -180,9 +180,13 @@
     }
 
     onMounted(() => {
+        // Enhanced Echo initialization for backward compatibility
+        // Uses the enhanced getEchoInstance with fallback to legacy parameters
         const echo = getEchoInstance(
             props.pusherSettings['pusher_app_key'],
             props.pusherSettings['pusher_app_cluster']
+            // Note: Using legacy call pattern for backward compatibility
+            // The enhanced Echo will detect this and use Pusher as default
         );
 
         echo.channel('chats.ch' + props.workspaceId)

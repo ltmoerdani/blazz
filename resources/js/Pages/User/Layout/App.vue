@@ -72,11 +72,37 @@
     onMounted(() => {
         setupSound();
 
+        // Enhanced Echo initialization with dynamic broadcaster support
+        const broadcastDriver = getValueByKey('broadcast_driver') || 'reverb';
+        
+        // Prepare configuration for both broadcasters
+        const pusherConfig = {
+            pusher_app_key: getValueByKey('pusher_app_key'),
+            pusher_app_cluster: getValueByKey('pusher_app_cluster')
+        };
+        
+        const reverbConfig = {
+            reverb_app_key: getValueByKey('reverb_app_key'),
+            reverb_host: getValueByKey('reverb_host') || '127.0.0.1',
+            reverb_port: parseInt(getValueByKey('reverb_port')) || 8080,
+            reverb_scheme: getValueByKey('reverb_scheme') || 'http'
+        };
+
+        console.log('App Layout: Initializing Echo with broadcaster:', broadcastDriver);
+
         const echo = getEchoInstance(
-            getValueByKey('pusher_app_key'),
-            getValueByKey('pusher_app_cluster')
+            pusherConfig.pusher_app_key,
+            pusherConfig.pusher_app_cluster,
+            broadcastDriver,
+            {
+                key: reverbConfig.reverb_app_key,
+                host: reverbConfig.reverb_host,
+                port: reverbConfig.reverb_port,
+                scheme: reverbConfig.reverb_scheme
+            }
         );
 
+        // Existing chat listeners (backward compatible)
         echo.channel('chats.ch' + workspace.value.id).listen('NewChatEvent', (event) => {
             const chat = event.chat;
 
@@ -85,5 +111,21 @@
                 unreadMessages.value += 1; // Increment unread messages count
             }
         });
+
+        // WhatsApp Web JS event listeners (new functionality)
+        echo.channel('whatsapp.' + workspace.value.id)
+            .listen('WhatsAppQRGenerated', (event) => {
+                console.log('App Layout: WhatsApp QR Generated:', event);
+                // This will be handled by WhatsAppSetup.vue component
+            })
+            .listen('WhatsAppSessionStatusChanged', (event) => {
+                console.log('App Layout: WhatsApp Session Status Changed:', event);
+                // This will be handled by WhatsAppSetup.vue component
+            });
+
+        console.log('App Layout: Echo setup complete with channels:', [
+            'chats.ch' + workspace.value.id,
+            'whatsapp.' + workspace.value.id
+        ]);
     });
 </script>
