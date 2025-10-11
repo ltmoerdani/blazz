@@ -50,7 +50,7 @@
 - [x] **TASK-2:** Laravel Reverb Installation & Configuration
 - [x] **TASK-3:** Backend Broadcasting Infrastructure
 - [x] **TASK-4:** WhatsApp Provider Abstraction Layer
-- [ ] **TASK-5:** Node.js Service Implementation
+- [x] **TASK-5:** Node.js Service Implementation
 - [ ] **TASK-6:** Webhook Security & Message Processing
 - [ ] **TASK-7:** Frontend QR Component & Echo Enhancement
 - [ ] **TASK-8:** Admin Settings UI Enhancement
@@ -84,6 +84,36 @@
 - ✅ `BROADCAST_DRIVER=reverb` set as default
 
 ### Status Update (Oktober 11, 2025)
+## TASK-5: Node.js Service Implementation
+
+Referencing: docs/whatsapp-webjs-integration/design.md (DES-3, DES-11, DES-12)
+
+Status: Completed
+
+Deliverables:
+- whatsapp-service/src/server.js: Express server with JSON body capture for HMAC
+- middleware: HMAC auth and token-only auth for status endpoint
+- services/WhatsAppManager.js: Session lifecycle (create, events, destroy, status), webhook dispatch with HMAC
+- routes: sessions (create/disconnect/refresh-qr/status), messages (send), health
+- utils: logger (winston), crypto (HMAC helpers)
+- package.json scripts (start/dev/pm2) and pm2 ecosystem.config.js
+
+Acceptance verification:
+- Service starts without errors and responds to health check
+- HMAC authentication enforced on protected endpoints; GET session status accepts token-only
+- Session creation emits QR via webhook → Laravel broadcasts via WhatsAppQRGenerated
+- Session ready emits status via webhook → Laravel broadcasts via WhatsAppSessionStatusChanged
+
+Verification Commands
+```bash
+cd whatsapp-service && npm start
+curl http://127.0.0.1:3000/health
+```
+
+Notes:
+- GET /api/sessions/:sessionId/status requires X-API-Token if API_TOKEN is set; otherwise open for local.
+- Protected POST endpoints require X-API-Token, X-Timestamp, X-HMAC-Signature, and X-Workspace-ID.
+
 - Laravel Reverb ditambahkan melalui Composer (`composer.json`, `composer.lock`).
 - Variabel lingkungan Reverb dan WhatsApp Node disiapkan di `.env.example` beserta dukungan Vite.
 - Konfigurasi broadcast kini memuat koneksi Reverb sebagai default (`config/broadcasting.php`).

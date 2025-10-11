@@ -3,4 +3,4 @@ vendor
 .env
 storage/installed
 public/build/assets/
-whatsapp-service/
+whatsapp-service/sessions/
