@@ -13,7 +13,7 @@ use App\Models\Contact;
 // use App\Models\workspace; // removed: incorrect case import
 use App\Models\Setting;
 use App\Models\Template;
-use App\Models\Workspace;
+use App\Models\Workspace as WorkspaceModel;
 use App\Services\WhatsApp\ProviderSelector;
 use App\Services\WhatsApp\Adapters\WebJSAdapter;
 use App\Services\WhatsApp\Adapters\WhatsAppAdapterInterface;
@@ -43,7 +43,7 @@ class WhatsappService
     private $phoneNumberId;
     private $workspaceId;
     private $wabaId;
-    private ?Workspace $workspace = null;
+    private ?WorkspaceModel $workspace = null;
     private ?WhatsAppAdapterInterface $adapter = null;
     private ?ProviderSelector $providerSelector = null;
 
@@ -58,7 +58,7 @@ class WhatsappService
         $this->workspaceId = $workspaceId;
 
         // Initialize provider selection
-        $this->workspace = Workspace::find($workspaceId);
+    $this->workspace = WorkspaceModel::find($workspaceId);
         $this->providerSelector = new ProviderSelector();
         $provider = $this->workspace ? $this->providerSelector->selectProvider($this->workspace) : 'meta-api';
 
@@ -1285,7 +1285,7 @@ class WhatsappService
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
         if($responseObject->success === true){
-            $workspaceConfig = Workspace::where('id', $this->workspaceId)->first();
+            $workspaceConfig = WorkspaceModel::where('id', $this->workspaceId)->first();
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['whatsapp']['business_profile']['about'] = $request->about;
