@@ -4,3 +4,4 @@ vendor
 storage/installed
 public/build/assets/
 whatsapp-service/sessions/
+whatsapp-service/logs/

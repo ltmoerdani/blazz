@@ -16,6 +16,7 @@ use App\Models\Template;
 use App\Models\Workspace as WorkspaceModel;
 use App\Services\WhatsApp\ProviderSelector;
 use App\Services\WhatsApp\Adapters\WebJSAdapter;
+use App\Services\WhatsApp\Adapters\MetaAPIAdapter;
 use App\Services\WhatsApp\Adapters\WhatsAppAdapterInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
@@ -64,9 +65,16 @@ class WhatsappService
 
         if ($provider === 'webjs' && $this->workspace) {
             $this->adapter = new WebJSAdapter($this->workspace);
+        } elseif ($provider === 'meta-api') {
+            // Use MetaAPIAdapter to standardize interface
+            $this->adapter = new MetaAPIAdapter(
+                (string) $this->accessToken,
+                (string) $this->apiVersion,
+                (string) $this->phoneNumberId
+            );
         } else {
-            // Default to Meta API using existing class behavior; keep all meta-api methods as in legacy implementation
-            $this->adapter = null; // null means use legacy Meta API paths below
+            // No provider available
+            $this->adapter = null;
         }
     }
 
@@ -79,7 +87,7 @@ class WhatsappService
      */
     public function sendMessage($contactUuId, $messageContent, $userId = null, $type="text", $buttons = [], $header = [], $footer = null, $buttonLabel = null)
     {
-        // If adapter exists (webjs), delegate; keep same signature
+        // If adapter exists (webjs/meta-api), delegate; keep same signature
         if ($this->adapter) {
             $options = [
                 'type' => $type,

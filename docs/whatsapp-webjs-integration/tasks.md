@@ -51,7 +51,7 @@
 - [x] **TASK-3:** Backend Broadcasting Infrastructure
 - [x] **TASK-4:** WhatsApp Provider Abstraction Layer
 - [x] **TASK-5:** Node.js Service Implementation
-- [ ] **TASK-6:** Webhook Security & Message Processing
+- [x] **TASK-6:** Webhook Security & Message Processing
 - [ ] **TASK-7:** Frontend QR Component & Echo Enhancement
 - [ ] **TASK-8:** Admin Settings UI Enhancement
 - [ ] **TASK-9:** Testing & Quality Assurance
@@ -304,11 +304,11 @@ curl http://localhost:3000/health
 **Scope:** Implement secure webhook endpoint untuk Node.js callbacks
 
 ### Subtasks Checklist
-- [ ] **TASK-6.1:** Create VerifyWhatsAppHmacSignature Middleware (DES-9)
-- [ ] **TASK-6.2:** Create WhatsAppWebJSController (all event handlers - DES-9)
-- [ ] **TASK-6.3:** Create WhatsAppWebJSSessionController (frontend API)
-- [ ] **TASK-6.4:** Add Webhook Routes ke `routes/api.php`
-- [ ] **TASK-6.5:** Add index on `chats.external_id` (message deduplication)
+- [x] **TASK-6.1:** Create VerifyWhatsAppHmacSignature Middleware (DES-9)
+- [x] **TASK-6.2:** Create WhatsAppWebJSController (all event handlers - DES-9)
+- [x] **TASK-6.3:** Create WhatsAppWebJSSessionController (frontend API)
+- [x] **TASK-6.4:** Add Webhook Routes ke `routes/api.php`
+- [x] **TASK-6.5:** Add external_id column and index on `chats` table (message deduplication)
 
 ### Acceptance Criteria
 - ✅ HMAC middleware validates signatures (±300 seconds timestamp tolerance)
@@ -326,6 +326,14 @@ curl -X POST http://localhost:8000/api/webhooks/whatsapp-webjs \
   -H "X-Workspace-ID: 1" \
   -d '{"event": "message.received", "data": {...}}'
 ```
+
+### Status Update (Oktober 11, 2025)
+- HMAC middleware `VerifyWhatsAppHmacSignature` dibuat dengan validasi signature, timestamp tolerance (±300 detik), dan constant-time comparison untuk mencegah timing attacks
+- Webhook controller `WhatsAppWebJSController` diimplementasikan dengan handler lengkap untuk semua event: message.received, message.sent, message.failed, session.qr, session.ready, session.disconnected dengan deduplication via external_id
+- Session controller `WhatsAppWebJSSessionController` ditambahkan untuk frontend API dengan HMAC-signed requests ke Node.js service untuk operasi create/disconnect/refresh/status
+- Routes webhook `/api/webhooks/whatsapp-webjs` dengan HMAC middleware dan session management endpoints `/api/whatsapp-webjs/sessions/*` ditambahkan ke routes/api.php
+- Database migration menambahkan kolom `external_id` dan index `idx_chats_external_id` pada tabel `chats` untuk performance deduplication pesan
+- Semua komponen diverifikasi working dengan proper error handling, logging, dan broadcasting events ke frontend via Laravel Echo
 
 **Implementation Note:** Complete webhook controller code available in DES-9 design.md  
 **Dependencies:** TASK-5  
