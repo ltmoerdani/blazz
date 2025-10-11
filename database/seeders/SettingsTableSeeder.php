@@ -4,8 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Setting;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use Str;
+use Illuminate\Support\Str;
 
 class SettingsTableSeeder extends Seeder
 {
@@ -34,7 +33,13 @@ class SettingsTableSeeder extends Seeder
             ['key' => 'billing_postal_code', 'value' => null],
             ['key' => 'billing_state', 'value' => null],
             ['key' => 'billing_tax_id', 'value' => null],
-            ['key' => 'broadcast_driver', 'value' => 'pusher'],
+            ['key' => 'broadcast_driver', 'value' => 'reverb'],
+            ['key' => 'reverb_app_id', 'value' => env('REVERB_APP_ID', 'default-app-id')],
+            ['key' => 'reverb_app_key', 'value' => env('REVERB_APP_KEY', 'base64:VGVzdEtleUZvckRldmVsb3BtZW50')],
+            ['key' => 'reverb_app_secret', 'value' => env('REVERB_APP_SECRET', 'base64:VGVzdFNlY3JldEZvckRldmVsb3BtZW50')],
+            ['key' => 'reverb_host', 'value' => env('REVERB_HOST', '127.0.0.1')],
+            ['key' => 'reverb_port', 'value' => (string) env('REVERB_PORT', 8080)],
+            ['key' => 'reverb_scheme', 'value' => env('REVERB_SCHEME', 'http')],
             ['key' => 'company_name', 'value' => null],
             ['key' => 'currency', 'value' => 'USD'],
             ['key' => 'date_format', 'value' => 'd-M-y'],

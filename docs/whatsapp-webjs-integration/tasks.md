@@ -47,7 +47,7 @@
 ## IMPLEMENTATION CHECKLIST
 
 - [x] **TASK-1:** Prerequisites & Environment Setup
-- [ ] **TASK-2:** Laravel Reverb Installation & Configuration
+- [x] **TASK-2:** Laravel Reverb Installation & Configuration
 - [ ] **TASK-3:** Backend Broadcasting Infrastructure
 - [ ] **TASK-4:** WhatsApp Provider Abstraction Layer
 - [ ] **TASK-5:** Node.js Service Implementation
@@ -112,10 +112,10 @@ npm list laravel-echo pusher-js
 **Scope:** Complete Reverb setup dengan database seeding
 
 ### Subtasks Checklist
-- [ ] **TASK-2.1:** Run `php artisan reverb:install`
-- [ ] **TASK-2.2:** Create migration untuk Reverb settings (seed ke `settings` table)
-- [ ] **TASK-2.3:** Create migration untuk Workspace metadata extension (Web JS fields)
-- [ ] **TASK-2.4:** Run migrations dan verify settings seeded
+- [x] **TASK-2.1:** Run `php artisan reverb:install`
+- [x] **TASK-2.2:** Create migration untuk Reverb settings (seed ke `settings` table)
+- [x] **TASK-2.3:** Create migration untuk Workspace metadata extension (Web JS fields)
+- [x] **TASK-2.4:** Run migrations dan verify settings seeded
 
 ### Acceptance Criteria
 - ✅ `config/broadcasting.php` updated dengan Reverb connection
@@ -130,6 +130,12 @@ SELECT * FROM settings WHERE `key` LIKE 'reverb_%';
 
 **Dependencies:** TASK-1  
 **Definition of Done:** Reverb configured di database, migrations applied, settings seeded
+
+### Status Update (Oktober 11, 2025)
+- Migration `2025_10_11_120000_add_reverb_settings_to_settings_table.php` menambahkan entri reverb_* pada tabel `settings` dan mengatur `broadcast_driver` default ke `reverb` dengan nilai awal dari variabel lingkungan.
+- Migration `2025_10_11_120100_extend_workspace_metadata_for_webjs.php` memperkaya kolom `workspaces.metadata` dengan struktur WhatsApp Web JS (status, session, prioritas provider) tanpa menghapus data eksisting.
+- Seeder `database/seeders/SettingsTableSeeder.php` diperbarui agar konsisten dengan konfigurasi baru sehingga penanaman ulang data admin langsung memuat kredensial Laravel Reverb bawaan.
+- Verifikasi manual memastikan instalasi `php artisan reverb:install` sebelumnya tetap valid dengan konfigurasi Reverb terkini.
 
 ---
 
