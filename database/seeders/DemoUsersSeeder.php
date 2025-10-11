@@ -62,7 +62,6 @@ class DemoUsersSeeder extends Seeder
                 'name' => 'Laksmana Workspace',
                 'address' => 'Indonesia',
                 'timezone' => 'Asia/Jakarta',
-                'broadcast_driver' => 'pusher',
                 'metadata' => json_encode([
                     'created_via' => 'seeder',
                     'environment' => 'testing',

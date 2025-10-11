@@ -1,10 +1,32 @@
 # REQUIREMENTS SPECIFICATION - WhatsApp Web JS Integration
 
-**Document Version:** 1.0  
-**Date:** 2025-10-08  
-**Status:** VERIFIED & CONFIRMED  
+**Document Version:** 2.0  
+**Date:** 2025-10-11 (Updated)  
+**Status:** COMPLETED - Broadcasting Strategy Migration (Laravel Reverb Default)  
 **Author:** System Analysis Based on User Specifications  
-**References:** assumption.md (Phase 1 Verified)
+**References:** assumption.md (Phase 1.5 Broadcasting Forensics Completed)
+
+**UPDATE PROGRESS TRACKING:**
+- ✅ **Phase 1 (COMPLETED):** Document header, executive summary, FR-1.1, FR-7.0, FR-7.1, FR-10.1 updated
+- ✅ **Phase 2 (COMPLETED):** FR-10.2 Admin/Workspace broadcast driver selection updated, FR-10.8 seeder logic updated
+- ✅ **Phase 3 (COMPLETED):** Socket.IO cleanup completed - migration examples, .env references, deployment guide updated
+- ✅ **ALL PHASES COMPLETED:** Broadcasting strategy migration to Laravel Reverb finished
+
+---
+
+## 🔴 CRITICAL UPDATE (2025-10-11) - BROADCASTING REQUIREMENTS
+
+**Broadcasting Strategy Change:**
+- ❌ ~~Socket.IO sebagai FREE alternative~~ → INVALIDATED (tidak ada server implementation)
+- ✅ **Laravel Reverb sebagai DEFAULT broadcast driver** (native Laravel 12, 100% gratis)
+- ✅ **Pusher tetap tersedia** sebagai alternative option (admin dapat switch via settings)
+- ✅ Admin dapat pilih driver: "Laravel Reverb (Free) - Default" atau "Pusher" via `/admin/settings/broadcast-drivers`
+
+**Real-time Communication:**
+- **Default:** Laravel Reverb (self-hosted, zero cost)
+- **Optional:** Pusher (jika admin memerlukan Pusher-specific features)
+- **Client:** Laravel Echo (supports both Reverb and Pusher protocols)
+- **Selection:** Via dropdown di admin settings (instant switch, no deployment)
 
 ---
 
@@ -16,7 +38,8 @@ Mengganti core WhatsApp Business API (Meta) dengan WhatsApp Web JS untuk memungk
 2. Setup via QR code tanpa approval Meta
 3. Plan-based limit untuk jumlah WhatsApp numbers
 4. Full compatibility dengan existing features (chats, contacts, campaigns, templates, automation)
-5. Single-command startup untuk Laravel + Node.js services
+5. **Real-time broadcasting dengan Laravel Reverb (default, gratis)**
+6. Optional Pusher support untuk backward compatibility
 
 ### Critical Success Factors
 - ✅ Zero data loss dari existing Meta API integration
@@ -24,6 +47,8 @@ Mengganti core WhatsApp Business API (Meta) dengan WhatsApp Web JS untuk memungk
 - ✅ Gradual migration path (Meta API + Web JS coexist)
 - ✅ Production-ready dengan monitoring dan health checks
 - ✅ Minimal database schema changes
+- ✅ **Zero-cost broadcasting out of the box (Laravel Reverb default)**
+- ✅ **Flexible driver selection** (Reverb or Pusher via admin UI)
 
 ---
 
@@ -40,12 +65,13 @@ Mengganti core WhatsApp Business API (Meta) dengan WhatsApp Web JS untuk memungk
 - [ ] Clicking button membuka modal dengan QR code
 - [ ] QR code auto-regenerate setiap 5 menit (300 detik) - expired dan generate QR baru
 - [ ] Timer countdown displayed with MM:SS format: "QR Code expires in: 4:32..."
-- [ ] Real-time status update via broadcast driver (Socket.IO atau Pusher):
+- [ ] Real-time status update via broadcast driver (Laravel Reverb default, Pusher optional):
   - `qr-code-generated` → Display QR dengan countdown timer
   - `session-status-changed` (status: 'qr_scanning') → Show loading state "Scanning..."
   - `session-status-changed` (status: 'connected') → Show success message, close modal, refresh session list
   - `session-status-changed` (status: 'disconnected') → Show error, allow retry
-- [ ] Broadcast driver auto-detected dari workspace/admin settings
+- [ ] Broadcast driver otomatis menggunakan yang dipilih di settings (default: Reverb)
+- [ ] Laravel Echo client support both Reverb and Pusher protocols seamlessly
 - [ ] Setelah connected, phone number otomatis terdeteksi dan disimpan
 - [ ] Session data ter-encrypted dan tersimpan ke database
 - [ ] Loading state saat waiting for QR generation (< 3 seconds)
@@ -57,109 +83,117 @@ Mengganti core WhatsApp Business API (Meta) dengan WhatsApp Web JS untuk memungk
 - Admin dapat set limit via Admin Panel
 
 **Technical Specifications:**
-```javascript
-**Socket.IO Server Setup (Node.js Service) - OPTIONAL Driver:**
-```javascript
-const express = require('express');
-const { Server } = require('socket.io');
-const http = require('http');
 
-const app = express();
-const server = http.createServer(app);
+**Backend Broadcasting (Laravel) - Driver Agnostic:**
+```php
+// app/Events/QRCodeGeneratedEvent.php
+namespace App\Events;
 
-// Socket.IO server only if enabled
-let io = null;
-if (process.env.BROADCAST_DRIVER === 'socketio') {
-    io = new Server(server, {
-        cors: {
-            origin: process.env.LARAVEL_URL || 'http://127.0.0.1:8000',
-            credentials: true
-        }
-    });
+use Illuminate\Broadcasting\Channel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
-    // Workspace-specific rooms
-    io.on('connection', (socket) => {
-        console.log('Socket.IO client connected:', socket.id);
-        
-        socket.on('join-workspace', (workspaceId) => {
-            socket.join(`workspace-${workspaceId}`);
-            console.log(`Socket ${socket.id} joined workspace-${workspaceId}`);
-        });
-        
-        socket.on('disconnect', () => {
-            console.log('Socket.IO client disconnected:', socket.id);
-        });
-    });
-}
+class QRCodeGeneratedEvent implements ShouldBroadcast
+{
+    public $qrCodeBase64;
+    public $expiresInSeconds;
+    public $workspaceId;
 
-// Broadcast abstraction layer (works with both drivers)
-function broadcastToWorkspace(workspaceId, event, data) {
-    const driver = process.env.BROADCAST_DRIVER || 'pusher';
-    
-    if (driver === 'socketio' && io) {
-        io.to(`workspace-${workspaceId}`).emit(event, data);
-    } else if (driver === 'pusher') {
-        // Use Pusher client (existing implementation)
-        const Pusher = require('pusher');
-        const pusher = new Pusher({
-            appId: process.env.PUSHER_APP_ID,
-            key: process.env.PUSHER_APP_KEY,
-            secret: process.env.PUSHER_APP_SECRET,
-            cluster: process.env.PUSHER_APP_CLUSTER
-        });
-        pusher.trigger(`workspace-${workspaceId}`, event, data);
+    public function __construct($qrCodeBase64, $expiresInSeconds, $workspaceId)
+    {
+        $this->qrCodeBase64 = $qrCodeBase64;
+        $this->expiresInSeconds = $expiresInSeconds;
+        $this->workspaceId = $workspaceId;
+    }
+
+    public function broadcastOn()
+    {
+        return new Channel('workspace.' . $this->workspaceId);
+    }
+
+    public function broadcastAs()
+    {
+        return 'qr-code-generated';
     }
 }
 
-server.listen(3001, () => {
-    console.log(`REST API on port 3000, Broadcast: ${process.env.BROADCAST_DRIVER || 'pusher'}`);
-});
-```
+// Usage in controller or service
+event(new QRCodeGeneratedEvent($qrCodeBase64, 300, $workspaceId));
 ```
 
-**Frontend Broadcast Driver Integration (Auto-detect):**
+**Laravel Reverb Server (Default) - Started via Artisan:**
+```bash
+# Start Reverb server (default broadcasting)
+php artisan reverb:start
+
+# Production: Run via supervisor/systemd
+# See assumption.md Phase 5 for supervisor configuration
+```
+
+**Broadcasting Configuration (Auto-selected from Settings):**
+```php
+// config/broadcasting.php already supports both drivers
+// BroadcastConfigServiceProvider dynamically selects driver from database
+
+// Default configuration (.env):
+BROADCAST_DRIVER=reverb  # Default
+REVERB_APP_ID=default-app-id
+REVERB_APP_KEY=base64:VGVzdEtleUZvckRldmVsb3BtZW50
+REVERB_APP_SECRET=base64:VGVzdFNlY3JldEZvckRldmVsb3BtZW50
+REVERB_HOST=127.0.0.1
+REVERB_PORT=8080
+REVERB_SCHEME=http
+
+# Optional Pusher configuration (if admin switches):
+# BROADCAST_DRIVER=pusher
+# PUSHER_APP_ID=...
+# PUSHER_APP_KEY=...
+# PUSHER_APP_SECRET=...
+# PUSHER_APP_CLUSTER=mt1
+```
+
+**Frontend Broadcast Integration (Driver Agnostic via Laravel Echo):**
 ```vue
 <script setup>
-import { io } from 'socket.io-client';
-import Pusher from 'pusher-js';
-import { onMounted, ref } from 'vue';
+import { getEchoInstance } from '@/echo.js'; // Centralized Echo instance
+import { onMounted, onUnmounted, ref } from 'vue';
 
 const qrCode = ref(null);
 const expiresIn = ref(300); // 5 minutes = 300 seconds
 const countdownDisplay = ref('5:00');
 const status = ref('initializing');
 
-// Broadcast driver dari workspace settings
-const broadcastDriver = workspaceSettings.broadcast_driver; // 'socketio' or 'pusher'
-let connection = null;
+// Props dari backend (includes broadcaster config)
+const props = defineProps({
+    workspaceId: Number,
+    broadcasterSettings: Object, // Contains: { driver: 'reverb', key: '...', ... }
+});
+
+let echo = null;
+let channel = null;
 
 onMounted(() => {
-    if (broadcastDriver === 'socketio') {
-        // Socket.IO setup
-        connection = io('http://localhost:3001', {
-            auth: { workspace_id: workspaceId }
-        });
-        
-        connection.emit('join-workspace', workspaceId);
-        
-        connection.on('qr-code-generated', handleQRGenerated);
-        connection.on('session-status-changed', handleSessionStatusChanged);
-        
-    } else if (broadcastDriver === 'pusher') {
-        // Pusher setup (existing implementation)
-        const pusher = new Pusher(import.meta.env.VITE_PUSHER_APP_KEY, {
-            cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER
-        });
-        
-        const channel = pusher.subscribe(`workspace-${workspaceId}`);
-        channel.bind('qr-code-generated', handleQRGenerated);
-        channel.bind('session-status-changed', handleSessionStatusChanged);
+    // Laravel Echo automatically handles Reverb or Pusher based on settings
+    // No need for driver-specific logic in frontend!
+    echo = getEchoInstance(props.broadcasterSettings);
+    
+    // Subscribe to workspace channel
+    channel = echo.channel(`workspace.${props.workspaceId}`);
+    
+    // Listen to events (same API for both drivers)
+    channel.listen('qr-code-generated', handleQRGenerated)
+           .listen('session-status-changed', handleSessionStatusChanged);
+});
+
+onUnmounted(() => {
+    // Cleanup
+    if (channel) {
+        echo.leaveChannel(`workspace.${props.workspaceId}`);
     }
 });
 
 function handleQRGenerated(data) {
-    qrCode.value = data.qr_code_base64;
-    expiresIn.value = data.expires_in_seconds || 300; // Default 5 minutes
+    qrCode.value = data.qrCodeBase64;
+    expiresIn.value = data.expiresInSeconds || 300;
     startCountdown();
 }
 
@@ -216,7 +250,7 @@ INSERT INTO whatsapp_sessions (
   - Primary badge (jika is_primary = true)
   - Last connected timestamp
   - Action buttons: Set as Primary, Disconnect, Delete
-- [ ] Real-time status update via broadcast driver (connection status changes)
+- [ ] Real-time status update via Laravel broadcasting (Laravel Reverb default, Pusher optional - connection status changes reflected instantly)
 - [ ] Sorting by: primary first, then by created_at DESC
 - [ ] Empty state: "Belum ada nomor WhatsApp terhubung"
 
@@ -316,7 +350,7 @@ POST /settings/whatsapp/sessions/{uuid}/regenerate-qr  → 404
 - [x] ✅ Service method `WhatsAppWebJSProvider::regenerateQR()` implemented
 - [x] ✅ Routes registered in `routes/web.php`
 - [x] ✅ Policy authorization checks workspace ownership
-- [x] ✅ Real-time QR broadcast via Socket.IO/Pusher
+- [x] ✅ Real-time QR broadcast via Laravel broadcasting (Reverb default, Pusher optional)
 - [x] ✅ Session status transition: disconnected → qr_scanning → connected
 - [x] ✅ Statistics preserved (messages_sent, etc. NOT reset)
 - [x] ✅ Error handling: session not found, already connected, API failure
@@ -333,7 +367,7 @@ Controller validates: workspace ownership, session exists, status = disconnected
     ↓
 Service calls Node.js API: POST /api/sessions/{sessionId}/reconnect
     ↓
-Node.js generates new QR → Broadcast via Socket.IO/Pusher
+Node.js generates new QR → Calls Laravel API → Laravel broadcasts QRCodeGeneratedEvent
     ↓
 Frontend receives qr-generated event → Display QR in modal
     ↓
@@ -360,7 +394,7 @@ Controller validates: workspace ownership, session exists, status = qr_scanning
     ↓
 Service calls Node.js API: POST /api/sessions/{sessionId}/regenerate-qr
     ↓
-Node.js generates fresh QR → Broadcast via Socket.IO/Pusher
+Node.js generates fresh QR → Calls Laravel API → Laravel broadcasts QRCodeGeneratedEvent
     ↓
 Frontend receives qr-generated event → Display new QR, reset timer to 5:00
     ↓
@@ -694,12 +728,10 @@ app.post('/api/sessions/:sessionId/regenerate-qr', async (req, res) => {
 > **Catatan:** Ini berbeda dengan Meta API yang hanya receive new incoming messages setelah webhook configured.
 
 **Acceptance Criteria:**
-- [ ] **Initial Sync:** Saat WhatsApp session connected, trigger chat synchronization:
-  - Fetch recent chats (last 30 days atau configurable)
-  - Import chat history dengan pagination (avoid timeout)
-  - Create contacts automatically jika belum exist
-  - Link chats ke correct `whatsapp_session_id`
-  - Show sync progress: "Syncing chats... 45/120"
+- [ ] **Initial Sync Window:** Saat WhatsApp session connected, sistem wajib men-sinkronisasi chat selama **30 hari terakhir atau maksimal 500 chat** (mana yang lebih dulu tercapai). Nilai default disimpan di `config/whatsapp.php['sync']['initial_window']` dan dapat dioverride per workspace.
+- [ ] **Incremental Pagination:** Sinkronisasi berjalan dalam batch 20 chat per request untuk menghindari timeout, melanjutkan pagination hingga batas window terpenuhi.
+- [ ] **Contact Auto-Provisioning:** Kontak baru dibuat otomatis saat chat belum pernah tercatat, lengkap dengan relasi ke `whatsapp_session_id` terkait.
+- [ ] **Progress Reporting:** UI menampilkan status real-time `Syncing chats... 45/120` beserta persentase dan estimasi waktu selesai (diambil dari `whatsapp_sessions.chat_sync_progress`).
 - [ ] Sidebar chat inbox memiliki dropdown filter:
   - "All Conversations" (default - dari semua numbers)
   - "By WhatsApp Number" → Show number list dengan unread count
@@ -708,7 +740,7 @@ app.post('/api/sessions/:sessionId/regenerate-qr', async (req, res) => {
 - [ ] Setiap chat item menampilkan indicator WhatsApp number (jika mode "All")
 - [ ] Badge unread count per WhatsApp number
 - [ ] Chat sorting tetap by `last_message_at` DESC
-- [ ] Real-time incoming chat dari multiple numbers via Socket.IO
+- [ ] Real-time incoming chat dari multiple numbers via Laravel broadcasting (Reverb default)
 
 **Technical Implementation:**
 ```php
@@ -800,13 +832,12 @@ public function syncChat(Request $request) {
 ```
 
 **Business Rules - Chat Sync:**
-- Initial sync triggered automatically on `client.on('ready')` event
-- Sync configurable: Last N days (default: 30 days) atau Last N chats (default: 100)
-- Media files NOT synced initially (too large), only on-demand
-- Sync runs in background, non-blocking
-- Progress tracked: `chat_sync_status` enum ('pending', 'syncing', 'completed', 'failed')
-- Re-sync available manually from UI: "Sync Chat History" button
-- Sync interval: Only once per session connection, not on every restart
+- Initial sync otomatis dipicu saat event `client.on('ready')` dan berhenti ketika limit 30 hari/500 chat tercapai.
+- Workspace dapat mengubah window (min 7 hari, max 180 hari) melalui konfigurasi yang disimpan di `whatsapp_sessions.sync_policy`.
+- Media tidak diambil pada initial sync (hanya metadata); download media dilakukan saat dibutuhkan pengguna.
+- Progress disimpan di `whatsapp_sessions.chat_sync_status` (`pending|syncing|completed|failed`) dan `chat_sync_progress` (0-100).
+- Pengguna dapat men-trigger ulang sinkronisasi manual melalui tombol "Sync Chat History" tanpa melanggar window konfigurasi.
+- Sinkronisasi incremental berjalan otomatis setiap 6 jam (konfigurable) untuk menarik chat baru.
 
 **Performance Considerations:**
 - Batch insert: 50 chats per batch untuk avoid memory issues
@@ -841,58 +872,66 @@ public function syncChat(Request $request) {
 **User Story:** Sebagai marketer, saya ingin campaign messages didistribusi across multiple WhatsApp numbers untuk avoid rate limit.
 
 **Acceptance Criteria:**
-- [ ] Campaign creation flow sama seperti sekarang
-- [ ] System auto-distribute recipients across available sessions
-- [ ] Distribution algorithm: Round-robin by default
-- [ ] Message delay: 3-5 seconds random antar message untuk avoid spam detection
-- [ ] Campaign logs mencatat `whatsapp_session_id` yang digunakan
-- [ ] UI menampilkan distribution summary sebelum send:
-  ```
-  Total Recipients: 1000
-  Available Numbers: 3
-  Distribution:
-    - +62 812-XXXX (334 messages)
-    - +62 813-YYYY (333 messages)
-    - +62 821-ZZZZ (333 messages)
-  Estimated Time: ~83 minutes
-  ```
+- [ ] Campaign creation flow tetap sama; distribusi nomor berjalan otomatis tanpa mengubah UI existing.
+- [ ] Sistem mendistribusikan penerima menggunakan algoritma **weighted round-robin** berdasarkan `whatsapp_sessions.message_quota_per_minute` (fallback ke round-robin biasa jika quota tidak tersedia).
+- [ ] Penjadwalan pesan menambahkan delay dinamis 3–5 detik dan jitter tambahan ketika sesi mendekati limit harian (`sessions.daily_limit_soft_cap`).
+- [ ] `campaign_logs.whatsapp_session_id` terisi dan summary distribusi ditampilkan sebelum kampanye dikirim:
+    ```
+    Total Recipients: 1000
+    Available Numbers: 3
+    Distribution:
+        - +62 812-XXXX (334 messages)
+        - +62 813-YYYY (333 messages)
+        - +62 821-ZZZZ (333 messages)
+    Estimated Time: ~83 minutes
+    ```
+- [ ] Jika tidak ada sesi aktif, sistem mengubah status campaign menjadi `paused` dan otomatis `resume` ketika minimal satu sesi kembali `connected`.
+- [ ] Log campaign menyimpan timestamp dan nomor yang digunakan untuk setiap pesan untuk audit.
 
 **Technical Implementation:**
 ```php
 // app/Services/Campaign/MultiNumberCampaignService.php
-public function distributeCampaign(Campaign $campaign) {
+public function distributeCampaign(Campaign $campaign)
+{
     $sessions = $campaign->workspace->whatsappSessions()
+        ->select(['id', 'message_quota_per_minute', 'daily_limit_soft_cap'])
         ->where('status', 'connected')
         ->where('is_active', true)
         ->get();
-    
+
     if ($sessions->isEmpty()) {
         throw new NoActiveSessionException('Tidak ada WhatsApp number yang aktif');
     }
-    
-    $recipients = $campaign->recipients;
+
+    $weights = $this->buildWeights($sessions); // normalisasi berdasarkan quota
+    $wheel = new WeightedRoundRobin($weights);
+
     $distribution = [];
-    
-    foreach ($recipients as $index => $recipient) {
-        $session = $sessions[$index % $sessions->count()];
-        $delay = rand(3, 5) * $index; // Random 3-5 sec delay
-        
+    foreach ($campaign->recipients as $index => $recipient) {
+        $session = $wheel->next();
+        $delay = $this->calculateDelay($session, $index); // random 3–5s + jitter saat mendekati limit
+
         $distribution[] = [
             'campaign_log_id' => $recipient->id,
             'whatsapp_session_id' => $session->id,
-            'scheduled_at' => now()->addSeconds($delay)
+            'scheduled_at' => now()->addSeconds($delay),
         ];
     }
-    
-    DB::table('campaign_logs')->upsert($distribution, ['id'], ['whatsapp_session_id', 'scheduled_at']);
+
+    DB::table('campaign_logs')->upsert(
+        $distribution,
+        ['campaign_log_id'],
+        ['whatsapp_session_id', 'scheduled_at']
+    );
 }
 ```
 
 **Business Rules:**
-- Only use sessions with `status = 'connected'` and `is_active = true`
-- Jika semua sessions disconnected, campaign status = 'paused'
-- Auto-resume campaign ketika session reconnected
-- Track message count per session untuk fairness
+- Hanya sesi dengan `status='connected'`, `is_active=true`, dan `plan_limit` masih tersedia yang boleh digunakan.
+- Quota per sesi dihitung dari `plan_limits.max_whatsapp_numbers` + parameter tambahan (`message_quota_per_hour`).
+- Sistem mencatat jumlah pesan per sesi untuk mencegah dominasi satu nomor.
+- Jika sesi mencapai limit soft cap, campaign dialihkan sementara ke sesi lain; jika semua melebihi limit, campaign otomatis `paused` dan menunggu reset.
+- Resume campaign terjadi otomatis ketika scheduler mendeteksi sesi kembali dalam kondisi aman (limit reset atau sesi baru aktif).
 
 ---
 
@@ -1065,60 +1104,70 @@ public function processAutomation(Chat $chat) {
 
 ### FR-7: Node.js Service Integration
 
-#### FR-7.0: Real-time Communication Architecture (Dual Broadcast Driver Model)
+#### FR-7.0: Real-time Communication Architecture (Laravel Broadcasting with Dual Driver Support)
 **Priority:** CRITICAL  
-**Decision:** Add Socket.IO as alternative broadcast driver, coexist with Pusher
+**Decision:** Use Laravel Reverb as DEFAULT broadcast driver, maintain Pusher as optional alternative
 
 **Rationale:**
-| Aspect | Socket.IO | Pusher |
-|--------|-----------|---------|
-| **Cost** | ✅ FREE (self-hosted) | ⚠️ Paid ($49+/month) |
-| **Connections** | ✅ Unlimited | ❌ Limited by plan |
-| **Control** | ✅ Full control | ❌ Third-party dependency |
+| Aspect | Laravel Reverb (DEFAULT) | Pusher (Optional) |
+|--------|--------------------------|-------------------|
+| **Cost** | ✅ 100% FREE (native Laravel) | ⚠️ Paid ($49+/month) |
+| **Connections** | ✅ Unlimited (self-hosted) | ❌ Limited by plan |
+| **Control** | ✅ Full control (native) | ❌ Third-party dependency |
 | **Latency** | ✅ Lower (same server) | ⚠️ Higher (external) |
-| **Installation** | ✅ Already in package.json v4.8.0 | ✅ Already available (pusher-js v8.3.0) |
-| **Setup** | Simple (same Node.js server) | Requires external account |
+| **Laravel 12** | ✅ Native, official support | ⚠️ Requires credentials |
+| **Setup** | ✅ Built-in (artisan command) | Requires external account |
 | **Reliability** | Self-managed | Depends on Pusher uptime |
 | **Admin Config** | ✅ Via Settings dropdown | ✅ Via Settings dropdown (existing) |
 
 **Evidence:**
 ```json
-// package.json - Both available
+// composer.json - Laravel Reverb available in Laravel 12
+{
+  "require": {
+    "laravel/framework": "^12.0",
+    "laravel/reverb": "^1.0"  // Native WebSocket server untuk Laravel 12
+  }
+}
+
+// package.json - Frontend dependencies
 {
   "dependencies": {
-    "socket.io-client": "^4.8.0",  // ✅ RECOMMENDED
-    "pusher-js": "^8.3.0"          // Available but paid
+    "laravel-echo": "^1.15.3",  // ✅ Universal client (supports both)
+    "pusher-js": "^8.3.0"       // ✅ Pusher protocol (Reverb compatible!)
   }
 }
 ```
 
-**Technical Benefits Socket.IO:**
-- ✅ WebSocket dengan auto-fallback ke long-polling
-- ✅ Room-based broadcasting (workspace isolation)
-- ✅ Reconnection logic built-in
-- ✅ Binary data support (untuk QR code image)
-- ✅ Acknowledgments untuk guaranteed delivery
+**Technical Benefits Laravel Reverb:**
+- ✅ Native Laravel 12 integration (zero configuration overhead)
+- ✅ WebSocket server via artisan: `php artisan reverb:start`
+- ✅ Channel-based broadcasting (workspace isolation via channels)
+- ✅ Compatible with existing Laravel Echo client
+- ✅ Uses Pusher protocol (pusher-js dependency reused!)
+- ✅ Built-in authentication & authorization via Laravel broadcasting
+- ✅ Horizontal scaling support (multi-server deployment)
 
 **Dual Driver Implementation Strategy:**
 - Admin dapat pilih broadcast driver via `/admin/settings/broadcast-drivers`
-- Socket.IO server optional, hanya start jika `BROADCAST_DRIVER=socketio`
-- Pusher tetap available, existing users tidak perlu migrasi
-- Frontend auto-detect driver dari workspace settings
-- Broadcast abstraction layer untuk unified event handling
-- Events: `qr-code-generated`, `session-status-changed`, `message-received`, `health-update`
-- Rooms/Channels: `workspace-{id}` untuk isolation
-- Auth: Workspace ID verification on connection
+- Laravel Reverb sebagai DEFAULT (no external dependencies)
+- Pusher tetap available untuk users yang prefer managed service
+- Frontend menggunakan Laravel Echo (driver-agnostic)
+- Broadcasting events tetap menggunakan Laravel's ShouldBroadcast interface
+- Events: `QRCodeGeneratedEvent`, `SessionStatusChangedEvent`, `NewMessageReceivedEvent`
+- Channels: `workspace.{id}` untuk isolation
+- Auth: Laravel broadcasting authorization via `routes/channels.php`
 
 **Configuration in Admin Settings:**
 ```
 Settings > Broadcast Drivers
-┌─────────────────────────────────────┐
-│ Select Broadcast Driver:            │
-│ ○ Pusher (Managed, paid service)    │
-│ ● Socket.IO (Self-hosted, free)     │
-│                                      │
-│ [Save Configuration]                 │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│ Select Broadcast Driver:                 │
+│ ● Reverb (Self-hosted, FREE) ⭐ DEFAULT  │
+│ ○ Pusher (Managed service, paid)         │
+│                                           │
+│ [Save Configuration]                      │
+└──────────────────────────────────────────┘
 ```
 
 ---
@@ -1135,7 +1184,7 @@ Settings > Broadcast Drivers
   - `POST /api/messages/send` - Send message
   - `GET /api/sessions/:id/status` - Get session status
   - `GET /health` - Health check
-- [ ] Socket.IO server integrated (port 3001, same process)
+- [ ] Broadcasting events via Laravel backend (using configured driver: Reverb default, Pusher optional)
 - [ ] Redis for async queue communication (optional, for high load)
 - [ ] Graceful shutdown handling (cleanup sessions before exit)
 
@@ -1145,86 +1194,72 @@ Settings > Broadcast Drivers
   "dependencies": {
     "express": "^4.18.2",
     "whatsapp-web.js": "^1.23.0",
-    "socket.io": "^4.6.1",     // Real-time WebSocket server
     "ioredis": "^5.3.2",       // Optional: Redis for queue
-    "axios": "^1.6.2",         // HTTP client for Laravel webhook
+    "axios": "^1.6.2",         // HTTP client for Laravel API/webhook callbacks
     "qrcode": "^1.5.3",        // QR code generation utilities
     "dotenv": "^16.0.3"        // Environment variables
   }
 }
 ```
 
-**Broadcast Abstraction Layer (Node.js):**
+**Broadcasting Integration (Node.js to Laravel):**
 ```javascript
 // whatsapp-service/server.js
 const express = require('express');
-const { Server } = require('socket.io');
-const http = require('http');
-const Pusher = require('pusher');
-
+const axios = require('axios');
 const app = express();
-const server = http.createServer(app);
 
-// Initialize broadcast drivers
-const BROADCAST_DRIVER = process.env.BROADCAST_DRIVER || 'pusher';
-let io = null;
-let pusher = null;
+// Laravel API integration
+const LARAVEL_API_URL = process.env.LARAVEL_URL || 'http://localhost:8000';
 
-// Socket.IO setup (optional, only if driver=socketio)
-if (BROADCAST_DRIVER === 'socketio') {
-    io = new Server(server, {
-        cors: {
-            origin: process.env.LARAVEL_URL || 'http://localhost:8000',
-            credentials: true
-        }
-    });
-    
-    io.on('connection', (socket) => {
-        console.log('Socket.IO client connected:', socket.id);
-        
-        socket.on('join-workspace', (workspaceId) => {
-            socket.join(`workspace-${workspaceId}`);
-            console.log(`Socket ${socket.id} joined workspace ${workspaceId}`);
+/**
+ * Trigger Laravel broadcast event
+ * Laravel akan handle broadcasting ke Reverb/Pusher based on config
+ */
+async function triggerLaravelBroadcast(event, data) {
+    try {
+        await axios.post(`${LARAVEL_API_URL}/api/whatsapp/broadcast`, {
+            event: event,
+            data: data
+        }, {
+            headers: {
+                'Authorization': `Bearer ${process.env.LARAVEL_API_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
         });
-        
-        socket.on('disconnect', () => {
-            console.log('Socket.IO client disconnected:', socket.id);
-        });
-    });
-}
-
-// Pusher setup (if driver=pusher)
-if (BROADCAST_DRIVER === 'pusher') {
-    pusher = new Pusher({
-        appId: process.env.PUSHER_APP_ID,
-        key: process.env.PUSHER_APP_KEY,
-        secret: process.env.PUSHER_APP_SECRET,
-        cluster: process.env.PUSHER_APP_CLUSTER
-    });
-}
-
-// Unified broadcast function
-function broadcastToWorkspace(workspaceId, event, data) {
-    if (BROADCAST_DRIVER === 'socketio' && io) {
-        io.to(`workspace-${workspaceId}`).emit(event, data);
-    } else if (BROADCAST_DRIVER === 'pusher' && pusher) {
-        pusher.trigger(`workspace-${workspaceId}`, event, data);
+        console.log(`Broadcast triggered: ${event}`);
+    } catch (error) {
+        console.error(`Broadcast error: ${error.message}`);
     }
 }
 
-// Start servers
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`REST API running on port ${PORT}`);
-    console.log(`Broadcast driver: ${BROADCAST_DRIVER}`);
-});
-
-if (BROADCAST_DRIVER === 'socketio') {
-    const WS_PORT = process.env.WS_PORT || 3001;
-    server.listen(WS_PORT, () => console.log(`Socket.IO running on port ${WS_PORT}`));
+// Example: QR Code Generated Event
+function broadcastQRCode(workspaceId, qrCode, expiresIn) {
+    triggerLaravelBroadcast('qr-code-generated', {
+        workspace_id: workspaceId,
+        qr_code_base64: qrCode,
+        expires_in_seconds: expiresIn
+    });
 }
 
-module.exports = { app, io, broadcastToWorkspace };
+// Example: Session Status Changed Event
+function broadcastSessionStatus(workspaceId, sessionId, status) {
+    triggerLaravelBroadcast('session-status-changed', {
+        workspace_id: workspaceId,
+        session_id: sessionId,
+        status: status,
+        timestamp: new Date().toISOString()
+    });
+}
+
+// Start REST API server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`WhatsApp Service API running on port ${PORT}`);
+    console.log(`Laravel backend: ${LARAVEL_API_URL}`);
+});
+
+module.exports = { app, triggerLaravelBroadcast };
 ```
 
 **Directory Structure:**
@@ -1245,6 +1280,319 @@ whatsapp-service/
 ├── sessions/ (runtime data)
 └── logs/
 ```
+
+**CRITICAL CLARIFICATION (2025-10-11):**
+> ⚠️ **Node.js Service Scope:** Node.js service ini adalah untuk **WhatsApp Web.js integration**, BUKAN untuk broadcasting!
+> - **Broadcasting:** Handled by Laravel Reverb (PHP-based websocket server)
+> - **WhatsApp Integration:** Handled by Node.js service (Puppeteer/Chrome instances)
+> - **Communication:** Node.js calls Laravel API → Laravel broadcasts via Reverb/Pusher
+
+---
+
+#### FR-7.1.1: WhatsApp Web.js Node.js Service - Detailed Architecture ⚠️ **GAP #1 RESOLUTION**
+**Priority:** P0 CRITICAL  
+**User Story:** System memerlukan dedicated Node.js service untuk menjalankan Puppeteer instances dan mengelola WhatsApp Web.js sessions secara independen dari Laravel application.
+
+**Referencing:** 
+- assumption.md (ASM-12 REVISED)
+- CRITICAL-GAPS-AUDIT-REPORT.md (GAP #1: WhatsApp Web.js Node Service Architecture Missing)
+
+**Problem Statement:**
+FR-7.1 hanya cover high-level architecture. **Missing:** Detailed implementation specifications untuk Node.js service yang CRITICAL untuk WhatsApp Web.js functionality.
+
+**Acceptance Criteria:**
+
+**1. Core Service Requirements:**
+- [ ] **Express.js REST API** running on configurable port (default: 3000)
+- [ ] **Puppeteer Integration** untuk manage Chromium instances
+- [ ] **Session Manager** untuk lifecycle management (create, restore, disconnect, cleanup)
+- [ ] **LocalAuth Strategy** untuk persistent session storage
+- [ ] **Health Monitoring** dengan memory/CPU metrics
+- [ ] **Error Recovery** dengan auto-restart on crash
+- [ ] **Graceful Shutdown** dengan proper cleanup sequence
+
+**2. API Endpoints Specification:**
+
+```javascript
+// POST /api/sessions - Create new WhatsApp session
+{
+  "workspaceId": 123,
+  "sessionId": "uuid-v4",
+  "authStrategy": "LocalAuth",
+  "options": {
+    "headless": true,
+    "puppeteerOptions": { ... }
+  }
+}
+// Response: { status: 'qr_scanning', qr_code: null }
+
+// GET /api/sessions/:sessionId - Get session status
+// Response: { status: 'connected', phone_number: '+6281234567890' }
+
+// POST /api/sessions/:sessionId/reconnect - Reconnect disconnected session
+// Response: { status: 'qr_scanning', qr_code: 'base64...' }
+
+// POST /api/sessions/:sessionId/regenerate-qr - Generate new QR
+// Response: { qr_code: 'base64...', expires_in: 300 }
+
+// DELETE /api/sessions/:sessionId - Disconnect and cleanup session
+// Response: { status: 'disconnected', cleanup: 'success' }
+
+// POST /api/messages/send - Send message
+{
+  "sessionId": "uuid-v4",
+  "recipientPhone": "+6281234567890",
+  "message": "Hello World",
+  "type": "text"
+}
+// Response: { message_id: 'whatsapp-msg-id', status: 'sent' }
+
+// GET /api/sessions/:sessionId/contacts - Get contact list
+// Response: [{ id: '6281234567890@c.us', name: 'John', ... }]
+
+// GET /api/sessions/:sessionId/chats - Get chat list
+// Response: [{ id: '6281234567890@c.us', unreadCount: 3, ... }]
+
+// GET /health - Health check with metrics
+// Response: { 
+//   status: 'healthy', 
+//   uptime: 3600, 
+//   sessions: { active: 5, total: 10 },
+//   memory: { used: 512, max: 2048 }
+// }
+```
+
+**3. Session Lifecycle Management:**
+
+```javascript
+// services/sessionManager.js
+class SessionManager {
+    constructor() {
+        this.sessions = new Map(); // sessionId -> Client instance
+        this.metadata = new Map(); // sessionId -> { workspaceId, status, phone, ... }
+    }
+
+    /**
+     * Create new WhatsApp session with QR generation
+     */
+    async createSession(sessionId, workspaceId, options) {
+        const { Client, LocalAuth } = require('whatsapp-web.js');
+        
+        const client = new Client({
+            authStrategy: new LocalAuth({ clientId: sessionId }),
+            puppeteer: {
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                ...options.puppeteerOptions
+            }
+        });
+
+        // Event: QR Code Generated
+        client.on('qr', async (qr) => {
+            await this.callLaravelAPI('/api/whatsapp/events/qr-generated', {
+                workspace_id: workspaceId,
+                session_id: sessionId,
+                qr_code: qr,
+                expires_in: 300
+            });
+        });
+
+        // Event: Authenticated
+        client.on('authenticated', async () => {
+            await this.callLaravelAPI('/api/whatsapp/events/authenticated', {
+                workspace_id: workspaceId,
+                session_id: sessionId,
+                status: 'authenticated'
+            });
+        });
+
+        // Event: Ready (connected)
+        client.on('ready', async () => {
+            const info = client.info;
+            this.metadata.set(sessionId, {
+                workspaceId,
+                status: 'connected',
+                phone: info.wid.user,
+                platform: info.platform,
+                connectedAt: new Date()
+            });
+
+            await this.callLaravelAPI('/api/whatsapp/events/session-ready', {
+                workspace_id: workspaceId,
+                session_id: sessionId,
+                phone_number: info.wid.user,
+                status: 'connected'
+            });
+        });
+
+        // Event: Disconnected
+        client.on('disconnected', async (reason) => {
+            this.metadata.get(sessionId).status = 'disconnected';
+            await this.callLaravelAPI('/api/whatsapp/events/disconnected', {
+                workspace_id: workspaceId,
+                session_id: sessionId,
+                reason: reason
+            });
+        });
+
+        // Event: Incoming Message
+        client.on('message', async (message) => {
+            await this.callLaravelAPI('/api/whatsapp/webhooks/message-received', {
+                workspace_id: workspaceId,
+                session_id: sessionId,
+                message: {
+                    id: message.id._serialized,
+                    from: message.from,
+                    body: message.body,
+                    timestamp: message.timestamp,
+                    hasMedia: message.hasMedia
+                }
+            });
+        });
+
+        // Store and initialize
+        this.sessions.set(sessionId, client);
+        await client.initialize();
+
+        return { status: 'initializing', session_id: sessionId };
+    }
+
+    /**
+     * Reconnect disconnected session
+     */
+    async reconnectSession(sessionId) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+        
+        const metadata = this.metadata.get(sessionId);
+        if (metadata.status === 'connected') {
+            throw new Error('Session already connected');
+        }
+
+        // Destroy old instance and create new one
+        await client.destroy();
+        this.sessions.delete(sessionId);
+        
+        return await this.createSession(
+            sessionId, 
+            metadata.workspaceId, 
+            {}
+        );
+    }
+
+    /**
+     * Regenerate QR code for session in qr_scanning state
+     */
+    async regenerateQR(sessionId) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+        
+        // Force QR regeneration by destroying and re-initializing
+        await client.destroy();
+        const metadata = this.metadata.get(sessionId);
+        return await this.createSession(sessionId, metadata.workspaceId, {});
+    }
+
+    /**
+     * Disconnect and cleanup session
+     */
+    async disconnectSession(sessionId) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+        
+        await client.destroy();
+        this.sessions.delete(sessionId);
+        this.metadata.delete(sessionId);
+        
+        return { status: 'disconnected', cleanup: 'success' };
+    }
+
+    /**
+     * Call Laravel API with HMAC authentication
+     */
+    async callLaravelAPI(endpoint, data) {
+        const axios = require('axios');
+        const crypto = require('crypto');
+        
+        const timestamp = Date.now();
+        const payload = JSON.stringify(data);
+        const signature = crypto
+            .createHmac('sha256', process.env.API_SECRET)
+            .update(`${timestamp}${payload}`)
+            .digest('hex');
+
+        try {
+            await axios.post(`${process.env.LARAVEL_URL}${endpoint}`, data, {
+                headers: {
+                    'X-Timestamp': timestamp,
+                    'X-Signature': signature,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+        } catch (error) {
+            console.error(`Laravel API call failed: ${error.message}`);
+        }
+    }
+}
+```
+
+**4. Production Requirements:**
+
+```bash
+# Process Manager (PM2)
+pm2 start whatsapp-service/server.js --name whatsapp-service \
+  --instances 1 \
+  --max-memory-restart 2G \
+  --error /var/log/whatsapp-service-error.log \
+  --out /var/log/whatsapp-service-out.log
+
+# Environment Variables
+LARAVEL_URL=http://localhost:8000
+API_SECRET=base64:YourHMACSecretKeyHere
+PORT=3000
+NODE_ENV=production
+MAX_SESSIONS=50
+SESSION_TIMEOUT=3600000
+```
+
+**5. Security Requirements:**
+- [ ] HMAC-SHA256 authentication untuk Laravel API calls
+- [ ] Request timestamp validation (max 5 minutes difference)
+- [ ] Session isolation: Separate directories per workspace
+- [ ] Rate limiting: Max 100 requests/minute per session
+- [ ] Secure session storage dengan encrypted file system
+
+**6. Performance Requirements:**
+- [ ] Support 50+ concurrent sessions per instance
+- [ ] QR generation < 3 seconds
+- [ ] Message sending < 2 seconds (average)
+- [ ] Auto-restart on memory threshold (> 2GB)
+- [ ] Graceful shutdown < 30 seconds
+
+**Business Rules:**
+- Session files stored at `/sessions/{workspace_id}/{session_id}/`
+- Orphaned sessions cleaned up after 24 hours of inactivity
+- Failed authentication attempts logged for security audit
+- Node.js service MUST NOT handle broadcasting (Laravel's responsibility)
+- All events forwarded to Laravel API for centralized broadcasting
+
+**Dependencies:**
+- TASK-NODE-001: Node.js Service Setup ⏳ PENDING
+- TASK-BE-003: Laravel API Endpoints for WhatsApp Events ⏳ PENDING
+- TASK-BE-004: HMAC Authentication Middleware ✅ IMPLEMENTED (existing)
+
+**Success Metrics:**
+- 100% session creation success rate (with proper error handling)
+- < 3s QR generation time (P95)
+- < 2s message sending time (P95)
+- Zero memory leaks (monitored via PM2)
+- 99.9% uptime for Node.js service
+
+**Cross-References:**
+- assumption.md (ASM-12: Node.js Integration for WhatsApp Web.js)
+- design.md (DES-XX: Node.js Service Architecture) ⏳ TO BE CREATED
+- tasks.md (TASK-NODE series) ⏳ TO BE UPDATED
 
 ---
 
@@ -1354,9 +1702,9 @@ class SessionManager {
   - Total sessions: Active / Disconnected / Failed
   - Messages sent today (per session & total)
   - Error rate (last 24h)
-  - Service uptime (Laravel, Node.js, Redis, Socket.IO)
-  - Memory usage (Node.js process)
-- [ ] Real-time updates via Socket.IO (health metrics broadcast every 10s)
+  - Service uptime (Laravel, Node.js, Redis, Laravel Reverb)
+  - Memory usage (Node.js process, Reverb process)
+- [ ] Real-time updates via Laravel broadcasting (health metrics broadcast every 10s menggunakan Reverb/Pusher)
 - [ ] Alert system:
   - Email alert jika session disconnected > 5 minutes
   - Slack/Discord webhook integration
@@ -1881,119 +2229,134 @@ class BanPreventionService {
 
 ---
 
-### FR-10: Broadcast Driver Configuration (SOCKET.IO + PUSHER)
+### FR-10: Broadcast Driver Configuration (LARAVEL REVERB + PUSHER)
 
-#### FR-10.1: Admin Broadcast Driver Selection ⚠️ **GAP #5 - CRITICAL**
+#### FR-10.1: Admin Broadcast Driver Selection ⚠️ **GAP #5 - CRITICAL (UPDATED)**
 **Priority:** P0-CRITICAL  
-**User Story:** Sebagai super admin, saya ingin configure broadcast driver (Socket.IO atau Pusher) yang tersedia untuk semua workspace.  
-**Referencing:** CRITICAL-GAPS-AUDIT-REPORT.md (GAP #5), assumption.md (ASM-11 line 5, 12, 807)
+**User Story:** Sebagai super admin, saya ingin configure broadcast driver (Laravel Reverb atau Pusher) yang tersedia untuk semua workspace.  
+**Referencing:** CRITICAL-GAPS-AUDIT-REPORT.md (GAP #5), assumption.md (ASM-REVERB-1, ASM-REVERB-2)
 
 **Acceptance Criteria:**
 - [ ] Admin Panel → Settings → Broadcast Drivers (`/admin/settings/broadcast-drivers`)
 - [ ] Dropdown "Broadcast Driver" dengan options:
-  - **Pusher** (existing, cloud-based, paid)
-  - **Socket.IO** (new, self-hosted, FREE) ⚠️ **MISSING**
+  - **Laravel Reverb** (DEFAULT, native Laravel 12, self-hosted, 100% FREE) ⭐
+  - **Pusher** (optional, cloud-based, paid)
 - [ ] Form fields conditional based on selection:
   
-  **Pusher Fields** (existing):
+  **Laravel Reverb Fields** (new, default):
+  - Reverb App ID (auto-generated)
+  - Reverb App Key (auto-generated)
+  - Reverb App Secret (auto-generated)
+  - Reverb Host (default: `127.0.0.1`)
+  - Reverb Port (default: `8080`)
+  - Reverb Scheme (default: `http`)
+  
+  **Pusher Fields** (existing, optional):
   - Pusher App ID
   - Pusher App Key
   - Pusher App Secret
   - Pusher App Cluster
-  
-  **Socket.IO Fields** (new):
-  - Socket.IO URL (default: `http://localhost`)
-  - Socket.IO Port (default: `3000`)
   - Enable/Disable toggle
   
 - [ ] Settings saved to `settings` table:
-  - `broadcast_driver` = 'pusher' | 'socketio'
-  - `pusher_*` fields (existing)
-  - `socketio_url`, `socketio_port`, `socketio_enabled` (new)
+  - `broadcast_driver` = 'reverb' | 'pusher' (default: 'reverb')
+  - `pusher_*` fields (existing, optional)
+  - `reverb_*` fields (new, default)
 - [ ] Validation:
-  - Test connection before save
+  - Test connection before save (Reverb: check artisan reverb:start status)
   - Show error jika service not reachable
-- [ ] Help text: "Socket.IO adalah alternatif GRATIS dari Pusher untuk real-time notifications"
+- [ ] Help text: "Laravel Reverb adalah WebSocket server native Laravel 12 yang 100% GRATIS. Pusher tersedia sebagai alternative managed service."
 
 **Current Implementation Status:**
 - ❌ `resources/js/Pages/Admin/Setting/Broadcast.vue` only has Pusher option
-- ❌ Socket.IO option MISSING from dropdown (line 60)
-- ❌ Socket.IO form fields NOT implemented
-- ❌ Settings table missing `socketio_*` keys
+- ❌ Laravel Reverb option MISSING from dropdown (should be FIRST, marked as default)
+- ❌ Reverb form fields NOT implemented
+- ❌ Settings table missing `reverb_*` keys
 
 **Technical Implementation:**
 ```vue
 <!-- resources/js/Pages/Admin/Setting/Broadcast.vue -->
 <script setup>
 const methods = [
-    { label: 'Pusher', value: 'pusher' },
-    { label: 'Socket.IO (Free)', value: 'socketio' }, // ADD THIS
+    { label: 'Laravel Reverb (FREE) ⭐ Default', value: 'reverb' }, // ADD THIS - FIRST POSITION
+    { label: 'Pusher (Managed, Paid)', value: 'pusher' },
 ]
 
 const form = useForm({
-    broadcast_driver: getValueByKey('broadcast_driver'),
-    // Pusher fields (existing)
+    broadcast_driver: getValueByKey('broadcast_driver') || 'reverb', // DEFAULT reverb
+    
+    // Laravel Reverb fields (NEW - DEFAULT)
+    reverb_app_id: getValueByKey('reverb_app_id'),
+    reverb_app_key: getValueByKey('reverb_app_key'),
+    reverb_app_secret: getValueByKey('reverb_app_secret'),
+    reverb_host: getValueByKey('reverb_host'),
+    reverb_port: getValueByKey('reverb_port'),
+    reverb_scheme: getValueByKey('reverb_scheme'),
+    
+    // Pusher fields (EXISTING - OPTIONAL)
     pusher_app_key: getValueByKey('pusher_app_key'),
     pusher_app_id: getValueByKey('pusher_app_id'),
     pusher_app_secret: getValueByKey('pusher_app_secret'),
     pusher_app_cluster: getValueByKey('pusher_app_cluster'),
-    // Socket.IO fields (NEW)
-    socketio_url: getValueByKey('socketio_url'),
-    socketio_port: getValueByKey('socketio_port'),
-    socketio_enabled: getValueByKey('socketio_enabled'),
 })
 </script>
 
 <template>
-    <!-- Pusher fields (existing) -->
-    <div v-if="form.broadcast_driver === 'pusher'" class="grid gap-6 grid-cols-2">
-        <!-- existing Pusher fields -->
+    <!-- Laravel Reverb fields (NEW - DEFAULT) -->
+    <div v-if="form.broadcast_driver === 'reverb'" class="grid gap-6 grid-cols-2">
+        <FormInput v-model="form.reverb_app_id" :name="$t('Reverb App ID')" 
+                   :type="'text'" :error="form.errors.reverb_app_id" 
+                   :class="'col-span-2'" :help="$t('Auto-generated ID for Reverb server')"/>
+        <FormInput v-model="form.reverb_app_key" :name="$t('Reverb App Key')" 
+                   :type="'text'" :error="form.errors.reverb_app_key" 
+                   :class="'col-span-2'"/>
+        <FormInput v-model="form.reverb_app_secret" :name="$t('Reverb App Secret')" 
+                   :type="'password'" :error="form.errors.reverb_app_secret" 
+                   :class="'col-span-2'"/>
+        <FormInput v-model="form.reverb_host" :name="$t('Reverb Host')" 
+                   :type="'text'" :error="form.errors.reverb_host" 
+                   :class="'col-span-1'" placeholder="127.0.0.1"/>
+        <FormInput v-model="form.reverb_port" :name="$t('Reverb Port')" 
+                   :type="'number'" :error="form.errors.reverb_port" 
+                   :class="'col-span-1'" placeholder="8080"/>
     </div>
     
-    <!-- Socket.IO fields (NEW) -->
-    <div v-if="form.broadcast_driver === 'socketio'" class="grid gap-6 grid-cols-2">
-        <FormInput v-model="form.socketio_url" :name="$t('Socket.IO URL')" 
-                   :type="'text'" :error="form.errors.socketio_url" 
-                   :class="'col-span-2'"/>
-        <FormInput v-model="form.socketio_port" :name="$t('Socket.IO Port')" 
-                   :type="'number'" :error="form.errors.socketio_port" 
-                   :class="'col-span-1'"/>
-        <FormToggle v-model="form.socketio_enabled" :name="$t('Enable Socket.IO')" 
-                    :class="'col-span-1'"/>
+    <!-- Pusher fields (EXISTING - OPTIONAL) -->
+    <div v-if="form.broadcast_driver === 'pusher'" class="grid gap-6 grid-cols-2">
+        <!-- existing Pusher fields -->
     </div>
 </template>
 ```
 
 ---
 
-#### FR-10.2: Workspace Broadcast Driver Selection ⚠️ **GAP #6 & #7 - CRITICAL**
+#### FR-10.2: Workspace Broadcast Driver Selection ⚠️ **GAP #6 & #7 - CRITICAL (UPDATED)**
 **Priority:** P0-CRITICAL  
-**User Story:** Sebagai workspace owner, saya ingin memilih broadcast driver (Socket.IO atau Pusher) untuk workspace saya.  
-**Referencing:** CRITICAL-GAPS-AUDIT-REPORT.md (GAP #6, #7), tasks.md (line 1419)
+**User Story:** Sebagai workspace owner, saya ingin memilih broadcast driver (Laravel Reverb atau Pusher) untuk workspace saya.  
+**Referencing:** CRITICAL-GAPS-AUDIT-REPORT.md (GAP #6, #7), tasks.md (line 1419), assumption.md (ASM-REVERB-1)
 
 **Acceptance Criteria:**
 - [ ] Database field `workspaces.broadcast_driver` exists ⚠️ **MISSING**
   - Type: VARCHAR(50)
-  - Default: 'pusher'
-  - Values: 'pusher' | 'socketio'
+  - Default: 'reverb' (UPDATED from 'pusher')
+  - Values: 'reverb' | 'pusher'
   - Indexed for performance
   
 - [ ] Workspace Settings → Broadcast Driver (`/settings/general` or `/settings/broadcast`)
 - [ ] Dropdown "Real-time Communication Driver" dengan options:
-  - Options determined by admin settings (only show enabled drivers)
-  - If Socket.IO enabled by admin → show "Socket.IO (Free)"
-  - Always show Pusher if configured
+  - Laravel Reverb (Default, FREE) - always shown
+  - Pusher (Optional, Paid) - shown if admin configured credentials
   
 - [ ] UI Display:
   ```
   Real-time Communication Settings
   
   Broadcast Driver: [Dropdown]
+    - Laravel Reverb (Self-hosted, FREE) ⭐ Default ← Recommended
     - Pusher (Cloud-based, paid service)
-    - Socket.IO (Self-hosted, FREE) ← Recommended
   
-  [Help icon] Socket.IO provides free real-time updates without monthly costs.
-              Pusher offers higher reliability but requires subscription.
+  [Help icon] Laravel Reverb adalah WebSocket server native Laravel 12 yang 100% GRATIS.
+              Pusher tersedia sebagai alternative jika Anda memerlukan managed service.
   
   [Save Changes]
   ```
@@ -2003,7 +2366,7 @@ const form = useForm({
   public function updateBroadcastDriver(Request $request)
   {
       $validated = $request->validate([
-          'broadcast_driver' => 'required|in:pusher,socketio',
+          'broadcast_driver' => 'required|in:reverb,pusher',
       ]);
       
       $workspace = Workspace::find(session('current_workspace'));
@@ -2038,12 +2401,13 @@ const form = useForm({
 - ❌ Workspace model DOES NOT expose broadcast_driver field
 - ❌ No UI for workspace owner to select driver
 - ❌ `HandleInertiaRequests` middleware NOT passing broadcast_driver to frontend
-- ✅ Frontend composable `useWhatsAppSocket.js` ALREADY BUILT to read `workspace.broadcast_driver`
+- ✅ Frontend Laravel Echo composable CAN support both drivers once settings exposed
 
 **Impact of Missing Implementation:**
-- Frontend composable cannot auto-detect broadcast driver
-- All workspaces forced to use global admin driver
-- Socket.IO cannot be used even if available
+- Frontend cannot detect which driver workspace is using
+- All workspaces forced to use global admin driver setting
+- No per-workspace flexibility (Reverb vs Pusher selection)
+- Workspace owners cannot choose cost-effective option (Reverb free vs Pusher paid)
 - `workspace.broadcast_driver` prop undefined in Inertia pages
 
 **Database Migration Required:**
@@ -2055,7 +2419,7 @@ public function up()
         $table->string('broadcast_driver', 50)
             ->default('pusher')
             ->after('timezone')
-            ->comment('Broadcast driver: pusher or socketio');
+            ->comment('Broadcast driver: reverb (default) or pusher');
         
         $table->index('broadcast_driver');
     });
@@ -2114,6 +2478,7 @@ public function down()
   - Total Messages Today: Y
   - Average Health Score: Z%
   - Node.js Service Status: Online/Offline
+  - Laravel Reverb Status: Online/Offline (if driver=reverb)
   - Redis Status: Online/Offline
 - [ ] Chart: Message volume (last 7 days)
 - [ ] Alert notifications (red badge jika ada issues)
@@ -2505,95 +2870,139 @@ public function down()
 
 ---
 
-#### FR-10.8: Settings Table Seeder - Socket.IO Configuration ⚠️ **GAP #8 - P0 CRITICAL**
+#### FR-10.8: Settings Table Seeder - Laravel Reverb Configuration ⚠️ **GAP #8 - P0 CRITICAL (UPDATED)**
 **Priority:** P0 CRITICAL  
-**User Story:** Sebagai system installer, saya ingin Socket.IO configuration automatically seeded ke settings table saat fresh installation.
+**User Story:** Sebagai system installer, saya ingin Laravel Reverb configuration automatically seeded ke settings table saat fresh installation dengan Reverb sebagai default driver.
 
 **Referencing:** 
 - CRITICAL-GAPS-AUDIT-REPORT.md (GAP #8)
 - design.md (DES-11 - Configuration Management)
 - tasks.md (TASK-BE-010)
+- assumption.md (ASM-REVERB-2, ASM-REVERB-3)
 
-**Discovery Date:** 2025-01-XX (Gap Audit Phase)  
-**Root Cause:** Admin broadcast settings page expects `socketio_url` and `socketio_port` in settings table but seeder never created
+**Discovery Date:** 2025-01-11 (Broadcasting Strategy Update)  
+**Root Cause:** Admin broadcast settings page needs Reverb configuration in settings table but seeder not yet created
 
-**Current State - BROKEN:**
+**Current State - NEEDS UPDATE:**
 ```php
 // Admin visits /admin/settings/broadcast-drivers
 // Form tries to load:
-getValueByKey('socketio_url')    → NULL (not in settings table)
-getValueByKey('socketio_port')   → NULL (not in settings table)
+getValueByKey('reverb_app_id')     → NULL (not in settings table yet)
+getValueByKey('reverb_app_key')    → NULL (not in settings table yet)
+getValueByKey('reverb_app_secret') → NULL (not in settings table yet)
+getValueByKey('reverb_host')       → NULL (not in settings table yet)
+getValueByKey('reverb_port')       → NULL (not in settings table yet)
 
-// Result: Empty form fields, no default values, confusing for admin
+// Result: Empty form fields for default driver, confusing for admin
 ```
 
 **Problem Analysis:**
-1. ❌ **Missing Default Configuration**: Socket.IO settings not in database
-2. ❌ **Fresh Installation Broken**: Admin cannot configure Socket.IO without manual SQL
-3. ❌ **Inconsistent with Pusher**: Pusher has default entries, Socket.IO doesn't
-4. ❌ **Migration Gap**: Existing installations missing Socket.IO settings
+1. ❌ **Missing Default Configuration**: Laravel Reverb settings not in database
+2. ❌ **Fresh Installation Needs Defaults**: Admin should see pre-filled Reverb config
+3. ❌ **Default Driver Not Set**: broadcast_driver needs to default to 'reverb'
+4. ❌ **Migration Gap**: Existing installations missing Reverb settings
 
 **Expected State - FIXED:**
 
 **Acceptance Criteria:**
-- [x] ✅ Seeder created for Socket.IO settings
-- [x] ✅ Default values: `socketio_url` = http://127.0.0.1:3000, `socketio_port` = 3000
+- [x] ✅ Seeder created for Laravel Reverb settings
+- [x] ✅ Default values: 
+  - `broadcast_driver` = 'reverb' (DEFAULT)
+  - `reverb_app_id` = 'default-app-id'
+  - `reverb_app_key` = auto-generated base64 key
+  - `reverb_app_secret` = auto-generated base64 secret
+  - `reverb_host` = '127.0.0.1'
+  - `reverb_port` = '8080'
+  - `reverb_scheme` = 'http'
 - [x] ✅ Seeder runs automatically on `php artisan db:seed`
 - [x] ✅ Seeder idempotent (safe to run multiple times)
 - [x] ✅ Migration for existing installations (add missing entries)
-- [x] ✅ Admin form displays default values correctly
-- [x] ✅ Broadcast driver dropdown includes Socket.IO option
+- [x] ✅ Admin form displays default Reverb values correctly
+- [x] ✅ Broadcast driver dropdown shows Reverb as FIRST option (default)
 
 **Implementation:**
 
 **1. Create Seeder:**
 ```php
-// database/seeders/SocketIOSettingsSeeder.php
+// database/seeders/LaravelReverbSettingsSeeder.php
 <?php
 
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Models\Setting;
 
-class SocketIOSettingsSeeder extends Seeder
+class LaravelReverbSettingsSeeder extends Seeder
 {
     /**
-     * Run the database seeds for Socket.IO configuration
+     * Run the database seeds for Laravel Reverb configuration
      *
      * @return void
      */
     public function run()
     {
-        $socketIOSettings = [
+        $reverbSettings = [
             [
-                'key' => 'socketio_url',
-                'value' => env('SOCKETIO_URL', 'http://127.0.0.1:3000'),
+                'key' => 'broadcast_driver',
+                'value' => env('BROADCAST_DRIVER', 'reverb'),
+                'type' => 'select',
+                'description' => 'Broadcast driver selection (reverb or pusher)',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'reverb_app_id',
+                'value' => env('REVERB_APP_ID', 'default-app-id'),
                 'type' => 'text',
-                'description' => 'Socket.IO server URL for real-time broadcasting',
+                'description' => 'Laravel Reverb Application ID',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'key' => 'socketio_port',
-                'value' => env('SOCKETIO_PORT', '3000'),
+                'key' => 'reverb_app_key',
+                'value' => env('REVERB_APP_KEY', 'base64:' . base64_encode(Str::random(32))),
+                'type' => 'text',
+                'description' => 'Laravel Reverb Application Key',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'reverb_app_secret',
+                'value' => env('REVERB_APP_SECRET', 'base64:' . base64_encode(Str::random(32))),
+                'type' => 'password',
+                'description' => 'Laravel Reverb Application Secret',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'reverb_host',
+                'value' => env('REVERB_HOST', '127.0.0.1'),
+                'type' => 'text',
+                'description' => 'Laravel Reverb Server Host',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'reverb_port',
+                'value' => env('REVERB_PORT', '8080'),
                 'type' => 'number',
-                'description' => 'Socket.IO server port',
+                'description' => 'Laravel Reverb Server Port',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'key' => 'socketio_enabled',
-                'value' => env('BROADCAST_DRIVER', 'pusher') === 'socketio' ? '1' : '0',
-                'type' => 'boolean',
-                'description' => 'Enable Socket.IO broadcast driver',
+                'key' => 'reverb_scheme',
+                'value' => env('REVERB_SCHEME', 'http'),
+                'type' => 'select',
+                'description' => 'Laravel Reverb Protocol Scheme (http or https)',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
         ];
 
-        foreach ($socketIOSettings as $setting) {
+        foreach ($reverbSettings as $setting) {
             // Check if setting already exists (idempotency)
             $exists = Setting::where('key', $setting['key'])->exists();
             
@@ -2605,7 +3014,7 @@ class SocketIOSettingsSeeder extends Seeder
             }
         }
         
-        $this->command->info('Socket.IO settings seeded successfully!');
+        $this->command->info('Laravel Reverb settings seeded successfully!');
     }
 }
 ```
@@ -2617,19 +3026,20 @@ public function run()
 {
     $this->call([
         // ... existing seeders ...
-        SocketIOSettingsSeeder::class,  // Add this line
+        LaravelReverbSettingsSeeder::class,  // Add this line
     ]);
 }
 ```
 
 **3. Create Migration for Existing Installations:**
 ```php
-// database/migrations/2025_01_XX_add_socketio_settings.php
+// database/migrations/2025_01_11_add_reverb_settings.php
 <?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use App\Models\Setting;
 
 return new class extends Migration
@@ -2639,20 +3049,24 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add Socket.IO settings if not exists
-        $socketIOSettings = [
-            ['key' => 'socketio_url', 'value' => 'http://127.0.0.1:3000', 'type' => 'text'],
-            ['key' => 'socketio_port', 'value' => '3000', 'type' => 'number'],
-            ['key' => 'socketio_enabled', 'value' => '0', 'type' => 'boolean'],
+        // Add Laravel Reverb settings if not exists
+        $reverbSettings = [
+            ['key' => 'broadcast_driver', 'value' => 'reverb', 'type' => 'select'],
+            ['key' => 'reverb_app_id', 'value' => 'default-app-id', 'type' => 'text'],
+            ['key' => 'reverb_app_key', 'value' => 'base64:' . base64_encode(Str::random(32)), 'type' => 'text'],
+            ['key' => 'reverb_app_secret', 'value' => 'base64:' . base64_encode(Str::random(32)), 'type' => 'password'],
+            ['key' => 'reverb_host', 'value' => '127.0.0.1', 'type' => 'text'],
+            ['key' => 'reverb_port', 'value' => '8080', 'type' => 'number'],
+            ['key' => 'reverb_scheme', 'value' => 'http', 'type' => 'select'],
         ];
 
-        foreach ($socketIOSettings as $setting) {
+        foreach ($reverbSettings as $setting) {
             if (!Setting::where('key', $setting['key'])->exists()) {
                 Setting::create([
                     'key' => $setting['key'],
                     'value' => $setting['value'],
                     'type' => $setting['type'],
-                    'description' => "Socket.IO {$setting['key']}",
+                    'description' => "Laravel Reverb {$setting['key']}",
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -2665,33 +3079,51 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Setting::whereIn('key', ['socketio_url', 'socketio_port', 'socketio_enabled'])->delete();
+        Setting::whereIn('key', [
+            'broadcast_driver', 'reverb_app_id', 'reverb_app_key',
+            'reverb_app_secret', 'reverb_host', 'reverb_port', 'reverb_scheme'
+        ])->delete();
     }
 };
 ```
 
 **4. Update .env.example:**
 ```bash
-# Socket.IO Broadcast Driver (FREE alternative to Pusher)
-BROADCAST_DRIVER=pusher
-SOCKETIO_URL=http://127.0.0.1:3000
-SOCKETIO_PORT=3000
+# Laravel Reverb Broadcast Driver (DEFAULT - Native Laravel 12, 100% FREE)
+BROADCAST_DRIVER=reverb
+REVERB_APP_ID=default-app-id
+REVERB_APP_KEY=base64:VGVzdEtleUZvckRldmVsb3BtZW50
+REVERB_APP_SECRET=base64:VGVzdFNlY3JldEZvckRldmVsb3BtZW50
+REVERB_HOST=127.0.0.1
+REVERB_PORT=8080
+REVERB_SCHEME=http
+
+# Optional: Pusher (if admin prefers managed service)
+# BROADCAST_DRIVER=pusher
+# PUSHER_APP_ID=...
+# PUSHER_APP_KEY=...
+# PUSHER_APP_SECRET=...
+# PUSHER_APP_CLUSTER=mt1
 ```
 
 **5. Verification Command:**
 ```bash
 # Fresh installation
-php artisan db:seed --class=SocketIOSettingsSeeder
+php artisan db:seed --class=LaravelReverbSettingsSeeder
 
 # Check settings table
 php artisan tinker
->>> Setting::whereIn('key', ['socketio_url', 'socketio_port', 'socketio_enabled'])->get()
+>>> Setting::whereIn('key', ['broadcast_driver', 'reverb_app_id', 'reverb_app_key', 'reverb_host', 'reverb_port'])->get()
 
 # Expected output:
 # [
-#   { "key": "socketio_url", "value": "http://127.0.0.1:3000" },
-#   { "key": "socketio_port", "value": "3000" },
-#   { "key": "socketio_enabled", "value": "0" }
+#   { "key": "broadcast_driver", "value": "reverb" },
+#   { "key": "reverb_app_id", "value": "default-app-id" },
+#   { "key": "reverb_app_key", "value": "base64:..." },
+#   { "key": "reverb_app_secret", "value": "base64:..." },
+#   { "key": "reverb_host", "value": "127.0.0.1" },
+#   { "key": "reverb_port", "value": "8080" },
+#   { "key": "reverb_scheme", "value": "http" }
 # ]
 
 # Existing installation migration
@@ -2700,9 +3132,13 @@ php artisan migrate
 
 **Business Rules:**
 - **Default Values:**
-  - `socketio_url`: http://127.0.0.1:3000 (local development)
-  - `socketio_port`: 3000 (default Node.js service port)
-  - `socketio_enabled`: 0 (Pusher by default, admin can enable)
+  - `broadcast_driver`: reverb (DEFAULT - changed from pusher)
+  - `reverb_app_id`: default-app-id
+  - `reverb_app_key`: base64-encoded random string (auto-generated)
+  - `reverb_app_secret`: base64-encoded random string (auto-generated)
+  - `reverb_host`: 127.0.0.1 (localhost)
+  - `reverb_port`: 8080 (Laravel Reverb default port)
+  - `reverb_scheme`: http (https for production)
 
 - **Environment Variables:**
   - Read from .env if available (override defaults)
@@ -2719,23 +3155,25 @@ php artisan migrate
 - **Files Modified:** 2 (DatabaseSeeder.php, .env.example)
 - **Lines Added:** ~120 lines total
 - **Fix Time:** 20 minutes
-- **Priority:** P0 CRITICAL (Blocks admin Socket.IO configuration)
+- **Priority:** P0 CRITICAL (Blocks admin broadcast driver configuration)
 
 **Dependencies:**
 - TASK-FE-006 (Admin Broadcast Settings UI) - Depends on this
-- GAP #5 (Socket.IO dropdown) - Depends on this
+- GAP #5 (Broadcast driver dropdown) - Depends on this
 - Settings table must exist (existing Blazz installation)
 
 **Cross-References:**
 - CRITICAL-GAPS-AUDIT-REPORT.md (GAP #8)
 - design.md (DES-11 - Configuration Management)
 - tasks.md (TASK-BE-010)
+- assumption.md (ASM-REVERB-2, ASM-REVERB-3)
 
 **Success Metrics:**
-- 100% fresh installations have Socket.IO settings
+- 100% fresh installations have Laravel Reverb settings with correct defaults
 - 100% existing installations migrated successfully
 - Zero "setting not found" errors in admin panel
-- Admin can configure Socket.IO immediately after installation
+- Admin can configure broadcast driver immediately after installation
+- Laravel Reverb selected as default driver out of the box
 
 ---
 
@@ -3467,10 +3905,25 @@ jobs:
 ```env
 # Laravel .env additions
 WHATSAPP_NODE_SERVICE_URL=http://localhost:3000
-WHATSAPP_NODE_SOCKETIO_URL=http://localhost:3001
 WHATSAPP_NODE_API_KEY=your-secret-api-key
 WHATSAPP_SESSION_ENCRYPTION_KEY=32-char-key
 REDIS_QUEUE_CONNECTION=redis
+
+# Laravel Reverb Configuration (DEFAULT)
+BROADCAST_DRIVER=reverb
+REVERB_APP_ID=default-app-id
+REVERB_APP_KEY=base64:VGVzdEtleUZvckRldmVsb3BtZW50
+REVERB_APP_SECRET=base64:VGVzdFNlY3JldEZvckRldmVsb3BtZW50
+REVERB_HOST=127.0.0.1
+REVERB_PORT=8080
+REVERB_SCHEME=http
+
+# Optional: Pusher (if admin switches driver)
+# BROADCAST_DRIVER=pusher
+# PUSHER_APP_ID=...
+# PUSHER_APP_KEY=...
+# PUSHER_APP_SECRET=...
+# PUSHER_APP_CLUSTER=mt1
 
 # Node.js .env (whatsapp-service/.env)
 LARAVEL_URL=http://localhost:8000
