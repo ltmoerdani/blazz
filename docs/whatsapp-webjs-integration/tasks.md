@@ -48,7 +48,7 @@
 
 - [x] **TASK-1:** Prerequisites & Environment Setup
 - [x] **TASK-2:** Laravel Reverb Installation & Configuration
-- [ ] **TASK-3:** Backend Broadcasting Infrastructure
+ - [x] **TASK-3:** Backend Broadcasting Infrastructure
 - [ ] **TASK-4:** WhatsApp Provider Abstraction Layer
 - [ ] **TASK-5:** Node.js Service Implementation
 - [ ] **TASK-6:** Webhook Security & Message Processing
@@ -145,11 +145,11 @@ SELECT * FROM settings WHERE `key` LIKE 'reverb_%';
 **Scope:** Extend BroadcastConfigServiceProvider dan make events broadcaster-agnostic
 
 ### Subtasks Checklist
-- [ ] **TASK-3.1:** Extend BroadcastConfigServiceProvider (add Reverb config loading - DES-1)
-- [ ] **TASK-3.2:** Refactor NewChatEvent untuk broadcaster-agnostic (DES-5)
-- [ ] **TASK-3.3:** Refactor NewPaymentEvent (same pattern as NewChatEvent)
-- [ ] **TASK-3.4:** Create WhatsAppQRGenerated Event (DES-10)
-- [ ] **TASK-3.5:** Create WhatsAppSessionStatusChanged Event
+- [x] **TASK-3.1:** Extend BroadcastConfigServiceProvider (add Reverb config loading - DES-1)
+- [x] **TASK-3.2:** Refactor NewChatEvent untuk broadcaster-agnostic (DES-5)
+- [x] **TASK-3.3:** Refactor NewPaymentEvent (same pattern as NewChatEvent)
+- [x] **TASK-3.4:** Create WhatsAppQRGenerated Event (DES-10)
+- [x] **TASK-3.5:** Create WhatsAppSessionStatusChanged Event
 
 ### Acceptance Criteria
 - ✅ BroadcastConfigServiceProvider loads Reverb config dynamically dari database
@@ -158,10 +158,18 @@ SELECT * FROM settings WHERE `key` LIKE 'reverb_%';
 - ✅ WhatsAppSessionStatusChanged broadcasts status updates (connected/disconnected)
 - ✅ Events dapat di-test via `php artisan tinker` dengan both drivers
 
+### Status Update (Oktober 11, 2025)
+- BroadcastConfigServiceProvider kini memuat konfigurasi Reverb dan Pusher secara dinamis dari tabel `settings` termasuk `broadcast_driver`, `reverb_*`, dan `pusher_*`. Default broadcaster di-set sesuai nilai database saat boot.
+- Event `NewChatEvent` dan `NewPaymentEvent` telah di-refactor agar broadcaster-agnostic dan konsisten mengembalikan `Channel`, bekerja untuk Reverb maupun Pusher tanpa perubahan kode frontend.
+- Event baru `WhatsAppQRGenerated` ditambahkan untuk menyiarkan QR ke channel `whatsapp.{workspaceId}` beserta payload `qrCode` dan `session_id`.
+- Event baru `WhatsAppSessionStatusChanged` ditambahkan untuk menyiarkan status sesi WhatsApp (`connected`, `disconnected`, `qr_required`, `connecting`) melalui channel yang sama.
+- Linting/formatting telah diverifikasi; tidak ada error kompilasi. Konfigurasi driver telah diuji dengan `php artisan tinker` melakukan broadcast manual.
+
 ### Verification Commands
 ```bash
 php artisan tinker
 >>> broadcast(new App\Events\WhatsAppQRGenerated(1, 'test-qr', 'session-123'));
+>>> broadcast(new App\Events\WhatsAppSessionStatusChanged(1, 'connected', 'session-123'));
 ```
 
 **Dependencies:** TASK-2  

@@ -33,26 +33,11 @@ class NewPaymentEvent implements ShouldBroadcast
 
     /**
      * Get the channels the event should broadcast on.
-     *
-     * @return \Illuminate\Broadcasting\Channel
      */
-    public function broadcastOn()
+    public function broadcastOn(): Channel
     {
-        try {
-            // Check if Pusher settings are available
-            if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-                $channel = 'payments.' . 'ch' . $this->workspaceId;
-                return new Channel($channel);
-            } else {
-                // Log an error if Pusher settings are not configured
-                Log::error('Pusher settings are not configured.');
-                return;
-            }
-        } catch (Exception $e) {
-            // Log the exception and prevent the event from broadcasting
-            Log::error('Failed to broadcast event: ' . $e->getMessage());
-            return;
-        }
+        $channel = 'payments.' . 'ch' . $this->workspaceId;
+        return new Channel($channel);
     }
 
     /**
