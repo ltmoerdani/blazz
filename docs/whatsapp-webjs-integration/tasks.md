@@ -48,8 +48,8 @@
 
 - [x] **TASK-1:** Prerequisites & Environment Setup
 - [x] **TASK-2:** Laravel Reverb Installation & Configuration
- - [x] **TASK-3:** Backend Broadcasting Infrastructure
-- [ ] **TASK-4:** WhatsApp Provider Abstraction Layer
+- [x] **TASK-3:** Backend Broadcasting Infrastructure
+- [x] **TASK-4:** WhatsApp Provider Abstraction Layer
 - [ ] **TASK-5:** Node.js Service Implementation
 - [ ] **TASK-6:** Webhook Security & Message Processing
 - [ ] **TASK-7:** Frontend QR Component & Echo Enhancement
@@ -183,13 +183,13 @@ php artisan tinker
 **Scope:** Implement provider selection logic dan refactor WhatsappService
 
 ### Subtasks Checklist
-- [ ] **TASK-4.1:** Create ProviderSelector Service (DES-7 algorithm)
-- [ ] **TASK-4.2:** Create WhatsAppAdapterInterface
+- [x] **TASK-4.1:** Create ProviderSelector Service (DES-7 algorithm)
+- [x] **TASK-4.2:** Create WhatsAppAdapterInterface
 - [ ] **TASK-4.3:** Create MetaAPIAdapter (wrap existing logic)
-- [ ] **TASK-4.4:** Create WebJSAdapter (new - DES-8 full implementation)
-- [ ] **TASK-4.5:** Refactor WhatsappService (backward compatible constructor)
-- [ ] **TASK-4.6:** Add whatsapp_node config ke `config/services.php`
-- [ ] **TASK-4.7:** Create MonitorWhatsAppProviders command (scheduled every 1 minute)
+- [x] **TASK-4.4:** Create WebJSAdapter (new - DES-8 full implementation)
+- [x] **TASK-4.5:** Refactor WhatsappService (backward compatible constructor)
+- [x] **TASK-4.6:** Add whatsapp_node config ke `config/services.php`
+- [x] **TASK-4.7:** Create MonitorWhatsAppProviders command (scheduled every 1 minute)
 
 ### Acceptance Criteria
 - ✅ ProviderSelector automatically selects provider based on workspace metadata
@@ -209,6 +209,22 @@ $service = new WhatsappService(null, null, null, null, null, 1);
 **Implementation Note:** Complete WebJSAdapter code available in DES-8 design.md  
 **Dependencies:** TASK-3  
 **Definition of Done:** Provider abstraction complete, failover automatic, monitoring active
+
+### Status Update (Oktober 11, 2025)
+- ProviderSelector ditambahkan di `app/Services/WhatsApp/ProviderSelector.php` dengan logika prioritas, validasi status WebJS (cek session ke Node), dan fallback Meta API.
+- WhatsAppAdapterInterface dibuat untuk menyatukan kontrak provider; parameter opsional diringkas ke `options` agar lolos lint.
+- WebJSAdapter diimplementasikan untuk mengirim pesan via Node.js dengan HMAC (`services.whatsapp_node.*`), memanfaatkan metadata workspace untuk `session_id`.
+- WhatsappService di-refactor: constructor memilih provider otomatis; jika `webjs` maka delegasi ke WebJSAdapter; jika `meta-api` tetap gunakan implementasi lama (backward compatible).
+- Konfigurasi `config/services.php` sudah memuat `whatsapp_node` (url, api_token, hmac_secret, session_path, timeout).
+- Command `whatsapp:monitor-providers` dibuat dan dijadwalkan setiap 1 menit di Kernel.
+
+### Verification Commands
+```php
+$workspace = App\Models\Workspace::find(1);
+$service = new App\Services\WhatsappService(null, null, null, null, null, 1);
+// Should auto-select provider (webjs if connected; else meta-api)
+$service->sendMessage('CONTACT-UUID-HERE', 'Hello from ProviderSelector');
+```
 
 ---
 

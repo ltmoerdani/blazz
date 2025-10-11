@@ -44,6 +44,11 @@ class Kernel extends ConsoleKernel
         // Monitor queue size
         $schedule->command('monitor:queue-size')
             ->everyFiveMinutes();
+
+        // Monitor WhatsApp provider health
+        $schedule->command('whatsapp:monitor-providers')
+            ->everyMinute()
+            ->withoutOverlapping();
     }
 
     /**

@@ -10,9 +10,13 @@ use App\Models\Chat;
 use App\Models\ChatLog;
 use App\Models\ChatMedia;
 use App\Models\Contact;
-use App\Models\workspace;
+// use App\Models\workspace; // removed: incorrect case import
 use App\Models\Setting;
 use App\Models\Template;
+use App\Models\Workspace;
+use App\Services\WhatsApp\ProviderSelector;
+use App\Services\WhatsApp\Adapters\WebJSAdapter;
+use App\Services\WhatsApp\Adapters\WhatsAppAdapterInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
@@ -39,7 +43,11 @@ class WhatsappService
     private $phoneNumberId;
     private $workspaceId;
     private $wabaId;
+    private ?Workspace $workspace = null;
+    private ?WhatsAppAdapterInterface $adapter = null;
+    private ?ProviderSelector $providerSelector = null;
 
+    // Backward-compatible signature retained
     public function __construct($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId)
     {
         $this->accessToken = $accessToken;
@@ -49,15 +57,17 @@ class WhatsappService
         $this->wabaId = $wabaId;
         $this->workspaceId = $workspaceId;
 
-        Config::set('broadcasting.connections.pusher', [
-            'driver' => 'pusher',
-            'key' => Setting::where('key', 'pusher_app_key')->first()->value,
-            'secret' => Setting::where('key', 'pusher_app_secret')->first()->value,
-            'app_id' => Setting::where('key', 'pusher_app_id')->first()->value,
-            'options' => [
-                'cluster' => Setting::where('key', 'pusher_app_cluster')->first()->value,
-            ],
-        ]);
+        // Initialize provider selection
+        $this->workspace = Workspace::find($workspaceId);
+        $this->providerSelector = new ProviderSelector();
+        $provider = $this->workspace ? $this->providerSelector->selectProvider($this->workspace) : 'meta-api';
+
+        if ($provider === 'webjs' && $this->workspace) {
+            $this->adapter = new WebJSAdapter($this->workspace);
+        } else {
+            // Default to Meta API using existing class behavior; keep all meta-api methods as in legacy implementation
+            $this->adapter = null; // null means use legacy Meta API paths below
+        }
     }
 
     /**
@@ -69,6 +79,18 @@ class WhatsappService
      */
     public function sendMessage($contactUuId, $messageContent, $userId = null, $type="text", $buttons = [], $header = [], $footer = null, $buttonLabel = null)
     {
+        // If adapter exists (webjs), delegate; keep same signature
+        if ($this->adapter) {
+            $options = [
+                'type' => $type,
+                'buttons' => $buttons,
+                'header' => $header,
+                'footer' => $footer,
+                'button_label' => $buttonLabel,
+            ];
+            return $this->adapter->sendMessage($contactUuId, $messageContent, $userId, $options);
+        }
+
         $contact = Contact::where('uuid', $contactUuId)->first();
         $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
         
@@ -1263,7 +1285,7 @@ class WhatsappService
         $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
 
         if($responseObject->success === true){
-            $workspaceConfig = workspace::where('id', $this->workspaceId)->first();
+            $workspaceConfig = Workspace::where('id', $this->workspaceId)->first();
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['whatsapp']['business_profile']['about'] = $request->about;
