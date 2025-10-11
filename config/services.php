@@ -53,7 +53,7 @@ return [
     ],
 
     'clickpay' => [
-        'class' => Modules\Clickpaysa\Controllers\ProcessPayment::class,
+        'class' => 'Modules\Clickpaysa\Controllers\ProcessPayment',
     ],
 
     'razorpay' => [
@@ -61,7 +61,15 @@ return [
     ],
 
     'pabbly subscriptions' => [
-        'class' => Modules\Pabbly\Controllers\ProcessPayment::class,
+        'class' => 'Modules\Pabbly\Controllers\ProcessPayment',
+    ],
+
+    'whatsapp_node' => [
+        'url' => env('WHATSAPP_NODE_URL', 'http://127.0.0.1:3000'),
+        'api_token' => env('WHATSAPP_NODE_API_TOKEN'),
+        'hmac_secret' => env('WHATSAPP_NODE_HMAC_SECRET'),
+        'session_path' => env('WHATSAPP_NODE_SESSION_PATH', storage_path('app/whatsapp-sessions')),
+        'timeout' => env('WHATSAPP_NODE_TIMEOUT', 30),
     ],
 ];
 

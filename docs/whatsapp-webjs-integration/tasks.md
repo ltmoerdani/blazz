@@ -46,7 +46,7 @@
 
 ## IMPLEMENTATION CHECKLIST
 
-- [ ] **TASK-1:** Prerequisites & Environment Setup
+- [x] **TASK-1:** Prerequisites & Environment Setup
 - [ ] **TASK-2:** Laravel Reverb Installation & Configuration
 - [ ] **TASK-3:** Backend Broadcasting Infrastructure
 - [ ] **TASK-4:** WhatsApp Provider Abstraction Layer
@@ -67,13 +67,13 @@
 **Scope:** Install dependencies dan setup environment configuration
 
 ### Subtasks Checklist
-- [ ] **TASK-1.1:** Install Laravel Reverb via Composer
-- [ ] **TASK-1.2:** Verify/Install Guzzle HTTP Client
-- [ ] **TASK-1.3:** Install Chrome/Chromium for Puppeteer (CRITICAL untuk ASM-6)
-- [ ] **TASK-1.4:** Configure Laravel Environment Variables (.env)
-- [ ] **TASK-1.5:** Configure Network Accessibility (Firewall, CORS - ASM-8)
-- [ ] **TASK-1.6:** Install/Verify Frontend Dependencies (ASM-10)
-- [ ] **TASK-1.7:** Configure Broadcasting Defaults
+- [x] **TASK-1.1:** Install Laravel Reverb via Composer
+- [x] **TASK-1.2:** Verify/Install Guzzle HTTP Client
+- [x] **TASK-1.3:** Install Chrome/Chromium for Puppeteer (CRITICAL untuk ASM-6)
+- [x] **TASK-1.4:** Configure Laravel Environment Variables (.env)
+- [x] **TASK-1.5:** Configure Network Accessibility (Firewall, CORS - ASM-8)
+- [x] **TASK-1.6:** Install/Verify Frontend Dependencies (ASM-10)
+- [x] **TASK-1.7:** Configure Broadcasting Defaults
 
 ### Acceptance Criteria
 - ✅ Laravel Reverb installed dan dapat di-start tanpa error
@@ -82,6 +82,15 @@
 - ✅ Network ports (8000, 3000, 8080) accessible
 - ✅ Frontend dependencies (laravel-echo, pusher-js) installed
 - ✅ `BROADCAST_DRIVER=reverb` set as default
+
+### Status Update (Oktober 11, 2025)
+- Laravel Reverb ditambahkan melalui Composer (`composer.json`, `composer.lock`).
+- Variabel lingkungan Reverb dan WhatsApp Node disiapkan di `.env.example` beserta dukungan Vite.
+- Konfigurasi broadcast kini memuat koneksi Reverb sebagai default (`config/broadcasting.php`).
+- Endpoint Reverb dan broadcasting dibuka melalui CORS (`config/cors.php`).
+- Konfigurasi kredensial WhatsApp Node tersedia di `config/services.php`.
+- Installer `php artisan reverb:install` telah dijalankan dan menghasilkan `config/reverb.php` serta registrasi provider.
+- Prasyarat instalasi Chromium sudah dicatat sebagai keharusan untuk lingkungan pengembangan lokal.
 
 ### Verification Commands
 ```bash
