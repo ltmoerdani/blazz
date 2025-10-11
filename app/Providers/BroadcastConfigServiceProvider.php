@@ -46,7 +46,7 @@ class BroadcastConfigServiceProvider extends ServiceProvider
         if (env('ENABLE_DATABASE_CONFIG', false)) {
             // Fetch Pusher settings from the database
             // Adjust this query based on your database schema
-            $broadcastSettings = Setting::whereIn('key', [
+            return Setting::whereIn('key', [
                 'broadcast_driver',
                 'pusher_app_key',
                 'pusher_app_secret',
@@ -54,8 +54,6 @@ class BroadcastConfigServiceProvider extends ServiceProvider
                 'pusher_app_cluster',
                 // Add other Pusher settings keys as needed
             ])->pluck('value', 'key')->toArray();
-
-            return $broadcastSettings;
         }
     }
 }
