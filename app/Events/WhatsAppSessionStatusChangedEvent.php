@@ -4,31 +4,37 @@ namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
-class NewChatEvent implements ShouldBroadcast
+class WhatsAppSessionStatusChangedEvent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $chat;
     public $workspaceId;
+    public $sessionId;
+    public $status;
+    public $phoneNumber;
+    public $timestamp;
 
     /**
      * Create a new event instance.
      *
-     * @param mixed $chat
      * @param int $workspaceId
+     * @param string $sessionId
+     * @param string $status
+     * @param string|null $phoneNumber
      */
-    public function __construct($chat, $workspaceId)
+    public function __construct($workspaceId, $sessionId, $status, $phoneNumber = null)
     {
-        $this->chat = $chat;
         $this->workspaceId = $workspaceId;
+        $this->sessionId = $sessionId;
+        $this->status = $status;
+        $this->phoneNumber = $phoneNumber;
+        $this->timestamp = now()->toISOString();
     }
 
     /**
@@ -44,12 +50,12 @@ class NewChatEvent implements ShouldBroadcast
 
             if ($driver === 'reverb') {
                 // Laravel Reverb (default, free)
-                $channel = 'chats.' . 'ch' . $this->workspaceId;
+                $channel = 'workspace.' . $this->workspaceId;
                 return new Channel($channel);
             } elseif ($driver === 'pusher') {
                 // Pusher (optional, paid)
                 if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-                    $channel = 'chats.' . 'ch' . $this->workspaceId;
+                    $channel = 'workspace.' . $this->workspaceId;
                     return new Channel($channel);
                 } else {
                     Log::error('Pusher settings are not configured.');
@@ -60,8 +66,7 @@ class NewChatEvent implements ShouldBroadcast
                 return;
             }
         } catch (Exception $e) {
-            // Log the exception and prevent the event from broadcasting
-            Log::error('Failed to broadcast event: ' . $e->getMessage());
+            Log::error('Failed to broadcast WhatsAppSessionStatusChangedEvent: ' . $e->getMessage());
             return;
         }
     }
@@ -71,8 +76,24 @@ class NewChatEvent implements ShouldBroadcast
      *
      * @return array
      */
+    public function broadcastAs()
+    {
+        return 'session-status-changed';
+    }
+
+    /**
+     * Get the data to broadcast.
+     *
+     * @return array
+     */
     public function broadcastWith()
     {
-        return ['chat' => $this->chat];
+        return [
+            'workspace_id' => $this->workspaceId,
+            'session_id' => $this->sessionId,
+            'status' => $this->status,
+            'phone_number' => $this->phoneNumber,
+            'timestamp' => $this->timestamp,
+        ];
     }
 }

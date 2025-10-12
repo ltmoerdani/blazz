@@ -4,30 +4,31 @@ namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
-class NewChatEvent implements ShouldBroadcast
+class WhatsAppQRGeneratedEvent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $chat;
+    public $qrCodeBase64;
+    public $expiresInSeconds;
     public $workspaceId;
 
     /**
      * Create a new event instance.
      *
-     * @param mixed $chat
+     * @param string $qrCodeBase64
+     * @param int $expiresInSeconds
      * @param int $workspaceId
      */
-    public function __construct($chat, $workspaceId)
+    public function __construct($qrCodeBase64, $expiresInSeconds, $workspaceId)
     {
-        $this->chat = $chat;
+        $this->qrCodeBase64 = $qrCodeBase64;
+        $this->expiresInSeconds = $expiresInSeconds;
         $this->workspaceId = $workspaceId;
     }
 
@@ -44,12 +45,12 @@ class NewChatEvent implements ShouldBroadcast
 
             if ($driver === 'reverb') {
                 // Laravel Reverb (default, free)
-                $channel = 'chats.' . 'ch' . $this->workspaceId;
+                $channel = 'workspace.' . $this->workspaceId;
                 return new Channel($channel);
             } elseif ($driver === 'pusher') {
                 // Pusher (optional, paid)
                 if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-                    $channel = 'chats.' . 'ch' . $this->workspaceId;
+                    $channel = 'workspace.' . $this->workspaceId;
                     return new Channel($channel);
                 } else {
                     Log::error('Pusher settings are not configured.');
@@ -60,8 +61,7 @@ class NewChatEvent implements ShouldBroadcast
                 return;
             }
         } catch (Exception $e) {
-            // Log the exception and prevent the event from broadcasting
-            Log::error('Failed to broadcast event: ' . $e->getMessage());
+            Log::error('Failed to broadcast WhatsAppQRGeneratedEvent: ' . $e->getMessage());
             return;
         }
     }
@@ -71,8 +71,22 @@ class NewChatEvent implements ShouldBroadcast
      *
      * @return array
      */
+    public function broadcastAs()
+    {
+        return 'qr-code-generated';
+    }
+
+    /**
+     * Get the data to broadcast.
+     *
+     * @return array
+     */
     public function broadcastWith()
     {
-        return ['chat' => $this->chat];
+        return [
+            'qr_code_base64' => $this->qrCodeBase64,
+            'expires_in_seconds' => $this->expiresInSeconds,
+            'workspace_id' => $this->workspaceId,
+        ];
     }
 }
