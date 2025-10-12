@@ -5,6 +5,8 @@ namespace App\Services\Adapters;
 use App\Contracts\WhatsAppAdapterInterface;
 use App\Models\Contact;
 use App\Models\WhatsAppSession;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class WebJSAdapter implements WhatsAppAdapterInterface
 {
@@ -143,5 +145,177 @@ class WebJSAdapter implements WhatsAppAdapterInterface
         }
 
         return $this->utility->getMessageStatus($messageId);
+    }
+
+    /**
+     * Initialize a new session with Node.js service
+     */
+    public function initializeSession(): array
+    {
+        try {
+            $response = Http::timeout(30)->post("{$this->nodeServiceUrl}/api/sessions", [
+                'workspace_id' => $this->workspaceId,
+                'session_id' => $this->session->session_id,
+                'api_key' => config('whatsapp.node_api_key'),
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                // Update session status
+                $this->session->update([
+                    'status' => 'qr_scanning',
+                    'last_activity_at' => now(),
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Session initialized successfully',
+                    'qr_code' => $data['qr_code'] ?? null,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Node.js service returned error: ' . $response->body(),
+            ];
+        } catch (\Exception $e) {
+            Log::error('Session initialization failed', [
+                'workspace_id' => $this->workspaceId,
+                'session_id' => $this->session->session_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Failed to initialize session: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Disconnect a session
+     */
+    public function disconnectSession(): array
+    {
+        try {
+            $response = Http::timeout(30)->delete("{$this->nodeServiceUrl}/api/sessions/{$this->session->session_id}", [
+                'workspace_id' => $this->workspaceId,
+                'api_key' => config('whatsapp.node_api_key'),
+            ]);
+
+            if ($response->successful()) {
+                // Update session status
+                $this->session->update([
+                    'status' => 'disconnected',
+                    'last_activity_at' => now(),
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Session disconnected successfully',
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Node.js service returned error: ' . $response->body(),
+            ];
+        } catch (\Exception $e) {
+            Log::error('Session disconnect failed', [
+                'workspace_id' => $this->workspaceId,
+                'session_id' => $this->session->session_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Failed to disconnect session: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Reconnect a disconnected session
+     */
+    public function reconnectSession(): array
+    {
+        try {
+            $response = Http::timeout(30)->post("{$this->nodeServiceUrl}/api/sessions/{$this->session->session_id}/reconnect", [
+                'workspace_id' => $this->workspaceId,
+                'api_key' => config('whatsapp.node_api_key'),
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                // Update session status
+                $this->session->update([
+                    'status' => 'qr_scanning',
+                    'last_activity_at' => now(),
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Reconnection initiated successfully',
+                    'qr_code' => $data['qr_code'] ?? null,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Node.js service returned error: ' . $response->body(),
+            ];
+        } catch (\Exception $e) {
+            Log::error('Session reconnect failed', [
+                'workspace_id' => $this->workspaceId,
+                'session_id' => $this->session->session_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Failed to reconnect session: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Regenerate QR code for a session
+     */
+    public function regenerateQR(): array
+    {
+        try {
+            $response = Http::timeout(30)->post("{$this->nodeServiceUrl}/api/sessions/{$this->session->session_id}/regenerate-qr", [
+                'workspace_id' => $this->workspaceId,
+                'api_key' => config('whatsapp.node_api_key'),
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                return [
+                    'success' => true,
+                    'message' => 'QR code regenerated successfully',
+                    'qr_code' => $data['qr_code'] ?? null,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Node.js service returned error: ' . $response->body(),
+            ];
+        } catch (\Exception $e) {
+            Log::error('QR regeneration failed', [
+                'workspace_id' => $this->workspaceId,
+                'session_id' => $this->session->session_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Failed to regenerate QR code: ' . $e->getMessage(),
+            ];
+        }
     }
 }
