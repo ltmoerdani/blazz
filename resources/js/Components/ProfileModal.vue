@@ -17,10 +17,27 @@
     const isLoading = ref(false);
 
     const getAddressDetail = (value, key) => {
-        if(value){
+        if(!value) return null;
+        
+        // Jika value adalah plain string (bukan JSON), return null untuk semua key kecuali 'country'
+        // Ini untuk backward compatibility dengan data lama
+        if(typeof value === 'string' && !value.startsWith('{') && !value.startsWith('[')) {
+            // Jika ini adalah plain string country name dan key-nya adalah 'country'
+            if(key === 'country') {
+                return value;
+            }
+            return null;
+        }
+        
+        // Parse JSON dengan safe error handling
+        try {
             const address = JSON.parse(value);
             return address?.[key] ?? null;
-        } else {
+        } catch (error) {
+            // Silent fail - hanya log di development
+            if(import.meta.env.DEV) {
+                console.warn('🐛 Address parsing warning:', error.message, '| Value:', value);
+            }
             return null;
         }
     };
