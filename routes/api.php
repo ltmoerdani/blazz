@@ -55,14 +55,14 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
     Route::get('/templates', [App\Http\Controllers\ApiController::class, 'listTemplates']);
 
     // WhatsApp WebJS Integration Routes
-    Route::prefix('whatsapp')->group(function () {
-        // Webhook for Node.js service callbacks
+    Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
+        // Webhook for Node.js service callbacks (HMAC secured)
         Route::post('/webhooks/webjs', [App\Http\Controllers\Api\WhatsAppWebJSController::class, 'webhook']);
 
-        // Session management for Node.js service
+        // Session management for Node.js service (HMAC secured)
         Route::get('/sessions/{sessionId}/status', [App\Http\Controllers\Api\WhatsAppWebJSController::class, 'getSessionStatus']);
 
-        // Broadcasting events (for testing)
+        // Broadcasting events (for testing) - requires HMAC
         Route::post('/broadcast', function (Request $request) {
             $event = $request->input('event');
             $data = $request->input('data');
