@@ -41,6 +41,16 @@ function hmacAuthMiddleware(req, res, next) {
   const bodyString = req.rawBody || JSON.stringify(req.body || {});
   const expected = generateSignature(bodyString, timestamp, secret);
 
+  // DEBUG: Log signature comparison
+  logger.info('HMAC Debug', {
+    workspace_id: workspaceId,
+    bodyString: bodyString,
+    timestamp: timestamp,
+    expected: expected,
+    received: signature,
+    match: constantTimeEquals(expected, signature)
+  });
+
   if (!constantTimeEquals(expected, signature)) {
     logger.warn('Invalid HMAC signature', { workspace_id: workspaceId });
     return res.status(403).json({ error: 'Invalid signature' });

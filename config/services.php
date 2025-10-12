@@ -65,12 +65,10 @@ return [
     ],
 
     'whatsapp_node' => [
-        'url' => env('WHATSAPP_NODE_URL', 'http://127.0.0.1:3000'),
+        'url' => env('WHATSAPP_NODE_URL', 'http://127.0.0.1:3002'),
         'api_token' => env('WHATSAPP_NODE_API_TOKEN'),
         'hmac_secret' => env('WHATSAPP_NODE_HMAC_SECRET'),
         'session_path' => env('WHATSAPP_NODE_SESSION_PATH', storage_path('app/whatsapp-sessions')),
         'timeout' => env('WHATSAPP_NODE_TIMEOUT', 30),
     ],
 ];
-
-

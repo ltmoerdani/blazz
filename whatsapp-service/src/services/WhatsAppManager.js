@@ -20,8 +20,49 @@ class WhatsAppManager {
     }
 
     const existing = this.sessionsByWorkspace.get(workspaceId);
-    if (existing && existing.status !== 'disconnected') {
-      throw new Error(`Session already exists for workspace ${workspaceId}`);
+    
+    // Handle existing session based on status
+    if (existing) {
+      if (existing.status === 'ready') {
+        // Session already connected
+        logger.info('Session already connected', { workspace_id: workspaceId });
+        return { 
+          success: true, 
+          session_id: existing.sessionId, 
+          status: 'connected',
+          already_exists: true 
+        };
+      }
+      
+      if (existing.status === 'qr_required' && existing.qr) {
+        // QR already generated, broadcast it again
+        logger.info('Re-broadcasting existing QR', { workspace_id: workspaceId });
+        await this.sendWebhook(workspaceId, 'session.qr', { 
+          session_id: existing.sessionId, 
+          qr_code: existing.qr 
+        });
+        return { 
+          success: true, 
+          session_id: existing.sessionId, 
+          status: 'qr_required',
+          already_exists: true 
+        };
+      }
+      
+      if (existing.status === 'initializing') {
+        // Session still initializing, wait for QR
+        logger.info('Session still initializing', { workspace_id: workspaceId });
+        return { 
+          success: true, 
+          session_id: existing.sessionId, 
+          status: 'initializing',
+          already_exists: true 
+        };
+      }
+      
+      // For other statuses (disconnected, auth_failed), destroy and recreate
+      logger.info('Destroying old session before recreate', { workspace_id: workspaceId, old_status: existing.status });
+      await this.destroySession(workspaceId);
     }
 
     const sessionId = `session_${workspaceId}_${Math.random().toString(16).slice(2, 10)}`;
@@ -59,8 +100,14 @@ class WhatsAppManager {
 
     this.setupClientEvents(meta);
 
-    await client.initialize();
-    return { success: true, session_id: sessionId, status: 'qr_required' };
+    // Initialize asynchronously (non-blocking)
+    client.initialize().catch(err => {
+      logger.error('Client initialization failed', { workspace_id: workspaceId, error: err.message });
+      meta.status = 'init_failed';
+    });
+
+    // Return immediately without waiting for initialization
+    return { success: true, session_id: sessionId, status: 'initializing' };
   }
 
   setupClientEvents(meta) {

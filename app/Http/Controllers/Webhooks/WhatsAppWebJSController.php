@@ -12,6 +12,7 @@ use App\Events\WhatsAppQRGenerated;
 use App\Events\WhatsAppSessionStatusChanged;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class WhatsAppWebJSController extends Controller
@@ -200,6 +201,13 @@ class WhatsAppWebJSController extends Controller
 
         // Broadcast QR code to frontend via broadcasting
         event(new WhatsAppQRGenerated($workspaceId, $qrCode, $sessionId));
+
+        // Cache QR for short time as a fallback for clients without websocket events
+        Cache::put("whatsapp:qr:" . $workspaceId, [
+            'qr' => $qrCode,
+            'session_id' => $sessionId,
+            'cached_at' => now()->toIso8601String(),
+        ], now()->addMinutes(5));
 
         Log::info("QR code generated", ['workspace_id' => $workspaceId]);
 

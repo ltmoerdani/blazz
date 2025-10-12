@@ -14,6 +14,8 @@ class WhatsAppWebJSSessionController extends Controller
 {
     private Client $httpClient;
     private string $nodeServiceUrl;
+    private const ERR_NO_WORKSPACE = 'No workspace selected';
+    private const HEADER_CONTENT_TYPE = 'application/json';
 
     public function __construct()
     {
@@ -31,68 +33,92 @@ class WhatsAppWebJSSessionController extends Controller
     {
         $workspaceId = session('current_workspace');
         if (!$workspaceId) {
-            return response()->json(['error' => 'No workspace selected'], 400);
+            return response()->json(['error' => self::ERR_NO_WORKSPACE], 400);
         }
 
-        try {
-            $timestamp = time();
-            $payload = ['workspace_id' => $workspaceId];
-            $jsonBody = json_encode($payload);
-            $signature = hash_hmac('sha256', $jsonBody . $timestamp, config('services.whatsapp_node.hmac_secret'));
+        $statusCode = 200;
+        $responseData = null;
 
-            $response = $this->httpClient->post('/api/sessions/create', [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'X-Workspace-ID' => (string) $workspaceId,
-                    'X-API-Token' => config('services.whatsapp_node.api_token'),
-                    'X-HMAC-Signature' => $signature,
-                    'X-Timestamp' => (string) $timestamp,
-                ],
-                'body' => $jsonBody,
-            ]);
-
-            $result = json_decode($response->getBody()->getContents(), true);
-
-            Log::info('WhatsApp session creation initiated', [
+        // Validate Node service configuration before attempting request
+        $apiToken = config('services.whatsapp_node.api_token');
+        $hmacSecret = config('services.whatsapp_node.hmac_secret');
+        $nodeUrl = config('services.whatsapp_node.url');
+    if (empty($apiToken) || empty($hmacSecret) || empty($nodeUrl)) {
+            Log::error('WhatsApp Node service not configured properly', [
                 'workspace_id' => $workspaceId,
-                'session_id' => $result['session_id'] ?? null,
+                'has_api_token' => !empty($apiToken),
+                'has_hmac_secret' => !empty($hmacSecret),
+                'node_url' => $nodeUrl,
             ]);
-
-            return response()->json([
-                'success' => true,
-                'data' => $result,
-            ]);
-
-        } catch (RequestException $e) {
-            $status = $e->getResponse() ? $e->getResponse()->getStatusCode() : null;
-            $body = $e->getResponse() ? (string) $e->getResponse()->getBody() : '';
-
-            // If Node reports the session already exists, respond gracefully so UI can continue
-            if ($status === 400 && str_contains($body, 'Session already exists')) {
-                Log::info('WhatsApp session already exists; returning graceful response', [
-                    'workspace_id' => $workspaceId,
-                ]);
-
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'already_exists' => true,
-                    ],
-                ]);
-            }
-
-            Log::error('Failed to create WhatsApp session', [
-                'workspace_id' => $workspaceId,
-                'status' => $status,
-                'error' => $e->getMessage(),
-                'body' => $body,
-            ]);
-
-            return response()->json([
+            $statusCode = 500;
+            $responseData = [
                 'success' => false,
-                'error' => 'Failed to create session: ' . $e->getMessage(),
-            ], 500);
+                'error' => 'WhatsApp Web JS service is not configured. Please set WHATSAPP_NODE_URL, WHATSAPP_NODE_API_TOKEN and WHATSAPP_NODE_HMAC_SECRET in .env',
+            ];
+        } else {
+            try {
+                $timestamp = time();
+                $payload = ['workspace_id' => $workspaceId];
+                $jsonBody = json_encode($payload);
+                $signature = hash_hmac('sha256', $jsonBody . $timestamp, $hmacSecret);
+
+                $response = $this->httpClient->post('/api/sessions/create', [
+                    'headers' => [
+                        'Content-Type' => self::HEADER_CONTENT_TYPE,
+                        'X-Workspace-ID' => (string) $workspaceId,
+                        'X-API-Token' => config('services.whatsapp_node.api_token'),
+                        'X-HMAC-Signature' => $signature,
+                        'X-Timestamp' => (string) $timestamp,
+                    ],
+                    'body' => $jsonBody,
+                ]);
+
+                $result = json_decode($response->getBody()->getContents(), true);
+
+                Log::info('WhatsApp session creation initiated', [
+                    'workspace_id' => $workspaceId,
+                    'session_id' => $result['session_id'] ?? null,
+                ]);
+
+                $responseData = [
+                    'success' => true,
+                    'data' => $result,
+                ];
+
+            } catch (RequestException $e) {
+                $status = $e->getResponse() ? $e->getResponse()->getStatusCode() : null;
+                $body = $e->getResponse() ? (string) $e->getResponse()->getBody() : '';
+
+                // If Node reports the session already exists, respond gracefully so UI can continue
+                if ($status === 400 && str_contains($body, 'Session already exists')) {
+                    Log::info('WhatsApp session already exists; returning graceful response', [
+                        'workspace_id' => $workspaceId,
+                    ]);
+                    $responseData = [
+                        'success' => true,
+                        'data' => [
+                            'already_exists' => true,
+                        ],
+                    ];
+                }
+
+                Log::error('Failed to create WhatsApp session', [
+                    'workspace_id' => $workspaceId,
+                    'status' => $status,
+                    'error' => $e->getMessage(),
+                    'body' => $body,
+                ]);
+                if ($responseData === null) {
+                    $statusCode = 500;
+                    $responseData = [
+                        'success' => false,
+                        'error' => 'Failed to create session: ' . $e->getMessage(),
+                    ];
+                }
+            }
         }
+
+        return response()->json($responseData, $statusCode);
     }
 
     /**
@@ -102,7 +128,7 @@ class WhatsAppWebJSSessionController extends Controller
     {
         $workspaceId = session('current_workspace');
         if (!$workspaceId) {
-            return response()->json(['error' => 'No workspace selected'], 400);
+            return response()->json(['error' => self::ERR_NO_WORKSPACE], 400);
         }
 
         try {
@@ -113,7 +139,7 @@ class WhatsAppWebJSSessionController extends Controller
 
             $response = $this->httpClient->post('/api/sessions/disconnect', [
                 'headers' => [
-                    'Content-Type' => 'application/json',
+                    'Content-Type' => self::HEADER_CONTENT_TYPE,
                     'X-Workspace-ID' => (string) $workspaceId,
                     'X-API-Token' => config('services.whatsapp_node.api_token'),
                     'X-HMAC-Signature' => $signature,
@@ -153,7 +179,7 @@ class WhatsAppWebJSSessionController extends Controller
     {
         $workspaceId = session('current_workspace');
         if (!$workspaceId) {
-            return response()->json(['error' => 'No workspace selected'], 400);
+            return response()->json(['error' => self::ERR_NO_WORKSPACE], 400);
         }
 
         try {
@@ -164,7 +190,7 @@ class WhatsAppWebJSSessionController extends Controller
 
             $response = $this->httpClient->post('/api/sessions/refresh-qr', [
                 'headers' => [
-                    'Content-Type' => 'application/json',
+                    'Content-Type' => self::HEADER_CONTENT_TYPE,
                     'X-Workspace-ID' => (string) $workspaceId,
                     'X-API-Token' => config('services.whatsapp_node.api_token'),
                     'X-HMAC-Signature' => $signature,
@@ -204,7 +230,7 @@ class WhatsAppWebJSSessionController extends Controller
     {
         $workspaceId = $workspaceId ?: session('current_workspace');
         if (!$workspaceId) {
-            return response()->json(['error' => 'No workspace selected'], 400);
+            return response()->json(['error' => self::ERR_NO_WORKSPACE], 400);
         }
 
         // Get current status from workspace metadata

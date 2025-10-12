@@ -201,6 +201,14 @@ Route::middleware(['auth:user'])->group(function () {
                         Route::post('/sessions/disconnect', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'disconnect']);
                         Route::post('/sessions/refresh-qr', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'refreshQr']);
                         Route::get('/sessions/status/{workspaceId?}', [App\Http\Controllers\Api\WhatsAppWebJSSessionController::class, 'status']);
+                        Route::get('/sessions/last-qr', function() {
+                            $workspaceId = session('current_workspace');
+                            if (!$workspaceId) {
+                                return response()->json(['success' => false, 'error' => 'No workspace selected'], 400);
+                            }
+                            $data = \Illuminate\Support\Facades\Cache::get('whatsapp:qr:' . $workspaceId);
+                            return response()->json(['success' => true, 'data' => $data]);
+                        });
                     });
                     Route::match(['get', 'post'], '/settings/contacts', [App\Http\Controllers\User\SettingController::class, 'contacts']);
                     Route::match(['get', 'post'], '/settings/tickets', [App\Http\Controllers\User\SettingController::class, 'tickets']);
