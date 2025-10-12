@@ -90,8 +90,19 @@ class WhatsAppWebJSSessionController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to create session: ' . $e->getMessage(),
-            ], 500);
+                'error' => 'Failed to connect to WhatsApp service. Please ensure the WhatsApp Node service is running.',
+            ], 503);
+        } catch (\Exception $e) {
+            Log::error('Failed to create WhatsApp session - unexpected error', [
+                'workspace_id' => $workspaceId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'WhatsApp service unavailable. Please contact support if this persists.',
+            ], 503);
         }
     }
 
@@ -141,8 +152,18 @@ class WhatsAppWebJSSessionController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to disconnect session: ' . $e->getMessage(),
-            ], 500);
+                'error' => 'Failed to connect to WhatsApp service. Please ensure the WhatsApp Node service is running.',
+            ], 503);
+        } catch (\Exception $e) {
+            Log::error('Failed to disconnect WhatsApp session - unexpected error', [
+                'workspace_id' => $workspaceId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'WhatsApp service unavailable.',
+            ], 503);
         }
     }
 
@@ -192,8 +213,18 @@ class WhatsAppWebJSSessionController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to refresh QR: ' . $e->getMessage(),
-            ], 500);
+                'error' => 'Failed to connect to WhatsApp service. Please ensure the WhatsApp Node service is running.',
+            ], 503);
+        } catch (\Exception $e) {
+            Log::error('Failed to refresh WhatsApp QR - unexpected error', [
+                'workspace_id' => $workspaceId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'WhatsApp service unavailable.',
+            ], 503);
         }
     }
 

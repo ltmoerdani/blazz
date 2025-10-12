@@ -196,7 +196,10 @@ export default {
           throw new Error(response.data.error || 'Unknown error');
         }
       } catch (error) {
+        console.error('initiateConnection failed', error);
         status.value = 'disconnected';
+        const errorMsg = error.response?.data?.error || error.message || 'Failed to connect to WhatsApp service';
+        alert(`Error: ${errorMsg}\n\nPlease ensure:\n1. WhatsApp Node service is running (npm start in whatsapp-service directory)\n2. The service is accessible at http://127.0.0.1:3000\n3. Configuration is correct in .env files`);
       } finally {
         isConnecting.value = false;
       }
@@ -215,6 +218,9 @@ export default {
           throw new Error(response.data.error || 'Unknown error');
         }
       } catch (error) {
+        console.error('disconnectSession failed', error);
+        const errorMsg = error.response?.data?.error || error.message || 'Failed to disconnect';
+        alert(`Error: ${errorMsg}`);
       } finally {
         isDisconnecting.value = false;
       }
@@ -229,6 +235,9 @@ export default {
           throw new Error(response.data.error || 'Unknown error');
         }
       } catch (error) {
+        console.error('refreshQRCode failed', error);
+        const errorMsg = error.response?.data?.error || error.message || 'Failed to refresh QR code';
+        alert(`Error: ${errorMsg}`);
       } finally {
         isRefreshing.value = false;
       }
