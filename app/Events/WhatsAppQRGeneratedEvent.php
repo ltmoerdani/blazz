@@ -40,30 +40,53 @@ class WhatsAppQRGeneratedEvent implements ShouldBroadcast
     public function broadcastOn()
     {
         try {
-            // Support both Reverb (default) and Pusher (optional)
-            $driver = config('broadcasting.default', 'reverb');
-
-            if ($driver === 'reverb') {
-                // Laravel Reverb (default, free)
-                $channel = 'workspace.' . $this->workspaceId;
-                return new Channel($channel);
-            } elseif ($driver === 'pusher') {
-                // Pusher (optional, paid)
-                if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-                    $channel = 'workspace.' . $this->workspaceId;
-                    return new Channel($channel);
-                } else {
-                    Log::error('Pusher settings are not configured.');
-                    return;
-                }
-            } else {
-                Log::error('Unsupported broadcast driver: ' . $driver);
-                return;
-            }
+            return $this->getBroadcastChannel();
         } catch (Exception $e) {
             Log::error('Failed to broadcast WhatsAppQRGeneratedEvent: ' . $e->getMessage());
-            return;
+            return null;
         }
+    }
+
+    /**
+     * Get the appropriate broadcast channel based on driver configuration
+     */
+    private function getBroadcastChannel()
+    {
+        $driver = config('broadcasting.default', 'reverb');
+
+        if ($driver === 'reverb') {
+            return $this->getReverbChannel();
+        }
+
+        if ($driver === 'pusher') {
+            return $this->getPusherChannel();
+        }
+
+        Log::error('Unsupported broadcast driver: ' . $driver);
+        return null;
+    }
+
+    /**
+     * Get Reverb broadcast channel
+     */
+    private function getReverbChannel()
+    {
+        $channel = 'workspace.' . $this->workspaceId;
+        return new Channel($channel);
+    }
+
+    /**
+     * Get Pusher broadcast channel
+     */
+    private function getPusherChannel()
+    {
+        if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
+            $channel = 'workspace.' . $this->workspaceId;
+            return new Channel($channel);
+        }
+
+        Log::error('Pusher settings are not configured.');
+        return null;
     }
 
     /**
