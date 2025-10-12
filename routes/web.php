@@ -193,6 +193,19 @@ Route::middleware(['auth:user'])->group(function () {
                     Route::post('/settings/whatsapp', [App\Http\Controllers\User\SettingController::class, 'storeWhatsappSettings']);
                     Route::post('/settings/whatsapp/business-profile', [App\Http\Controllers\User\SettingController::class, 'whatsappBusinessProfileUpdate']);
                     Route::delete('/settings/whatsapp/business-profile', [App\Http\Controllers\User\SettingController::class, 'deleteWhatsappIntegration']);
+
+                    // WhatsApp WebJS Session Management Routes
+                    Route::prefix('settings/whatsapp/sessions')->name('whatsapp.sessions.')->group(function () {
+                        Route::get('/', [App\Http\Controllers\User\WhatsAppSessionController::class, 'index'])->name('index');
+                        Route::post('/', [App\Http\Controllers\User\WhatsAppSessionController::class, 'store'])->name('store');
+                        Route::get('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionController::class, 'show'])->name('show');
+                        Route::post('/{uuid}/set-primary', [App\Http\Controllers\User\WhatsAppSessionController::class, 'setPrimary'])->name('set-primary');
+                        Route::post('/{uuid}/disconnect', [App\Http\Controllers\User\WhatsAppSessionController::class, 'disconnect'])->name('disconnect');
+                        Route::delete('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionController::class, 'destroy'])->name('destroy');
+                        Route::post('/{uuid}/reconnect', [App\Http\Controllers\User\WhatsAppSessionController::class, 'reconnect'])->name('reconnect');
+                        Route::post('/{uuid}/regenerate-qr', [App\Http\Controllers\User\WhatsAppSessionController::class, 'regenerateQR'])->name('regenerate-qr');
+                        Route::get('/{uuid}/statistics', [App\Http\Controllers\User\WhatsAppSessionController::class, 'statistics'])->name('statistics');
+                    });
                     Route::match(['get', 'post'], '/settings/contacts', [App\Http\Controllers\User\SettingController::class, 'contacts']);
                     Route::match(['get', 'post'], '/settings/tickets', [App\Http\Controllers\User\SettingController::class, 'tickets']);
                     Route::match(['get', 'post'], '/settings/automation', [App\Http\Controllers\User\SettingController::class, 'automation']);

@@ -28,9 +28,12 @@ class CampaignLog extends Model {
 
     public function getUpdatedAtAttribute($value)
     {
-        // Use same conversion logic as created_at for consistency
-        // Both created_at and updated_at should use identical timezone conversion
-        return $this->convertToWorkspaceTimezone($value);
+        // Apply workspace timezone conversion for updated_at timestamp
+        // Maintains consistency with created_at conversion method
+        if ($value) {
+            return $this->convertToWorkspaceTimezone($value);
+        }
+        return $value;
     }
 
     public function campaign(){
