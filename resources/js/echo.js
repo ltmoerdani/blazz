@@ -3,16 +3,19 @@ import Pusher from 'pusher-js';
 
 let echoInstance = null;
 
-export function getEchoInstance(broadcasterConfig = null) {
+export function getEchoInstance(broadcasterConfig = null, cluster = null) {
     if (!echoInstance) {
-        // Default configuration
+        // Get configuration from Laravel (via Inertia middleware)
         const config = broadcasterConfig || {
-            driver: 'reverb', // Default to Laravel Reverb
-            key: window.broadcasterKey || 'default-app-key',
-            host: window.broadcasterHost || '127.0.0.1',
-            port: window.broadcasterPort || 8080,
-            scheme: window.broadcasterScheme || 'http',
+            driver: window.broadcasterDriver || 'reverb',
+            key: window.broadcasterKey || window.reverbAppKey || 'ohrtagckj2hqoiocg7wz',
+            host: window.broadcasterHost || window.reverbHost || '127.0.0.1',
+            port: window.broadcasterPort || window.reverbPort || 8080,
+            scheme: window.broadcasterScheme || window.reverbScheme || 'http',
+            cluster: cluster || window.broadcasterCluster || 'mt1',
         };
+        
+        console.log('🔧 Echo Configuration:', config);
 
         if (config.driver === 'pusher') {
             // Pusher configuration
@@ -30,19 +33,30 @@ export function getEchoInstance(broadcasterConfig = null) {
             });
         } else {
             // Laravel Reverb configuration (default)
-            echoInstance = new Echo({
+            // CRITICAL: Set Pusher globally and configure it BEFORE Echo initialization
+            window.Pusher = Pusher;
+            
+            const echoConfig = {
                 broadcaster: 'reverb',
                 key: config.key,
                 wsHost: config.host,
                 wsPort: config.port,
                 wssPort: config.port,
-                enabledTransports: ['ws', 'wss'],
+                forceTLS: false,
+                useTLS: false,
+                encrypted: false,
+                disableStats: true,
+                enabledTransports: ['ws'],
                 auth: {
                     headers: {
                         Authorization: `Bearer ${window.authToken || ''}`,
                     },
                 },
-            });
+            };
+            
+            console.log('🚀 Initializing Echo with Reverb:', echoConfig);
+            echoInstance = new Echo(echoConfig);
+            console.log('✅ Echo instance created successfully');
         }
     }
     return echoInstance;

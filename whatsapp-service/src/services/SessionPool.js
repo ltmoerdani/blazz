@@ -327,9 +327,15 @@ class SessionPool {
         const originalCreateSession = this.sessionManager.createSession.bind(this.sessionManager);
         const originalDisconnectSession = this.sessionManager.disconnectSession.bind(this.sessionManager);
 
-        this.sessionManager.createSession = async (sessionId, workspaceId, options) => {
+        this.sessionManager.createSession = async (sessionId, workspaceId, options = {}) => {
+            // Ensure options object exists with defaults
+            const sessionOptions = {
+                priority: 'normal',
+                ...options
+            };
+
             // Request session from pool
-            const poolResult = await this.requestSession(workspaceId, sessionId, options.priority || 'normal');
+            const poolResult = await this.requestSession(workspaceId, sessionId, sessionOptions.priority);
 
             if (!poolResult.success) {
                 throw new Error(poolResult.error || 'Session pool unavailable');
@@ -337,12 +343,12 @@ class SessionPool {
 
             try {
                 // Create the actual session
-                const result = await originalCreateSession(sessionId, workspaceId, options);
+                const result = await originalCreateSession(sessionId, workspaceId);
 
                 // Update metadata with pool information
                 const metadata = this.sessionManager.getSessionMetadata(sessionId) || {};
                 metadata.poolActivated = new Date();
-                metadata.priority = options.priority || 'normal';
+                metadata.priority = sessionOptions.priority;
                 this.sessionManager.updateSessionMetadata(sessionId, metadata);
 
                 return result;
