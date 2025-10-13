@@ -138,7 +138,10 @@ class HandleInertiaRequests extends Middleware
             'socials', 'trial_period', 'recaptcha_site_key', 'recaptcha_active',
             'google_analytics_tracking_id', 'google_maps_api_key', 'pusher_app_key',
             'pusher_app_cluster', 'google_auth_active', 'enable_api_key_input',
-            'enable_model_selection', 'default_open_ai_text_model', 'default_open_ai_audio_model'
+            'enable_model_selection', 'default_open_ai_text_model', 'default_open_ai_audio_model',
+            // Laravel Reverb configuration keys
+            'broadcast_driver', 'reverb_app_id', 'reverb_app_key', 'reverb_app_secret',
+            'reverb_host', 'reverb_port', 'reverb_scheme'
         ];
 
         $config = Setting::whereIn('key', $keys)->get();

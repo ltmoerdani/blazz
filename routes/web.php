@@ -195,7 +195,7 @@ Route::middleware(['auth:user'])->group(function () {
                     Route::delete('/settings/whatsapp/business-profile', [App\Http\Controllers\User\SettingController::class, 'deleteWhatsappIntegration']);
 
                     // WhatsApp WebJS Session Management Routes
-                    Route::prefix('settings/whatsapp/sessions')->name('whatsapp.sessions.')->group(function () {
+                    Route::prefix('settings/whatsapp-sessions')->name('whatsapp.sessions.')->group(function () {
                         Route::get('/', [App\Http\Controllers\User\WhatsAppSessionController::class, 'index'])->name('index');
                         Route::post('/', [App\Http\Controllers\User\WhatsAppSessionController::class, 'store'])->name('store');
                         Route::get('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionController::class, 'show'])->name('show');

@@ -2,8 +2,12 @@ const express = require('express');
 const axios = require('axios');
 const crypto = require('crypto');
 const winston = require('winston');
+const dotenv = require('dotenv');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
+
+// Load environment variables
+dotenv.config();
 
 // Import mitigation services
 const SessionHealthMonitor = require('./src/services/SessionHealthMonitor');
@@ -62,6 +66,8 @@ class WhatsAppSessionManager {
                 }),
                 puppeteer: {
                     headless: true,
+                    timeout: 90000, // 90 seconds timeout for browser launch (first launch can be slow)
+                    protocolTimeout: 90000, // 90 seconds for DevTools protocol operations
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -73,6 +79,7 @@ class WhatsAppSessionManager {
                         '--disable-web-security',
                         '--disable-features=VizDisplayCompositor'
                     ],
+                    executablePath: undefined, // Let puppeteer find chromium automatically
                 },
                 webVersionCache: {
                     type: 'remote',
@@ -84,7 +91,7 @@ class WhatsAppSessionManager {
             this.sessions.set(sessionId, client);
             this.metadata.set(sessionId, {
                 workspaceId,
-                status: 'initializing',
+                status: 'qr_scanning',
                 createdAt: new Date(),
                 phoneNumber: null,
                 lastActivity: new Date()
@@ -92,122 +99,163 @@ class WhatsAppSessionManager {
 
             // QR Code Event
             client.on('qr', async (qr) => {
-                logger.info('QR code generated', { sessionId, workspaceId });
+                try {
+                    logger.info('QR code generated', { sessionId, workspaceId });
 
-                const qrCodeData = await qrcode.toDataURL(qr, {
-                    width: 256,
-                    margin: 2,
-                    color: {
-                        dark: '#000000',
-                        light: '#FFFFFF'
-                    }
-                });
+                    const qrCodeData = await qrcode.toDataURL(qr, {
+                        width: 256,
+                        margin: 2,
+                        color: {
+                            dark: '#000000',
+                            light: '#FFFFFF'
+                        }
+                    });
 
-                this.metadata.set(sessionId, {
-                    ...this.metadata.get(sessionId),
-                    status: 'qr_scanning',
-                    qrCode: qrCodeData,
-                    qrGeneratedAt: new Date()
-                });
+                    this.metadata.set(sessionId, {
+                        ...this.metadata.get(sessionId),
+                        status: 'qr_scanning',
+                        qrCode: qrCodeData,
+                        qrGeneratedAt: new Date()
+                    });
 
-                // Send QR code to Laravel
-                await this.sendToLaravel('/api/whatsapp/events/qr-generated', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    qr_code: qrCodeData,
-                    expires_in: 300
-                });
+                    // Send QR code to Laravel using single webhook endpoint
+                    await this.sendToLaravel('qr_code_generated', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        qr_code: qrCodeData,
+                        expires_in: 300
+                    });
+                } catch (error) {
+                    logger.error('Error in QR event handler', {
+                        sessionId,
+                        workspaceId,
+                        error: error.message,
+                        stack: error.stack
+                    });
+                }
             });
 
             // Authenticated Event
             client.on('authenticated', async () => {
-                logger.info('WhatsApp session authenticated', { sessionId, workspaceId });
+                try {
+                    logger.info('WhatsApp session authenticated', { sessionId, workspaceId });
 
-                this.metadata.set(sessionId, {
-                    ...this.metadata.get(sessionId),
-                    status: 'authenticated',
-                    authenticatedAt: new Date()
-                });
+                    this.metadata.set(sessionId, {
+                        ...this.metadata.get(sessionId),
+                        status: 'authenticated',
+                        authenticatedAt: new Date()
+                    });
 
-                await this.sendToLaravel('/api/whatsapp/events/authenticated', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    status: 'authenticated'
-                });
+                    await this.sendToLaravel('session_authenticated', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        status: 'authenticated'
+                    });
+                } catch (error) {
+                    logger.error('Error in authenticated event handler', {
+                        sessionId,
+                        workspaceId,
+                        error: error.message
+                    });
+                }
             });
 
             // Ready Event
             client.on('ready', async () => {
-                const info = client.info;
-                logger.info('WhatsApp session ready', {
-                    sessionId,
-                    workspaceId,
-                    phoneNumber: info.wid.user
-                });
+                try {
+                    const info = client.info;
+                    logger.info('WhatsApp session ready', {
+                        sessionId,
+                        workspaceId,
+                        phoneNumber: info.wid.user
+                    });
 
-                this.metadata.set(sessionId, {
-                    ...this.metadata.get(sessionId),
-                    status: 'connected',
-                    phoneNumber: info.wid.user,
-                    platform: info.platform,
-                    connectedAt: new Date()
-                });
+                    this.metadata.set(sessionId, {
+                        ...this.metadata.get(sessionId),
+                        status: 'connected',
+                        phoneNumber: info.wid.user,
+                        platform: info.platform,
+                        connectedAt: new Date()
+                    });
 
-                await this.sendToLaravel('/api/whatsapp/events/session-ready', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    phone_number: info.wid.user,
-                    status: 'connected'
-                });
+                    await this.sendToLaravel('session_ready', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        phone_number: info.wid.user,
+                        status: 'connected'
+                    });
+                } catch (error) {
+                    logger.error('Error in ready event handler', {
+                        sessionId,
+                        workspaceId,
+                        error: error.message
+                    });
+                }
             });
 
             // Disconnected Event
             client.on('disconnected', async (reason) => {
-                logger.warning('WhatsApp session disconnected', {
-                    sessionId,
-                    workspaceId,
-                    reason
-                });
+                try {
+                    logger.warning('WhatsApp session disconnected', {
+                        sessionId,
+                        workspaceId,
+                        reason
+                    });
 
-                const metadata = this.metadata.get(sessionId);
-                this.metadata.set(sessionId, {
-                    ...metadata,
-                    status: 'disconnected',
-                    lastDisconnectReason: reason,
-                    disconnectedAt: new Date()
-                });
+                    const metadata = this.metadata.get(sessionId);
+                    this.metadata.set(sessionId, {
+                        ...metadata,
+                        status: 'disconnected',
+                        lastDisconnectReason: reason,
+                        disconnectedAt: new Date()
+                    });
 
-                await this.sendToLaravel('/api/whatsapp/events/disconnected', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    reason: reason
-                });
+                    await this.sendToLaravel('session_disconnected', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        reason: reason
+                    });
+                } catch (error) {
+                    logger.error('Error in disconnected event handler', {
+                        sessionId,
+                        workspaceId,
+                        error: error.message
+                    });
+                }
             });
 
             // Message Event
             client.on('message', async (message) => {
-                logger.debug('Message received', {
-                    sessionId,
-                    workspaceId,
-                    from: message.from,
-                    to: message.to,
-                    type: message.type
-                });
-
-                await this.sendToLaravel('/api/whatsapp/webhooks/message-received', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    message: {
-                        id: message.id._serialized,
+                try {
+                    logger.debug('Message received', {
+                        sessionId,
+                        workspaceId,
                         from: message.from,
                         to: message.to,
-                        body: message.body,
-                        timestamp: message.timestamp,
-                        from_me: message.fromMe,
-                        type: message.type,
-                        has_media: message.hasMedia
-                    }
-                });
+                        type: message.type
+                    });
+
+                    await this.sendToLaravel('message_received', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        message: {
+                            id: message.id._serialized,
+                            from: message.from,
+                            to: message.to,
+                            body: message.body,
+                            timestamp: message.timestamp,
+                            from_me: message.fromMe,
+                            type: message.type,
+                            has_media: message.hasMedia
+                        }
+                    });
+                } catch (error) {
+                    logger.error('Error in message event handler', {
+                        sessionId,
+                        workspaceId,
+                        error: error.message
+                    });
+                }
             });
 
             // Message Create Event (for sent messages)
@@ -235,14 +283,16 @@ class WhatsAppSessionManager {
             return {
                 success: true,
                 session_id: sessionId,
-                status: 'initializing'
+                status: 'qr_scanning'
             };
 
         } catch (error) {
             logger.error('Failed to create WhatsApp session', {
                 sessionId,
                 workspaceId,
-                error: error.message
+                error: error.message,
+                stack: error.stack,
+                errorDetails: JSON.stringify(error, Object.getOwnPropertyNames(error))
             });
 
             // Clean up on failure
@@ -339,30 +389,41 @@ class WhatsAppSessionManager {
         }
     }
 
-    async sendToLaravel(endpoint, data) {
+    async sendToLaravel(eventName, data) {
         try {
-            const timestamp = Date.now().toString();
-            const payload = JSON.stringify(data);
+            // Use single webhook endpoint with event-wrapped format
+            const endpoint = '/api/whatsapp/webhooks/webjs';
+            
+            // Wrap data dengan event type
+            const payload = {
+                event: eventName,
+                data: data
+            };
+            
+            // Use Unix timestamp in seconds (not milliseconds) to match PHP's time()
+            const timestamp = Math.floor(Date.now() / 1000).toString();
+            const payloadString = JSON.stringify(payload);
             const signature = crypto
                 .createHmac('sha256', process.env.HMAC_SECRET || process.env.API_SECRET)
-                .update(timestamp + payload)
+                .update(timestamp + payloadString)
                 .digest('hex');
 
-            await axios.post(`${process.env.LARAVEL_URL}${endpoint}`, data, {
+            await axios.post(`${process.env.LARAVEL_URL}${endpoint}`, payload, {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-API-Key': process.env.API_KEY || process.env.LARAVEL_API_TOKEN,
                     'X-Timestamp': timestamp,
-                    'X-Signature': signature,
+                    'X-HMAC-Signature': signature,  // Fixed: Use X-HMAC-Signature instead of X-Signature
                 },
                 timeout: 10000
             });
 
-            logger.debug('Data sent to Laravel successfully', { endpoint });
+            logger.debug('Data sent to Laravel successfully', { event: eventName, endpoint });
         } catch (error) {
             logger.error('Failed to send data to Laravel', {
-                endpoint,
-                error: error.message
+                event: eventName,
+                error: error.message,
+                response: error.response?.data
             });
         }
     }
@@ -427,17 +488,26 @@ app.get('/health', (req, res) => {
 // Create session
 app.post('/api/sessions', async (req, res) => {
     try {
-        const { workspace_id, session_id, api_key } = req.body;
+        const { workspace_id, session_id, api_key, priority } = req.body;
 
         // Validate API key
         if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
             return res.status(401).json({ error: 'Invalid API key' });
         }
 
-        const result = await sessionManager.createSession(session_id, workspace_id);
+        // Pass options object with priority
+        const options = {
+            priority: priority || 'normal'
+        };
+        
+        const result = await sessionManager.createSession(session_id, workspace_id, options);
         res.json(result);
     } catch (error) {
-        logger.error('API session creation failed', { error: error.message });
+        logger.error('API session creation failed', { 
+            error: error.message,
+            stack: error.stack,
+            errorDetails: JSON.stringify(error, Object.getOwnPropertyNames(error))
+        });
         res.status(500).json({ error: error.message });
     }
 });

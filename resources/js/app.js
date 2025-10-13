@@ -46,6 +46,39 @@ createInertiaApp({
     throw new Error(`Page not found: ${name}`);
   },
   setup({ el, App, props, plugin }) {
+    // Set global window variables from Inertia props for broadcasting
+    if (props.initialPage?.props?.config) {
+      const config = props.initialPage.props.config;
+      
+      // Extract config values into a map for easy access
+      const configMap = {};
+      config.forEach(item => {
+        configMap[item.key] = item.value;
+      });
+      
+      // Set Reverb configuration
+      window.broadcasterDriver = configMap.broadcast_driver || 'reverb';
+      window.reverbAppId = configMap.reverb_app_id;
+      window.reverbAppKey = configMap.reverb_app_key;
+      window.reverbHost = configMap.reverb_host || '127.0.0.1';
+      window.reverbPort = configMap.reverb_port || 8080;
+      window.reverbScheme = configMap.reverb_scheme || 'http';
+      
+      // Set Pusher configuration (fallback)
+      window.pusherAppKey = configMap.pusher_app_key;
+      window.pusherAppCluster = configMap.pusher_app_cluster;
+      
+      console.log('Broadcasting configured:', {
+        driver: window.broadcasterDriver,
+        reverb: {
+          key: window.reverbAppKey,
+          host: window.reverbHost,
+          port: window.reverbPort,
+          scheme: window.reverbScheme
+        }
+      });
+    }
+    
     // Fetch the current locale and available locales from the Laravel backend
     axios.get('/current-locale').then(async (response) => {
       const currentLocale = response.data.locale;
