@@ -4,6 +4,7 @@ import VueApexCharts from 'vue3-apexcharts';
 import VueTelInput from 'vue-tel-input';
 import { createI18n } from 'vue-i18n';
 import axios from 'axios';
+import './bootstrap'; // Import bootstrap.js to initialize Echo
 
 // Function to load locale messages via API
 async function loadLocaleMessages(locale) {

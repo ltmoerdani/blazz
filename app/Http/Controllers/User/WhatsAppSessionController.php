@@ -238,19 +238,32 @@ class WhatsAppSessionController extends Controller
                         'workspace_id' => $workspaceId,
                     ]);
                 }
-                
+
                 // Update status to disconnected
                 $session->update([
                     'status' => 'disconnected',
                     'last_activity_at' => now(),
                 ]);
 
+                // Broadcast status change event
+                broadcast(new WhatsAppSessionStatusChangedEvent(
+                    $session->session_id,
+                    'disconnected',
+                    $workspaceId,
+                    $session->phone_number,
+                    [
+                        'action' => 'disconnect',
+                        'uuid' => $session->uuid,
+                        'timestamp' => now()->toISOString()
+                    ]
+                ));
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Session disconnected successfully'
                 ]);
             }
-            
+
             // Normal disconnect flow for connected sessions
             $adapter = new WebJSAdapter($workspaceId, $session);
             $result = $adapter->disconnectSession();
@@ -260,6 +273,19 @@ class WhatsAppSessionController extends Controller
                     'status' => 'disconnected',
                     'last_activity_at' => now(),
                 ]);
+
+                // Broadcast status change event
+                broadcast(new WhatsAppSessionStatusChangedEvent(
+                    $session->session_id,
+                    'disconnected',
+                    $workspaceId,
+                    $session->phone_number,
+                    [
+                        'action' => 'disconnect',
+                        'uuid' => $session->uuid,
+                        'timestamp' => now()->toISOString()
+                    ]
+                ));
 
                 return response()->json([
                     'success' => true,
@@ -293,15 +319,32 @@ class WhatsAppSessionController extends Controller
     {
         $workspaceId = session('current_workspace');
 
+        Log::info('Delete session request', [
+            'uuid' => $uuid,
+            'workspace_id' => $workspaceId,
+        ]);
+
         $session = WhatsAppSession::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
-            ->firstOrFail();
+            ->first();
+
+        if (!$session) {
+            Log::warning('Session not found for delete', [
+                'uuid' => $uuid,
+                'workspace_id' => $workspaceId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Session not found or already deleted'
+            ], 404);
+        }
 
         try {
             // Disconnect/cleanup if connected OR qr_scanning
             if (in_array($session->status, ['connected', 'qr_scanning'])) {
                 $adapter = new WebJSAdapter($workspaceId, $session);
-                
+
                 // Try to disconnect, but don't fail if Node.js session doesn't exist
                 try {
                     $adapter->disconnectSession();
@@ -319,6 +362,12 @@ class WhatsAppSessionController extends Controller
             // Delete session from database
             $session->delete();
 
+            Log::info('Session deleted successfully', [
+                'uuid' => $uuid,
+                'session_id' => $session->session_id,
+                'workspace_id' => $workspaceId,
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Session deleted successfully'
@@ -327,8 +376,10 @@ class WhatsAppSessionController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to delete WhatsApp session', [
                 'workspace_id' => $workspaceId,
-                'session_id' => $session->session_id,
+                'session_id' => $session->session_id ?? 'unknown',
+                'uuid' => $uuid,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -477,10 +528,10 @@ class WhatsAppSessionController extends Controller
         // Get plan limits from subscription_plans table or workspace settings
         $workspace = \App\Models\Workspace::find($workspaceId);
         if ($workspace && $workspace->subscription) {
-            $maxSessions = $workspace->subscription->plan->whatsapp_sessions_limit ?? 5;
+            $maxSessions = $workspace->subscription->plan->whatsapp_sessions_limit ?? 10;
         } else {
-            // Fallback to workspace settings or default
-            $maxSessions = $workspace->settings()->where('key', 'whatsapp_sessions_limit')->first()?->value ?? 5;
+            // Fallback to workspace settings or default (set to 10 for development)
+            $maxSessions = $workspace->settings()->where('key', 'whatsapp_sessions_limit')->first()?->value ?? 10;
         }
 
         return $currentCount < $maxSessions;
