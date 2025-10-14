@@ -93,7 +93,7 @@
                         </div>
 
                         <ul v-else class="divide-y divide-gray-200">
-                            <li v-for="session in sessions" :key="session.uuid" class="px-6 py-4">
+                            <li v-for="session in sessionsList" :key="session.uuid" class="px-6 py-4">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0">
@@ -240,6 +240,9 @@ const props = defineProps({
 
 const workspace = computed(() => usePage().props.workspace);
 
+// Reactive sessions list (instead of using props directly)
+const sessionsList = ref([...props.sessions])
+
 const showAddModal = ref(false)
 const qrCode = ref(null)
 const countdown = ref(300) // 5 minutes
@@ -247,6 +250,32 @@ const currentSessionId = ref(null)
 const qrTimeout = ref(null)
 let countdownInterval = null
 let echoChannel = null
+
+// Helper function to update session in list
+const updateSessionInList = (sessionId, updates) => {
+    const index = sessionsList.value.findIndex(s => s.session_id === sessionId || s.uuid === sessionId)
+    if (index !== -1) {
+        sessionsList.value[index] = { ...sessionsList.value[index], ...updates }
+        console.log('✅ Session updated in list:', sessionId, updates)
+    } else {
+        console.warn('⚠️ Session not found in list:', sessionId)
+    }
+}
+
+// Helper function to remove session from list
+const removeSessionFromList = (uuid) => {
+    const index = sessionsList.value.findIndex(s => s.uuid === uuid)
+    if (index !== -1) {
+        sessionsList.value.splice(index, 1)
+        console.log('✅ Session removed from list:', uuid)
+    }
+}
+
+// Helper function to add session to list
+const addSessionToList = (session) => {
+    sessionsList.value.unshift(session)
+    console.log('✅ Session added to list:', session)
+}
 
 onMounted(() => {
     // Initialize Echo with better error handling
@@ -371,13 +400,25 @@ const handleSessionStatusChanged = (data) => {
 
     if (data.workspace_id === props.workspaceId) {
         if (data.status === 'connected') {
+            // Update session in list with connected status
+            updateSessionInList(data.session_id, {
+                status: 'connected',
+                phone_number: data.phone_number || null,
+                updated_at: data.metadata?.timestamp || new Date().toISOString()
+            })
+
+            // Close modal smoothly
             closeAddModal()
-            // Refresh page to show new session
-            window.location.reload()
+
+            console.log('✅ Session connected seamlessly, no page reload needed!')
         } else if (data.status === 'disconnected') {
-            // Refresh page to update session status
-            console.log('🔄 Session disconnected, refreshing page...')
-            window.location.reload()
+            // Update session status in list
+            updateSessionInList(data.session_id, {
+                status: 'disconnected',
+                updated_at: data.metadata?.timestamp || new Date().toISOString()
+            })
+
+            console.log('✅ Session disconnected seamlessly, list updated!')
         }
     }
 }
@@ -453,13 +494,21 @@ const closeAddModal = () => {
 
 const setPrimary = async (uuid) => {
     try {
+        console.log('⭐ Setting primary session:', uuid)
+
         await axios.post(`/settings/whatsapp-sessions/${uuid}/set-primary`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
             }
         })
-        window.location.reload()
+
+        // Update all sessions: remove is_primary from current primary
+        sessionsList.value.forEach(session => {
+            session.is_primary = session.uuid === uuid
+        })
+
+        console.log('✅ Primary session updated seamlessly!')
     } catch (error) {
         console.error('Failed to set primary session:', error)
         const errorMessage = error.response?.data?.message || error.message || 'Failed to set primary session'
@@ -470,13 +519,21 @@ const setPrimary = async (uuid) => {
 const disconnect = async (uuid) => {
     if (confirm('Are you sure you want to disconnect this WhatsApp number?')) {
         try {
+            console.log('🔌 Disconnecting session:', uuid)
+
             await axios.post(`/settings/whatsapp-sessions/${uuid}/disconnect`, {}, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
                 }
             })
-            window.location.reload()
+
+            // Status will be updated via WebSocket event, but update optimistically
+            updateSessionInList(uuid, {
+                status: 'disconnecting...'
+            })
+
+            console.log('✅ Disconnect request sent, waiting for WebSocket update...')
         } catch (error) {
             console.error('Failed to disconnect session:', error)
             const errorMessage = error.response?.data?.message || error.message || 'Failed to disconnect session'
@@ -499,16 +556,18 @@ const deleteSession = async (uuid) => {
 
             console.log('✅ Delete response:', response.data)
 
-            // Reload page to refresh session list
-            window.location.reload()
+            // Remove from list immediately (seamless!)
+            removeSessionFromList(uuid)
+
+            console.log('✅ Session deleted seamlessly, no page reload!')
         } catch (error) {
             console.error('❌ Failed to delete session:', error)
             console.error('Error response:', error.response)
 
             if (error.response?.status === 404) {
-                // Session not found - might be already deleted
-                alert('Session not found or already deleted. Refreshing page...')
-                window.location.reload()
+                // Session not found - remove from list anyway
+                removeSessionFromList(uuid)
+                console.log('⚠️ Session not found on server, removed from list')
             } else {
                 const errorMessage = error.response?.data?.message || error.message || 'Failed to delete session'
                 alert(`Failed to delete session: ${errorMessage}`)
