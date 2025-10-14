@@ -235,6 +235,7 @@ const props = defineProps({
     configId: String,
     settings: Object,
     title: String,
+    workspaceId: Number,
 })
 
 const workspace = computed(() => usePage().props.workspace);
@@ -244,27 +245,54 @@ const qrCode = ref(null)
 const countdown = ref(300) // 5 minutes
 const currentSessionId = ref(null)
 let countdownInterval = null
-let echo = null
+let echoChannel = null
 
 onMounted(() => {
-    // Initialize Laravel Echo for real-time updates
-    echo = getEchoInstance()
-    const channelName = `workspace.${workspace.value.id}`
-    
+    // Initialize Echo with better error handling
+    const echo = window.Echo || getEchoInstance()
+
+    if (!echo) {
+        console.error('❌ Echo instance not available')
+        alert('Real-time connection failed. Please refresh the page.')
+        return
+    }
+
+    const channelName = `workspace.${props.workspaceId}`
+
     console.log('📡 Subscribing to Echo channel:', channelName)
-    
-    const channel = echo.channel(channelName)
-    
-    channel.listen('.qr-code-generated', (data) => {
+    console.log('📡 Echo instance:', echo)
+    console.log('📡 Workspace ID:', props.workspaceId)
+    console.log('📡 Echo connector:', echo.connector)
+    console.log('📡 Echo socket state:', echo.connector?.pusher?.connection?.state)
+
+    echoChannel = echo.channel(channelName)
+    console.log('📡 Channel object:', echoChannel)
+
+    echoChannel.listen('.qr-code-generated', (data) => {
         console.log('📨 QR Code Generated Event received:', data)
         handleQRGenerated(data)
     })
-    
-    channel.listen('.session-status-changed', (data) => {
+
+    echoChannel.listen('.session-status-changed', (data) => {
         console.log('📨 Session Status Changed Event received:', data)
         handleSessionStatusChanged(data)
     })
-    
+
+    // Listen for connection events
+    if (echo.connector?.pusher) {
+        echo.connector.pusher.connection.bind('connected', () => {
+            console.log('✅ WebSocket connected')
+        })
+
+        echo.connector.pusher.connection.bind('disconnected', () => {
+            console.log('❌ WebSocket disconnected')
+        })
+
+        echo.connector.pusher.connection.bind('error', (err) => {
+            console.error('❌ WebSocket error:', err)
+        })
+    }
+
     console.log('✅ Echo channel subscribed successfully')
 })
 
@@ -272,21 +300,28 @@ onUnmounted(() => {
     if (countdownInterval) {
         clearInterval(countdownInterval)
     }
-    if (echo && workspace.value.id) {
-        echo.leaveChannel(`workspace.${workspace.value.id}`)
+    if (echoChannel && props.workspaceId) {
+        window.Echo.leaveChannel(`workspace.${props.workspaceId}`)
     }
 })
 
 const handleQRGenerated = (data) => {
-    if (data.workspace_id === workspace.value.id) {
+    console.log('🔍 QR Code Event Data received:', data)
+    console.log('🔍 Current workspace ID:', props.workspaceId)
+    console.log('🔍 Event workspace ID:', data.workspace_id)
+
+    if (data.workspace_id === props.workspaceId) {
+        console.log('✅ QR Code data matches workspace, displaying...')
         qrCode.value = data.qr_code_base64
         countdown.value = data.expires_in_seconds || 300
         startCountdown()
+    } else {
+        console.log('❌ QR Code data workspace mismatch')
     }
 }
 
 const handleSessionStatusChanged = (data) => {
-    if (data.workspace_id === workspace.value.id) {
+    if (data.workspace_id === props.workspaceId) {
         if (data.status === 'connected') {
             closeAddModal()
             // Refresh page to show new session
@@ -326,15 +361,28 @@ const addSession = async () => {
         
         const response = await axios.post('/settings/whatsapp-sessions', {
             provider_type: 'webjs'
+        }, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
         })
         
         console.log('✅ Session created:', response.data)
-        
-        if (response.data.success && response.data.qr_code) {
+
+        if (response.data.success) {
             currentSessionId.value = response.data.session.uuid
-            qrCode.value = response.data.qr_code
-            countdown.value = 300
-            startCountdown()
+
+            // Check if QR code is already available
+            if (response.data.qr_code) {
+                console.log('📱 QR code received directly from response')
+                qrCode.value = response.data.qr_code
+                countdown.value = 300
+                startCountdown()
+            } else {
+                console.log('📱 No QR code in response, waiting for WebSocket event...')
+                // QR code will come via WebSocket event
+            }
         }
     } catch (error) {
         console.error('❌ Failed to create session:', error)
@@ -353,7 +401,12 @@ const closeAddModal = () => {
 
 const setPrimary = async (uuid) => {
     try {
-        await axios.post(`/settings/whatsapp/sessions/${uuid}/set-primary`)
+        await axios.post(`/settings/whatsapp/sessions/${uuid}/set-primary`, {}, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
         window.location.reload()
     } catch (error) {
         console.error('Failed to set primary session:', error)
@@ -365,7 +418,12 @@ const setPrimary = async (uuid) => {
 const disconnect = async (uuid) => {
     if (confirm('Are you sure you want to disconnect this WhatsApp number?')) {
         try {
-            await axios.post(`/settings/whatsapp/sessions/${uuid}/disconnect`)
+            await axios.post(`/settings/whatsapp/sessions/${uuid}/disconnect`, {}, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
             window.location.reload()
         } catch (error) {
             console.error('Failed to disconnect session:', error)
@@ -378,7 +436,12 @@ const disconnect = async (uuid) => {
 const deleteSession = async (uuid) => {
     if (confirm('Are you sure you want to delete this WhatsApp number? This action cannot be undone.')) {
         try {
-            await axios.delete(`/settings/whatsapp/sessions/${uuid}`)
+            await axios.delete(`/settings/whatsapp/sessions/${uuid}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
             window.location.reload()
         } catch (error) {
             console.error('Failed to delete session:', error)
@@ -390,7 +453,12 @@ const deleteSession = async (uuid) => {
 
 const reconnect = async (uuid) => {
     try {
-        const response = await axios.post(`/settings/whatsapp/sessions/${uuid}/reconnect`)
+        const response = await axios.post(`/settings/whatsapp/sessions/${uuid}/reconnect`, {}, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
         currentSessionId.value = uuid
         showAddModal.value = true
         qrCode.value = response.data.qr_code
@@ -405,7 +473,12 @@ const reconnect = async (uuid) => {
 
 const regenerateQR = async () => {
     try {
-        const response = await axios.post(`/settings/whatsapp/sessions/${currentSessionId.value}/regenerate-qr`)
+        const response = await axios.post(`/settings/whatsapp/sessions/${currentSessionId.value}/regenerate-qr`, {}, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
         qrCode.value = response.data.qr_code
         countdown.value = 300
         startCountdown()
