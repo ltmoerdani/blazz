@@ -51,6 +51,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user ?: null,
             ],
             'workspace' => $workspaceData['workspace'],
+            'workspaceId' => session('current_workspace'),
             'workspaces' => $workspaceData['workspaces'],
             'flash' => [
                 'status'=> session('status')

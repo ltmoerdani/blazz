@@ -57,6 +57,7 @@ class WhatsAppSessionController extends Controller
             'appId' => $settings->get('whatsapp_client_id', null),
             'configId' => $settings->get('whatsapp_config_id', null),
             'settings' => \App\Models\workspace::where('id', $workspaceId)->first(),
+            'workspaceId' => $workspaceId,
             'title' => __('Settings'),
         ]);
     }
@@ -224,6 +225,33 @@ class WhatsAppSessionController extends Controller
             ->firstOrFail();
 
         try {
+            // If session is qr_scanning (not yet connected), just update status
+            if ($session->status === 'qr_scanning') {
+                // Try to cleanup Node.js session (may not exist or be in process)
+                try {
+                    $adapter = new WebJSAdapter($workspaceId, $session);
+                    $adapter->disconnectSession();
+                } catch (\Exception $e) {
+                    // Ignore if session doesn't exist in Node.js - expected for qr_scanning
+                    Log::info('Node.js session not found during disconnect (expected for qr_scanning)', [
+                        'session_id' => $session->session_id,
+                        'workspace_id' => $workspaceId,
+                    ]);
+                }
+                
+                // Update status to disconnected
+                $session->update([
+                    'status' => 'disconnected',
+                    'last_activity_at' => now(),
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Session disconnected successfully'
+                ]);
+            }
+            
+            // Normal disconnect flow for connected sessions
             $adapter = new WebJSAdapter($workspaceId, $session);
             $result = $adapter->disconnectSession();
 
@@ -270,13 +298,25 @@ class WhatsAppSessionController extends Controller
             ->firstOrFail();
 
         try {
-            // Disconnect first if connected
-            if ($session->status === 'connected') {
+            // Disconnect/cleanup if connected OR qr_scanning
+            if (in_array($session->status, ['connected', 'qr_scanning'])) {
                 $adapter = new WebJSAdapter($workspaceId, $session);
-                $adapter->disconnectSession();
+                
+                // Try to disconnect, but don't fail if Node.js session doesn't exist
+                try {
+                    $adapter->disconnectSession();
+                } catch (\Exception $e) {
+                    // Log but continue with deletion - session may not exist in Node.js
+                    Log::warning('Failed to disconnect session during delete (may not exist in Node.js)', [
+                        'session_id' => $session->session_id,
+                        'workspace_id' => $workspaceId,
+                        'status' => $session->status,
+                        'error' => $e->getMessage()
+                    ]);
+                }
             }
 
-            // Delete session
+            // Delete session from database
             $session->delete();
 
             return response()->json([
