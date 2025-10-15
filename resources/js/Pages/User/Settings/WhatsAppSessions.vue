@@ -3,7 +3,7 @@
         <div class="md:h-[90vh]">
             <div class="flex justify-center items-center mb-8">
                 <div class="md:w-[60em]">
-                    <div v-if="!sessions || sessions.length === 0" class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4">
+                    <div v-if="!sessionsList || sessionsList.length === 0" class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4">
                         <div class="flex items-center px-4 pt-2 pb-4">
                             <div class="w-[70%]">
                                 <h2 class="text-[17px]">{{ $t('Setup WhatsApp Numbers') }}</h2>
@@ -11,7 +11,7 @@
                                     {{ $t('Setup your WhatsApp numbers to be able to receive and send messages via WhatsApp Web.JS.') }}
                                 </span>
                             </div>
-                            <div class="ml-auto">
+                            <div class="ml-auto" v-if="canAddSessionComputed">
                                 <button @click="addSession" class="bg-primary text-white p-2 rounded-lg text-sm mt-5 flex px-3 w-fit">
                                     {{ $t('Add WhatsApp Number') }}
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4C7.58 4 4 7.58 4 12s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm3-7h-2v-2c0-.55-.45-1-1-1s-1 .45-1 1v2H9c-.55 0-1 .45-1 1s.45 1 1 1h2v2c0 .55.45 1 1 1s1-.45 1-1v-2h2c.55 0 1-.45 1-1s-.45-1-1-1z"/></svg>
@@ -20,24 +20,24 @@
                         </div>
                     </div>
 
-                    <div v-if="sessions && sessions.length > 0" class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4">
+                    <div v-if="sessionsList && sessionsList.length > 0" class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4">
                         <div class="grid grid-cols-4 items-center px-4 gap-x-4 py-2 border-b relative">
                             <div class="border-r">
                                 <div>{{ $t('Total Numbers') }}</div>
-                                <div>{{ sessions.length }}</div>
+                                <div>{{ sessionsList.length }}</div>
                             </div>
                             <div class="border-r">
                                 <div>{{ $t('Connected') }}</div>
-                                <div>{{ sessions.filter(s => s.status === 'connected').length }}</div>
+                                <div>{{ connectedSessionsCount }}</div>
                             </div>
                             <div class="border-r">
                                 <div>{{ $t('Primary Number') }}</div>
-                                <div>{{ sessions.find(s => s.is_primary)?.formatted_phone_number || 'None' }}</div>
+                                <div>{{ sessionsList.find(s => s.is_primary)?.formatted_phone_number || 'None' }}</div>
                             </div>
                             <div>
                                 <div>{{ $t('Status') }}</div>
                                 <div class="bg-slate-50 py-1 px-2 rounded-md w-[fit-content] text-xs">
-                                    {{ sessions.some(s => s.status === 'connected') ? 'Active' : 'Inactive' }}
+                                    {{ sessionsList.some(s => s.status === 'connected') ? 'Active' : 'Inactive' }}
                                 </div>
                             </div>
                         </div>
@@ -72,17 +72,16 @@
 
                     <!-- Sessions List -->
                     <div class="bg-white shadow overflow-hidden sm:rounded-md">
-                        <div v-if="sessions.length === 0" class="text-center py-12">
+                        <div v-if="sessionsList.length === 0" class="text-center py-12">
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                             </svg>
                             <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $t('No WhatsApp numbers connected') }}</h3>
                             <p class="mt-1 text-sm text-gray-500">{{ $t('Get started by adding your first WhatsApp number.') }}</p>
-                            <div class="mt-6">
+                            <div class="mt-6" v-if="canAddSessionComputed">
                                 <button
                                     @click="addSession"
-                                    :disabled="!canAddSession"
-                                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                 >
                                     <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M12 4C7.58 4 4 7.58 4 12s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm3-7h-2v-2c0-.55-.45-1-1-1s-1 .45-1 1v2H9c-.55 0-1 .45-1 1s.45 1 1 1h2v2c0 .55.45 1 1 1s1-.45 1-1v-2h2c.55 0 1-.45 1-1s-.45-1-1-1z"/>
@@ -240,8 +239,20 @@ const props = defineProps({
 
 const workspace = computed(() => usePage().props.workspace);
 
+// Computed: dynamically calculate connected sessions count and canAddSession
+const connectedSessionsCount = computed(() => {
+    return sessionsList.value.filter(s => s.status === 'connected').length
+})
+
+const canAddSessionComputed = computed(() => {
+    // Get max sessions limit from workspace settings or default to 10
+    const maxSessions = workspace.value?.subscription?.plan?.whatsapp_sessions_limit || 10
+    return connectedSessionsCount.value < maxSessions
+})
+
 // Reactive sessions list (instead of using props directly)
-const sessionsList = ref([...props.sessions])
+// Filter out qr_scanning and pending sessions - only show connected/disconnected
+const sessionsList = ref([...props.sessions.filter(s => s.status === 'connected' || s.status === 'disconnected')])
 
 const showAddModal = ref(false)
 const qrCode = ref(null)
@@ -273,8 +284,13 @@ const removeSessionFromList = (uuid) => {
 
 // Helper function to add session to list
 const addSessionToList = (session) => {
-    sessionsList.value.unshift(session)
-    console.log('✅ Session added to list:', session)
+    // Only add if session is connected or disconnected (not qr_scanning/pending)
+    if (session.status === 'connected' || session.status === 'disconnected') {
+        sessionsList.value.unshift(session)
+        console.log('✅ Session added to list:', session)
+    } else {
+        console.log('⏳ Session in qr_scanning/pending state, not adding to list yet:', session)
+    }
 }
 
 onMounted(() => {
@@ -400,12 +416,33 @@ const handleSessionStatusChanged = (data) => {
 
     if (data.workspace_id === props.workspaceId) {
         if (data.status === 'connected') {
-            // Update session in list with connected status
-            updateSessionInList(data.session_id, {
-                status: 'connected',
-                phone_number: data.phone_number || null,
-                updated_at: data.metadata?.timestamp || new Date().toISOString()
-            })
+            // Check if session exists in list
+            const existingSession = sessionsList.value.find(s => s.session_id === data.session_id || s.uuid === data.session_id)
+
+            if (existingSession) {
+                // Update existing session
+                updateSessionInList(data.session_id, {
+                    status: 'connected',
+                    phone_number: data.phone_number || null,
+                    formatted_phone_number: data.phone_number || null,
+                    updated_at: data.metadata?.timestamp || new Date().toISOString()
+                })
+            } else {
+                // Session not in list yet (was qr_scanning), add it now
+                console.log('🆕 Adding newly connected session to list')
+                const newSession = {
+                    session_id: data.session_id,
+                    uuid: data.session_id, // Use session_id as uuid temporarily
+                    status: 'connected',
+                    phone_number: data.phone_number,
+                    formatted_phone_number: data.phone_number,
+                    is_primary: false,
+                    provider_type: 'webjs',
+                    created_at: new Date().toISOString(),
+                    updated_at: data.metadata?.timestamp || new Date().toISOString()
+                }
+                sessionsList.value.unshift(newSession)
+            }
 
             // Close modal smoothly
             closeAddModal()
