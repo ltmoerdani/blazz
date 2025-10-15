@@ -466,6 +466,10 @@ const addSession = async () => {
         if (response.data.success) {
             currentSessionId.value = response.data.session.uuid
 
+            // Add the new session to the list immediately
+            addSessionToList(response.data.session)
+            console.log('✨ Session added to list seamlessly, no page reload needed!')
+
             // Check if QR code is already available
             if (response.data.qr_code) {
                 console.log('📱 QR code received directly from response')
