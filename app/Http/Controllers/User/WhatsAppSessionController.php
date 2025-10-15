@@ -523,7 +523,10 @@ class WhatsAppSessionController extends Controller
      */
     private function canAddSession(int $workspaceId): bool
     {
-        $currentCount = WhatsAppSession::forWorkspace($workspaceId)->count();
+        // Only count connected sessions (not qr_scanning or pending)
+        $currentCount = WhatsAppSession::forWorkspace($workspaceId)
+            ->where('status', 'connected')
+            ->count();
 
         // Get plan limits from subscription_plans table or workspace settings
         $workspace = \App\Models\Workspace::find($workspaceId);
