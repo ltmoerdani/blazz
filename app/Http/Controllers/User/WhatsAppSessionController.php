@@ -265,38 +265,58 @@ class WhatsAppSessionController extends Controller
             }
 
             // Normal disconnect flow for connected sessions
-            $adapter = new WebJSAdapter($workspaceId, $session);
-            $result = $adapter->disconnectSession();
+            // Try to disconnect from Node.js service
+            try {
+                $adapter = new WebJSAdapter($workspaceId, $session);
+                $result = $adapter->disconnectSession();
 
-            if ($result['success']) {
-                $session->update([
-                    'status' => 'disconnected',
-                    'last_activity_at' => now(),
+                // Check if disconnect failed due to session not found
+                if (!$result['success'] && isset($result['error']) && str_contains($result['error'], 'Session not found')) {
+                    Log::warning('Node.js session not found during disconnect - updating database only', [
+                        'session_id' => $session->session_id,
+                        'workspace_id' => $workspaceId,
+                        'error' => $result['error']
+                    ]);
+                    // Continue to update database status even if Node.js session not found
+                } elseif (!$result['success']) {
+                    // Other errors - return error response
+                    return response()->json([
+                        'success' => false,
+                        'message' => $result['error'] ?? 'Failed to disconnect session'
+                    ], 500);
+                }
+            } catch (\Exception $e) {
+                // If Node.js service is unreachable or session not found, log and continue
+                Log::warning('Exception during Node.js disconnect - updating database only', [
+                    'session_id' => $session->session_id,
+                    'workspace_id' => $workspaceId,
+                    'error' => $e->getMessage()
                 ]);
-
-                // Broadcast status change event
-                broadcast(new WhatsAppSessionStatusChangedEvent(
-                    $session->session_id,
-                    'disconnected',
-                    $workspaceId,
-                    $session->phone_number,
-                    [
-                        'action' => 'disconnect',
-                        'uuid' => $session->uuid,
-                        'timestamp' => now()->toISOString()
-                    ]
-                ));
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Session disconnected successfully'
-                ]);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => $result['error'] ?? 'Failed to disconnect session'
-                ], 500);
             }
+
+            // Update database status regardless of Node.js result
+            $session->update([
+                'status' => 'disconnected',
+                'last_activity_at' => now(),
+            ]);
+
+            // Broadcast status change event
+            broadcast(new WhatsAppSessionStatusChangedEvent(
+                $session->session_id,
+                'disconnected',
+                $workspaceId,
+                $session->phone_number,
+                [
+                    'action' => 'disconnect',
+                    'uuid' => $session->uuid,
+                    'timestamp' => now()->toISOString()
+                ]
+            ));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Session disconnected successfully'
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to disconnect WhatsApp session', [
