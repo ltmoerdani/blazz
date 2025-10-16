@@ -115,7 +115,10 @@ class WhatsAppWebJSController extends Controller
                 'authenticated',
                 $workspaceId,
                 null,
-                ['timestamp' => now()->toISOString()]
+                [
+                    'uuid' => $session->uuid,
+                    'timestamp' => now()->toISOString()
+                ]
             ));
         }
     }
@@ -147,7 +150,10 @@ class WhatsAppWebJSController extends Controller
                 'connected',
                 $workspaceId,
                 $phoneNumber,
-                ['timestamp' => now()->toISOString()]
+                [
+                    'uuid' => $session->uuid,
+                    'timestamp' => now()->toISOString()
+                ]
             ));
         }
     }
@@ -182,6 +188,7 @@ class WhatsAppWebJSController extends Controller
                 $workspaceId,
                 $session->phone_number,
                 [
+                    'uuid' => $session->uuid,
                     'reason' => $reason,
                     'timestamp' => now()->toISOString()
                 ]

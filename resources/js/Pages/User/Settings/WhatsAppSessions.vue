@@ -91,7 +91,21 @@
                             </div>
                         </div>
 
-                        <ul v-else class="divide-y divide-gray-200">
+                        <div v-else>
+                            <!-- Add Number Button - Shows when there are sessions but limit not reached -->
+                            <div v-if="canAddSessionComputed" class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                                <button
+                                    @click="addSession"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 4C7.58 4 4 7.58 4 12s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm3-7h-2v-2c0-.55-.45-1-1-1s-1 .45-1 1v2H9c-.55 0-1 .45-1 1s.45 1 1 1h2v2c0 .55.45 1 1 1s1-.45 1-1v-2h2c.55 0 1-.45 1-1s-.45-1-1-1z"/>
+                                    </svg>
+                                    {{ $t('Add WhatsApp Number') }}
+                                </button>
+                            </div>
+
+                            <ul class="divide-y divide-gray-200">
                             <li v-for="session in sessionsList" :key="session.uuid" class="px-6 py-4">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center">
@@ -141,7 +155,14 @@
                                         <button
                                             v-if="session.status === 'disconnected'"
                                             @click="reconnect(session.uuid)"
-                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                            :disabled="!canAddSessionComputed"
+                                            :class="[
+                                                'inline-flex items-center px-3 py-1.5 border shadow-sm text-sm font-medium rounded',
+                                                canAddSessionComputed
+                                                    ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                                    : 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                                            ]"
+                                            :title="canAddSessionComputed ? '' : 'Connection limit reached. Disconnect another session first.'"
                                         >
                                             {{ $t('Reconnect') }}
                                         </button>
@@ -161,6 +182,7 @@
                                 </div>
                             </li>
                         </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -246,8 +268,27 @@ const connectedSessionsCount = computed(() => {
 
 const canAddSessionComputed = computed(() => {
     // Get max sessions limit from workspace settings or default to 10
-    const maxSessions = workspace.value?.subscription?.plan?.whatsapp_sessions_limit || 10
-    return connectedSessionsCount.value < maxSessions
+    // Try multiple sources: workspace subscription plan, or fallback to default 10
+    let maxSessions = 10 // Default fallback
+
+    if (workspace.value?.subscription?.plan?.whatsapp_sessions_limit) {
+        maxSessions = workspace.value.subscription.plan.whatsapp_sessions_limit
+    }
+
+    const canAdd = connectedSessionsCount.value < maxSessions
+
+    console.log('🔢 Add Button Visibility Check:', {
+        connectedCount: connectedSessionsCount.value,
+        maxSessions: maxSessions,
+        canAdd: canAdd,
+        totalInList: sessionsList.value.length,
+        sessionStatuses: sessionsList.value.map(s => ({ uuid: s.uuid, status: s.status })),
+        workspace: workspace.value,
+        subscription: workspace.value?.subscription,
+        plan: workspace.value?.subscription?.plan
+    })
+
+    return canAdd
 })
 
 // Reactive sessions list (instead of using props directly)
@@ -412,19 +453,30 @@ const handleQRGenerated = (data) => {
 }
 
 const handleSessionStatusChanged = (data) => {
-    console.log('📨 Session Status Changed:', data)
+    console.log('📨 Session Status Changed Event Received:', {
+        event_session_id: data.session_id,
+        event_status: data.status,
+        event_workspace_id: data.workspace_id,
+        current_workspace_id: props.workspaceId,
+        metadata: data.metadata
+    })
 
     if (data.workspace_id === props.workspaceId) {
         if (data.status === 'connected') {
+            // Check if this is the first connected session
+            const currentConnectedSessions = sessionsList.value.filter(s => s.status === 'connected')
+            const isFirstSession = currentConnectedSessions.length === 0
+
             // Check if session exists in list
             const existingSession = sessionsList.value.find(s => s.session_id === data.session_id || s.uuid === data.session_id)
 
             if (existingSession) {
-                // Update existing session
+                // Update existing session (was disconnected, now reconnecting)
                 updateSessionInList(data.session_id, {
                     status: 'connected',
                     phone_number: data.phone_number || null,
                     formatted_phone_number: data.phone_number || null,
+                    is_primary: isFirstSession ? true : existingSession.is_primary, // Set as primary if first
                     updated_at: data.metadata?.timestamp || new Date().toISOString()
                 })
             } else {
@@ -436,12 +488,23 @@ const handleSessionStatusChanged = (data) => {
                     status: 'connected',
                     phone_number: data.phone_number,
                     formatted_phone_number: data.phone_number,
-                    is_primary: false,
+                    is_primary: isFirstSession, // Auto set as primary if this is the first session
                     provider_type: 'webjs',
                     created_at: new Date().toISOString(),
                     updated_at: data.metadata?.timestamp || new Date().toISOString()
                 }
                 sessionsList.value.unshift(newSession)
+
+                if (isFirstSession) {
+                    console.log('⭐ First session connected - automatically set as primary!')
+                }
+            }
+
+            // If this is the first session, also update backend to set as primary
+            if (isFirstSession) {
+                const sessionUuid = data.metadata?.uuid || data.session_id
+                console.log('⭐ Setting first session as primary with UUID:', sessionUuid)
+                setPrimary(sessionUuid)
             }
 
             // Close modal smoothly
@@ -449,6 +512,9 @@ const handleSessionStatusChanged = (data) => {
 
             console.log('✅ Session connected seamlessly, no page reload needed!')
         } else if (data.status === 'disconnected') {
+            console.log('🔌 Handling disconnect event for session_id:', data.session_id)
+            console.log('📋 Current sessions in list:', sessionsList.value.map(s => ({ uuid: s.uuid, session_id: s.session_id, status: s.status })))
+
             // Update session status in list
             updateSessionInList(data.session_id, {
                 status: 'disconnected',
@@ -456,6 +522,7 @@ const handleSessionStatusChanged = (data) => {
             })
 
             console.log('✅ Session disconnected seamlessly, list updated!')
+            console.log('📋 Updated sessions in list:', sessionsList.value.map(s => ({ uuid: s.uuid, session_id: s.session_id, status: s.status })))
         }
     }
 }
@@ -560,21 +627,35 @@ const setPrimary = async (uuid) => {
 const disconnect = async (uuid) => {
     if (confirm('Are you sure you want to disconnect this WhatsApp number?')) {
         try {
-            console.log('🔌 Disconnecting session:', uuid)
+            console.log('🔌 Disconnecting session with UUID:', uuid)
 
-            await axios.post(`/settings/whatsapp-sessions/${uuid}/disconnect`, {}, {
+            const response = await axios.post(`/settings/whatsapp-sessions/${uuid}/disconnect`, {}, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
                 }
             })
 
+            console.log('✅ Disconnect API response:', response.data)
+
             // Status will be updated via WebSocket event, but update optimistically
             updateSessionInList(uuid, {
                 status: 'disconnecting...'
             })
 
-            console.log('✅ Disconnect request sent, waiting for WebSocket update...')
+            console.log('⏳ Status updated to "disconnecting...", waiting for WebSocket event...')
+
+            // Fallback: If WebSocket event doesn't arrive in 3 seconds, update status manually
+            setTimeout(() => {
+                const session = sessionsList.value.find(s => s.uuid === uuid)
+                if (session && session.status === 'disconnecting...') {
+                    console.warn('⚠️ WebSocket event timeout - updating status to disconnected manually')
+                    updateSessionInList(uuid, {
+                        status: 'disconnected',
+                        updated_at: new Date().toISOString()
+                    })
+                }
+            }, 3000)
         } catch (error) {
             console.error('Failed to disconnect session:', error)
             const errorMessage = error.response?.data?.message || error.message || 'Failed to disconnect session'
@@ -618,7 +699,14 @@ const deleteSession = async (uuid) => {
 }
 
 const reconnect = async (uuid) => {
+    // Check if limit is already full
+    if (!canAddSessionComputed.value) {
+        alert('Cannot reconnect: You have reached the maximum number of connected WhatsApp sessions for your plan. Please disconnect another session first.')
+        return
+    }
+
     try {
+        console.log('🔄 Reconnecting session:', uuid)
         const response = await axios.post(`/settings/whatsapp-sessions/${uuid}/reconnect`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
