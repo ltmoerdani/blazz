@@ -21,10 +21,14 @@ class CheckClientRole
             // Check if the user role is 'user'
             if ($user->role === 'user') {
                 $workspaceId = session()->get('current_workspace');
-                $team = Team::where('workspace_id', $workspaceId)->where('user_id', auth()->user()->id)->first();
+                if ($workspaceId) {
+                    $team = Team::where('workspace_id', $workspaceId)
+                        ->where('user_id', auth()->user()->id)
+                        ->first();
 
-                if($team->role === 'manager' || $team->role === 'agent'){
-                    return to_route('dashboard');
+                    if ($team && ($team->role === 'manager' || $team->role === 'agent')) {
+                        return to_route('dashboard');
+                    }
                 }
             }
         }

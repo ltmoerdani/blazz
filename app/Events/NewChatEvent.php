@@ -39,20 +39,53 @@ class NewChatEvent implements ShouldBroadcast
     public function broadcastOn()
     {
         try {
-            // Check if Pusher settings are available
-            if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-                $channel = 'chats.' . 'ch' . $this->workspaceId;
-                return new Channel($channel);
-            } else {
-                // Log an error if Pusher settings are not configured
-                Log::error('Pusher settings are not configured.');
-                return;
-            }
+            return $this->getBroadcastChannel();
         } catch (Exception $e) {
-            // Log the exception and prevent the event from broadcasting
-            Log::error('Failed to broadcast event: ' . $e->getMessage());
-            return;
+            Log::error('Failed to broadcast NewChatEvent: ' . $e->getMessage());
+            return null;
         }
+    }
+
+    /**
+     * Get the appropriate broadcast channel based on driver configuration
+     */
+    private function getBroadcastChannel()
+    {
+        $driver = config('broadcasting.default', 'reverb');
+
+        if ($driver === 'reverb') {
+            return $this->getReverbChannel();
+        }
+
+        if ($driver === 'pusher') {
+            return $this->getPusherChannel();
+        }
+
+        Log::error('Unsupported broadcast driver: ' . $driver);
+        return null;
+    }
+
+    /**
+     * Get Reverb broadcast channel
+     */
+    private function getReverbChannel()
+    {
+        $channel = 'chats.' . 'ch' . $this->workspaceId;
+        return new Channel($channel);
+    }
+
+    /**
+     * Get Pusher broadcast channel
+     */
+    private function getPusherChannel()
+    {
+        if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
+            $channel = 'chats.' . 'ch' . $this->workspaceId;
+            return new Channel($channel);
+        }
+
+        Log::error('Pusher settings are not configured.');
+        return null;
     }
 
     /**
