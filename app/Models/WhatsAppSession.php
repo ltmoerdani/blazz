@@ -13,6 +13,8 @@ class WhatsAppSession extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'whatsapp_sessions';
+
     protected $fillable = [
         'uuid',
         'workspace_id',

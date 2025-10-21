@@ -13,6 +13,8 @@ class WhatsAppIntegrationTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const WHATSAPP_SESSIONS_ROUTE = '/settings/whatsapp-sessions';
+
     private User $user;
     private Workspace $workspace;
 
@@ -34,7 +36,7 @@ class WhatsAppIntegrationTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        $response = $this->postJson('/settings/whatsapp/sessions', [
+        $response = $this->postJson(self::WHATSAPP_SESSIONS_ROUTE, [
             'provider_type' => 'webjs',
             'is_primary' => false,
         ]);
@@ -64,7 +66,7 @@ class WhatsAppIntegrationTest extends TestCase
             'status' => 'connected',
         ]);
 
-        $response = $this->get('/settings/whatsapp/sessions');
+        $response = $this->get(self::WHATSAPP_SESSIONS_ROUTE);
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) =>
@@ -133,7 +135,7 @@ class WhatsAppIntegrationTest extends TestCase
             'is_primary' => false,
         ]);
 
-        $response = $this->postJson("/settings/whatsapp/sessions/{$session2->uuid}/set-primary");
+        $response = $this->postJson(self::WHATSAPP_SESSIONS_ROUTE . "/{$session2->uuid}/set-primary");
 
         $response->assertStatus(200)
                 ->assertJson([
@@ -158,7 +160,7 @@ class WhatsAppIntegrationTest extends TestCase
             'status' => 'connected',
         ]);
 
-        $response = $this->postJson("/settings/whatsapp/sessions/{$session->uuid}/disconnect");
+        $response = $this->postJson("/settings/whatsapp-sessions/{$session->uuid}/disconnect");
 
         $response->assertStatus(200)
                 ->assertJson([
@@ -184,7 +186,7 @@ class WhatsAppIntegrationTest extends TestCase
 
         $this->actingAs($this->user);
 
-        $response = $this->get("/settings/whatsapp/sessions/{$session->uuid}");
+        $response = $this->get("/settings/whatsapp-sessions/{$session->uuid}");
 
         $response->assertStatus(404);
     }
@@ -201,7 +203,7 @@ class WhatsAppIntegrationTest extends TestCase
             ]);
         }
 
-        $response = $this->postJson('/settings/whatsapp/sessions', [
+        $response = $this->postJson('/settings/whatsapp-sessions', [
             'provider_type' => 'webjs',
         ]);
 

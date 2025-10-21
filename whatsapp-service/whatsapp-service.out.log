@@ -1,0 +1,16 @@
+(node:80134) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+info: WhatsApp Service started on port 3001 {"service":"whatsapp-service","timestamp":"2025-10-13T02:20:08.809Z"}
+info: Laravel backend: http://127.0.0.1:8000 {"service":"whatsapp-service","timestamp":"2025-10-13T02:20:08.832Z"}
+info: Environment: development {"service":"whatsapp-service","timestamp":"2025-10-13T02:20:08.832Z"}
+SyntaxError: Unterminated string in JSON at position 33 (line 2 column 32)
+    at JSON.parse (<anonymous>)
+    at parse (/Applications/MAMP/htdocs/blazz/whatsapp-service/node_modules/body-parser/lib/types/json.js:92:19)
+    at /Applications/MAMP/htdocs/blazz/whatsapp-service/node_modules/body-parser/lib/read.js:128:18
+    at AsyncResource.runInAsyncScope (node:async_hooks:211:14)
+    at invokeCallback (/Applications/MAMP/htdocs/blazz/whatsapp-service/node_modules/raw-body/index.js:238:16)
+    at done (/Applications/MAMP/htdocs/blazz/whatsapp-service/node_modules/raw-body/index.js:227:7)
+    at IncomingMessage.onEnd (/Applications/MAMP/htdocs/blazz/whatsapp-service/node_modules/raw-body/index.js:287:7)
+    at IncomingMessage.emit (node:events:507:28)
+    at endReadableNT (node:internal/streams/readable:1696:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)

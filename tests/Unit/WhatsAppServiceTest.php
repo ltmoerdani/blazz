@@ -53,7 +53,7 @@ class WhatsAppServiceTest extends TestCase
         $this->expectException(\App\Exceptions\WhatsAppProviderNotFoundException::class);
 
         $selector = new ProviderSelector();
-        $provider = $selector->selectProvider(999); // Non-existent workspace
+        $selector->selectProvider(999); // Non-existent workspace
     }
 
     /** @test */

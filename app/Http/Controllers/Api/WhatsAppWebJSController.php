@@ -81,7 +81,13 @@ class WhatsAppWebJSController extends Controller
             ]);
 
             // Broadcast QR code to frontend
+            Log::info('Broadcasting WhatsAppQRGeneratedEvent', [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'qr_code_length' => strlen($qrCode)
+            ]);
             broadcast(new WhatsAppQRGeneratedEvent($qrCode, 300, $workspaceId, $sessionId));
+            Log::info('WhatsAppQRGeneratedEvent broadcasted');
         }
     }
 
@@ -109,7 +115,10 @@ class WhatsAppWebJSController extends Controller
                 'authenticated',
                 $workspaceId,
                 null,
-                ['timestamp' => now()->toISOString()]
+                [
+                    'uuid' => $session->uuid,
+                    'timestamp' => now()->toISOString()
+                ]
             ));
         }
     }
@@ -141,7 +150,10 @@ class WhatsAppWebJSController extends Controller
                 'connected',
                 $workspaceId,
                 $phoneNumber,
-                ['timestamp' => now()->toISOString()]
+                [
+                    'uuid' => $session->uuid,
+                    'timestamp' => now()->toISOString()
+                ]
             ));
         }
     }
@@ -176,6 +188,7 @@ class WhatsAppWebJSController extends Controller
                 $workspaceId,
                 $session->phone_number,
                 [
+                    'uuid' => $session->uuid,
                     'reason' => $reason,
                     'timestamp' => now()->toISOString()
                 ]

@@ -149,11 +149,15 @@ class WebJSAdapter implements WhatsAppAdapterInterface
 
     /**
      * Initialize a new session with Node.js service
+     *
+     * Note: QR code will be sent via webhook event (qr_code_generated),
+     * not in the response. Frontend should listen to Echo/Reverb events.
      */
     public function initializeSession(): array
     {
         try {
-            $response = Http::timeout(30)->post("{$this->nodeServiceUrl}/api/sessions", [
+            // Increased timeout to 60 seconds for puppeteer initialization
+            $response = Http::timeout(60)->post("{$this->nodeServiceUrl}/api/sessions", [
                 'workspace_id' => $this->workspaceId,
                 'session_id' => $this->session->session_id,
                 'api_key' => config('whatsapp.node_api_key'),
@@ -164,14 +168,17 @@ class WebJSAdapter implements WhatsAppAdapterInterface
 
                 // Update session status
                 $this->session->update([
-                    'status' => 'qr_scanning',
+                    'status' => $data['status'] ?? 'qr_scanning',
                     'last_activity_at' => now(),
                 ]);
 
                 return [
                     'success' => true,
-                    'message' => 'Session initialized successfully',
-                    'qr_code' => $data['qr_code'] ?? null,
+                    'message' => 'Session initialized successfully. QR code will be sent via websocket.',
+                    'session_id' => $data['session_id'] ?? $this->session->session_id,
+                    'status' => $data['status'] ?? 'qr_scanning',
+                    // QR code will be sent via webhook event, not here
+                    'qr_code' => null,
                 ];
             }
 
