@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace App\Helpers;
 
@@ -10,9 +10,9 @@ use Illuminate\Support\Str;
 
 class SubscriptionHelper
 {
-    public static function status(string $organizationId)
+    public static function status(string $workspaceId)
     {
-        $subscription = Subscription::where('organization_id', $organizationId)->first();
+        $subscription = Subscription::where('workspace_id', $workspaceId)->first();
 
         if($subscription){
             return $subscription->status;
@@ -21,14 +21,14 @@ class SubscriptionHelper
         }
     }
 
-    public static function info(string $organizationId)
+    public static function info(string $workspaceId)
     {
-        return Subscription::where('organization_id', $organizationId)->first();
+        return Subscription::where('workspace_id', $workspaceId)->first();
     }
 
-    public static function isActive(string $organizationId)
+    public static function isActive(string $workspaceId)
     {
-        $subscription = Subscription::where('organization_id', $organizationId)->first();
+        $subscription = Subscription::where('workspace_id', $workspaceId)->first();
 
         if ($subscription && $subscription->valid_until >= now()) {
             return true;

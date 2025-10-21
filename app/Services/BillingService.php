@@ -7,9 +7,10 @@ use App\Models\BillingCredit;
 use App\Models\BillingDebit;
 use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Services\SubscriptionService;
-use DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class BillingService
 {
@@ -19,16 +20,16 @@ class BillingService
      * @param Request $request
      * @return mixed
      */
-    public function get(object $request, $organizationUuid = NULL)
+    public function get(object $request, $workspaceUuid = null)
     {
-        if ($organizationUuid !== null) {
-            $organization = Organization::with('subscription.plan')->where('uuid', $organizationUuid)->first();
-            $organizationId = optional($organization)->id;
+        if ($workspaceUuid !== null) {
+            $workspace = workspace::with('subscription.plan')->where('uuid', $workspaceUuid)->first();
+            $workspaceId = optional($workspace)->id;
         } else {
-            $organizationId = null;
+            $workspaceId = null;
         }
 
-        $rows = (new BillingTransaction)->listAll($request->query('search'), $organizationId);
+        $rows = (new BillingTransaction)->listAll($request->query('search'), $workspaceId);
 
         return BillingResource::collection($rows);
     }
@@ -40,7 +41,7 @@ class BillingService
      */
     public function store($request){
         return DB::transaction(function () use ($request) {
-            $organization = Organization::where('uuid', $request->uuid)->firstOrFail();
+            $workspace = workspace::where('uuid', $request->uuid)->firstOrFail();
     
             $modelClass = match ($request->type) {
                 'credit' => BillingCredit::class,
@@ -49,7 +50,7 @@ class BillingService
             };
 
             $transactionData = [
-                'organization_id' => $organization->id,
+                'workspace_id' => $workspace->id,
                 'amount' => $request->amount,
             ];
             
@@ -64,17 +65,17 @@ class BillingService
             $entry = $modelClass::create($transactionData);
     
             $transaction = BillingTransaction::create([
-                'organization_id' => $organization->id,
+                'workspace_id' => $workspace->id,
                 'entity_type' => $request->type,
                 'entity_id' => $entry->id,
                 'description' => $request->type === 'payment' ? $request->method . ' Transaction' : $request->description,
                 'amount' => $request->type === 'debit' || $request->type === 'invoice' ? -$request->amount : $request->amount,
-                'created_by' => auth()->user()->id
+                'created_by' => Auth::id()
             ]);
 
-            //Activate organization's plan if credits cover cost of plan
+            //Activate workspace's plan if credits cover cost of plan
             $subscriptionService = new SubscriptionService();
-            $activate = $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($organization->id, auth()->user()->id);
+            $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, Auth::id());
 
             return $transaction;
         });

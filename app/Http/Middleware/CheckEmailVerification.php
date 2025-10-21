@@ -16,7 +16,7 @@ class CheckEmailVerification
             $config = Setting::where('key', 'verify_email')->first();
 
             // Check if the user role is 'user'
-            if (isset($config->value) && $config->value == '1' && $user->email_verified_at === NULL) {
+            if (isset($config->value) && $config->value == '1' && $user->email_verified_at === null) {
                 return to_route('verification.notice');
             }
         }

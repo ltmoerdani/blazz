@@ -23,7 +23,7 @@ class SecurityService
             'timestamp' => now()->toISOString(),
             'ip_address' => $request->ip(),
             'user_id' => Auth::id(),
-            'organization_id' => session('current_organization'),
+            'Workspace_id' => session('current_Workspace'),
             'risk_score' => 0,
             'threats_detected' => [],
             'recommendations' => [],
@@ -144,7 +144,7 @@ class SecurityService
                 'incident_type' => $type,
                 'ip_address' => request()->ip(),
                 'user_id' => Auth::id(),
-                'organization_id' => session('current_organization'),
+                'Workspace_id' => session('current_Workspace'),
                 'severity' => $this->determineSeverity($type),
                 'incident_data' => json_encode($data),
                 'created_at' => now(),
@@ -179,25 +179,25 @@ class SecurityService
     /**
      * Get security metrics for dashboard
      */
-    public function getSecurityMetrics(int $organizationId, int $days = 7): array
+    public function getSecurityMetrics(int $WorkspaceId, int $days = 7): array
     {
         $startDate = now()->subDays($days);
         
         return [
-            'total_incidents' => $this->getIncidentCount($organizationId, $startDate),
-            'blocked_requests' => $this->getBlockedRequestCount($organizationId, $startDate),
-            'threat_levels' => $this->getThreatLevelDistribution($organizationId, $startDate),
-            'top_threats' => $this->getTopThreats($organizationId, $startDate),
+            'total_incidents' => $this->getIncidentCount($WorkspaceId, $startDate),
+            'blocked_requests' => $this->getBlockedRequestCount($WorkspaceId, $startDate),
+            'threat_levels' => $this->getThreatLevelDistribution($WorkspaceId, $startDate),
+            'top_threats' => $this->getTopThreats($WorkspaceId, $startDate),
         ];
     }
 
     /**
-     * Get incident count for organization
+     * Get incident count for workspace
      */
-    protected function getIncidentCount(int $organizationId, Carbon $startDate): int
+    protected function getIncidentCount(int $WorkspaceId, Carbon $startDate): int
     {
         return DB::table('security_incidents')
-            ->where('organization_id', $organizationId)
+            ->where('Workspace_id', $WorkspaceId)
             ->where('created_at', '>=', $startDate)
             ->count();
     }
@@ -205,10 +205,10 @@ class SecurityService
     /**
      * Get blocked request count
      */
-    protected function getBlockedRequestCount(int $organizationId, Carbon $startDate): int
+    protected function getBlockedRequestCount(int $WorkspaceId, Carbon $startDate): int
     {
         return DB::table('rate_limit_violations')
-            ->where('organization_id', $organizationId)
+            ->where('Workspace_id', $WorkspaceId)
             ->where('created_at', '>=', $startDate)
             ->count();
     }
@@ -216,10 +216,10 @@ class SecurityService
     /**
      * Get threat level distribution
      */
-    protected function getThreatLevelDistribution(int $organizationId, Carbon $startDate): array
+    protected function getThreatLevelDistribution(int $WorkspaceId, Carbon $startDate): array
     {
         return DB::table('security_incidents')
-            ->where('organization_id', $organizationId)
+            ->where('Workspace_id', $WorkspaceId)
             ->where('created_at', '>=', $startDate)
             ->groupBy('severity')
             ->selectRaw('severity, count(*) as count')
@@ -228,12 +228,12 @@ class SecurityService
     }
 
     /**
-     * Get top threats for organization
+     * Get top threats for workspace
      */
-    protected function getTopThreats(int $organizationId, Carbon $startDate): array
+    protected function getTopThreats(int $WorkspaceId, Carbon $startDate): array
     {
         return DB::table('security_incidents')
-            ->where('organization_id', $organizationId)
+            ->where('Workspace_id', $WorkspaceId)
             ->where('created_at', '>=', $startDate)
             ->groupBy('incident_type')
             ->selectRaw('incident_type, count(*) as count')
@@ -253,7 +253,7 @@ class SecurityService
             'timestamp' => now()->toISOString(),
             'ip_address' => $request->ip(),
             'user_id' => Auth::id(),
-            'organization_id' => session('current_organization_id'),
+            'Workspace_id' => session('current_Workspace_id'),
             'risk_score' => 0,
             'threats_detected' => [],
             'recommendations' => [],
@@ -766,7 +766,7 @@ class SecurityService
         DB::table('security_assessments')->insert([
             'ip_address' => $assessment['ip_address'],
             'user_id' => $assessment['user_id'],
-            'organization_id' => $assessment['organization_id'],
+            'Workspace_id' => $assessment['Workspace_id'],
             'risk_score' => $assessment['risk_score'],
             'threats_detected' => json_encode($assessment['threats_detected']),
             'recommendations' => json_encode($assessment['recommendations']),

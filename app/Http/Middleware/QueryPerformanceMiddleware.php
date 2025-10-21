@@ -178,24 +178,24 @@ class QueryPerformanceMiddleware
     {
         $route = $request->route();
         
-        if ($route) {
-            $action = $route->getAction();
-            
-            if (isset($action['controller'])) {
-                return is_string($action['controller']) ? $action['controller'] : null;
-            }
-            
-            if (isset($action['uses'])) {
-                // Check if it's a string (controller@method) or Closure
-                if (is_string($action['uses'])) {
-                    return $action['uses'];
-                } elseif ($action['uses'] instanceof \Closure) {
-                    return 'Closure';
-                }
+        if (!$route) {
+            return null;
+        }
+
+        $action = $route->getAction();
+        $controllerAction = null;
+        
+        if (isset($action['controller']) && is_string($action['controller'])) {
+            $controllerAction = $action['controller'];
+        } elseif (isset($action['uses'])) {
+            if (is_string($action['uses'])) {
+                $controllerAction = $action['uses'];
+            } elseif ($action['uses'] instanceof \Closure) {
+                $controllerAction = 'Closure';
             }
         }
         
-        return null;
+        return $controllerAction;
     }
 
     /**
@@ -268,9 +268,14 @@ class QueryPerformanceMiddleware
 
     /**
      * Format bytes untuk human readable display
+     * Protected from DivisionByZeroError when $bytes = 0
      */
     private function formatBytes(int $bytes): string
     {
+        if ($bytes === 0) {
+            return '0 B';
+        }
+        
         $units = ['B', 'KB', 'MB', 'GB'];
         $pow = floor(log($bytes) / log(1024));
         

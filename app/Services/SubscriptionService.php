@@ -21,22 +21,14 @@ use App\Models\User;
 use App\Resolvers\PaymentPlatformResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use DB;
 
 class SubscriptionService
 {
-    public static function isSubscriptionActive(string $organizationId)
+    public static function isSubscriptionActive(string $workspaceId)
     {
-        $subscription = Subscription::where('organization_id', $organizationId)->first();
-
-        /*if($subscription->status != 'trial'){
-            $billingDetails = self::calculateSubscriptionBillingDetails($organizationId, $subscription->plan_id);
-
-            if($billingDetails['accountBalance'] < 0){
-                return false;
-            }
-        }*/
+        $subscription = Subscription::where('workspace_id', $workspaceId)->first();
 
         if ($subscription && $subscription->valid_until >= now()) {
             return true;
@@ -45,63 +37,58 @@ class SubscriptionService
         return false;
     }
 
-    public static function store($request, $organizationId, $planId, $userId)
+    public static function store($request, $workspaceId, $planId, $userId)
     {
-        $billingDetails = self::calculateSubscriptionBillingDetails($organizationId, $planId);
-
-        $response = false;
+        $billingDetails = self::calculateSubscriptionBillingDetails($workspaceId, $planId);
 
         if($billingDetails['amountDue'] == 0){
-            self::createBillingInvoice($billingDetails, $organizationId, $planId, $userId);
-        } else {
-            $paymentPlatform = (new PaymentPlatformResolver())->resolveService($request->method);
-            session()->put('paymentPlatform', $request->method);
-
-            $amountDue = str_replace(',', '', $billingDetails['amountDue']);
-            $amountDue = (float)$amountDue;
-            $response = $paymentPlatform->handlePayment($amountDue, $request->plan);
-
-            return $response;
+            return self::createBillingInvoice($billingDetails, $workspaceId, $planId, $userId);
         }
+
+        $paymentPlatform = (new PaymentPlatformResolver())->resolveService($request->method);
+        session()->put('paymentPlatform', $request->method);
+
+        $amountDue = str_replace(',', '', $billingDetails['amountDue']);
+        $amountDue = (float)$amountDue;
+        
+        return $paymentPlatform->handlePayment($amountDue, $request->plan);
     }
 
-    public static function activateSubscriptionIfInactiveAndExpiredWithCredits($organizationId, $userId = 0)
+    public static function activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId = 0)
     {
-        $subscription = Subscription::where('organization_id', $organizationId)->first();
+        $subscription = Subscription::where('workspace_id', $workspaceId)->first();
 
-        if($subscription->valid_until < now()){
-            if($subscription->plan_id){
-                $planId = $subscription->plan_id;
+        if($subscription->valid_until < now() && $subscription->plan_id){
+            $planId = $subscription->plan_id;
 
-                $billingDetails = self::calculateSubscriptionBillingDetails($organizationId, $planId);
+            $billingDetails = self::calculateSubscriptionBillingDetails($workspaceId, $planId);
 
-                if($billingDetails['amountDue'] == 0){
-                    self::createBillingInvoice($billingDetails, $organizationId, $planId, $userId);
+            if($billingDetails['amountDue'] == 0){
+                self::createBillingInvoice($billingDetails, $workspaceId, $planId, $userId);
 
-                    $team = Team::where('organization_id', $organizationId)->where('role', 'owner')->first();
-                    $user = User::where('id', $team->user_id)->first();
-                    $plan = SubscriptionPlan::where('id', $planId)->first();
+                $team = Team::where('workspace_id', $workspaceId)->where('role', 'owner')->first();
+                $user = User::where('id', $team->user_id)->first();
+                $plan = SubscriptionPlan::where('id', $planId)->first();
 
-                    //Send subscription email
-                    Email::sendSubscriptionEmail('Subscription Renewal', $user, $plan);
-                }
-            } 
+                //Send subscription email
+                Email::sendSubscriptionEmail('Subscription Renewal', $user, $plan);
+            }
         }
 
         return false;
     }
 
-    public static function updateSubscriptionPlan($organizationId, $planId, $userId)
+    public static function updateSubscriptionPlan($workspaceId, $planId, $userId)
     {
         $plan = SubscriptionPlan::where('id', $planId)->first();
 
         if($plan){
-            $billingDetails = self::calculateSubscriptionBillingDetails($organizationId, $planId);
+            $billingDetails = self::calculateSubscriptionBillingDetails($workspaceId, $planId);
 
             if($billingDetails['amountDue'] == 0){
-                self::createBillingInvoice($billingDetails, $organizationId, $planId, $userId);
+                self::createBillingInvoice($billingDetails, $workspaceId, $planId, $userId);
 
-                $team = Team::where('organization_id', $organizationId)->where('role', 'owner')->first();
+                $team = Team::where('workspace_id', $workspaceId)->where('role', 'owner')->first();
                 $user = User::where('id', $team->user_id)->first();
                 $plan = SubscriptionPlan::where('id', $planId)->first();
 
@@ -111,16 +98,16 @@ class SubscriptionService
         }
     }
 
-    public static function createBillingInvoice($billingDetails, $organizationId, $planId, $userId)
+    public static function createBillingInvoice($billingDetails, $workspaceId, $planId, $userId)
     {
-        return DB::transaction(function () use ($billingDetails, $organizationId, $planId, $userId) {
+        return DB::transaction(function () use ($billingDetails, $workspaceId, $planId, $userId) {
             $netAmount = str_replace(',', '', $billingDetails['netAmount']);
             $netAmount = (float)$netAmount;
             $totalTaxAmount = str_replace(',', '', $billingDetails['totalTaxAmount']);
             $totalTaxAmount = (float)$totalTaxAmount;
 
             $invoice = BillingInvoice::create([
-                'organization_id' => $organizationId,
+                'workspace_id' => $workspaceId,
                 'plan_id' => $planId,
                 'subtotal' => $netAmount,
                 'tax' => $totalTaxAmount,
@@ -130,15 +117,15 @@ class SubscriptionService
 
             foreach($billingDetails['taxRates'] as $taxRate){
                 $taxRateAmount = str_replace(',', '', $taxRate['amount']);
-                $taxrate = BillingTaxRate::create([
+                BillingTaxRate::create([
                     'invoice_id' => $invoice->id,
                     'rate' => $taxRateAmount,
                     'amount' => $taxRate['percentage'],
                 ]);
             }
 
-            $invoiceBillingTransaction = BillingTransaction::create([
-                'organization_id' => $organizationId,
+            BillingTransaction::create([
+                'workspace_id' => $workspaceId,
                 'entity_type' => 'invoice',
                 'entity_id' => $invoice->id,
                 'description' => 'Invoice',
@@ -148,13 +135,13 @@ class SubscriptionService
 
             if(abs($billingDetails['credit']['new']) > 0){
                 BillingCredit::create([
-                    'organization_id' => $organizationId,
+                    'workspace_id' => $workspaceId,
                     'description' => 'Credit memo',
                     'amount' => abs($billingDetails['credit']['new'])
                 ]);
 
-                $creditBillingTransaction = BillingTransaction::create([
-                    'organization_id' => $organizationId,
+                BillingTransaction::create([
+                    'workspace_id' => $workspaceId,
                     'entity_type' => 'credit',
                     'entity_id' => $invoice->id,
                     'description' => 'Credit memo',
@@ -166,7 +153,7 @@ class SubscriptionService
             //Update subscription
             $plan = SubscriptionPlan::where('id', $planId)->first();
             
-            Subscription::where('organization_id', $organizationId)->update([
+            Subscription::where('workspace_id', $workspaceId)->update([
                 'plan_id' => $planId,
                 'start_date' => now(),
                 'valid_until' => date('Y-m-d H:i:s', strtotime('+1 ' . ($plan->period === 'monthly' ? 'month' : 'year'))),
@@ -177,9 +164,9 @@ class SubscriptionService
         });
     }
 
-    public static function calculateSubscriptionBillingDetails($organizationId, $selectedPlanId)
+    public static function calculateSubscriptionBillingDetails($workspaceId, $selectedPlanId)
     {
-        $currentSubscription = Subscription::where('organization_id', $organizationId)->first();
+        $currentSubscription = Subscription::where('workspace_id', $workspaceId)->first();
         $subscriptionStatus = $currentSubscription->status;
 
         $selectedSubscriptionPlan = SubscriptionPlan::where('id', $selectedPlanId)->first();
@@ -187,28 +174,27 @@ class SubscriptionService
 
         $totalTaxPercentage = self::calculateTotalTaxPercentage();
 
-        if($selectedSubscriptionPlan){
-            $basePrice = ($subscriptionStatus == 'trial') ? $selectedSubscriptionPlan->price : $selectedSubscriptionPlan->price;
-        } else {
-            $basePrice = 0;
-        }
+        $basePrice = $selectedSubscriptionPlan ? $selectedSubscriptionPlan->price : 0;
 
-        $grossAmount = $isTaxInclusive ? $basePrice - ($basePrice * $totalTaxPercentage / (100 + $totalTaxPercentage)) : $basePrice;
+        // Prevent division by zero: check if (100 + $totalTaxPercentage) is not zero
+        $grossAmount = $isTaxInclusive && (100 + $totalTaxPercentage) != 0
+            ? $basePrice - ($basePrice * $totalTaxPercentage / (100 + $totalTaxPercentage))
+            : $basePrice;
 
         $proratedCreditAmount = 0;
 
         if ($subscriptionStatus != 'trial') {
             // Calculate the unused amount for the current invoiced period as a credit to the user's account
-            $lastInvoice = BillingInvoice::where('organization_id', $organizationId)->orderBy('id', 'desc')->first();
+            $lastInvoice = BillingInvoice::where('workspace_id', $workspaceId)->orderBy('id', 'desc')->first();
             $lastInvoiceTotal = $lastInvoice ? $lastInvoice->total : 0;
-            $proratedAmount = self::calculateProratedAmount($organizationId, $lastInvoiceTotal);
+            $proratedAmount = self::calculateProratedAmount($workspaceId, $lastInvoiceTotal);
 
             //Calculate unutilized amount for current invoiced period
             $proratedCreditAmount = $proratedAmount;
         }
 
         //Get user's account credits and debits
-        $accountBalance = BillingTransaction::where('organization_id', $organizationId)->sum('amount');
+        $accountBalance = BillingTransaction::where('workspace_id', $workspaceId)->sum('amount');
         $availableCredits = max(0, $accountBalance);
         $availableDebits = min(0, $accountBalance);
 
@@ -233,24 +219,22 @@ class SubscriptionService
                 ->whereNull('deleted_at')
                 ->first();
 
-            if ($couponData) {
-                if ($couponData->quantity_redeemed < $couponData->quantity) {
-                    $discount = ($amountDue * $couponData->percentage) / 100;
-                    $discount = min($discount, $amountDue);
+            if ($couponData && $couponData->quantity_redeemed < $couponData->quantity) {
+                $discount = ($amountDue * $couponData->percentage) / 100;
+                $discount = min($discount, $amountDue);
 
-                    $coupon = [
-                        'code' => $couponData->code,
-                        'type' => 'percentage',
-                        'amount' => $couponData->percentage,
-                        'discount' => number_format($discount, 2)
-                    ];
+                $coupon = [
+                    'code' => $couponData->code,
+                    'type' => 'percentage',
+                    'amount' => $couponData->percentage,
+                    'discount' => number_format($discount, 2)
+                ];
 
-                    $amountDue = max(0, $amountDue - $discount);
-                }
+                $amountDue = max(0, $amountDue - $discount);
             }
         }
 
-        $response = [
+        return [
             'isTaxInclusive' => $isTaxInclusive,
             'basePrice' => number_format($basePrice, 2),
             'grossAmount' => number_format($grossAmount, 2),
@@ -270,8 +254,6 @@ class SubscriptionService
             'coupon' => $coupon,
             'amountDue' => number_format($amountDue, 2)
         ];
-
-        return $response;
     }
 
     private static function calculateTotalTaxPercentage()
@@ -293,6 +275,7 @@ class SubscriptionService
         $totalTaxAmount = 0;
 
         foreach($activeTaxRates as $taxRate){
+            // Safe calculation: this is always safe since we're dividing by 100 (constant)
             $taxAmount = $taxRate->percentage * $grossAmount / 100;
             $taxRatesDetails[] = array(
                 'name' => $taxRate->name,
@@ -308,33 +291,32 @@ class SubscriptionService
         return $response;
     }
 
-    private static function calculateProratedAmount($organizationId, $amount)
+    private static function calculateProratedAmount($workspaceId, $amount)
     {
         // Calculate the prorated amount based on the remaining days
-        $periodInDays = self::subscriptionPeriodInDays($organizationId);
+        $periodInDays = self::subscriptionPeriodInDays($workspaceId);
 
+        // Prevent division by zero: ensure periodInDays is greater than 0
         if($periodInDays > 0){
             $amountPerDay = $amount / $periodInDays;
-            $proratedAmount = $amountPerDay * self::subscriptionPeriodRemainingDays($organizationId);
-
-            return $proratedAmount;
+            return $amountPerDay * self::subscriptionPeriodRemainingDays($workspaceId);
         }
 
         return 0;
     }
 
-    private static function subscriptionPeriodInDays($organizationId)
+    private static function subscriptionPeriodInDays($workspaceId)
     {
-        $subscription = Subscription::where('organization_id', $organizationId)->first();
+        $subscription = Subscription::where('workspace_id', $workspaceId)->first();
         $subscriptionStartDate = Carbon::parse($subscription->start_date);
         $subscriptionEndDate = Carbon::parse($subscription->valid_until);
 
         return $subscriptionStartDate->diffInDays($subscriptionEndDate);
     }
 
-    private static function subscriptionPeriodRemainingDays($organizationId)
+    private static function subscriptionPeriodRemainingDays($workspaceId)
     {
-        $subscription = Subscription::where('organization_id', $organizationId)->first();
+        $subscription = Subscription::where('workspace_id', $workspaceId)->first();
 
         if ($subscription) {
             $subscriptionEndDate = Carbon::parse($subscription->valid_until)->endOfDay();
@@ -349,132 +331,92 @@ class SubscriptionService
         return 0;
     }
 
-    public static function isSubscriptionFeatureLimitReached($organizationId, $feature)
+    public static function isSubscriptionFeatureLimitReached($workspaceId, $feature)
     {
-        $subscription = Subscription::where('organization_id', $organizationId)->first();
+        $subscription = Subscription::where('workspace_id', $workspaceId)->first();
 
-        if (!$subscription) {
+        if (!$subscription || $subscription->valid_until < now()) {
             return true;
         }
 
-        if($subscription->valid_until < now()){
-            return true;
+        $count = self::getFeatureCount($workspaceId, $feature);
+        
+        if ($subscription->status === 'trial' && $subscription->valid_until > now()) {
+            return self::checkTrialLimit($feature, $count);
         }
 
         $subscriptionPlan = SubscriptionPlan::find($subscription->plan_id);
 
-        if ($subscriptionPlan) {
-            $subscriptionPlanLimits = json_decode($subscriptionPlan->metadata, true);
-
-            if (!array_key_exists($feature, $subscriptionPlanLimits)) {
-                return false;
-            }
-
-            $featureLimit = $subscriptionPlanLimits[$feature];
-        }
-
-        if ($feature == 'canned_replies_limit') {
-            $count = AutoReply::where('organization_id', $organizationId)->whereNull('deleted_at')->count();
-
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['automated_replies'] ?? '-1' : '-1';
-
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
-
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
-        }
-
-        if ($feature == 'contacts_limit') {
-            $count = Contact::where('organization_id', $organizationId)->whereNull('deleted_at')->count();
-
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['contacts'] ?? '-1' : '-1';
-
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
-
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
-        }
-
-        if ($feature == 'campaign_limit') {
-            $count = Campaign::where('organization_id', $organizationId)->count();
-
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['campaigns'] ?? '-1' : '-1';
-
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
-
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
-        }
-
-        if ($feature == 'message_limit') {
-            $count = Chat::where('organization_id', $organizationId)->whereNull('deleted_at')->count();
-
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['messages'] ?? '-1' : '-1';
-
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
-
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
-        }
-
-        if ($feature == 'team_limit') {
-            $count = Team::where('organization_id', $organizationId)->count();
-
-            if($subscription->status === 'trial' && $subscription->valid_until > now()){
-                $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
-                $usageLimit = $limit ? json_decode($limit, true)['users'] ?? '-1' : '-1';
-
-                return $usageLimit == -1 ? false : $count >= $usageLimit;
-            }
-
-            if ($subscriptionPlan) {
-                return $featureLimit == -1 ? false : $count >= $featureLimit;
-            }
-        }
-
-        return false;
+        return $subscriptionPlan ? self::checkPlanLimit($subscriptionPlan, $feature, $count) : false;
     }
 
-    public static function isSubscriptionLimitReachedForInboundMessages($organizationId)
+    private static function getFeatureCount($workspaceId, $feature)
     {
-        $subscription = Subscription::with('plan')->where('organization_id', $organizationId)->first();
+        $featureCounts = [
+            'canned_replies_limit' => AutoReply::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count(),
+            'contacts_limit' => Contact::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count(),
+            'campaign_limit' => Campaign::where('workspace_id', $workspaceId)->count(),
+            'message_limit' => Chat::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count(),
+            'team_limit' => Team::where('workspace_id', $workspaceId)->count(),
+        ];
+
+        return $featureCounts[$feature] ?? 0;
+    }
+
+    private static function checkTrialLimit($feature, $count)
+    {
+        $trialLimitMapping = [
+            'canned_replies_limit' => 'automated_replies',
+            'contacts_limit' => 'contacts',
+            'campaign_limit' => 'campaigns',
+            'message_limit' => 'messages',
+            'team_limit' => 'users',
+        ];
+
+        $limitKey = $trialLimitMapping[$feature] ?? null;
+        
+        if (!$limitKey) {
+            return false;
+        }
+
+        $limit = optional(Setting::where('key', 'trial_limits')->first())->value;
+        $usageLimit = $limit ? json_decode($limit, true)[$limitKey] ?? '-1' : '-1';
+
+        return $usageLimit == -1 ? false : $count >= $usageLimit;
+    }
+
+    private static function checkPlanLimit($subscriptionPlan, $feature, $count)
+    {
+        $subscriptionPlanLimits = json_decode($subscriptionPlan->metadata, true);
+
+        if (!array_key_exists($feature, $subscriptionPlanLimits)) {
+            return false;
+        }
+
+        $featureLimit = $subscriptionPlanLimits[$feature];
+
+        return $featureLimit == -1 ? false : $count >= $featureLimit;
+    }
+
+    public static function isSubscriptionLimitReachedForInboundMessages($workspaceId)
+    {
+        $subscription = Subscription::with('plan')->where('workspace_id', $workspaceId)->first();
 
         // If no subscription is found, assume the limit is reached
         if (!$subscription) {
             return true;
         }
 
-        // If no subscription is found, assume the limit is reached
-        if(isset($subscription->plan->metadata)){
+        // Check if receiving messages after expiration is allowed
+        if (isset($subscription->plan->metadata)) {
             $subscriptionMetadata = json_decode($subscription->plan->metadata, true);
             
-            // Check if receiving messages after expiration is allowed
-            if(isset($subscriptionMetadata['receive_messages_after_expiration']) && $subscriptionMetadata['receive_messages_after_expiration']){
+            if (isset($subscriptionMetadata['receive_messages_after_expiration']) && $subscriptionMetadata['receive_messages_after_expiration']) {
                 return false;
             }
         }
 
         // Check if the subscription has expired
-        if($subscription->valid_until < now()){
-            return true;
-        }
-
-        return false;
+        return $subscription->valid_until < now();
     }
 }

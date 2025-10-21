@@ -120,29 +120,21 @@ class SecurityHeadersMiddleware
     {
         $policies = [
             'accelerometer=()',
-            'ambient-light-sensor=()',
             'autoplay=()',
-            'battery=()',
             'camera=(self)', // Allow camera untuk WhatsApp media
             'display-capture=()',
-            'document-domain=()',
             'encrypted-media=()',
-            'execution-while-not-rendered=()',
-            'execution-while-out-of-viewport=()',
             'fullscreen=(self)',
             'geolocation=()',
             'gyroscope=()',
             'magnetometer=()',
             'microphone=(self)', // Allow microphone untuk voice messages
             'midi=()',
-            'navigation-override=()',
             'payment=()',
             'picture-in-picture=()',
             'publickey-credentials-get=()',
-            'speaker-selection=()',
             'sync-xhr=()',
             'usb=()',
-            'wake-lock=()',
             'web-share=()',
             'xr-spatial-tracking=()',
         ];
@@ -175,7 +167,7 @@ class SecurityHeadersMiddleware
         $sensitivePatterns = [
             'admin/*',
             'user/profile/*',
-            'organization/settings/*',
+            'workspace/settings/*',
             'billing/*',
             'api/admin/*',
             'developer/*',
@@ -191,7 +183,7 @@ class SecurityHeadersMiddleware
         $sensitiveRoutes = [
             'admin.dashboard',
             'user.profile',
-            'organization.settings',
+            'workspace.settings',
             'billing.dashboard',
             'developer.index',
         ];

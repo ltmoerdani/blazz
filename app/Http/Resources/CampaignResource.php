@@ -15,7 +15,7 @@ class CampaignResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $totalContacts = Contact::where('organization_id', $this->organization_id)->whereNull('deleted_at')->count();
+        $totalContacts = Contact::where('workspace_id', $this->Workspace_id)->whereNull('deleted_at')->count();
 
         return [
             'id' => $this->id,

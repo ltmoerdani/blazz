@@ -11,7 +11,7 @@ use App\Http\Resources\TaxRateResource;
 use App\Services\TaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule; 
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Helper;
 use Session;
@@ -19,6 +19,9 @@ use Validator;
 
 class TaxController extends BaseController
 {
+    private const REDIRECT_ROUTE = '/admin/tax-rates';
+    private $taxService;
+
     public function __construct(TaxService $taxService)
     {
         $this->taxService = $taxService;
@@ -35,9 +38,9 @@ class TaxController extends BaseController
     {
         $this->taxService->store($request);
 
-        return redirect('/admin/tax-rates')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Tax rate added successfully')
             ]
         );
@@ -53,9 +56,9 @@ class TaxController extends BaseController
     {
         $this->taxService->store($request, $id);
 
-        return redirect('/admin/tax-rates')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Tax rate updated successfully')
             ]
         );
@@ -71,9 +74,9 @@ class TaxController extends BaseController
     {
         $this->taxService->delete($id);
 
-        return redirect('/admin/tax-rates')->with(
+        return redirect(self::REDIRECT_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Tax rate deleted successfully')
             ]
         );

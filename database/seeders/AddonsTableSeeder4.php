@@ -19,7 +19,7 @@ class AddonsTableSeeder4 extends Seeder
                 'name' => 'Webhooks',
                 'logo' => 'webhook_icon.png',
                 'description' => 'Webhooks enable real-time data transfer by sending automated notifications on specific events.',
-                'metadata' => NULL,
+                'metadata' => null,
                 'status' => 0,
             ],
             [
@@ -27,7 +27,7 @@ class AddonsTableSeeder4 extends Seeder
                 'name' => 'Flow builder',
                 'logo' => 'flow_icon.png',
                 'description' => 'Flow Builder automation allows users to visually create and manage messaging workflows.',
-                'metadata' => NULL,
+                'metadata' => null,
                 'status' => 0,
             ],
         ];

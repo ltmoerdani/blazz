@@ -36,7 +36,7 @@ class TeamController extends BaseController
         return Inertia::render('Admin/Team/Index', [
             'title' => __('Team'),
             'allowCreate' => true,
-            'rows' => $this->userService->get($request), 
+            'rows' => $this->userService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -47,7 +47,7 @@ class TeamController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show(Request $request, $uuid = NULL)
+    public function show(Request $request, $uuid = null)
     {
         $res = $this->userService->getByUuid($request, $uuid);
 
@@ -77,7 +77,7 @@ class TeamController extends BaseController
 
         return redirect('/admin/team/users')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('User created successfully!')
             ]
         );
@@ -95,7 +95,7 @@ class TeamController extends BaseController
 
         return redirect('/admin/team/users')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('User updated successfully!')
             ]
         );

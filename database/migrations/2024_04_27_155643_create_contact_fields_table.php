@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('contact_fields', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('organization_id');
+            $table->unsignedBigInteger('workspace_id');
             $table->char('uuid', 50)->nullable(false);
             $table->unsignedBigInteger('position')->nullable();
             $table->string('name', 128);

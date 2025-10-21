@@ -4,6 +4,7 @@ namespace App\Console;
 
 use App\Jobs\CreateCampaignLogsJob;
 use App\Jobs\ProcessCampaignMessagesJob;
+use App\Models\CampaignLog;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -21,10 +22,6 @@ class Kernel extends ConsoleKernel
         $schedule->job(new ProcessCampaignMessagesJob(), 'campaign-messages')
             ->everyMinute()
             ->withoutOverlapping();
-
-        /*$schedule->command('queue:work --queue=campaign-messages,campaign-logs --stop-when-empty')
-            ->everyMinute()
-            ->withoutOverlapping();*/
         
         // Monitor queue health
         $schedule->command('queue:restart')
@@ -56,6 +53,6 @@ class Kernel extends ConsoleKernel
     {
         $this->load(__DIR__.'/Commands');
 
-        require base_path('routes/console.php');
+        require_once base_path('routes/console.php');
     }
 }

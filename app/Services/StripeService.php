@@ -6,7 +6,7 @@ use Carbon\Carbon;
 use Helper;
 use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\PaymentGateway;
 use App\Models\Setting;
 use App\Models\Subscription;
@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\SubscriptionService;
 use App\Traits\ConsumesExternalServices;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -34,27 +35,27 @@ class StripeService
         $this->stripe = new \Stripe\StripeClient($this->config->secret_key);
     }
 
-    public function handlePayment($amount, $planId = NULL)
+    public function handlePayment($amount, $planId = null)
     {
         try {
-            if($planId == NULL){
+            if($planId == null){
                 $stripeSession = $this->stripe->checkout->sessions->create([
                     'line_items' => [[
                         'price_data' => [
-                            'currency' => strtolower(Setting::where('key', 'currency')->first()->value), 
-                            'product_data' => [ 
-                                'name' => 'Account Credits' 
-                            ], 
+                            'currency' => strtolower(Setting::where('key', 'currency')->first()->value),
+                            'product_data' => [
+                                'name' => 'Account Credits'
+                            ],
                             'unit_amount' => $amount * 100
                         ],
                         'quantity' => 1,
                     ]],
                     'mode' => 'payment',
-                    //'customer' => session()->get('current_organization'),
-                    'customer_email' => auth()->user()->email,
+                    
+                    'customer_email' => Auth::user()->email,
                     'metadata' => [
-                        'organization_id' => session()->get('current_organization'),
-                        'user_id' => auth()->user()->id,
+                        'workspace_id' => session()->get('current_workspace'),
+                        'user_id' => Auth::id(),
                         'amount' => $amount,
                         'plan_id' => $planId
                     ],
@@ -64,7 +65,6 @@ class StripeService
             } else {
                 $plan = SubscriptionPlan::where('id', $planId)->first();
                 $metadata = json_decode($plan->metadata, true);
-                $productId = $metadata['stripe']['product']['id'] ?? null;
                 $priceId = $metadata['stripe']['price']['id'] ?? null;
 
                 $stripeSession = $this->stripe->checkout->sessions->create([
@@ -73,11 +73,11 @@ class StripeService
                         'quantity' => 1,
                     ]],
                     'mode' => 'subscription',
-                    //'customer' => session()->get('current_organization'),
-                    'customer_email' => auth()->user()->email,
+                    
+                    'customer_email' => Auth::user()->email,
                     'metadata' => [
-                        'organization_id' => session()->get('current_organization'),
-                        'user_id' => auth()->user()->id,
+                        'workspace_id' => session()->get('current_workspace'),
+                        'user_id' => Auth::id(),
                         'amount' => $amount,
                         'plan_id' => $planId
                     ],
@@ -257,7 +257,7 @@ class StripeService
                 $plan->metadata = json_encode($metadata);
                 $plan->save();
             } catch (\Exception $e) {
-                \Log::error('Error updating product prices: ' . $e->getMessage(), [
+                Log::error('Error updating product prices: ' . $e->getMessage(), [
                     'plan_id' => $plan->id,
                 ]);
             }
@@ -275,7 +275,7 @@ class StripeService
             $productId = $metadata['stripe']['product']['id'] ?? null;
 
             //Archive the product
-            $product = $this->stripe->products->update(
+            $this->stripe->products->update(
                 $productId,
                 [
                     'active' => false,
@@ -288,33 +288,27 @@ class StripeService
         }
     }
 
-    public function handleSubscription($amount, $planId = NULL)
+    public function handleSubscription($amount, $planId = null)
     {
         try{
-            /*$organization = Organization::where('id', session()->get('current_organization'))->first();
-            if ($organization && $metadata = json_decode($organization->metadata, true)) {
-                $stripeCustomerId = $metadata['stripe']['id'] ?? null;
-            } else {
-                $stripeCustomerId = $this->createCustomer(auth()->user()->id);
-            }*/
 
             // Create the subscription.
             $stripeSession = $this->stripe->subscriptions->create([
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => strtolower(Setting::where('key', 'currency')->first()->value), 
-                        'product_data' => [ 
-                            'name' => 'Subscription Payment' 
-                        ], 
+                        'currency' => strtolower(Setting::where('key', 'currency')->first()->value),
+                        'product_data' => [
+                            'name' => 'Subscription Payment'
+                        ],
                         'unit_amount' => $amount * 100
                     ],
                     'quantity' => 1,
                 ]],
                 'mode' => 'subscription',
-                'customer_email' => auth()->user()->email,
+                'customer_email' => Auth::user()->email,
                 'metadata' => [
-                    'organization_id' => session()->get('current_organization'),
-                    'user_id' => auth()->user()->id,
+                    'workspace_id' => session()->get('current_workspace'),
+                    'user_id' => Auth::id(),
                     'amount' => $amount,
                     'plan_id' => $planId
                 ],
@@ -330,142 +324,149 @@ class StripeService
 
     public function handleWebhook(Request $request)
     {
-        // Attempt to validate the Webhook
-        try {
-            $stripeEvent = \Stripe\Webhook::constructEvent($request->getContent(), $request->server('HTTP_STRIPE_SIGNATURE'), $this->config->webhook_secret);
-        } catch(\UnexpectedValueException $e) {
-            // Invalid payload
-            //Log::info($e->getMessage());
-
-            return response()->json([
-                'status' => 400,
-                'message' => $e->getMessage()
-            ], 400);
-        } catch(\Stripe\Exception\SignatureVerificationException $e) {
-            // Invalid signature
-            //Log::info($e->getMessage());
-
-            return response()->json([
-                'status' => 400,
-                'message' => $e->getMessage()
-            ], 400);
-        }
+        $stripeEvent = $this->validateWebhookEvent($request);
         
-        /*if ($stripeEvent->type == 'checkout.session.completed') {
-            // Provide enough time for the event to be handled
-            sleep(3);
+        if (!$stripeEvent) {
+            return response()->json(['status' => 400, 'message' => 'Invalid webhook'], 400);
         }
 
-        if ($stripeEvent->type == 'invoice.paid') {
-            // Provide enough time for the event to be handled
-            sleep(3);
-        }*/
+        $response = null;
 
-        if($stripeEvent->type == 'checkout.session.completed'){
-            // Get the metadata
-            $metadata = $stripeEvent->data->object->lines->data[0]->metadata ?? ($stripeEvent->data->object->metadata ?? null);
+        if ($stripeEvent->type == 'checkout.session.completed') {
+            $response = $this->handleCheckoutSessionCompleted($stripeEvent);
+        } elseif ($stripeEvent->type == 'invoice.paid') {
+            $response = $this->handleInvoicePaid($stripeEvent);
+        }
 
-            if (isset($metadata->organization_id)) {
-                $transaction = DB::transaction(function () use ($stripeEvent, $metadata) {
-                    //Save stripe id to database
-                    $organization = Organization::where('id', $metadata->organization_id)->first();
-                    $orgMetadata = json_decode($organization->metadata, true);
-                    $orgMetadata['stripe_id'] = $stripeEvent->data->object->customer;
-                    $organization->metadata = json_encode($orgMetadata);
-                    $organization->save();
+        return $response ?? response()->json(['status' => 200], 200);
+    }
 
-                    if($stripeEvent->data->object->mode == 'subscription'){
-                        //Save plan id to database
-                        if($metadata->plan_id != NULL){
-                            $subscription = Subscription::where('organization_id', $metadata->organization_id)->update([
-                                'plan_id' => $metadata->plan_id
-                            ]);
-                        }
-                    } else {
-                        $payment = BillingPayment::create([
-                            'organization_id' => $metadata->organization_id,
-                            'processor' => 'stripe',
-                            'details' => $stripeEvent->data->object->payment_intent,
-                            'amount' => $metadata->amount
-                        ]);
+    private function validateWebhookEvent(Request $request)
+    {
+        try {
+            return \Stripe\Webhook::constructEvent(
+                $request->getContent(),
+                $request->server('HTTP_STRIPE_SIGNATURE'),
+                $this->config->webhook_secret
+            );
+        } catch (\UnexpectedValueException | \Stripe\Exception\SignatureVerificationException $e) {
+            Log::error('Webhook validation failed: ' . $e->getMessage());
+            return null;
+        }
+    }
 
-                        //Log::info($payment);
-                        $transaction = BillingTransaction::create([
-                            'organization_id' => $metadata->organization_id,
-                            'entity_type' => 'payment',
-                            'entity_id' => $payment->id,
-                            'description' => 'Stripe Payment',
-                            'amount' => $metadata->amount,
-                            'created_by' => $metadata->user_id,
-                        ]);
+    private function handleCheckoutSessionCompleted($stripeEvent)
+    {
+        $metadata = $stripeEvent->data->object->lines->data[0]->metadata
+            ?? ($stripeEvent->data->object->metadata ?? null);
 
-                        if($metadata->plan_id == null){
-                            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($metadata->organization_id, $metadata->user_id);
-                        } else {
-                            $this->subscriptionService->updateSubscriptionPlan($metadata->organization_id, $metadata->plan_id, $metadata->user_id);
-                        }
+        if (!isset($metadata->Workspace_id)) {
+            return response()->json(['status' => 200], 200);
+        }
 
-                        return $transaction;
-                    }
+        DB::transaction(function () use ($stripeEvent, $metadata) {
+            $this->updateWorkspaceStripeId($metadata->Workspace_id, $stripeEvent->data->object->customer);
 
-                    return response()->json([
-                        'status' => 200
-                    ], 200);
-                });
+            if ($stripeEvent->data->object->mode == 'subscription') {
+                $this->handleSubscriptionMode($metadata);
+            } else {
+                $this->handlePaymentMode($stripeEvent, $metadata);
             }
+        });
+
+        return response()->json(['status' => 200], 200);
+    }
+
+    private function handleInvoicePaid($stripeEvent)
+    {
+        $customerId = $stripeEvent->data->object->customer;
+        $workspace = workspace::whereJsonContains('metadata->stripe_id', $customerId)->first();
+
+        if (!$workspace) {
+            return response()->json(['status' => 404], 404);
         }
 
-        if($stripeEvent->type == 'invoice.paid'){
-            $transaction = DB::transaction(function () use ($stripeEvent) {
-                $customerId = $stripeEvent->data->object->customer;
+        DB::transaction(function () use ($stripeEvent, $workspace) {
+            $subscription = Subscription::where('workspace_id', $workspace->id)->first();
+            $amount = $stripeEvent->data->object->total / 100;
 
-                // Query the Organization using the stripe_id (customer ID)
-                $organization = Organization::whereJsonContains('metadata->stripe_id', $customerId)->first();
+            $payment = $this->createPayment($workspace->id, $stripeEvent->data->object->id, $amount);
+            $this->createTransaction($workspace->id, $payment->id, $amount, 0);
+            $this->updateSubscriptionPlanIfNeeded($workspace->id, $subscription->plan_id, 0);
+        });
 
-                if ($organization) {
-                    $subscription = Subscription::where('organization_id', $organization->id)->first();
-                    $organizationId = $organization->id;
-                    $planId = $subscription->plan_id;
-                    $amount = $stripeEvent->data->object->total/100;
-                    $userId = 0;
+        return response()->json(['status' => 200], 200);
+    }
 
-                    $payment = BillingPayment::create([
-                        'organization_id' => $organizationId,
-                        'processor' => 'stripe',
-                        'details' => $stripeEvent->data->object->id,
-                        'amount' => $amount,
-                    ]);
+    private function updateWorkspaceStripeId($workspaceId, $stripeCustomerId)
+    {
+        $workspace = workspace::where('id', $workspaceId)->first();
+        $orgMetadata = json_decode($workspace->metadata, true);
+        $orgMetadata['stripe_id'] = $stripeCustomerId;
+        $workspace->metadata = json_encode($orgMetadata);
+        $workspace->save();
+    }
 
-                    //Log::info($payment);
-                    $transaction = BillingTransaction::create([
-                        'organization_id' => $organizationId,
-                        'entity_type' => 'payment',
-                        'entity_id' => $payment->id,
-                        'description' => 'Stripe Payment',
-                        'amount' => $amount,
-                        'created_by' => $userId,
-                    ]);
-
-                    if($planId == null){
-                        $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($organizationId, $userId);
-                    } else {
-                        $this->subscriptionService->updateSubscriptionPlan($organizationId, $planId, $userId);
-                    }
-
-                    return response()->json([
-                        'status' => 200
-                    ], 200);
-                } 
-
-                return response()->json([
-                    'status' => 404
-                ], 404);
-            });
+    private function handleSubscriptionMode($metadata)
+    {
+        if ($metadata->plan_id != null) {
+            Subscription::where('workspace_id', $metadata->Workspace_id)->update([
+                'plan_id' => $metadata->plan_id
+            ]);
         }
+    }
 
-        return response()->json([
-            'status' => 200
-        ], 200);
+    private function handlePaymentMode($stripeEvent, $metadata)
+    {
+        $payment = $this->createPayment(
+            $metadata->Workspace_id,
+            $stripeEvent->data->object->payment_intent,
+            $metadata->amount
+        );
+
+        $this->createTransaction(
+            $metadata->Workspace_id,
+            $payment->id,
+            $metadata->amount,
+            $metadata->user_id
+        );
+
+        $this->updateSubscriptionPlanIfNeeded(
+            $metadata->Workspace_id,
+            $metadata->plan_id,
+            $metadata->user_id
+        );
+    }
+
+    private function createPayment($workspaceId, $details, $amount)
+    {
+        return BillingPayment::create([
+            'workspace_id' => $workspaceId,
+            'processor' => 'stripe',
+            'details' => $details,
+            'amount' => $amount
+        ]);
+    }
+
+    private function createTransaction($workspaceId, $paymentId, $amount, $userId)
+    {
+        return BillingTransaction::create([
+            'workspace_id' => $workspaceId,
+            'entity_type' => 'payment',
+            'entity_id' => $paymentId,
+            'description' => 'Stripe Payment',
+            'amount' => $amount,
+            'created_by' => $userId,
+        ]);
+    }
+
+    private function updateSubscriptionPlanIfNeeded($workspaceId, $planId, $userId)
+    {
+        if ($planId == null) {
+            $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
+        } else {
+            $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
+        }
     }
 
     private static function calculateTaxRates($grossAmount)
@@ -475,6 +476,7 @@ class StripeService
         $totalTaxAmount = 0;
 
         foreach($activeTaxRates as $taxRate){
+            // Safe calculation: dividing by 100 (constant) is always safe
             $taxAmount = $taxRate->percentage * $grossAmount / 100;
             $taxRatesDetails[] = array(
                 'name' => $taxRate->name,

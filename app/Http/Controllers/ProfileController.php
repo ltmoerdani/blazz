@@ -8,12 +8,13 @@ use App\Http\Requests\StoreProfile;
 use App\Http\Requests\StoreProfilePassword;
 use App\Http\Requests\StoreProfileAddress;
 use App\Http\Requests\StoreProfileTfa;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
-use Hash;
-use Redirect;
 
 class ProfileController extends BaseController
 {
@@ -24,7 +25,7 @@ class ProfileController extends BaseController
         $email = $request->email;
         $phone = $request->phone;
 
-        $response = User::where('id', auth()->user()->id)->update([
+        User::where('id', Auth::id())->update([
             'first_name' => $first_name,
             'last_name' => $last_name,
             'email' => $email,
@@ -33,7 +34,7 @@ class ProfileController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Profile updated successfully!')
             ]
         );
@@ -41,16 +42,15 @@ class ProfileController extends BaseController
 
     public function updatePassword(StoreProfilePassword $request)
     {
-        $old_password = $request->old_password;
         $password = Hash::make($request->password);
 
-        $response = User::where('id', auth()->user()->id)->update([
+        User::where('id', Auth::id())->update([
             'password' => $password,
         ]);
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Profile updated successfully!')
             ]
         );
@@ -59,8 +59,7 @@ class ProfileController extends BaseController
     public function updateTfa(StoreProfileTfa $request)
     {
         $status = $request->status;
-        $token = $request->token;
-        $userId = auth()->user()->id;
+        $userId = Auth::id();
 
         if ($status === 0) {
             User::where('id', $userId)->update([
@@ -81,11 +80,11 @@ class ProfileController extends BaseController
         ]);
     }
 
-    public function updateOrganization(StoreProfileAddress $request)
+    public function updateWorkspace(StoreProfileAddress $request)
     {
-        $organizationId = session('current_organization');
-        $organizationConfig = Organization::where('id', $organizationId)->first();
-        $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+        $workspaceId = session('current_workspace');
+        $workspaceConfig = workspace::where('id', $workspaceId)->first();
+        $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
         $metadataArray['notifications']['enable_sound'] = $request->input('enable_sound_notification');
         $metadataArray['notifications']['tone'] = $request->input('tone');
@@ -103,21 +102,21 @@ class ProfileController extends BaseController
         $addressArray['zip'] = $request->input('zip');
         $addressArray['country'] = $request->input('country');
 
-        $organizationConfig->name = $request->input('organization_name');
-        $organizationConfig->address = json_encode($addressArray);
-        $organizationConfig->metadata = json_encode($metadataArray);
+        $workspaceConfig->name = $request->input('Workspace_name');
+        $workspaceConfig->address = json_encode($addressArray);
+        $workspaceConfig->metadata = json_encode($metadataArray);
 
-        if($organizationConfig->save()){
+        if($workspaceConfig->save()){
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'success', 
-                    'message' => __('Organization updated successfully!')
+                    'type' => 'success',
+                    'message' => __('workspace updated successfully!')
                 ]
             );
         } else {
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Something went wrong. Refresh the page and try again')
                 ]
             );

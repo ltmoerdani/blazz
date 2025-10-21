@@ -17,7 +17,7 @@
 - **📝 Template Management**: Advanced template creation, approval tracking, dan optimization tools  
 - **🚀 Campaign Automation**: Automated messaging campaigns dengan segmentation dan scheduling
 - **📊 Analytics Dashboard**: Comprehensive metrics, engagement tracking, dan performance insights
-- **👥 Multi-tenant Architecture**: Complete organization isolation dengan role-based access control
+- **👥 Multi-tenant Architecture**: Complete workspace isolation dengan role-based access control
 - **🔒 Enterprise Security**: Advanced security protocols, audit logging, dan compliance features
 - **🌍 Multilingual Support**: Built-in internationalization untuk global business operations
 
@@ -35,15 +35,193 @@
 - **Tailwind CSS** - Utility-first styling untuk responsive design
 - **Vite** - Fast build tools dengan hot module replacement
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 📚 Architecture Documentation
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Blazz menggunakan **Hybrid Service-Oriented Modular Architecture** yang menggabungkan:
+- ✅ **Enhanced MVC Pattern** - Foundation layer
+- ✅ **Service Layer Pattern** - Business logic isolation  
+- ✅ **Job Queue System** - Asynchronous processing
+- ✅ **Module Architecture** - Feature extensibility
+- ✅ **Multi-tenancy Design** - Workspace isolation
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+**Complete Architecture Documentation:**
+📖 [**View Complete Architecture Guide →**](./docs/architecture/README.md)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Quick Links:
+- [Architecture Overview](./docs/architecture/01-arsitektur-overview.md) - Complete architecture explanation
+- [Component Connections](./docs/architecture/02-component-connections.md) - How components interact
+- [Folder Structure](./docs/architecture/03-folder-structure.md) - Project Workspace guide
+- [Feature Development](./docs/architecture/04-feature-development-guide.md) - Step-by-step new feature guide
+- [Visual Diagrams](./docs/architecture/05-visual-diagrams.md) - Architecture visualization
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- PHP 8.2 or higher
+- Composer
+- Node.js & NPM
+- MySQL 8.0+
+- Redis (optional, for caching)
+
+### Installation
+
+```bash
+# Clone repository
+git clone https://github.com/yourusername/blazz.git
+cd blazz
+
+# Install PHP dependencies
+composer install
+
+# Install Node dependencies
+npm install
+
+# Copy environment file
+cp .env.example .env
+
+# Generate application key
+php artisan key:generate
+
+# Configure database in .env file
+# Then run migrations
+php artisan migrate --seed
+
+# Build frontend assets
+npm run build
+
+# Start development server
+php artisan serve
+```
+
+### Queue Worker (Required for campaigns)
+
+```bash
+# Start queue worker
+php artisan queue:work --queue=campaigns,default
+```
+
+---
+
+## 🎯 Development Guidelines
+
+### Adding New Features
+
+Follow the step-by-step guide: [Feature Development Guide](./docs/architecture/04-feature-development-guide.md)
+
+**Quick Pattern:**
+1. Create migration & model
+2. Create service class dengan business logic
+3. Create controller dengan thin methods
+4. Define routes
+5. Create Vue components & Inertia pages
+6. Write tests
+
+### Service Layer Pattern
+
+```php
+// app/Services/{Entity}Service.php
+class EntityService
+{
+    protected $workspaceId;
+
+    public function __construct($workspaceId)
+    {
+        $this->workspaceId = $workspaceId;
+    }
+
+    public function create(array $data)
+    {
+        // Business logic here
+        // Always scope by workspace
+        return Entity::create([
+            'workspace_id' => $this->workspaceId,
+            ...$data,
+        ]);
+    }
+}
+```
+
+### Multi-Tenancy Pattern
+
+**Always scope queries by workspace:**
+```php
+// ✅ GOOD
+$contacts = Contact::where('workspace_id', $this->workspaceId)->get();
+
+// ❌ BAD
+$contacts = Contact::all();
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+php artisan test
+
+# Run specific test
+php artisan test --filter=ContactTest
+
+# Run with coverage
+php artisan test --coverage
+```
+
+---
+
+## 📖 API Documentation
+
+API endpoints available at `/api/*`. Authentication via Bearer token.
+
+**Example:**
+```bash
+curl -X POST https://your-domain.com/api/send \
+  -H "Authorization: Bearer your_api_token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contact_uuid": "abc-123",
+    "message": "Hello from API!"
+  }'
+```
+
+---
+
+## 🔐 Security
+
+### Security Features:
+- Multi-guard authentication (User & Admin)
+- Role-based access control (RBAC)
+- Two-factor authentication (2FA)
+- API token authentication
+- CSRF protection
+- XSS prevention
+- SQL injection protection
+- Rate limiting
+- Audit logging
+
+### Reporting Security Issues
+
+If you discover a security vulnerability, please email security@yourdomain.com. All security vulnerabilities will be promptly addressed.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Follow architecture patterns (see [Architecture Guide](./docs/architecture/README.md))
+4. Write tests untuk new features
+5. Commit changes (`git commit -m 'Add AmazingFeature'`)
+6. Push to branch (`git push origin feature/AmazingFeature`)
+7. Open Pull Request
+
+---
 
 ## Laravel Sponsors
 

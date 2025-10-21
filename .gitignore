@@ -3,3 +3,7 @@ vendor
 .env
 storage/installed
 public/build/assets/
+whatsapp-service/sessions/
+whatsapp-service/logs/
+whatsapp-service/.wwebjs_cache
+logs/

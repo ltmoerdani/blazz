@@ -22,7 +22,7 @@ class StoreContactField extends FormRequest
      */
     public function rules(): array
     {
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
         $method = $this->getMethod();
 
         $rules = [
@@ -37,16 +37,16 @@ class StoreContactField extends FormRequest
         if($method == 'POST'){
             $rules['name'] = [
                 'required',
-                Rule::unique('contact_fields', 'name')->where(function ($query) use ($organizationId) {
-                    return $query->where('organization_id', $organizationId)
+                Rule::unique('contact_fields', 'name')->where(function ($query) use ($workspaceId) {
+                    return $query->where('workspace_id', $workspaceId)
                         ->where('deleted_at', null);
                 }),
             ];
         } else {
             $rules['name'] = [
-                Rule::unique('contact_fields', 'name')->where(function ($query) use ($organizationId) {
+                Rule::unique('contact_fields', 'name')->where(function ($query) use ($workspaceId) {
                     return $query
-                        ->where('organization_id', $organizationId)
+                        ->where('workspace_id', $workspaceId)
                         ->where('deleted_at', null)
                         ->whereNotIn('uuid', [$this->route('contact_field')]);
                 }),

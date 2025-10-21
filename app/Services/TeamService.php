@@ -11,10 +11,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
-use Auth;
-use DB;
-use Str;
-use Validator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
 
 class TeamService
 {
@@ -23,29 +23,29 @@ class TeamService
         //check if invite already exists
         $invite = TeamInvite::where('email', $request->email)->first();
 
-        if(!$invite){     
-            $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_organization') . Str::random(32)); 
+        if(!$invite){
+            $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_workspace') . Str::random(32));
             $invite = TeamInvite::create([
-                'organization_id' => session()->get('current_organization'),
+                'workspace_id' => session()->get('current_workspace'),
                 'email' => $request->email,
                 'code' => $inviteCode,
                 'role' => $request->role,
-                'invited_by' => auth()->user()->id,
-                'expire_at' => now()->addDay(), 
+                'invited_by' => Auth::user()->id,
+                'expire_at' => now()->addDay(),
             ]);
         } else  {
             $inviteCode = $invite->code;
             if($invite->expire_at <= now()){
-                $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_organization') . Str::random(32));
+                $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_workspace') . Str::random(32));
                 $invite->code = $inviteCode;
                 $invite->expire_at = now()->addDay();
-                $invite->invited_by = auth()->user()->id;
+                $invite->invited_by = Auth::user()->id;
                 $invite->save();
             }
         }
 
         //Send invite email
-        $inviter = User::where('id', auth()->user()->id)->first();
+        $inviter = User::where('id', Auth::user()->id)->first();
         Email::sendInvite('Invite', $request->email, $inviter, url('/invite/' . $inviteCode));
 
         return $invite;
@@ -60,7 +60,7 @@ class TeamService
         if(!$invite){
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('This invite code has expired!')
                 ]
             );
@@ -83,9 +83,9 @@ class TeamService
                 Email::send('Registration', $user);
             }
 
-            $team = Team::updateOrCreate(
+            Team::updateOrCreate(
                 [
-                    'organization_id' => $invite->organization_id,
+                    'workspace_id' => $invite->Workspace_id,
                     'user_id' => $user->id,
                 ],
                 [
@@ -100,7 +100,7 @@ class TeamService
 
             Auth::guard('user')->loginUsingId($user->id);
 
-            session()->put('current_organization', $invite->organization_id);
+            session()->put('current_workspace', $invite->Workspace_id);
         } catch (\Exception $e) {
             Log::error('Exception: ' . $e->getMessage());
             //dd($e->getMessage());
@@ -125,7 +125,7 @@ class TeamService
         if($team->role === 'owner'){
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('You can\'t delete the main admin account!')
                 ]
             );
@@ -134,10 +134,10 @@ class TeamService
 
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Row deleted successfully!')
                 ]
             );
         }
     }
-};
+}

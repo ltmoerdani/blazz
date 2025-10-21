@@ -23,8 +23,8 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // ✅ WhatsApp webhook endpoints (business-critical) - Working on Laravel 12
 Route::prefix('whatsapp')->group(function () {
-    Route::post('webhook/{organization}', [WhatsAppController::class, 'webhook']);
-    Route::get('webhook/{organization}', [WhatsAppController::class, 'verify']);
+    Route::post('webhook/{workspace}', [WhatsAppController::class, 'webhook']);
+    Route::get('webhook/{workspace}', [WhatsAppController::class, 'verify']);
 });
 
 // ✅ Payment gateway webhooks - Laravel 12 Enhanced Security
@@ -44,7 +44,7 @@ Route::prefix('mobile')->middleware('auth:sanctum')->group(function () {
 
 **Laravel 12 API Compatibility Analysis:**
 - ✅ **Sanctum Integration:** Current patterns compatible dengan Sanctum 4.0
-- ✅ **Route Groups:** Modern route organization (no breaking changes)
+- ✅ **Route Groups:** Modern route workspace (no breaking changes)
 - ✅ **Middleware Stack:** Standard API middleware patterns
 - ✅ **Resource Controllers:** RESTful patterns maintained dalam Laravel 12
 
@@ -106,7 +106,7 @@ Route::prefix('mobile')->middleware('auth:sanctum')->group(function () {
         "name": "Admin User",
         "email": "admin@blazz.com",
         "role": "admin",
-        "organization": {
+        "workspace": {
           "id": 1,
           "name": "Blazz Demo",
           "slug": "blazz-demo"
@@ -210,7 +210,7 @@ Route::prefix('mobile')->middleware('auth:sanctum')->group(function () {
         "role": "admin",
         "avatar": null,
         "email_verified_at": "2024-01-01T00:00:00.000Z",
-        "organization": {
+        "workspace": {
           "id": 1,
           "name": "Blazz Demo",
           "slug": "blazz-demo",

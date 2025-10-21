@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace App\Http\Resources;
 
@@ -18,12 +18,12 @@ class SubscriptionResource extends JsonResource
         $data = $this->resource->toArray();
 
         if (isset($data['start_date'])) {
-            $startDate = DateTimeHelper::convertToOrganizationTimezone($data['start_date']);
+            $startDate = DateTimeHelper::convertToWorkspaceTimezone($data['start_date']);
             $data['start_date'] = DateTimeHelper::formatDate($startDate);
         }
 
         if (isset($data['valid_until'])) {
-            $validUntil = DateTimeHelper::convertToOrganizationTimezone($data['valid_until']);
+            $validUntil = DateTimeHelper::convertToWorkspaceTimezone($data['valid_until']);
             $data['valid_until'] = DateTimeHelper::formatDate($validUntil);
         }
 

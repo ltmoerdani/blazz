@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
 use App\Rules\ContactLimit;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
@@ -84,7 +85,7 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
             }
 
             // Check if the phone number already exists in the database
-            if (Contact::where('organization_id', session()->get('current_organization'))
+            if (Contact::where('workspace_id', session()->get('current_workspace'))
                     ->where('phone', $phoneNumber)
                     ->whereNull('deleted_at')
                     ->exists()) {
@@ -97,9 +98,9 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
             }
 
             // Fetch dynamic fields from contact_fields table
-            $organizationId = session()->get('current_organization');
-            $existingContactCount = Contact::where('organization_id', $organizationId)->whereNull('deleted_at')->count();
-            $contactLimit = $this->contactSubscriptionLimit($organizationId);
+            $workspaceId = session()->get('current_workspace');
+            $existingContactCount = Contact::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
+            $contactLimit = $this->contactSubscriptionLimit($workspaceId);
 
             // Check if the total contacts would exceed the limit
             if ($contactLimit != '-1' && ($existingContactCount + 1) > $contactLimit) {
@@ -112,12 +113,12 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
             }
 
             // Fetch dynamic fields from contact_fields table
-            $contactFields = ContactField::where('organization_id', $organizationId)->pluck('name')->toArray();
+            $contactFields = ContactField::where('workspace_id', $workspaceId)->pluck('name')->toArray();
 
             $metadata = [];
 
             foreach ($contactFields as $field) {
-                $normalizedField = strtolower($field); 
+                $normalizedField = strtolower($field);
 
                 if (isset($row[$normalizedField])) {
                     $metadata[$field] = $row[$normalizedField];
@@ -125,10 +126,10 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
             }
 
             $contact =  Contact::create([
-                'organization_id'  => $organizationId,
+                'workspace_id'  => $workspaceId,
                 'first_name'  => $row['first_name'],
                 'last_name'   => $row['last_name'],
-                'phone'       => phone($phoneNumberValue)->formatE164(), 
+                'phone'       => phone($phoneNumberValue)->formatE164(),
                 'email'       => $row['email'],
                 'address'     => json_encode([
                     'street'  => $row['street'] ?? null,
@@ -137,8 +138,8 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
                     'zip'     => $row['zip'] ?? null,
                     'country' => $row['country'] ?? null
                 ]),
-                'metadata'    => !empty($metadata) ? json_encode($metadata) : null, 
-                'created_by'  => auth()->user()->id,
+                'metadata'    => !empty($metadata) ? json_encode($metadata) : null,
+                'created_by'  => Auth::id(),
             ]);
 
             if($contact){
@@ -151,11 +152,11 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
 
                     foreach ($groupNames as $groupName) {
                         $group = ContactGroup::firstOrCreate([
-                            'organization_id' => $organizationId,
+                            'workspace_id' => $workspaceId,
                             'name'            => $groupName,
                             'deleted_at'      => null
                         ], [
-                            'created_by' => auth()->user()->id,
+                            'created_by' => Auth::id(),
                         ]);
 
                         // Attach contact to the group via pivot table
@@ -211,11 +212,10 @@ class ContactsImport extends \PhpOffice\PhpSpreadsheet\Cell\StringValueBinder im
         return 1000; // Adjust the chunk size as needed
     }
 
-    private function contactSubscriptionLimit($organizationId)
+    private function contactSubscriptionLimit($workspaceId)
     {
-        $subscription = Subscription::where('organization_id', $organizationId)->first();
+        $subscription = Subscription::where('workspace_id', $workspaceId)->first();
         $subscriptionPlan = SubscriptionPlan::find($subscription->plan_id);
-        $count = Contact::where('organization_id', $organizationId)->whereNull('deleted_at')->count();
 
         if($subscription->status === 'trial' && $subscription->valid_until > now()){
             $limit = optional(Setting::where('key', 'trial_limits')->first())->value;

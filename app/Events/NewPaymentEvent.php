@@ -17,18 +17,18 @@ class NewPaymentEvent implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $payment;
-    public $organizationId;
+    public $workspaceId;
 
     /**
      * Create a new event instance.
      *
      * @param mixed $payment
-     * @param int $organizationId
+     * @param int $workspaceId
      */
-    public function __construct($payment, $organizationId)
+    public function __construct($payment, $workspaceId)
     {
         $this->payment = $payment;
-        $this->organizationId = $organizationId;
+        $this->workspaceId = $workspaceId;
     }
 
     /**
@@ -41,7 +41,7 @@ class NewPaymentEvent implements ShouldBroadcast
         try {
             // Check if Pusher settings are available
             if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-                $channel = 'payments.' . 'ch' . $this->organizationId;
+                $channel = 'payments.' . 'ch' . $this->workspaceId;
                 return new Channel($channel);
             } else {
                 // Log an error if Pusher settings are not configured

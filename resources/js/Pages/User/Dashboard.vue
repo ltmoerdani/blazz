@@ -214,7 +214,7 @@
         campaignCount: Number, 
         templateCount: Number, 
         setupWhatsapp: Boolean, 
-        organization: Object, 
+        workspace: Object, 
         campaigns: Object, 
         period: Object, 
         inbound: Object, 
@@ -278,8 +278,8 @@
     const teamNotification = ref(true);
     const displayTeamNotification = () => {
         try {
-            teamNotification.value = props.organization?.metadata
-                ? JSON.parse(props.organization.metadata)?.notification?.team ?? true
+            teamNotification.value = props.workspace?.metadata
+                ? JSON.parse(props.workspace.metadata)?.notification?.team ?? true
                 : true;
         } catch (error) {
             teamNotification.value = true;

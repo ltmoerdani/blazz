@@ -10,7 +10,7 @@ use Inertia\Inertia;
 
 class EmailTemplateController extends BaseController
 {
-    private $emailTemplateService;
+    protected $emailService;
 
     /**
      * EmailTemplateController constructor.
@@ -19,7 +19,7 @@ class EmailTemplateController extends BaseController
      */
     public function __construct()
     {
-        $this->emailService = new emailService();
+        $this->emailService = new EmailService();
     }
 
     /**
@@ -30,7 +30,7 @@ class EmailTemplateController extends BaseController
      */
     public function index(Request $request){
         return Inertia::render('Admin/Setting/EmailTemplate/Index', [
-            'rows' => $this->emailService->getTemplates($request), 
+            'rows' => $this->emailService->getTemplates($request),
             'filters' => $request->all()
         ]);
     }
@@ -41,7 +41,7 @@ class EmailTemplateController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show(Request $request, $id = NULL)
+    public function show(Request $request, $id = null)
     {
         $template = $this->emailService->getTemplateByID($request, $id);
 
@@ -61,7 +61,7 @@ class EmailTemplateController extends BaseController
 
         return redirect('/admin/settings/email-templates')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Template updated successfully!')
             ]
         );

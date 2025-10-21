@@ -16,7 +16,7 @@ class CreateBillingDebitsTable extends Migration
         Schema::create('billing_debits', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->integer('organization_id');
+            $table->integer('workspace_id');
             $table->text('description');
             $table->decimal('amount', 13, 10);
         });

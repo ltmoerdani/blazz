@@ -11,7 +11,7 @@ use Inertia\Inertia;
 
 class RoleController extends BaseController
 {
-    private $RoleService;
+    protected $roleService;
 
     /**
      * RoleController constructor.
@@ -33,7 +33,7 @@ class RoleController extends BaseController
         return Inertia::render('Admin/Role/Index', [
             'title' => __('Roles'),
             'allowCreate' => true,
-            'rows' => $this->roleService->get($request), 
+            'rows' => $this->roleService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -44,7 +44,7 @@ class RoleController extends BaseController
      * @param string $uuid
      * @return \Inertia\Response
      */
-    public function show($uuid = NULL)
+    public function show($uuid = null)
     {
         $res = $this->roleService->getByUuid($uuid);
 
@@ -58,7 +58,7 @@ class RoleController extends BaseController
      */
     public function create(Request $request)
     {
-        $res = $this->roleService->getByUuid(NULL);
+        $res = $this->roleService->getByUuid(null);
 
         return Inertia::render('Admin/Role/Show', ['title' => __('Add role'), 'role' => $res['role'], 'modules' => $res['modules'], 'permissions' => $res['permissions']]);
     }
@@ -74,7 +74,7 @@ class RoleController extends BaseController
 
         return redirect('/admin/team/roles')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Role added successfully!')
             ]
         );
@@ -92,7 +92,7 @@ class RoleController extends BaseController
 
         return redirect('/admin/team/roles')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Role updated successfully!')
             ]
         );

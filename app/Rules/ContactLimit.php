@@ -17,9 +17,9 @@ class ContactLimit implements Rule
     
     public function passes($attribute, $value)
     {
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
-        return !SubscriptionService::isSubscriptionFeatureLimitReached($organizationId, 'contacts_limit');
+        return !SubscriptionService::isSubscriptionFeatureLimitReached($workspaceId, 'contacts_limit');
     }
 
     public function message()

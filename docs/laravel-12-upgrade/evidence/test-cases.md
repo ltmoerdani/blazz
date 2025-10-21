@@ -120,7 +120,7 @@ class AuthenticationTest extends TestCase
 
 namespace Tests\Feature;
 
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\User;
 use App\Services\WhatsAppService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -155,13 +155,13 @@ class WhatsAppIntegrationTest extends TestCase
         ]);
 
         $user = User::factory()->create(['role' => 'admin']);
-        $organization = Organization::factory()->create(['user_id' => $user->id]);
+        $workspace = workspace::factory()->create(['user_id' => $user->id]);
 
         $response = $this->actingAs($user, 'admin')
             ->postJson('/api/whatsapp/send', [
                 'to' => '+1234567890',
                 'message' => 'Test message',
-                'organization_id' => $organization->id
+                'organization_id' => $workspace->id
             ]);
 
         $response->assertSuccessful();
@@ -179,7 +179,7 @@ class WhatsAppIntegrationTest extends TestCase
      */
     public function test_whatsapp_webhook_processes_incoming_message()
     {
-        $organization = Organization::factory()->create();
+        $workspace = workspace::factory()->create();
         
         $webhookPayload = [
             'object' => 'whatsapp_business_account',
@@ -217,12 +217,12 @@ class WhatsAppIntegrationTest extends TestCase
             ]
         ];
 
-        $response = $this->postJson("/api/whatsapp/webhook/{$organization->id}", $webhookPayload);
+        $response = $this->postJson("/api/whatsapp/webhook/{$workspace->id}", $webhookPayload);
 
         $response->assertSuccessful();
         
         $this->assertDatabaseHas('chats', [
-            'organization_id' => $organization->id,
+            'organization_id' => $workspace->id,
             'phone_number' => '1234567890',
             'message' => 'Hello, I need help',
             'direction' => 'inbound',
@@ -240,7 +240,7 @@ class WhatsAppIntegrationTest extends TestCase
 
 namespace Tests\Feature;
 
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Subscription;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -257,7 +257,7 @@ class PaymentIntegrationTest extends TestCase
      */
     public function test_stripe_payment_intent_creation()
     {
-        $organization = Organization::factory()->create();
+        $workspace = workspace::factory()->create();
         
         // Mock Stripe API response
         Http::fake([
@@ -273,7 +273,7 @@ class PaymentIntegrationTest extends TestCase
 
         $stripeService = app(StripeService::class);
         $paymentIntent = $stripeService->createPaymentIntent(29.99, 'usd', [
-            'organization_id' => $organization->id
+            'organization_id' => $workspace->id
         ]);
 
         $this->assertEquals('pi_test_123456789', $paymentIntent['id']);
@@ -287,9 +287,9 @@ class PaymentIntegrationTest extends TestCase
      */
     public function test_stripe_webhook_payment_success()
     {
-        $organization = Organization::factory()->create();
+        $workspace = workspace::factory()->create();
         $subscription = Subscription::factory()->create([
-            'organization_id' => $organization->id,
+            'organization_id' => $workspace->id,
             'status' => 'active'
         ]);
 
@@ -303,7 +303,7 @@ class PaymentIntegrationTest extends TestCase
                     'amount' => 2999,
                     'currency' => 'usd',
                     'metadata' => [
-                        'organization_id' => $organization->id,
+                        'organization_id' => $workspace->id,
                         'subscription_id' => $subscription->id
                     ],
                     'status' => 'succeeded'
@@ -318,7 +318,7 @@ class PaymentIntegrationTest extends TestCase
         $response->assertSuccessful();
         
         $this->assertDatabaseHas('billing_details', [
-            'organization_id' => $organization->id,
+            'organization_id' => $workspace->id,
             'amount' => 29.99,
             'currency' => 'USD',
             'status' => 'paid'
@@ -337,7 +337,7 @@ namespace Tests\Feature;
 
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -353,16 +353,16 @@ class ChatSystemTest extends TestCase
     public function test_chat_messages_can_be_stored_and_retrieved()
     {
         $user = User::factory()->create(['role' => 'admin']);
-        $organization = Organization::factory()->create(['user_id' => $user->id]);
+        $workspace = workspace::factory()->create(['user_id' => $user->id]);
         
         $contact = Contact::factory()->create([
-            'organization_id' => $organization->id,
+            'organization_id' => $workspace->id,
             'phone' => '+1234567890',
             'name' => 'John Doe'
         ]);
 
         $chatData = [
-            'organization_id' => $organization->id,
+            'organization_id' => $workspace->id,
             'phone_number' => $contact->phone,
             'contact_name' => $contact->name,
             'message' => 'Test message untuk chat system',
@@ -374,7 +374,7 @@ class ChatSystemTest extends TestCase
         Chat::create($chatData);
 
         $response = $this->actingAs($user, 'admin')
-            ->getJson("/api/chats?organization_id={$organization->id}");
+            ->getJson("/api/chats?organization_id={$workspace->id}");
 
         $response->assertSuccessful();
         $response->assertJsonStructure([
@@ -402,10 +402,10 @@ class ChatSystemTest extends TestCase
     public function test_chat_search_by_contact_and_message()
     {
         $user = User::factory()->create(['role' => 'admin']);
-        $organization = Organization::factory()->create(['user_id' => $user->id]);
+        $workspace = workspace::factory()->create(['user_id' => $user->id]);
 
         Chat::factory()->create([
-            'organization_id' => $organization->id,
+            'organization_id' => $workspace->id,
             'contact_name' => 'John Doe',
             'phone_number' => '+1234567890',
             'message' => 'Hello, I need help with billing',
@@ -413,7 +413,7 @@ class ChatSystemTest extends TestCase
         ]);
 
         Chat::factory()->create([
-            'organization_id' => $organization->id,
+            'organization_id' => $workspace->id,
             'contact_name' => 'Jane Smith',
             'phone_number' => '+0987654321',
             'message' => 'Thank you for your service',
@@ -421,7 +421,7 @@ class ChatSystemTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'admin')
-            ->getJson("/api/chats/search?q=billing&organization_id={$organization->id}");
+            ->getJson("/api/chats/search?q=billing&organization_id={$workspace->id}");
 
         $response->assertSuccessful();
         $response->assertJsonCount(1, 'data');
@@ -527,7 +527,7 @@ class WhatsAppServiceTest extends TestCase
 namespace Tests\Unit;
 
 use App\Models\Chat;
-use App\Models\Organization;
+use App\Models\workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -541,11 +541,11 @@ class ChatModelTest extends TestCase
      */
     public function test_chat_belongs_to_organization()
     {
-        $organization = Organization::factory()->create();
-        $chat = Chat::factory()->create(['organization_id' => $organization->id]);
+        $workspace = workspace::factory()->create();
+        $chat = Chat::factory()->create(['organization_id' => $workspace->id]);
         
-        $this->assertInstanceOf(Organization::class, $chat->organization);
-        $this->assertEquals($organization->id, $chat->organization->id);
+        $this->assertInstanceOf(workspace::class, $chat->workspace);
+        $this->assertEquals($workspace->id, $chat->workspace->id);
     }
 
     /**
@@ -554,8 +554,8 @@ class ChatModelTest extends TestCase
      */
     public function test_chat_scope_for_organization()
     {
-        $organization1 = Organization::factory()->create();
-        $organization2 = Organization::factory()->create();
+        $organization1 = workspace::factory()->create();
+        $organization2 = workspace::factory()->create();
         
         Chat::factory()->count(3)->create(['organization_id' => $organization1->id]);
         Chat::factory()->count(2)->create(['organization_id' => $organization2->id]);
@@ -631,7 +631,7 @@ class Laravel12UpgradeTest extends TestCase
         $response->assertInertia(fn ($page) => 
             $page->component('Dashboard/Index')
                  ->has('user')
-                 ->has('organization')
+                 ->has('workspace')
         );
     }
 
@@ -660,7 +660,7 @@ class Laravel12UpgradeTest extends TestCase
      */
     public function test_json_column_functionality()
     {
-        $organization = Organization::factory()->create([
+        $workspace = workspace::factory()->create([
             'settings' => [
                 'whatsapp_enabled' => true,
                 'max_users' => 50,
@@ -668,12 +668,12 @@ class Laravel12UpgradeTest extends TestCase
             ]
         ]);
         
-        $this->assertTrue($organization->settings['whatsapp_enabled']);
-        $this->assertEquals(50, $organization->settings['max_users']);
-        $this->assertContains('chat', $organization->settings['features']);
+        $this->assertTrue($workspace->settings['whatsapp_enabled']);
+        $this->assertEquals(50, $workspace->settings['max_users']);
+        $this->assertContains('chat', $workspace->settings['features']);
         
         // Test JSON query capabilities
-        $orgsWithWhatsApp = Organization::whereJsonContains('settings->features', 'chat')->get();
+        $orgsWithWhatsApp = workspace::whereJsonContains('settings->features', 'chat')->get();
         $this->assertCount(1, $orgsWithWhatsApp);
     }
 
@@ -726,7 +726,7 @@ class Laravel12UpgradeTest extends TestCase
 namespace Tests\Performance;
 
 use App\Models\Chat;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -740,13 +740,13 @@ class Laravel12PerformanceTest extends TestCase
      */
     public function test_chat_query_performance()
     {
-        $organization = Organization::factory()->create();
-        Chat::factory()->count(1000)->create(['organization_id' => $organization->id]);
+        $workspace = workspace::factory()->create();
+        Chat::factory()->count(1000)->create(['organization_id' => $workspace->id]);
         
         $startTime = microtime(true);
         
-        $chats = Chat::with('organization')
-            ->where('organization_id', $organization->id)
+        $chats = Chat::with('workspace')
+            ->where('organization_id', $workspace->id)
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get();
@@ -763,7 +763,7 @@ class Laravel12PerformanceTest extends TestCase
      */
     public function test_json_query_performance()
     {
-        Organization::factory()->count(100)->create([
+        workspace::factory()->count(100)->create([
             'settings' => [
                 'whatsapp_enabled' => true,
                 'features' => ['chat', 'billing'],
@@ -773,7 +773,7 @@ class Laravel12PerformanceTest extends TestCase
         
         $startTime = microtime(true);
         
-        $orgs = Organization::whereJsonContains('settings->features', 'chat')
+        $orgs = workspace::whereJsonContains('settings->features', 'chat')
             ->whereJsonPath('settings->limits.users', '>', 10)
             ->get();
             
@@ -789,12 +789,12 @@ class Laravel12PerformanceTest extends TestCase
      */
     public function test_api_serialization_performance()
     {
-        $organization = Organization::factory()->create();
-        $chats = Chat::factory()->count(50)->create(['organization_id' => $organization->id]);
+        $workspace = workspace::factory()->create();
+        $chats = Chat::factory()->count(50)->create(['organization_id' => $workspace->id]);
         
         $startTime = microtime(true);
         
-        $response = $this->getJson("/api/chats?organization_id={$organization->id}");
+        $response = $this->getJson("/api/chats?organization_id={$workspace->id}");
         
         $endTime = microtime(true);
         $executionTime = ($endTime - $startTime) * 1000;

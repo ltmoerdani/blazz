@@ -5,9 +5,9 @@ namespace App\Services;
 use App\Http\Resources\UserResource;
 use App\Models\Team;
 use App\Models\User;
-use Auth;
-use DB;
-use Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AuthService
 {
@@ -26,7 +26,7 @@ class AuthService
             Auth::guard('user')->attempt(['email' => $request->email, 'password' => $request->password]);
             $team = Team::where('user_id', $this->user->id)->first();
 
-            session()->put('current_organization', $team->organization_id);
+            session()->put('current_workspace', $team->Workspace_id);
         }
     }
 }

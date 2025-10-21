@@ -1,15 +1,14 @@
 <script setup>
-    import { Link, useForm } from "@inertiajs/vue3";
+    import { useForm, usePage, router } from "@inertiajs/vue3";
     import { defineProps, ref } from "vue";
-    import { TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle, TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue';
+    import { TransitionRoot, TransitionChild, Dialog, DialogPanel, TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue';
     import FormInput from '@/Components/FormInput.vue';
     import FormPhoneInput from '@/Components/FormPhoneInput.vue';
     import FormSelect from '@/Components/FormSelect.vue';
-    import { usePage, router } from '@inertiajs/vue3';
 
     const props = defineProps({
         user: Object,
-        organization: Object,
+        workspace: Object,
         role: String,
         isOpen: Boolean,
     })
@@ -17,10 +16,27 @@
     const isLoading = ref(false);
 
     const getAddressDetail = (value, key) => {
-        if(value){
+        if(!value) return null;
+        
+        // Jika value adalah plain string (bukan JSON), return null untuk semua key kecuali 'country'
+        // Ini untuk backward compatibility dengan data lama
+        if(typeof value === 'string' && !value.startsWith('{') && !value.startsWith('[')) {
+            // Jika ini adalah plain string country name dan key-nya adalah 'country'
+            if(key === 'country') {
+                return value;
+            }
+            return null;
+        }
+        
+        // Parse JSON dengan safe error handling
+        try {
             const address = JSON.parse(value);
             return address?.[key] ?? null;
-        } else {
+        } catch (error) {
+            // Silent fail - hanya log di development
+            if(import.meta.env.DEV) {
+                console.warn('🐛 Address parsing warning:', error.message, '| Value:', value);
+            }
             return null;
         }
     };
@@ -40,12 +56,12 @@
     })
 
     const form2 = useForm({
-        organization_name: props.organization?.name,
-        address: getAddressDetail(props.organization?.address, 'street'),
-        city: getAddressDetail(props.organization?.address, 'city'),
-        state: getAddressDetail(props.organization?.address, 'state'),
-        zip: getAddressDetail(props.organization?.address, 'zip'),
-        country: getAddressDetail(props.organization?.address, 'country'),
+        Workspace_name: props.workspace?.name,
+        address: getAddressDetail(props.workspace?.address, 'street'),
+        city: getAddressDetail(props.workspace?.address, 'city'),
+        state: getAddressDetail(props.workspace?.address, 'state'),
+        zip: getAddressDetail(props.workspace?.address, 'zip'),
+        country: getAddressDetail(props.workspace?.address, 'country'),
     })
 
     const form3 = useForm({
@@ -134,7 +150,7 @@
                     class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all min-w-[20em]"
                     >
                     <div>
-                        <h2 class="text-base text-xl leading-7 text-gray-900">{{ $t('Personal information') }}</h2>
+                        <h2 class="text-xl leading-7 text-gray-900">{{ $t('Personal information') }}</h2>
                         <p class="mb-4 text-sm leading-6 text-gray-600">{{ $t('Update your account details and credentials') }}</p>
 
                         <TabGroup>
@@ -224,7 +240,8 @@
                                 </TabPanel>
                                 <TabPanel v-if="tfa.status">
                                     <form @submit.prevent="submitForm4()">
-                                        <FormSelect name="Two-factor authentication" v-model="form4.status"
+                                        <label for="tfa-status" class="block text-sm font-medium text-gray-700 mb-2">{{ $t('Two-factor authentication') }}</label>
+                                        <FormSelect id="tfa-status" name="Two-factor authentication" v-model="form4.status"
                                         :options="[
                                             { value: 1, label: 'Enable' },
                                             { value: 0, label: 'Disable' },
@@ -249,7 +266,7 @@
                                                     <img :src="tfa.qrcode" alt="qrcode" width="200" />
                                                 </div>
                                                 <div>
-                                                    <label>Can't scan the QR Code?</label>
+                                                    <p class="font-medium">Can't scan the QR Code?</p>
                                                     <p class="text-gray-600 text-sm">
                                                         Try inserting the following secret code into your app if you can't scan the QR Code.
                                                     </p>
@@ -263,7 +280,8 @@
                                                 To confirm that you setup your code properly, please
                                                 enter the 6-digit token from your mobile app.
                                             </p>
-                                            <FormInput v-model="form4.token" placeholder="6 digit code" :error="form4.errors.token" :type="'text'" :class="'sm:col-span-6'"/>
+                                            <label for="tfa-token" class="block text-sm font-medium text-gray-700 mb-2">{{ $t('Authentication Token') }}</label>
+                                            <FormInput id="tfa-token" v-model="form4.token" placeholder="6 digit code" :error="form4.errors.token" :type="'text'" :class="'sm:col-span-6'"/>
                                         </div>
                                         <div class="mt-4 flex">
                                             <button type="button" @click="closeModal" class="inline-flex justify-center rounded-md border border-transparent bg-slate-50 px-4 py-2 text-sm text-slate-500 hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 mr-4">{{ $t('Cancel') }}</button>

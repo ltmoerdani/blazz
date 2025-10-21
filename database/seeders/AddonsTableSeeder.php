@@ -19,7 +19,7 @@ class AddonsTableSeeder extends Seeder
                 'name' => 'Embedded Signup',
                 'logo' => 'whatsapp.png',
                 'description' => 'An Embedded Signup add-on allows app users to register using their WhatsApp account.',
-                'metadata' => NULL,
+                'metadata' => null,
                 'status' => 0,
             ],
             [

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
-use DB;
 use App\Http\Controllers\Controller as BaseController;
+use Illuminate\Support\Facades\DB;
 use App\Http\Resources\AddonResource;
 use App\Models\Addon;
 use App\Models\Setting;
@@ -19,7 +19,7 @@ class AddonController extends BaseController
 
         return Inertia::render('Admin/Addons/Index', [
             'title' => __('Addons'),
-            'rows' => AddonResource::collection($rows), 
+            'rows' => AddonResource::collection($rows),
             'filters' => $request->all(),
             'config' => Setting::get()
         ]);
@@ -39,7 +39,7 @@ class AddonController extends BaseController
 
         return redirect('/admin/addons')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Addon updated successfully!')
             ]
         );
@@ -47,15 +47,15 @@ class AddonController extends BaseController
 
     public function install(Request $request)
     {
-        $ModuleService = new ModuleService;
+        $moduleService = new ModuleService;
 
-        return $ModuleService->install($request);
+        return $moduleService->install($request);
     }
 
     public function update(Request $request)
     {
-        $ModuleService = new ModuleService;
+        $moduleService = new ModuleService;
 
-        return $ModuleService->update($request);
+        return $moduleService->update($request);
     }
 }

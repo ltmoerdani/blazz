@@ -12,45 +12,46 @@ use Carbon\Carbon;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ProcessPayment extends BaseController
 {
-    protected $base_url;
+    protected $baseUrl;
     protected $currency;
-    protected $key_id;
-    protected $key_secret;
+    protected $keyId;
+    protected $keySecret;
     protected $razorpay;
     protected $subscriptionService;
-    protected $webhook_secret;
+    protected $webhookSecret;
 
     public function __construct()
     {
-        $this->base_url = 'https://api.razorpay.com/v1';
+        $this->baseUrl = 'https://api.razorpay.com/v1';
         $this->subscriptionService = new SubscriptionService();
 
         $settings = Setting::whereIn('key', [
-            'razorpay_key_id', 
-            'razorpay_secret_key', 
-            'currency', 
+            'razorpay_key_id',
+            'razorpay_secret_key',
+            'currency',
             'razorpay_webhook_secret'
         ])->pluck('value', 'key');
 
-        $this->key_id = $settings['razorpay_key_id'] ?? null;
-        $this->key_secret = $settings['razorpay_secret_key'] ?? null;
+        $this->keyId = $settings['razorpay_key_id'] ?? null;
+        $this->keySecret = $settings['razorpay_secret_key'] ?? null;
         $this->currency = $settings['currency'] ?? null;
-        $this->webhook_secret = $settings['razorpay_webhook_secret'] ?? null;
+        $this->webhookSecret = $settings['razorpay_webhook_secret'] ?? null;
     }
     
-    public function handlePayment($amount, $planId = NULL)
+    public function handlePayment($amount, $planId = null)
     {
         try {
             $httpClient = new HttpClient();
             $response = $httpClient->request('POST', 'https://api.razorpay.com/v1/payment_links', [
                     'headers' => [
-                        'Authorization' => 'Basic ' . base64_encode($this->key_id . ':' . $this->key_secret),
+                        'Authorization' => 'Basic ' . base64_encode($this->keyId . ':' . $this->keySecret),
                         'Content-Type' => 'application/json',
                         'Cache-Control' => 'no-cache'
                     ],
@@ -61,13 +62,13 @@ class ProcessPayment extends BaseController
                         'callback_url'    => url('billing'),
                         'callback_method' => 'get',
                         'customer' => [
-                            'name'         => auth()->user()->first_name. ' ' .auth()->user()->last_name,
+                            'name'         => Auth::user()->first_name. ' ' .Auth::user()->last_name,
                             'contact'      => null,
-                            'email'        => auth()->user()->email,
+                            'email'        => Auth::user()->email,
                         ],
                         'notes' => [
-                            'organization_id' => session()->get('current_organization'),
-                            'user_id' => auth()->user()->id,
+                            'workspace_id' => session()->get('current_workspace'),
+                            'user_id' => Auth::id(),
                             'plan_id' => $planId
                         ],
                         'reminder_enable' => false
@@ -100,27 +101,27 @@ class ProcessPayment extends BaseController
             return response()->json(['status' => 'error', 'message' => 'Missing signature'], 400);
         }
         
-        $computedSignature = hash_hmac('sha256', $request->getContent(), $this->webhook_secret);
+        $computedSignature = hash_hmac('sha256', $request->getContent(), $this->webhookSecret);
 
         // Validate the webhook signature
         if (hash_equals($computedSignature, $signature)) {
             if ($payload['event'] === 'payment.authorized') {
-                $transaction = DB::transaction(function () use ($payload) {
+                DB::transaction(function () use ($payload) {
                     $notes = $payload['payload']['payment']['entity']['notes'];
-                    $organizationId = $notes['organization_id'] ?? null;
+                    $workspaceId = $notes['workspace_id'] ?? null;
                     $userId = $notes['user_id'] ?? null;
                     $planId = $notes['plan_id'] ?? null;
                     $amount = $payload['payload']['payment']['entity']['amount'] / 100; // Convert paise to currency
 
                     $payment = BillingPayment::create([
-                        'organization_id' => $organizationId,
+                        'workspace_id' => $workspaceId,
                         'processor' => 'razorpay',
                         'details' => $payload['payload']['payment']['entity']['id'],
                         'amount' => $amount
                     ]);
 
                     $transaction = BillingTransaction::create([
-                        'organization_id' => $organizationId,
+                        'workspace_id' => $workspaceId,
                         'entity_type' => 'payment',
                         'entity_id' => $payment->id,
                         'description' => 'Razorpay Payment',
@@ -129,13 +130,13 @@ class ProcessPayment extends BaseController
                     ]);
 
                     if ($planId == null) {
-                        $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($organizationId, $userId);
+                        $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId, $userId);
                     } else {
-                        $this->subscriptionService->updateSubscriptionPlan($organizationId, $planId, $userId);
+                        $this->subscriptionService->updateSubscriptionPlan($workspaceId, $planId, $userId);
                     }
 
                     // Uncomment if you have an event or further processing to do
-                    // event(new NewPaymentEvent($transaction, $organizationId));
+                    // event(new NewPaymentEvent($transaction, $workspaceId));
 
                     return $transaction;
                 });

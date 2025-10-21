@@ -221,7 +221,7 @@ $placeholders = [
     ['value' => '{email}', 'label' => 'Email'],
     ['value' => '{phone}', 'label' => 'Phone'],
     ['value' => '{group}', 'label' => 'Group'],
-    ['value' => '{organization_name}', 'label' => 'Organization name'],
+    ['value' => '{Workspace_name}', 'label' => 'workspace name'],
     ['value' => '{full_address}', 'label' => 'Address'],
     ['value' => '{street}', 'label' => 'Street'],
     ['value' => '{city}', 'label' => 'City'],

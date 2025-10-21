@@ -7,25 +7,25 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Helpers\CustomHelper;
 use App\Http\Resources\DeveloperResource;
 use App\Models\Addon;
-use App\Models\OrganizationApiKey;
+use App\Models\WorkspaceApiKey;
 use App\Models\Setting;
-use App\Services\OrganizationApiService;
+use App\Services\WorkspaceApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
 class DeveloperController extends BaseController
 {
-    private $organizationApiService;
+    private $WorkspaceApiService;
 
-    public function __construct(OrganizationApiService $organizationApiService)
+    public function __construct(WorkspaceApiService $WorkspaceApiService)
     {
-        $this->organizationApiService = $organizationApiService;
+        $this->WorkspaceApiService = $WorkspaceApiService;
     }
 
     public function index(){
-        $rows = OrganizationApiKey::where('organization_id', session()->get('current_organization'))
-            ->where('deleted_at', NULL)
+        $rows = WorkspaceApiKey::where('workspace_id', session()->get('current_workspace'))
+            ->where('deleted_at', null)
             ->paginate(9);
         $data['rows'] = DeveloperResource::collection($rows);
         $data['title'] = __('API keys');
@@ -39,11 +39,11 @@ class DeveloperController extends BaseController
     }
 
     public function store(Request $request){
-        $this->organizationApiService->generate($request);
+        $this->WorkspaceApiService->generate($request);
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Your API token has been generated successfully')
             ]
         );
@@ -51,6 +51,6 @@ class DeveloperController extends BaseController
 
     public function delete($uuid)
     {
-        $this->organizationApiService->destroy($uuid);
+        $this->WorkspaceApiService->destroy($uuid);
     }
 }

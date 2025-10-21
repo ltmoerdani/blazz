@@ -60,7 +60,8 @@ class DatabaseSeeder extends Seeder
      */
     protected function getSeederClassName($file)
     {
-        $fileName = $file->getFilenameWithoutExtension();
+        // Get filename without .php extension
+        $fileName = pathinfo($file->getFilename(), PATHINFO_FILENAME);
         return 'Database\\Seeders\\' . $fileName;
     }
 

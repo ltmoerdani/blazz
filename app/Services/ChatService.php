@@ -14,7 +14,7 @@ use App\Models\ChatTicketLog;
 use App\Models\Contact;
 use App\Models\ContactField;
 use App\Models\ContactGroup;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\Template;
@@ -24,30 +24,34 @@ use App\Traits\TemplateTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Validator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class ChatService
 {
     use TemplateTrait;
+    
+    // Constants for repeated string literals
+    const AI_ASSISTANT_MODULE = 'AI Assistant';
 
     private $whatsappService;
-    private $organizationId;
+    private $workspaceId;
 
-    public function __construct($organizationId)
+    public function __construct($workspaceId)
     {
-        $this->organizationId = $organizationId;
+        $this->workspaceId = $workspaceId;
         $this->initializeWhatsappService();
     }
 
     private function initializeWhatsappService()
     {
-        $config = Organization::where('id', $this->organizationId)->first()->metadata;
+        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -56,34 +60,30 @@ class ChatService
         $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->organizationId);
+        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
 
     public function getChatList($request, $uuid = null, $searchTerm = null)
     {
-        $role = auth()->user()->teams[0]->role;
+        $role = Auth::user()->teams[0]->role;
         $contact = new Contact;
-        $unassigned = ChatTicket::where('assigned_to', NULL)->count();
-        $closedCount = ChatTicket::where('status', 'closed')->count();
-        $closedCount = ChatTicket::where('status', 'open')->count();
-        $allCount = ChatTicket::count();
-        $config = Organization::where('id', $this->organizationId)->first();
-        $agents = Team::where('organization_id', $this->organizationId)->get();
+        $config = workspace::where('id', $this->workspaceId)->first();
+        $agents = Team::where('workspace_id', $this->workspaceId)->get();
         $ticketState = $request->status == null ? 'all' : $request->status;
         $sortDirection = $request->session()->get('chat_sort_direction') ?? 'desc';
         $allowAgentsToViewAllChats = true;
         $ticketingActive = false;
-        $aimodule = CustomHelper::isModuleEnabled('AI Assistant');
+        $aimodule = CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE);
 
         //Check if tickets module has been enabled
-        if($config->metadata != NULL){
+        if($config->metadata != null){
             $settings = json_decode($config->metadata);
 
             if(isset($settings->tickets) && $settings->tickets->active === true){
                 $ticketingActive = true;
 
                 //Check for chats that don't have corresponding chat ticket rows
-                $contacts = $contact->contactsWithChats($this->organizationId, NULL);
+                $contacts = $contact->contactsWithChats($this->workspaceId, null);
                 
                 foreach($contacts as $contact){
                     ChatTicket::firstOrCreate(
@@ -102,8 +102,8 @@ class ChatService
         }
 
         // Retrieve the list of contacts with chats
-        $contacts = $contact->contactsWithChats($this->organizationId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
-        $rowCount = $contact->contactsWithChatsCount($this->organizationId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
+        $contacts = $contact->contactsWithChats($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
+        $rowCount = $contact->contactsWithChatsCount($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
 
         $pusherSettings = Setting::whereIn('key', [
             'pusher_app_id',
@@ -112,9 +112,7 @@ class ChatService
             'pusher_app_cluster',
         ])->pluck('value', 'key')->toArray();
 
-        $perPage = 10; // Number of items per page
-        $totalContacts = count($contacts); // Total number of contacts
-        $messageTemplates = Template::where('organization_id', $this->organizationId)
+        $messageTemplates = Template::where('workspace_id', $this->workspaceId)
             ->where('deleted_at', null)
             ->where('status', 'APPROVED')
             ->get();
@@ -145,20 +143,20 @@ class ChatService
                 $settings = json_decode($config->metadata);
 
                 //To ensure the unread message counter is updated
-                $unreadMessages = Chat::where('organization_id', $this->organizationId)
+                $unreadMessages = Chat::where('workspace_id', $this->workspaceId)
                     ->where('type', 'inbound')
-                    ->where('deleted_at', NULL)
+                    ->where('deleted_at', null)
                     ->where('is_read', 0)
                     ->count();
 
                 return Inertia::render('User/Chat/Index', [
                     'title' => 'Chats',
                     'rows' => ContactResource::collection($contacts),
-                    'simpleForm' => CustomHelper::isModuleEnabled('AI Assistant') && optional(optional($settings)->ai)->ai_chat_form_active ? false : true,
+                    'simpleForm' => CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) && optional(optional($settings)->ai)->ai_chat_form_active ? false : true,
                     'rowCount' => $rowCount,
                     'filters' => request()->all(),
                     'pusherSettings' => $pusherSettings,
-                    'organizationId' => $this->organizationId,
+                    'workspaceId' => $this->workspaceId,
                     'state' => app()->environment(),
                     'demoNumber' => env('DEMO_NUMBER'),
                     'settings' => $config,
@@ -168,14 +166,14 @@ class ChatService
                     'hasMoreMessages' => $initialMessages['hasMoreMessages'],
                     'nextPage' => $initialMessages['nextPage'],
                     'contact' => $contact,
-                    'fields' => ContactField::where('organization_id', $this->organizationId)->where('deleted_at', null)->get(),
+                    'fields' => ContactField::where('workspace_id', $this->workspaceId)->where('deleted_at', null)->get(),
                     'locationSettings' => $this->getLocationSettings(),
                     'ticket' => $ticket,
                     'agents' => $agents,
                     'addon' => $aimodule,
                     'chat_sort_direction' => $sortDirection,
                     'unreadMessages' => $unreadMessages,
-                    'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->organizationId, 'message_limit')
+                    'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit')
                 ]);
             }
         }
@@ -190,11 +188,11 @@ class ChatService
             return Inertia::render('User/Chat/Index', [
                 'title' => 'Chats',
                 'rows' => ContactResource::collection($contacts),
-                'simpleForm' => !CustomHelper::isModuleEnabled('AI Assistant') || empty($settings->ai->ai_chat_form_active),
+                'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty($settings->ai->ai_chat_form_active),
                 'rowCount' => $rowCount,
                 'filters' => request()->all(),
                 'pusherSettings' => $pusherSettings,
-                'organizationId' => $this->organizationId,
+                'workspaceId' => $this->workspaceId,
                 'state' => app()->environment(),
                 'settings' => $config,
                 'templates' => $messageTemplates,
@@ -203,14 +201,14 @@ class ChatService
                 'addon' => $aimodule,
                 'ticket' => array(),
                 'chat_sort_direction' => $sortDirection,
-                'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->organizationId, 'message_limit')
+                'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit')
             ]);
         }
     }
 
     public function handleTicketAssignment($contactId){
-        $organizationId = $this->organizationId;
-        $settings = Organization::where('id', $this->organizationId)->first();
+        $workspaceId = $this->workspaceId;
+        $settings = workspace::where('id', $this->workspaceId)->first();
         $settings = json_decode($settings->metadata);
 
         // Check if ticket functionality is active
@@ -221,10 +219,10 @@ class ChatService
             // Check if a ticket already exists for the contact
             $ticket = ChatTicket::where('contact_id', $contactId)->first();
 
-            DB::transaction(function () use ($reassignOnReopen, $autoassignment, $ticket, $contactId, $organizationId) {
+            DB::transaction(function () use ($reassignOnReopen, $autoassignment, $ticket, $contactId, $workspaceId) {
                 if(!$ticket){
                     // Create a new ticket if it doesn't exist
-                    $ticket = New ChatTicket;
+                    $ticket = new ChatTicket;
                     $ticket->contact_id = $contactId;
                     $ticket->status = 'open';
                     $ticket->updated_at = now();
@@ -232,7 +230,7 @@ class ChatService
                     // Perform auto-assignment if enabled
                     if($autoassignment){
                         // Find an agent with the least number of assigned tickets
-                        $agent = Team::where('organization_id', $organizationId)
+                        $agent = Team::where('workspace_id', $workspaceId)
                             ->withCount('tickets')
                             ->whereNull('deleted_at')
                             ->orderBy('tickets_count')->first();
@@ -240,7 +238,7 @@ class ChatService
                         // Assign the ticket to the agent with the least number of assigned tickets
                         $ticket->assigned_to = $agent->user_id;
                     } else {
-                        $ticket->assigned_to = NULL;
+                        $ticket->assigned_to = null;
                     }
 
                     $ticket->save();
@@ -262,7 +260,7 @@ class ChatService
                     if($ticket->status === 'closed'){
                         if($reassignOnReopen){
                             if($autoassignment){
-                                $agent = Team::where('organization_id', $organizationId)
+                                $agent = Team::where('workspace_id', $workspaceId)
                                     ->withCount('tickets')
                                     ->whereNull('deleted_at')
                                     ->orderBy('tickets_count')
@@ -270,7 +268,7 @@ class ChatService
 
                                 $ticket->assigned_to = $agent->user_id;
                             } else {
-                                $ticket->assigned_to = NULL;
+                                $ticket->assigned_to = null;
                             }
                         }
 
@@ -298,7 +296,7 @@ class ChatService
     public function sendMessage(object $request)
     {
         if($request->type === 'text'){
-            return $this->whatsappService->sendMessage($request->uuid, $request->message, auth()->user()->id);
+            return $this->whatsappService->sendMessage($request->uuid, $request->message, Auth::id());
         } else {
             $storage = Setting::where('key', 'storage_system')->first()->value;
             $fileName = $request->file('file')->getClientOriginalName();
@@ -309,12 +307,13 @@ class ChatService
                 $file = Storage::disk('local')->put('public', $fileContent);
                 $mediaFilePath = $file;
                 $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-            } else if($storage === 'aws') {
+            } elseif($storage === 'aws') {
                 $location = 'amazon';
                 $file = $request->file('file');
-                $filePath = 'uploads/media/received/'  . $this->organizationId . '/' . $fileName;
-                $uploadedFile = $file->store('uploads/media/sent/' . $this->organizationId, 's3');
-                $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                $s3Disk = Storage::disk('s3');
+                $mediaFilePath = $s3Disk->url($uploadedFile);
                 $mediaUrl = $mediaFilePath;
             }
     
@@ -335,7 +334,7 @@ class ChatService
                 $metadata['header']['format'] = $header['format'];
                 $metadata['header']['parameters'] = [];
         
-                foreach ($request->header['parameters'] as $key => $parameter) {
+                foreach ($request->header['parameters'] as $parameter) {
                     if ($parameter['selection'] === 'upload') {
                         $storage = Setting::where('key', 'storage_system')->first()->value;
                         $fileName = $parameter['value']->getClientOriginalName();
@@ -346,10 +345,12 @@ class ChatService
                             $mediaFilePath = $file;
             
                             $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-                        } else if($storage === 'aws') {
+                        } elseif($storage === 'aws') {
                             $file = $parameter['value'];
-                            $uploadedFile = $file->store('uploads/media/sent/' . $this->organizationId, 's3');
-                            $mediaFilePath = Storage::disk('s3')->url($uploadedFile);
+                            $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
+                            /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                            $s3Disk = Storage::disk('s3');
+                            $mediaFilePath = $s3Disk->url($uploadedFile);
             
                             $mediaUrl = $mediaFilePath;
                         }
@@ -391,14 +392,14 @@ class ChatService
         //Build Template to send
         $template = $this->buildTemplate($template->name, $template->language, json_decode(json_encode($metadata)), $contact);
         
-        return $this->whatsappService->sendTemplateMessage($contact->uuid, $template, auth()->user()->id, NULL, $mediaId);
+        return $this->whatsappService->sendTemplateMessage($contact->uuid, $template, Auth::id(), null, $mediaId);
     }
 
     public function clearMessage($uuid)
     {
         Chat::where('uuid', $uuid)
             ->update([
-                'deleted_by' => auth()->user()->id,
+                'deleted_by' => Auth::id(),
                 'deleted_at' => now()
             ]);
     }
@@ -407,18 +408,14 @@ class ChatService
     {
         $contact = Contact::with('lastChat')->where('uuid', $uuid)->firstOrFail();
         Chat::where('contact_id', $contact->id)->update([
-            'deleted_by' => auth()->user()->id,
+            'deleted_by' => Auth::id(),
             'deleted_at' => now()
         ]);
 
         ChatLog::where('contact_id', $contact->id)->where('entity_type', 'chat')->update([
-            'deleted_by' => auth()->user()->id,
+            'deleted_by' => Auth::id(),
             'deleted_at' => now()
         ]);
-
-        $chat = Chat::with('contact','media')->where('id', $contact->lastChat->id)->first();
-
-        //event(new NewChatEvent($chat, $contact->organization_id));
     }
 
     private function getContentTypeFromUrl($url) {
@@ -451,8 +448,8 @@ class ChatService
     }
 
     private function getLocationSettings(){
-        // Retrieve the settings for the current organization
-        $settings = Organization::where('id', $this->organizationId)->first();
+        // Retrieve the settings for the current workspace
+        $settings = workspace::where('id', $this->workspaceId)->first();
 
         if ($settings) {
             // Decode the JSON metadata column into an associative array
@@ -460,10 +457,7 @@ class ChatService
 
             if (isset($metadata['contacts'])) {
                 // If the 'contacts' key exists, retrieve the 'location' value
-                $location = $metadata['contacts']['location'];
-
-                // Now, you have the location value available
-                return $location;
+                return $metadata['contacts']['location'];
             } else {
                 return null;
             }

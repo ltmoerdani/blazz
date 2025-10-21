@@ -3,7 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use App\Models\OrganizationApiKey;
+use App\Models\WorkspaceApiKey;
 use Illuminate\Http\Request;
 
 class AuthenticateBearerToken
@@ -16,14 +16,14 @@ class AuthenticateBearerToken
             return response()->json(['error' => __('Unauthorized. Bearer Token is missing.')], 401);
         }
 
-        $organizationApiKey = OrganizationApiKey::where('token', $token)->whereNull('deleted_at')->first();
+        $WorkspaceApiKey = WorkspaceApiKey::where('token', $token)->whereNull('deleted_at')->first();
 
-        if (!$organizationApiKey) {
+        if (!$WorkspaceApiKey) {
             return response()->json(['error' => __('Unauthorized. Invalid Bearer Token.')], 401);
         }
 
-        // Attach organization to the request
-        $request->merge(['organization' => $organizationApiKey->organization_id]);
+        // Attach workspace to the request
+        $request->merge(['workspace' => $WorkspaceApiKey->Workspace_id]);
 
         return $next($request);
     }
