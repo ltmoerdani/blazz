@@ -84,5 +84,6 @@ class Kernel extends HttpKernel
         'security.headers' => \App\Http\Middleware\SecurityHeadersMiddleware::class,
         'redirectIfAuthenticated' => \App\Http\Middleware\RedirectIfAuthenticated::class,
         'query.performance' => \App\Http\Middleware\QueryPerformanceMiddleware::class,
+        'whatsapp.hmac' => \App\Http\Middleware\VerifyWhatsAppHmac::class,
     ];
 }
