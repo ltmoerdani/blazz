@@ -45,9 +45,20 @@ class WhatsAppSessionController extends Controller
                 ];
             });
 
+        $settings = \App\Models\Setting::whereIn('key', ['is_embedded_signup_active', 'whatsapp_client_id', 'whatsapp_config_id'])
+            ->pluck('value', 'key');
+
         return inertia('User/Settings/WhatsAppSessions', [
             'sessions' => $sessions,
-            'can_add_session' => $this->canAddSession($workspaceId),
+            'canAddSession' => $this->canAddSession($workspaceId),
+            'modules' => \App\Models\Addon::get(),
+            'embeddedSignupActive' => \App\Helpers\CustomHelper::isModuleEnabled('Embedded Signup'),
+            'graphAPIVersion' => config('graph.api_version'),
+            'appId' => $settings->get('whatsapp_client_id', null),
+            'configId' => $settings->get('whatsapp_config_id', null),
+            'settings' => \App\Models\workspace::where('id', $workspaceId)->first(),
+            'workspaceId' => $workspaceId,
+            'title' => __('Settings'),
         ]);
     }
 
@@ -56,81 +67,81 @@ class WhatsAppSessionController extends Controller
      */
     public function store(Request $request)
     {
+        $workspaceId = session('current_workspace');
+        $response = null;
+
+        // Validate request and check session limits
         $validator = Validator::make($request->all(), [
             'provider_type' => 'required|in:webjs,meta',
             'is_primary' => 'boolean',
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
+            $response = response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
             ], 422);
-        }
-
-        $workspaceId = session('current_workspace');
-
-        // Check if user can add more sessions
-        if (!$this->canAddSession($workspaceId)) {
-            return response()->json([
+        } elseif (!$this->canAddSession($workspaceId)) {
+            $response = response()->json([
                 'success' => false,
                 'message' => 'You have reached the maximum number of WhatsApp sessions for your plan.'
             ], 403);
-        }
-
-        try {
-            $session = WhatsAppSession::create([
-                'uuid' => Str::uuid()->toString(),
-                'workspace_id' => $workspaceId,
-                'session_id' => 'webjs_' . $workspaceId . '_' . time() . '_' . Str::random(8),
-                'provider_type' => $request->input('provider_type', 'webjs'),
-                'status' => 'initializing',
-                'is_primary' => $request->boolean('is_primary', false),
-                'is_active' => true,
-                'created_by' => Auth::id(),
-                'metadata' => [
-                    'created_via' => 'frontend',
-                    'creation_timestamp' => now()->toISOString(),
-                ]
-            ]);
-
-            // If this is the first session, make it primary
-            if (WhatsAppSession::forWorkspace($workspaceId)->count() === 1) {
-                $session->update(['is_primary' => true]);
-            }
-
-            // Initialize session with Node.js service
-            $adapter = new WebJSAdapter($workspaceId, $session);
-            $result = $adapter->initializeSession();
-
-            if ($result['success']) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'WhatsApp session created successfully',
-                    'session' => $session,
-                    'qr_code' => $result['qr_code'] ?? null,
+        } else {
+            try {
+                $session = WhatsAppSession::create([
+                    'uuid' => Str::uuid()->toString(),
+                    'workspace_id' => $workspaceId,
+                    'session_id' => 'webjs_' . $workspaceId . '_' . time() . '_' . Str::random(8),
+                    'provider_type' => $request->input('provider_type', 'webjs'),
+                    'status' => 'qr_scanning',
+                    'is_primary' => $request->boolean('is_primary', false),
+                    'is_active' => true,
+                    'created_by' => Auth::id(),
+                    'metadata' => [
+                        'created_via' => 'frontend',
+                        'creation_timestamp' => now()->toISOString(),
+                    ]
                 ]);
-            } else {
-                // Clean up failed session
-                $session->delete();
 
-                return response()->json([
+                // If this is the first session, make it primary
+                if (WhatsAppSession::forWorkspace($workspaceId)->count() === 1) {
+                    $session->update(['is_primary' => true]);
+                }
+
+                // Initialize session with Node.js service
+                $adapter = new WebJSAdapter($workspaceId, $session);
+                $result = $adapter->initializeSession();
+
+                if (!$result['success']) {
+                    // Clean up failed session
+                    $session->delete();
+                    $response = response()->json([
+                        'success' => false,
+                        'message' => $result['error'] ?? 'Failed to initialize session'
+                    ], 500);
+                } else {
+                    $response = response()->json([
+                        'success' => true,
+                        'message' => 'WhatsApp session created successfully. QR code will be sent via websocket.',
+                        'session' => $session,
+                        // QR code will be sent via webhook/websocket event
+                        'qr_code' => null,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to create WhatsApp session', [
+                    'workspace_id' => $workspaceId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $response = response()->json([
                     'success' => false,
-                    'message' => $result['error'] ?? 'Failed to initialize session'
+                    'message' => 'Failed to create WhatsApp session: ' . $e->getMessage()
                 ], 500);
             }
-
-        } catch (\Exception $e) {
-            Log::error('Failed to create WhatsApp session', [
-                'workspace_id' => $workspaceId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create WhatsApp session: ' . $e->getMessage()
-            ], 500);
         }
+
+        return $response;
     }
 
     /**
@@ -214,25 +225,98 @@ class WhatsAppSessionController extends Controller
             ->firstOrFail();
 
         try {
-            $adapter = new WebJSAdapter($workspaceId, $session);
-            $result = $adapter->disconnectSession();
+            // If session is qr_scanning (not yet connected), just update status
+            if ($session->status === 'qr_scanning') {
+                // Try to cleanup Node.js session (may not exist or be in process)
+                try {
+                    $adapter = new WebJSAdapter($workspaceId, $session);
+                    $adapter->disconnectSession();
+                } catch (\Exception $e) {
+                    // Ignore if session doesn't exist in Node.js - expected for qr_scanning
+                    Log::info('Node.js session not found during disconnect (expected for qr_scanning)', [
+                        'session_id' => $session->session_id,
+                        'workspace_id' => $workspaceId,
+                    ]);
+                }
 
-            if ($result['success']) {
+                // Update status to disconnected
                 $session->update([
                     'status' => 'disconnected',
                     'last_activity_at' => now(),
                 ]);
 
+                // Broadcast status change event
+                broadcast(new WhatsAppSessionStatusChangedEvent(
+                    $session->session_id,
+                    'disconnected',
+                    $workspaceId,
+                    $session->phone_number,
+                    [
+                        'action' => 'disconnect',
+                        'uuid' => $session->uuid,
+                        'timestamp' => now()->toISOString()
+                    ]
+                ));
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Session disconnected successfully'
                 ]);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => $result['error'] ?? 'Failed to disconnect session'
-                ], 500);
             }
+
+            // Normal disconnect flow for connected sessions
+            // Try to disconnect from Node.js service
+            try {
+                $adapter = new WebJSAdapter($workspaceId, $session);
+                $result = $adapter->disconnectSession();
+
+                // Check if disconnect failed due to session not found
+                if (!$result['success'] && isset($result['error']) && str_contains($result['error'], 'Session not found')) {
+                    Log::warning('Node.js session not found during disconnect - updating database only', [
+                        'session_id' => $session->session_id,
+                        'workspace_id' => $workspaceId,
+                        'error' => $result['error']
+                    ]);
+                    // Continue to update database status even if Node.js session not found
+                } elseif (!$result['success']) {
+                    // Other errors - return error response
+                    return response()->json([
+                        'success' => false,
+                        'message' => $result['error'] ?? 'Failed to disconnect session'
+                    ], 500);
+                }
+            } catch (\Exception $e) {
+                // If Node.js service is unreachable or session not found, log and continue
+                Log::warning('Exception during Node.js disconnect - updating database only', [
+                    'session_id' => $session->session_id,
+                    'workspace_id' => $workspaceId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            // Update database status regardless of Node.js result
+            $session->update([
+                'status' => 'disconnected',
+                'last_activity_at' => now(),
+            ]);
+
+            // Broadcast status change event
+            broadcast(new WhatsAppSessionStatusChangedEvent(
+                $session->session_id,
+                'disconnected',
+                $workspaceId,
+                $session->phone_number,
+                [
+                    'action' => 'disconnect',
+                    'uuid' => $session->uuid,
+                    'timestamp' => now()->toISOString()
+                ]
+            ));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Session disconnected successfully'
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to disconnect WhatsApp session', [
@@ -255,19 +339,54 @@ class WhatsAppSessionController extends Controller
     {
         $workspaceId = session('current_workspace');
 
+        Log::info('Delete session request', [
+            'uuid' => $uuid,
+            'workspace_id' => $workspaceId,
+        ]);
+
         $session = WhatsAppSession::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
-            ->firstOrFail();
+            ->first();
+
+        if (!$session) {
+            Log::warning('Session not found for delete', [
+                'uuid' => $uuid,
+                'workspace_id' => $workspaceId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Session not found or already deleted'
+            ], 404);
+        }
 
         try {
-            // Disconnect first if connected
-            if ($session->status === 'connected') {
+            // Disconnect/cleanup if connected OR qr_scanning
+            if (in_array($session->status, ['connected', 'qr_scanning'])) {
                 $adapter = new WebJSAdapter($workspaceId, $session);
-                $adapter->disconnectSession();
+
+                // Try to disconnect, but don't fail if Node.js session doesn't exist
+                try {
+                    $adapter->disconnectSession();
+                } catch (\Exception $e) {
+                    // Log but continue with deletion - session may not exist in Node.js
+                    Log::warning('Failed to disconnect session during delete (may not exist in Node.js)', [
+                        'session_id' => $session->session_id,
+                        'workspace_id' => $workspaceId,
+                        'status' => $session->status,
+                        'error' => $e->getMessage()
+                    ]);
+                }
             }
 
-            // Delete session
+            // Delete session from database
             $session->delete();
+
+            Log::info('Session deleted successfully', [
+                'uuid' => $uuid,
+                'session_id' => $session->session_id,
+                'workspace_id' => $workspaceId,
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -277,8 +396,10 @@ class WhatsAppSessionController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to delete WhatsApp session', [
                 'workspace_id' => $workspaceId,
-                'session_id' => $session->session_id,
+                'session_id' => $session->session_id ?? 'unknown',
+                'uuid' => $uuid,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -294,47 +415,49 @@ class WhatsAppSessionController extends Controller
     public function reconnect(string $uuid)
     {
         $workspaceId = session('current_workspace');
+        $response = null;
 
         $session = WhatsAppSession::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
         if ($session->status === 'connected') {
-            return response()->json([
+            $response = response()->json([
                 'success' => false,
                 'message' => 'Session is already connected'
             ], 400);
-        }
+        } else {
+            try {
+                $adapter = new WebJSAdapter($workspaceId, $session);
+                $result = $adapter->reconnectSession();
 
-        try {
-            $adapter = new WebJSAdapter($workspaceId, $session);
-            $result = $adapter->reconnectSession();
-
-            if ($result['success']) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Reconnection initiated. Please scan QR code.',
-                    'qr_code' => $result['qr_code'] ?? null,
+                if (!$result['success']) {
+                    $response = response()->json([
+                        'success' => false,
+                        'message' => $result['error'] ?? 'Failed to reconnect session'
+                    ], 500);
+                } else {
+                    $response = response()->json([
+                        'success' => true,
+                        'message' => 'Reconnection initiated. Please scan QR code.',
+                        'qr_code' => $result['qr_code'] ?? null,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to reconnect WhatsApp session', [
+                    'workspace_id' => $workspaceId,
+                    'session_id' => $session->session_id,
+                    'error' => $e->getMessage(),
                 ]);
-            } else {
-                return response()->json([
+
+                $response = response()->json([
                     'success' => false,
-                    'message' => $result['error'] ?? 'Failed to reconnect session'
+                    'message' => 'Failed to reconnect session: ' . $e->getMessage()
                 ], 500);
             }
-
-        } catch (\Exception $e) {
-            Log::error('Failed to reconnect WhatsApp session', [
-                'workspace_id' => $workspaceId,
-                'session_id' => $session->session_id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to reconnect session: ' . $e->getMessage()
-            ], 500);
         }
+
+        return $response;
     }
 
     /**
@@ -343,47 +466,49 @@ class WhatsAppSessionController extends Controller
     public function regenerateQR(string $uuid)
     {
         $workspaceId = session('current_workspace');
+        $response = null;
 
         $session = WhatsAppSession::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
         if (!in_array($session->status, ['qr_scanning', 'disconnected'])) {
-            return response()->json([
+            $response = response()->json([
                 'success' => false,
                 'message' => 'Cannot regenerate QR for this session status'
             ], 400);
-        }
+        } else {
+            try {
+                $adapter = new WebJSAdapter($workspaceId, $session);
+                $result = $adapter->regenerateQR();
 
-        try {
-            $adapter = new WebJSAdapter($workspaceId, $session);
-            $result = $adapter->regenerateQR();
-
-            if ($result['success']) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'QR code regenerated successfully',
-                    'qr_code' => $result['qr_code'] ?? null,
+                if (!$result['success']) {
+                    $response = response()->json([
+                        'success' => false,
+                        'message' => $result['error'] ?? 'Failed to regenerate QR code'
+                    ], 500);
+                } else {
+                    $response = response()->json([
+                        'success' => true,
+                        'message' => 'QR code regenerated successfully',
+                        'qr_code' => $result['qr_code'] ?? null,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to regenerate QR code', [
+                    'workspace_id' => $workspaceId,
+                    'session_id' => $session->session_id,
+                    'error' => $e->getMessage(),
                 ]);
-            } else {
-                return response()->json([
+
+                $response = response()->json([
                     'success' => false,
-                    'message' => $result['error'] ?? 'Failed to regenerate QR code'
+                    'message' => 'Failed to regenerate QR code: ' . $e->getMessage()
                 ], 500);
             }
-
-        } catch (\Exception $e) {
-            Log::error('Failed to regenerate QR code', [
-                'workspace_id' => $workspaceId,
-                'session_id' => $session->session_id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to regenerate QR code: ' . $e->getMessage()
-            ], 500);
         }
+
+        return $response;
     }
 
     /**
@@ -418,11 +543,19 @@ class WhatsAppSessionController extends Controller
      */
     private function canAddSession(int $workspaceId): bool
     {
-        $currentCount = WhatsAppSession::forWorkspace($workspaceId)->count();
+        // Only count connected sessions (not qr_scanning or pending)
+        $currentCount = WhatsAppSession::forWorkspace($workspaceId)
+            ->where('status', 'connected')
+            ->count();
 
-        // TODO: Get plan limits from subscription_plans table
-        // For now, allow up to 5 sessions
-        $maxSessions = 5;
+        // Get plan limits from subscription_plans table or workspace settings
+        $workspace = \App\Models\Workspace::find($workspaceId);
+        if ($workspace && $workspace->subscription) {
+            $maxSessions = $workspace->subscription->plan->whatsapp_sessions_limit ?? 10;
+        } else {
+            // Fallback to workspace settings or default (set to 10 for development)
+            $maxSessions = $workspace->settings()->where('key', 'whatsapp_sessions_limit')->first()?->value ?? 10;
+        }
 
         return $currentCount < $maxSessions;
     }

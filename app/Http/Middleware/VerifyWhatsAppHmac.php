@@ -75,6 +75,16 @@ class VerifyWhatsAppHmac
         $now = time();
         $maxAge = config('whatsapp.security.signature_ttl', 300); // 5 minutes default
 
+        // Debug: Log ALL timestamp validations
+        Log::debug('WhatsApp HMAC timestamp validation', [
+            'timestamp_received' => $timestamp,
+            'request_time_int' => $requestTime,
+            'current_time' => $now,
+            'age_seconds' => abs($now - $requestTime),
+            'max_age' => $maxAge,
+            'is_valid' => abs($now - $requestTime) <= $maxAge
+        ]);
+
         if (abs($now - $requestTime) > $maxAge) {
             Log::warning('WhatsApp HMAC validation failed: Timestamp expired', [
                 'request_time' => $requestTime,
