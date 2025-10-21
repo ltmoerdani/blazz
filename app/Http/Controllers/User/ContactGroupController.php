@@ -11,16 +11,17 @@ use App\Models\ContactGroup;
 use App\Http\Requests\StoreContactGroup;
 use App\Http\Resources\ContactGroupResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
-use Excel;
-use Validator;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ContactGroupController extends BaseController
 {
-    private function getCurrentOrganizationId()
+    private function getCurrentworkspaceId()
     {
-        return session()->get('current_organization');
+        return session()->get('current_workspace');
     }
 
     public function index(Request $request, $uuid = null)
@@ -28,15 +29,15 @@ class ContactGroupController extends BaseController
         if($uuid === 'export') {
             return Excel::download(new ContactGroupsExport, 'contact-groups.xlsx');
         } else {
-            $organizationId = $this->getCurrentOrganizationId();
+            $workspaceId = $this->getCurrentworkspaceId();
             $contactGroupModel = new ContactGroup;
 
             $searchTerm = $request->query('search');
             $uuid = $request->query('id');
 
-            $rows = $contactGroupModel->getAll($organizationId, $searchTerm);
-            $rowCount = $contactGroupModel->countAll($organizationId);
-            $group = $contactGroupModel->getRow($uuid, $organizationId);
+            $rows = $contactGroupModel->getAll($workspaceId, $searchTerm);
+            $rowCount = $contactGroupModel->countAll($workspaceId);
+            $group = $contactGroupModel->getRow($uuid, $workspaceId);
 
             return Inertia::render('User/Contact/Group', [
                 'title' => __('Groups'),
@@ -48,7 +49,7 @@ class ContactGroupController extends BaseController
         }
     }
 
-    public function import(Request $request) 
+    public function import(Request $request)
     {
         $import = new ContactGroupsImport();
         Excel::import($import, $request->file);
@@ -72,7 +73,7 @@ class ContactGroupController extends BaseController
 
         return redirect('/contact-groups')->with(
             'status', [
-                'type' => $statusType, 
+                'type' => $statusType,
                 'message' => $statusMessage,
                 'import_summary' => array(
                     'total_imports' => $totalImports,
@@ -90,15 +91,15 @@ class ContactGroupController extends BaseController
     public function store(StoreContactGroup $request)
     {
         $contactGroup = new ContactGroup();
-        $contactGroup->organization_id = $this->getCurrentOrganizationId();
+        $contactGroup->Workspace_id = $this->getCurrentworkspaceId();
         $contactGroup->name = $request->name;
-        $contactGroup->created_by = auth()->user()->id;
+        $contactGroup->created_by = Auth::id();
         $contactGroup->created_at = now();
         $contactGroup->updated_at = now();
         $contactGroup->save();
 
         // Prepare a clean contact object for webhook
-        $cleanContactGroup = $contactGroup->makeHidden(['id', 'organization_id', 'created_by']);
+        $cleanContactGroup = $contactGroup->makeHidden(['id', 'workspace_id', 'created_by']);
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('group.created', $cleanContactGroup);
@@ -122,7 +123,7 @@ class ContactGroupController extends BaseController
         $contactGroup->save();
 
         // Prepare a clean contact object for webhook
-        $cleanContactGroup = $contactGroup->makeHidden(['id', 'organization_id', 'created_by']);
+        $cleanContactGroup = $contactGroup->makeHidden(['id', 'workspace_id', 'created_by']);
 
         // Trigger webhook
         WebhookHelper::triggerWebhookEvent('group.created', $cleanContactGroup);
@@ -133,11 +134,11 @@ class ContactGroupController extends BaseController
     public function delete(Request $request)
     {
         $uuids = $request->input('uuids', []);
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
         $deletedGroups = [];
 
         if (empty($uuids)) {
-            $contactgroups = ContactGroup::where('organization_id', $organizationId)->get();
+            $contactgroups = ContactGroup::where('workspace_id', $workspaceId)->get();
             // Prepare deleted contacts for the webhook
             foreach ($contactgroups as $group) {
                 $group->contacts()->detach();
@@ -148,9 +149,9 @@ class ContactGroupController extends BaseController
             }
 
             // Delete all groups
-            ContactGroup::where('organization_id', $organizationId)->delete();
+            ContactGroup::where('workspace_id', $workspaceId)->delete();
         } else {
-            $contactGroups = ContactGroup::whereIn('uuid', $uuids)->where('organization_id', $organizationId)->get();
+            $contactGroups = ContactGroup::whereIn('uuid', $uuids)->where('workspace_id', $workspaceId)->get();
 
             foreach ($contactGroups as $group) {
                 $group->contacts()->detach(); // Detach contacts from this group
@@ -161,7 +162,7 @@ class ContactGroupController extends BaseController
             }
 
             // Delete only selected groups
-            ContactGroup::whereIn('uuid', $uuids)->where('organization_id', $organizationId)->delete();
+            ContactGroup::whereIn('uuid', $uuids)->where('workspace_id', $workspaceId)->delete();
         }
 
         // Trigger webhook with deleted contacts

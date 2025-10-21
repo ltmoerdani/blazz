@@ -326,7 +326,7 @@ public function migrateMessageId($oldId, $newId) {
 
 ### **RISK 2: Authentication Complexity**
 **Risk Level:** HIGH (Complete flow redesign required)
-**Impact:** User experience, session management, multi-organization support
+**Impact:** User experience, session management, multi-workspace support
 
 **Mitigation Strategy:**
 1. **QR Code Integration**: Vue component for QR display and scanning
@@ -434,7 +434,7 @@ public function convertListToText($listData) {
 
 **Mitigation Strategy:**
 1. **Instance Isolation**: Separate whatsapp-web.js clients per account
-2. **Session Management**: Database persistence per organization/user
+2. **Session Management**: Database persistence per workspace/user
 3. **Message Routing**: Route messages to correct account based on phone number
 4. **Resource Management**: Monitor and limit concurrent instances
 
@@ -823,7 +823,7 @@ class MultiAgentService
     }
     
     private function routeMessage($message, $orgId) {
-        // Route to correct organization handlers
+        // Route to correct workspace handlers
         MessageProcessor::processForOrganization($message, $orgId);
     }
 }
@@ -926,7 +926,7 @@ public function sendProductCatalog($contactId, $products) {
 #### **3. SessionManager (New)**
 **Location:** `app/Services/SessionManager.php`
 **Purpose:** Manage WhatsApp Web sessions
-**Dependencies:** Organization model, filesystem
+**Dependencies:** workspace model, filesystem
 **Key Methods:**
 - `loadSession()`: Restore saved session
 - `saveSession()`: Persist current session
@@ -980,7 +980,7 @@ public function sendProductCatalog($contactId, $products) {
 **Location:** `app/Models/`
 **Modified Models:**
 - `Chat.php`: Add whatsapp_web_id field
-- `Organization.php`: Add session metadata
+- `workspace.php`: Add session metadata
 - `Message.php`: Update ID handling logic
 
 ### REFERENCES

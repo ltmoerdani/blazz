@@ -16,7 +16,7 @@ class TransferContactGroupSeeder extends Seeder
                 INSERT INTO contact_contact_group (contact_id, contact_group_id)
                 SELECT c.id, c.contact_group_id
                 FROM contacts c
-                WHERE c.contact_group_id IS NOT NULL
+                WHERE c.contact_group_id IS NOT null
                 AND NOT EXISTS (
                     SELECT 1
                     FROM contact_contact_group ccg
@@ -27,7 +27,7 @@ class TransferContactGroupSeeder extends Seeder
             // Step 2: Nullify contact_group_id in contacts table
             DB::table('contacts')->whereNotNull('contact_group_id')->update(['contact_group_id' => null]);
 
-            // Step 3: Drop the column only if it exists and contains only NULLs
+            // Step 3: Drop the column only if it exists and contains only nulls
             if (
                 Schema::hasColumn('contacts', 'contact_group_id') &&
                 DB::table('contacts')->whereNotNull('contact_group_id')->doesntExist()

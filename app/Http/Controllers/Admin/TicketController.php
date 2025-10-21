@@ -38,7 +38,7 @@ class TicketController extends BaseController
                     })->with(['user', 'agent'])->orderBy('updated_at', 'desc')->paginate(10)
                 ),
             ]);
-        } else if($uuid === 'create'){
+        } elseif ($uuid === 'create') {
             $data['title'] = __('Create ticket');
             $data['categories'] = TicketCategory::get();
             return Inertia::render('Admin/Ticket/Create', $data);
@@ -58,7 +58,7 @@ class TicketController extends BaseController
 
         return Redirect::route('tickets')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Ticket created successfully')
             ]
         );
@@ -69,7 +69,7 @@ class TicketController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Comment added successfully')
             ]
         );
@@ -80,7 +80,7 @@ class TicketController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Ticket updated successfully')
             ]
         );

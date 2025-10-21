@@ -15,16 +15,16 @@ class ChatLog extends Model {
     protected $guarded = [];
     public $timestamps = false;
 
-    // Accessor to format created_at with organization's timezone
+    // Accessor to format created_at with workspace's timezone
     public function getCreatedAtAttribute($value)
     {
-        // Convert the stored UTC timestamp to the organization's timezone
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        // Convert the stored UTC timestamp to the workspace's timezone
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function getUpdatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
 
     public function entity()

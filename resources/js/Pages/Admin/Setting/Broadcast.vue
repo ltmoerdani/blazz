@@ -10,6 +10,17 @@
         <form @submit.prevent="submitForm()">
             <div class="space-y-12">
                 <div class="pb-12">
+                    <!-- Laravel Reverb fields (NEW - DEFAULT) -->
+                    <div v-if="form.broadcast_driver === 'reverb'" class="grid gap-6 grid-cols-2 pb-10 border-b md:w-2/3">
+                        <FormSelect v-model="form.broadcast_driver" :name="$t('Broadcast driver')" :type="'text'"  :options="methods" :error="form.errors.broadcast_driver" :class="'col-span-2'"/>
+                        <FormInput v-model="form.reverb_app_id" :name="$t('Reverb App ID')" :type="'text'" :error="form.errors.reverb_app_id" :class="'col-span-2'" :help="$t('Auto-generated ID for Reverb server')"/>
+                        <FormInput v-model="form.reverb_app_key" :name="$t('Reverb App Key')" :type="'text'" :error="form.errors.reverb_app_key" :class="'col-span-2'"/>
+                        <FormInput v-model="form.reverb_app_secret" :name="$t('Reverb App Secret')" :type="'password'" :error="form.errors.reverb_app_secret" :class="'col-span-2'"/>
+                        <FormInput v-model="form.reverb_host" :name="$t('Reverb Host')" :type="'text'" :error="form.errors.reverb_host" :class="'col-span-1'" placeholder="127.0.0.1"/>
+                        <FormInput v-model="form.reverb_port" :name="$t('Reverb Port')" :type="'number'" :error="form.errors.reverb_port" :class="'col-span-1'" placeholder="8080"/>
+                    </div>
+
+                    <!-- Pusher fields (EXISTING - OPTIONAL) -->
                     <div v-if="form.broadcast_driver === 'pusher'" class="grid gap-6 grid-cols-2 pb-10 border-b md:w-2/3">
                         <FormSelect v-model="form.broadcast_driver" :name="$t('Broadcast driver')" :type="'text'"  :options="methods" :error="form.errors.broadcast_driver" :class="'col-span-2'"/>
                         <FormInput v-model="form.pusher_app_id" :name="$t('Pusher app id')" :type="'text'" :error="form.errors.pusher_app_id" :class="'col-span-1'"/>
@@ -54,7 +65,15 @@
 
     const isLoading = ref(false);
     const form = useForm({
-        broadcast_driver: getValueByKey('broadcast_driver'),
+        broadcast_driver: getValueByKey('broadcast_driver') || 'reverb', // Default to Reverb
+        // Laravel Reverb fields (NEW - DEFAULT)
+        reverb_app_id: getValueByKey('reverb_app_id'),
+        reverb_app_key: getValueByKey('reverb_app_key'),
+        reverb_app_secret: getValueByKey('reverb_app_secret'),
+        reverb_host: getValueByKey('reverb_host'),
+        reverb_port: getValueByKey('reverb_port'),
+        reverb_scheme: getValueByKey('reverb_scheme'),
+        // Pusher fields (EXISTING - OPTIONAL)
         pusher_app_key: getValueByKey('pusher_app_key'),
         pusher_app_id: getValueByKey('pusher_app_id'),
         pusher_app_secret: getValueByKey('pusher_app_secret'),
@@ -62,7 +81,8 @@
     })
 
     const methods = [
-        { label: 'Pusher', value: 'pusher' },
+        { label: 'Laravel Reverb (FREE) ⭐ Default', value: 'reverb' },
+        { label: 'Pusher (Managed, Paid)', value: 'pusher' },
     ]
 
     const submitForm = async () => {

@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use App\Models\Setting;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Str;
+use Illuminate\Support\Str;
 
 class SettingsTableSeeder extends Seeder
 {
@@ -21,6 +21,7 @@ class SettingsTableSeeder extends Seeder
             ['key' => 'address', 'value' => null],
             ['key' => 'allow_facebook_login', 'value' => '0'],
             ['key' => 'allow_google_login', 'value' => '0'],
+            ['key' => 'app_name', 'value' => 'Blazz'],
             ['key' => 'aws_access_key', 'value' => null],
             ['key' => 'aws_bucket', 'value' => null],
             ['key' => 'aws_default_region', 'value' => null],
@@ -35,7 +36,7 @@ class SettingsTableSeeder extends Seeder
             ['key' => 'billing_state', 'value' => null],
             ['key' => 'billing_tax_id', 'value' => null],
             ['key' => 'broadcast_driver', 'value' => 'pusher'],
-            ['key' => 'company_name', 'value' => null],
+            ['key' => 'company_name', 'value' => 'Blazz'],
             ['key' => 'currency', 'value' => 'USD'],
             ['key' => 'date_format', 'value' => 'd-M-y'],
             ['key' => 'default_image_api', 'value' => null],
@@ -63,7 +64,7 @@ class SettingsTableSeeder extends Seeder
             ['key' => 'storage_system', 'value' => 'local'],
             ['key' => 'time_format', 'value' => 'H:i'],
             ['key' => 'timezone', 'value' => 'UTC'],
-            ['key' => 'title', 'value' => null],
+            ['key' => 'title', 'value' => 'Blazz - WhatsApp Business Solution'],
             ['key' => 'trial_period', 'value' => '20'],
             ['key' => 'verify_email', 'value' => '0'],
             ['key' => 'app_environment', 'value' => 'local'],
@@ -72,7 +73,9 @@ class SettingsTableSeeder extends Seeder
             ['key' => 'last_update_check', 'value' => now()],
             ['key' => 'release_date', 'value' => null],
             ['key' => 'version', 'value' => null],
-            ['key' => 'whatsapp_callback_token', 'value' => now()->format('YmdHis') . Str::random(4)]
+            ['key' => 'whatsapp_callback_token', 'value' => now()->format('YmdHis') . Str::random(4)],
+            ['key' => 'display_frontend', 'value' => '1'],
+            ['key' => 'enable_ai_billing', 'value' => '0']
         ];
 
         foreach ($settings as $setting) {

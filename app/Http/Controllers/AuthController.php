@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use DB;
+use Illuminate\Support\Facades\DB;
 use App\Helpers\Email;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\LoginRequest;
@@ -16,7 +16,7 @@ use App\Services\AuthService;
 use App\Services\PasswordResetService;
 use App\Services\UserService;
 use App\Models\Addon;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\PasswordResetToken;
 use App\Models\Setting;
 use App\Models\Subscription;
@@ -30,8 +30,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
-use Session;
-use Str;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
 
 class AuthController extends BaseController
 {
@@ -53,10 +53,18 @@ class AuthController extends BaseController
 
     public function login(LoginRequest $request){
         $user = User::where('email', $request->email)->where('deleted_at', null)->first();
-        $addon = Addon::where('name', 'Google Authenticator')->first()->is_active; 
+        
+        if (!$user) {
+            return back()->withErrors([
+                'email' => 'Email tidak terdaftar atau password salah.',
+            ]);
+        }
+        
+        $addon = Addon::where('name', 'Google Authenticator')->first();
+        $addonIsActive = $addon ? $addon->is_active : 0;
         $remember = $request->remember;
 
-        if ($user->tfa && $addon == 1) {
+        if ($user->tfa && $addonIsActive == 1) {
             $request->session()->put('tfa', $user->id);
             $request->session()->put('remember', $remember);
       
@@ -101,11 +109,11 @@ class AuthController extends BaseController
             Auth::guard($guard)->login($user, $remember);
         }
 
-        //Check number of organizations
+        //Check number of workspaces
         if($guard == 'user'){
-            $teams = Team::where('user_id', auth()->user()->id);
+            $teams = Team::where('user_id', Auth::guard($guard)->user()->id);
             if($teams->count() == 1){
-                session()->put('current_organization', $teams->first()->organization_id);
+                session()->put('current_workspace', $teams->first()->Workspace_id);
             }
         }
 
@@ -133,7 +141,7 @@ class AuthController extends BaseController
         if ($request->has('error')) {
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('There was an error with Facebook login!')
                 ]
             );
@@ -145,14 +153,14 @@ class AuthController extends BaseController
 
             if ($user) {
                 if($user->role == 'user'){
-                    //Check if user belongs to organization, otherwise set one up
+                    //Check if user belongs to workspace, otherwise set one up
                     $team = Team::where('user_id', $user->id)->first();
 
                     if(!$team){
-                        //Create Organization
-                        $organization = $this->createOrganization($user);
+                        //Create workspace
+                        $workspace = $this->createWorkspace($user);
 
-                        session()->put('current_organization', $organization->id);
+                        session()->put('current_workspace', $workspace->id);
                     }
                 }
 
@@ -170,14 +178,14 @@ class AuthController extends BaseController
                         $user->facebook_id = $facebookUser->id;
                         $user->save();
 
-                        //Check if user belongs to organization, otherwise set one up
+                        //Check if user belongs to workspace, otherwise set one up
                         $team = Team::where('user_id', $user->id)->first();
 
                         if(!$team){
-                            //Create Organization
-                            $organization = $this->createOrganization($user);
+                            //Create workspace
+                            $workspace = $this->createWorkspace($user);
 
-                            session()->put('current_organization', $organization->id);
+                            session()->put('current_workspace', $workspace->id);
                         }
                     } else {
                         // Extract first name and last name
@@ -196,17 +204,18 @@ class AuthController extends BaseController
                         $user->role = 'user';
                         $user->save();
                 
-                        //Create Organization
-                        $organization = $this->createOrganization($user);
+                        //Create workspace
+                        $workspace = $this->createWorkspace($user);
                 
                         // Send Registration Email
                         Email::send('Registration', $user);
 
+                        $config = Setting::where('key', 'verify_email')->first();
                         if (isset($config->value) && $config->value == '1') {
                             $user->sendEmailVerificationNotification();
                         }
 
-                        session()->put('current_organization', $organization->id);
+                        session()->put('current_workspace', $workspace->id);
                     }
                     
                     // Log the user in
@@ -227,7 +236,7 @@ class AuthController extends BaseController
         if ($request->has('error')) {
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('There was an error with Google login!')
                 ]
             );
@@ -249,9 +258,9 @@ class AuthController extends BaseController
 
                 $user = new User();
                 $user->first_name = $name[0];
-                $user->last_name = isset($name[1]) ? $name[1] : NULL;
+                $user->last_name = isset($name[1]) ? $name[1] : null;
                 $user->email = $gUser->email;
-                $user->password = NULL;
+                $user->password = null;
                 $user->email_verified_at = now();
                 $user->role = 'user';
                 $user->save();
@@ -259,37 +268,38 @@ class AuthController extends BaseController
                 $timestamp = now()->format('YmdHis');
                 $randomString = Str::random(4);
 
-                //Create Organization
-                $organization = Organization::create([
+                //Create workspace
+                $workspace = workspace::create([
                     'identifier' => $timestamp . $user->id . $randomString,
-                    'name' => $name[0] . "'s organization",
+                    'name' => $name[0] . "'s workspace",
                     'created_by' => $user->id
                 ]);
 
                 //Create Team
                 $team = Team::create([
-                    'organization_id' => $organization->id,
+                    'workspace_id' => $workspace->id,
                     'user_id' => $user->id,
                     'role' => 'owner',
                     'status' => 'active',
                     'created_by' => $user->id
                 ]);
 
-                $config = Setting::where('key', 'trial_period')->first();
-                $has_trial = isset($config->value) && $config->value > 0 ? true : false;
+                $trialConfig = Setting::where('key', 'trial_period')->first();
+                $has_trial = isset($trialConfig->value) && $trialConfig->value > 0 ? true : false;
 
                 //Create Subscription
                 Subscription::create([
-                    'organization_id' => $organization->id,
+                    'workspace_id' => $workspace->id,
                     'status' => $has_trial ? 'trial' : 'active',
                     'plan_id' => null,
                     'start_date' => now(),
-                    'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $config->value . ' days')) : now(),
+                    'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $trialConfig->value . ' days')) : now(),
                 ]);
 
                 Email::send('Registration', $user);
 
-                if (isset($config->value) && $config->value == '1') {
+                $emailConfig = Setting::where('key', 'verify_email')->first();
+                if (isset($emailConfig->value) && $emailConfig->value == '1') {
                     $user->sendEmailVerificationNotification();
                 }
 
@@ -305,20 +315,20 @@ class AuthController extends BaseController
         }
     }
 
-    private function createOrganization($user){
+    private function createWorkspace($user){
         $timestamp = now()->format('YmdHis');
         $randomString = Str::random(4);
 
-        // Create Organization
-        $organization = Organization::create([
+        // Create workspace
+        $workspace = workspace::create([
             'identifier' => $timestamp . $user->id . $randomString,
-            'name' => $user->first_name . "'s organization",
+            'name' => $user->first_name . "'s workspace",
             'created_by' => $user->id
         ]);
 
         // Create Team
         $team = Team::create([
-            'organization_id' => $organization->id,
+            'workspace_id' => $workspace->id,
             'user_id' => $user->id,
             'role' => 'owner',
             'status' => 'active',
@@ -330,14 +340,14 @@ class AuthController extends BaseController
 
         // Create Subscription
         Subscription::create([
-            'organization_id' => $organization->id,
+            'workspace_id' => $workspace->id,
             'status' => $has_trial ? 'trial' : 'active',
             'plan_id' => null,
             'start_date' => now(),
             'valid_until' => $has_trial ? date('Y-m-d H:i:s', strtotime('+' . $config->value . ' days')) : now(),
         ]);
 
-        return $organization;
+        return $workspace;
     }
 
     public function showRegistrationForm()
@@ -368,12 +378,12 @@ class AuthController extends BaseController
         if(!$invite){
             return Redirect::route('login')->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('That page does not exist!')
                 ]
             );
         } else {
-            $data['organization'] = Organization::where('id', $invite->organization_id)->first();
+            $data['workspace'] = workspace::where('id', $invite->Workspace_id)->first();
             $data['user'] = User::where('email', $invite->email)->where('role', 'user')->first();
             $data['invite'] = $invite;
             $data['code'] = $uuid;
@@ -406,7 +416,7 @@ class AuthController extends BaseController
 
         return redirect('/forgot-password')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('We\'ve sent you a password reset link to your email!')
             ]
         );
@@ -433,7 +443,7 @@ class AuthController extends BaseController
 
         return redirect('/login')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Password reset successful!')
             ]
         );
@@ -441,7 +451,7 @@ class AuthController extends BaseController
 
     public function verifyEmail()
     {
-        if(auth()->user()->email_verified_at != NULL){
+        if(Auth::guard('user')->user()->email_verified_at != null){
             return redirect('dashboard');
         } else {
             $keys = ['logo', 'company_name', 'address', 'email', 'phone', 'socials', 'trial_period'];
@@ -453,11 +463,13 @@ class AuthController extends BaseController
 
     public function sendEmailVerification(Request $request)
     {
-        $request->user()->sendEmailVerificationNotification();
+        /** @var User $user */
+        $user = Auth::guard('user')->user();
+        $user->sendEmailVerificationNotification();
 
         return back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Verification link sent!')
             ]
         );

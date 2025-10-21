@@ -17,8 +17,8 @@ class TemplateResource extends JsonResource
     {
         $data = parent::toArray($request);
 
-        // Convert updated_at to the organization's timezone and format it
-        $updatedAt = DateTimeHelper::convertToOrganizationTimezone($this->updated_at);
+        // Convert updated_at to the workspace's timezone and format it
+        $updatedAt = DateTimeHelper::convertToWorkspaceTimezone($this->updated_at);
         $data['updated_at'] = DateTimeHelper::formatDate($updatedAt);
 
         return $data;

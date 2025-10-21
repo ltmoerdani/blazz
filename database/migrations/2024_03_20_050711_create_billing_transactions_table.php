@@ -16,7 +16,7 @@ class CreateBillingTransactionsTable extends Migration
         Schema::create('billing_transactions', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->integer('organization_id');
+            $table->integer('workspace_id');
             $table->enum('entity_type', ['payment', 'invoice', 'credit', 'debit']);
             $table->integer('entity_id');
             $table->text('description');

@@ -20,7 +20,7 @@ return new class extends Migration
                 $table->id();
                 $table->string('ip_address', 45);
                 $table->unsignedBigInteger('user_id')->nullable();
-                $table->unsignedBigInteger('organization_id')->nullable();
+                $table->unsignedBigInteger('workspace_id')->nullable();
                 $table->integer('risk_score')->default(0);
                 $table->json('threats_detected')->nullable();
                 $table->json('recommendations')->nullable();
@@ -32,7 +32,7 @@ return new class extends Migration
                 $table->index(['blocked', 'created_at']);
                 $table->index('ip_address');
                 $table->index('user_id');
-                $table->index('organization_id');
+                $table->index('workspace_id');
             });
         }
 

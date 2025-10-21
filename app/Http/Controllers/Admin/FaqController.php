@@ -9,7 +9,7 @@ use App\Models\Faq;
 use App\Services\FaqService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule; 
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Helper;
 use Session;
@@ -17,6 +17,11 @@ use Validator;
 
 class FaqController extends BaseController
 {
+    // Constants for repeated string literals
+    const ADMIN_FAQS_ROUTE = '/admin/faqs';
+    
+    protected $faqService;
+
     public function __construct(FaqService $faqService)
     {
         $this->faqService = $faqService;
@@ -30,7 +35,7 @@ class FaqController extends BaseController
     public function index(Request $request){
         return Inertia::render('Admin/Faq/Index', [
             'title' => __('FAQs'),
-            'rows' => $this->faqService->get($request), 
+            'rows' => $this->faqService->get($request),
             'filters' => $request->all()
         ]);
     }
@@ -42,7 +47,7 @@ class FaqController extends BaseController
      */
     public function create(Request $request)
     {
-        $query = $this->faqService->getByUuid(NULL);
+        $query = $this->faqService->getByUuid(null);
 
         return Inertia::render('Admin/Faq/Show', ['title' => __('FAQs'), 'faq' => $query]);
     }
@@ -56,9 +61,9 @@ class FaqController extends BaseController
     {
         $this->faqService->store($request);
 
-        return redirect('/admin/faqs')->with(
+        return redirect(self::ADMIN_FAQS_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Faq added successfully!')
             ]
         );
@@ -87,9 +92,9 @@ class FaqController extends BaseController
     {
         $this->faqService->store($request, $id);
 
-        return redirect('/admin/faqs')->with(
+        return redirect(self::ADMIN_FAQS_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Faq updated successfully!')
             ]
         );
@@ -105,9 +110,9 @@ class FaqController extends BaseController
     {
         $this->faqService->delete($id);
 
-        return redirect('/admin/faqs')->with(
+        return redirect(self::ADMIN_FAQS_ROUTE)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Faq deleted successfully!')
             ]
         );

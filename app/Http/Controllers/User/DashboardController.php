@@ -11,7 +11,7 @@ use App\Models\Addon;
 use App\Models\Chat;
 use App\Models\Campaign;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\Template;
@@ -28,29 +28,29 @@ class DashboardController extends BaseController
     }
 
     public function index(Request $request){
-        $organizationId = session()->get('current_organization');
-        $data['subscription'] = Subscription::with('plan')->where('organization_id', $organizationId)->first();
-        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($organizationId, $data['subscription']->plan_id);
-        $data['subscriptionIsActive'] = SubscriptionService::isSubscriptionActive($organizationId);
-        $data['chatCount'] = Chat::where('organization_id', $organizationId)
+        $workspaceId = session()->get('current_workspace');
+        $data['subscription'] = Subscription::with('plan')->where('workspace_id', $workspaceId)->first();
+        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
+        $data['subscriptionIsActive'] = SubscriptionService::isSubscriptionActive($workspaceId);
+        $data['chatCount'] = Chat::where('workspace_id', $workspaceId)
             ->whereNull('deleted_at')
             ->whereHas('contact', function ($query) {
                 $query->whereNull('deleted_at');
             })
             ->count();
-        $data['campaignCount'] = Campaign::where('organization_id', $organizationId)->whereNull('deleted_at')->count();
-        $data['contactCount'] = Contact::where('organization_id', $organizationId)->whereNull('deleted_at')->count();
-        $data['templateCount'] = Template::where('organization_id', $organizationId)->whereNull('deleted_at')->count();
+        $data['campaignCount'] = Campaign::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
+        $data['contactCount'] = Contact::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
+        $data['templateCount'] = Template::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
         $data['graphAPIVersion'] = config('graph.api_version');
 
-        $organizationId = session()->get('current_organization');
-        $organization = Organization::where('id', $organizationId)->first();
-        $config = $organization->metadata ? json_decode($organization->metadata, true) : [];
+        $workspaceId = session()->get('current_workspace');
+        $workspace = workspace::where('id', $workspaceId)->first();
+        $config = $workspace->metadata ? json_decode($workspace->metadata, true) : [];
         $settings = Setting::whereIn('key', ['is_embedded_signup_active', 'whatsapp_client_id', 'whatsapp_config_id'])
             ->pluck('value', 'key');
 
-        $data['organization'] = $organization;
-        $data['campaigns'] = Campaign::where('organization_id', $organizationId)
+        $data['workspace'] = $workspace;
+        $data['campaigns'] = Campaign::where('workspace_id', $workspaceId)
             ->whereIn('status', ['pending', 'scheduled'])
             ->limit(5)
             ->get();
@@ -67,10 +67,10 @@ class DashboardController extends BaseController
     }
 
     public function dismissNotification(Request $request, $type){
-        $currentOrganizationId = session()->get('current_organization');
-        $organizationConfig = Organization::where('id', $currentOrganizationId)->first();
+        $currentworkspaceId = session()->get('current_workspace');
+        $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
 
-        $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+        $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
         if($type === 'team'){
             $metadataArray['notification']['team'] = false;
@@ -78,12 +78,12 @@ class DashboardController extends BaseController
 
         $updatedMetadataJson = json_encode($metadataArray);
 
-        $organizationConfig->metadata = $updatedMetadataJson;
-        $organizationConfig->save();
+        $workspaceConfig->metadata = $updatedMetadataJson;
+        $workspaceConfig->save();
 
         return redirect()->route('dashboard')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Notification dismissed successfully!')
             ]
         );
@@ -105,12 +105,12 @@ class DashboardController extends BaseController
     }
 
     private function getChatCounts($type){
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
         $chatCounts = [];
 
         foreach ($this->period() as $dateString) {
             $date = Carbon::parse($dateString);
-            $chatCount = Chat::where('organization_id', $organizationId)
+            $chatCount = Chat::where('workspace_id', $workspaceId)
                 ->where('type', $type)
                 ->whereNull('deleted_at')
                 ->whereDate('created_at', $date->toDateString())

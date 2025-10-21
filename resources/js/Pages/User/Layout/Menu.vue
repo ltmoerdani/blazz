@@ -105,7 +105,7 @@
     <div v-if="menuIconsOnly === false" @click="switchTeams()" class="border-2 border-primary text-sm rounded-[5px] mb-1 m-3 py-2 px-4 flex items-center justify-between cursor-pointer">
         <div class="flex space-x-1">
             <span>{{ $t('Team') }}:</span>
-            <span class="text-ellipsis w-[120px] truncate">{{ props.organization.name }}</span>
+            <span class="text-ellipsis w-[120px] truncate">{{ props.workspace.name }}</span>
         </div>
         <span>
             <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M19.696 8.72a1.22 1.22 0 0 1-.3.64l-6.09 6.76a1.85 1.85 0 0 1-.58.46a1.7 1.7 0 0 1-1.42.03a1.75 1.75 0 0 1-.62-.42l-6.1-6.83a1.28 1.28 0 0 1-.31-.64a1.31 1.31 0 0 1 .56-1.26a1.36 1.36 0 0 1 .68-.21h13a1.293 1.293 0 0 1 1.15.76c.081.228.092.476.03.71"></path></svg>
@@ -135,22 +135,22 @@
     <Modal :label="$t('Switch teams')" :isOpen="isLocationSwitchModalOpen">
         <div class="mt-2 grid grid-cols-1 gap-x-6">
             <div class="pt-3 space-y-2 text-sm">
-                <div v-for="(item, index) in props.organizations" :key="index" @click="selectOrganization(item.organization.uuid)" class="flex gap-x-8 hover:bg-slate-200 rounded-lg py-1 justify-between items-center w-full cursor-pointer border border-slate-100 pl-1 pr-2">
+                <div v-for="(item, index) in props.workspaces" :key="index" @click="selectWorkspace(item.workspace.uuid)" class="flex gap-x-8 hover:bg-slate-200 rounded-lg py-1 justify-between items-center w-full cursor-pointer border border-slate-100 pl-1 pr-2">
                     <div class="flex items-center gap-x-2">
                         <span class="bg-slate-200 w-10 h-10 rounded-lg flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" fill-rule="evenodd"><path d="M24 0v24H0V0h24ZM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035c-.01-.004-.019-.001-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427c-.002-.01-.009-.017-.017-.018Zm.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093c.012.004.023 0 .029-.008l.004-.014l-.034-.614c-.003-.012-.01-.02-.02-.022Zm-.715.002a.023.023 0 0 0-.027.006l-.006.014l-.034.614c0 .012.007.02.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01l-.184-.092Z"/><path fill="currentColor" d="M17 3.722v5.497l2.864.716A1.5 1.5 0 0 1 21 11.39V19a1 1 0 1 1 0 2H3a1 1 0 1 1 0-2v-7.69a1.5 1.5 0 0 1 .83-1.343L7 8.382V6.347a1.5 1.5 0 0 1 .973-1.405l7-2.625A1.5 1.5 0 0 1 17 3.722Zm-2 .721l-6 2.25V19h6V4.443Zm2 6.838V19h2v-7.22l-2-.5Zm-10-.663l-2 1V19h2v-8.382Z"/></g></svg>
                         </span>
                         <div>
-                            <h3>{{ item.organization.name }}</h3>
+                            <h3>{{ item.workspace.name }}</h3>
                         </div>
                     </div>
                     <span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 20 20"><path fill="currentColor" fill-rule="evenodd" d="M5 2.643v14.765c.092.32.299.511.619.572c.32.061.633-.024.94-.255l8.107-6.993A.944.944 0 0 0 15 10a.94.94 0 0 0-.334-.73L6.58 2.295c-.232-.197-.639-.383-1.061-.253c-.282.087-.455.287-.519.6"/></svg>
                     </span>
                 </div>
-                <div @click="isOpenOrganizationModal = true" class="flex gap-x-8 bg-slate-50 hover:bg-slate-200 rounded-lg py-1 justify-between items-center w-full cursor-pointer border border-slate-100 pl-1 pr-2 py-3">
+                <div @click="isOpenWorkspaceModal = true" class="flex gap-x-8 bg-slate-50 hover:bg-slate-200 rounded-lg py-1 justify-between items-center w-full cursor-pointer border border-slate-100 pl-1 pr-2 py-3">
                     <div class="w-full">
-                        <h3 class="text-center">Create Organization</h3>
+                        <h3 class="text-center">Create workspace</h3>
                     </div>
                 </div>
             </div>
@@ -159,8 +159,8 @@
             </div>
         </div>
     </Modal>
-    <ProfileModal :user="props.user" :organization="props.organization" :isOpen="isOpen" role="user" @close="closeModal()"/>
-    <OrganizationModal v-model:modelValue="isOpenOrganizationModal"/>
+    <ProfileModal :user="props.user" :workspace="props.workspace" :isOpen="isOpen" role="user" @close="closeModal()"/>
+    <WorkspaceModal v-model:modelValue="isOpenWorkspaceModal"/>
 </template>
 <script setup>
     import axios from "axios"; 
@@ -170,16 +170,16 @@
     import Modal from '@/Components/Modal.vue';
     import ProfileModal from '@/Components/ProfileModal.vue';
     import LangToggle from '@/Components/LangToggle.vue';
-    import OrganizationModal from '@/Components/OrganizationModal.vue';
+    import WorkspaceModal from '@/Components/WorkspaceModal.vue';
 
-    const props = defineProps(['config', 'user', 'organization', 'organizations', 'isSidebarOpen', 'menuIconsOnly', 'unreadMessages']);
+    const props = defineProps(['config', 'user', 'workspace', 'workspaces', 'isSidebarOpen', 'menuIconsOnly', 'unreadMessages']);
 
     const languages = computed(() => usePage().props.languages);
     const currentLanguage = computed(() => usePage().props.currentLanguage);
     const isOpen = ref(false);
     const isLocationSwitchModalOpen = ref(false);
     const showDropdown1 = ref(false);
-    const isOpenOrganizationModal = ref(false);
+    const isOpenWorkspaceModal = ref(false);
 
     const emit = defineEmits(['closeSidebar']);
 
@@ -216,13 +216,13 @@
         emit('closeSidebar', true);
     }
 
-    const selectOrganization = (uuid) => {
+    const selectWorkspace = (uuid) => {
         form.uuid = uuid;
         submitForm();
     }
 
     const submitForm = async () => {
-        form.post('/select-organization', {
+        form.post('/select-workspace', {
             preserveScroll: true,
             onFinish: isLocationSwitchModalOpen.value = false,
         })

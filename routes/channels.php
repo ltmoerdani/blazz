@@ -20,3 +20,8 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 Broadcast::channel('chats', function ($user) {
     return true; // Adjust authentication logic if needed
 });
+
+Broadcast::channel('workspace.{workspaceId}', function ($user, $workspaceId) {
+    // Check if user belongs to the workspace
+    return $user->workspaces()->where('id', $workspaceId)->exists();
+});

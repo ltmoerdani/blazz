@@ -2,18 +2,16 @@
 
 namespace App\Services;
 
-use App\Http\Resources\ChatNoteResource;
 use App\Models\ChatLog;
 use App\Models\ChatNote;
 use App\Models\Contact;
+use Illuminate\Support\Facades\Auth;
 
 class ChatNoteService
 {
     public function get(object $request)
     {
-        $rows = (new ChatNote)->listAll($request->query('search'));
-
-        return ChatNoteResource::collection($rows);
+        return (new ChatNote)->listAll($request->query('search'));
     }
 
     public function getByUuid($uuid = null)
@@ -21,14 +19,14 @@ class ChatNoteService
         return ChatNote::where('id', $uuid)->first();
     }
 
-    public function store(object $request, $uuid = NULL)
+    public function store(object $request, $uuid = null)
     {
         $contact = Contact::where('uuid', $request->contact)->first();
 
         $note = $uuid === null ? new ChatNote() : ChatNote::where('uuid', $uuid)->firstOrFail();
         $note->contact_id = $contact->id;
         $note->content = $request->notes;
-        $note->created_by = auth()->user()->id;
+        $note->created_by = Auth::id();
         $note->save();
 
         ChatLog::insert([
@@ -45,7 +43,7 @@ class ChatNoteService
     {
         $note = ChatNote::where('uuid', $uuid)->firstOrFail();
         $note->deleted_at = date('Y-m-d H:i:s');
-        $note->deleted_by = auth()->user()->id;
+        $note->deleted_by = Auth::id();
         $note->save();
-    } 
+    }
 }

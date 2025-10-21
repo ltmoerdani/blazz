@@ -8,18 +8,18 @@ use app\Services\SubscriptionService;
 
 class CannedReplyLimit implements Rule
 {
-    private $organizationId;
+    private $workspaceId;
     protected $ignoreId;
 
-    public function __construct($organizationId, $ignoreId = null)
+    public function __construct($workspaceId, $ignoreId = null)
     {
-        $this->organizationId = $organizationId;
+        $this->workspaceId = $workspaceId;
         $this->ignoreId = $ignoreId;
     }
     
     public function passes($attribute, $value)
     {
-        return !SubscriptionService::isSubscriptionFeatureLimitReached($this->organizationId, 'canned_replies_limit');
+        return !SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'canned_replies_limit');
     }
 
     public function message()

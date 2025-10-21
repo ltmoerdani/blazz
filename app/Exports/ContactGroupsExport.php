@@ -13,28 +13,24 @@ class ContactGroupsExport implements FromCollection, WithHeadings
     */
     public function collection()
     {
-        $contactgroups = ContactGroup::where('organization_id', session()->get('current_organization'))
+        $contactgroups = ContactGroup::where('workspace_id', session()->get('current_workspace'))
             ->whereNull('deleted_at')
             ->get();
 
 
         // Modify the collection to include formatted phone numbers and group names
         return $contactgroups->map(function ($group) {
-            $row = [
+            return [
                 'group_name' => $group->name,
             ];
-
-            return $row;
         });
     }
 
     public function headings(): array
     {
         // Define your headers here
-        $headers = [
+        return [
             'Group name'
         ];
-
-        return $headers;
     }
 }

@@ -19,11 +19,11 @@
         class="transform top-0 left-0 w-full bg-white fixed h-full overflow-auto ease-in-out transition-all duration-300 z-30"
         :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'">
         <aside class="flex flex-col h-full w-full bg-white">
-            <Menu :isSidebarOpen="isSidebarOpen" :config="props.config" :user="props.user" :organization="props.organization" :organizations="props.organizations" @closeSidebar="closeSidebar()"></Menu>
+            <Menu :isSidebarOpen="isSidebarOpen" :config="props.config" :user="props.user" :workspace="props.workspace" :workspaces="props.workspaces" @closeSidebar="closeSidebar()"></Menu>
         </aside>
     </aside>
 
-    <ProfileModal :user="props.user" :organization="props.organization" :isOpen="isProfileOpen" role="user" @close="closeModal()"/>
+    <ProfileModal :user="props.user" :workspace="props.workspace" :isOpen="isProfileOpen" role="user" @close="closeModal()"/>
 </template>
 <script setup>
     import axios from "axios"; 
@@ -51,11 +51,11 @@
             type: Array,
             required: true
         },
-        organization: {
+        workspace: {
             type: Object,
             required: true,
         },
-        organizations: {
+        workspaces: {
             type: Object,
             required: true,
         },

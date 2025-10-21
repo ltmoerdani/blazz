@@ -2,22 +2,22 @@
 
 namespace Modules\EmbeddedSignup\Services;
 
-use App\Models\Organization;
+use App\Models\workspace;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 
 class MetaService
 {
-    public function overrideWabaCallbackUrl($organizationId)
+    public function overrideWabaCallbackUrl($workspaceId)
     {
-        $config = Organization::findOrFail($organizationId)->metadata;
+        $config = workspace::findOrFail($workspaceId)->metadata;
         $config = $config ? json_decode($config, true) : [];
         $accessToken = $config['whatsapp']['access_token'] ?? null;
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-        $organizationConfig = Organization::where('id', $organizationId)->first();
-        $callbackUrl = URL::to('/') . '/webhook/whatsapp/' . $organizationConfig->identifier;
-        $verifyToken = $organizationConfig->identifier;
+        $workspaceConfig = workspace::where('id', $workspaceId)->first();
+        $callbackUrl = URL::to('/') . '/webhook/whatsapp/' . $workspaceConfig->identifier;
+        $verifyToken = $workspaceConfig->identifier;
 
         $responseObject = new \stdClass();
 

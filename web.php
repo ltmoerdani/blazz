@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\File;
 
+// Constants for repeated route paths
+const UPDATE_ROUTE = '/update';
+const DASHBOARD_ROUTE = '/dashboard';
+const SETTINGS_ROUTE = '/settings';
+const SETTINGS_PAGE_ID_ROUTE = '/settings/page/{id}';
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -24,8 +30,8 @@ Route::get('/install/{step?}', [App\Http\Controllers\InstallerController::class,
 Route::post('/install/configure-database', [App\Http\Controllers\InstallerController::class, 'configureDatabase']);
 Route::post('/install/configure-company', [App\Http\Controllers\InstallerController::class, 'configureCompany']);
 Route::post('/install/migrate', [App\Http\Controllers\InstallerController::class, 'runMigrations']);
-Route::get('/update', [App\Http\Controllers\InstallerController::class, 'update'])->name('install.update');
-Route::post('/update', [App\Http\Controllers\InstallerController::class, 'runUpdate']);
+Route::get(UPDATE_ROUTE, [App\Http\Controllers\InstallerController::class, 'update'])->name('install.update');
+Route::post(UPDATE_ROUTE, [App\Http\Controllers\InstallerController::class, 'runUpdate']);
 
 Route::get('/current-locale', function () {
     return response()->json(['locale' => app()->getLocale()]);
@@ -92,7 +98,7 @@ Route::middleware(['auth:user,admin'])->group(function () {
     Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update']);
     Route::put('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword']);
     Route::put('/profile/tfa', [App\Http\Controllers\ProfileController::class, 'updateTfa']);
-    Route::put('/profile/organization', [App\Http\Controllers\ProfileController::class, 'updateOrganization']);
+    Route::put('/profile/workspace', [App\Http\Controllers\ProfileController::class, 'updateWorkspace']);
 });
 
 Route::middleware(['auth:user'])->group(function () {
@@ -100,19 +106,19 @@ Route::middleware(['auth:user'])->group(function () {
     
     Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
         $request->fulfill();
-        return redirect('/dashboard');
+        return redirect(DASHBOARD_ROUTE);
     })->middleware(['auth', 'signed'])->name('verification.verify');
 
     Route::post('/email/verification-notification', [App\Http\Controllers\AuthController::class, 'sendEmailVerification'])->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
     Route::group(['middleware' => ['check.email.verification']], function () {
-        Route::get('/select-organization', [App\Http\Controllers\User\OrganizationController::class, 'index'])->name('user.organization.index');
-        Route::post('/select-organization', [App\Http\Controllers\User\OrganizationController::class, 'selectOrganization'])->name('user.organization.selectOrganization');
-        Route::post('/organization', [App\Http\Controllers\User\OrganizationController::class, 'store'])->name('user.organization.store');
+        Route::get('/select-workspace', [App\Http\Controllers\User\WorkspaceController::class, 'index'])->name('user.workspace.index');
+        Route::post('/select-workspace', [App\Http\Controllers\User\WorkspaceController::class, 'selectWorkspace'])->name('user.workspace.selectWorkspace');
+        Route::post('/workspace', [App\Http\Controllers\User\WorkspaceController::class, 'store'])->name('user.workspace.store');
 
-        Route::group(['middleware' => ['check.organization']], function () {
+        Route::group(['middleware' => ['check.workspace']], function () {
             //User Panel Routes
-            Route::match(['get', 'post'], '/dashboard', [App\Http\Controllers\User\DashboardController::class, 'index'])->name('dashboard');
+            Route::match(['get', 'post'], DASHBOARD_ROUTE, [App\Http\Controllers\User\DashboardController::class, 'index'])->name('dashboard');
 
             Route::group(['middleware' => 'check.client.role'], function () {
                 Route::delete('dismiss-notification/{type}', [App\Http\Controllers\User\DashboardController::class, 'dismissNotification'])->name('dashboard.team.notification.dismiss');
@@ -182,7 +188,7 @@ Route::middleware(['auth:user'])->group(function () {
                 Route::get('/team', [App\Http\Controllers\User\TeamController::class, 'index'])->name('team');
 
                 Route::group(['middleware' => 'check.client.role'], function () {
-                    Route::get('/settings', [App\Http\Controllers\User\SettingController::class, 'index']);
+                    Route::get(SETTINGS_ROUTE, [App\Http\Controllers\User\SettingController::class, 'index']);
                     Route::get('/settings/m', [App\Http\Controllers\User\SettingController::class, 'mobileView']);
 
                     Route::get('/settings/whatsapp', [App\Http\Controllers\User\SettingController::class, 'viewWhatsappSettings']);
@@ -207,7 +213,6 @@ Route::middleware(['auth:user'])->group(function () {
                     Route::delete('/developer-tools/access-tokens/{uuid}', [App\Http\Controllers\User\DeveloperController::class, 'delete']);
                 });
 
-                //Route::get('/whatsapp/message', [App\Http\Controllers\User\WhatsappController::class, 'sendMessage']);
                 Route::resource('notes', App\Http\Controllers\User\ChatNoteController::class);
             });
         });
@@ -216,13 +221,9 @@ Route::middleware(['auth:user'])->group(function () {
 
 //Admin Panel Routes
 Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index']);
+    Route::get(DASHBOARD_ROUTE, [App\Http\Controllers\Admin\DashboardController::class, 'index']);
     Route::resource('users', App\Http\Controllers\Admin\UserController::class);
-    Route::resource('organizations', App\Http\Controllers\Admin\OrganizationController::class);
-    /*Route::resource('blog/posts', App\Http\Controllers\Admin\BlogController::class);
-    Route::resource('blog/categories', App\Http\Controllers\Admin\BlogCategoryController::class);
-    Route::resource('blog/authors', App\Http\Controllers\Admin\BlogAuthorController::class);
-    Route::resource('blog/tags', App\Http\Controllers\Admin\BlogTagController::class);*/
+    Route::resource('workspaces', App\Http\Controllers\Admin\WorkspaceController::class);
     Route::resource('tax-rates', App\Http\Controllers\Admin\TaxController::class);
     Route::resource('coupons', App\Http\Controllers\Admin\CouponController::class);
     Route::resource('faqs', App\Http\Controllers\Admin\FaqController::class);
@@ -246,9 +247,6 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::resource('languages', App\Http\Controllers\Admin\LanguageController::class);
     Route::post('/translations/{languageCode}/{key}', [App\Http\Controllers\Admin\LanguageController::class, 'updateTranslation']);
 
-    /*Route::get('/pages', [App\Http\Controllers\Admin\PageController::class, 'index']);
-    Route::get('/users/{uuid}/organizations', [App\Http\Controllers\Admin\CustomerController::class, 'userOrganizations']);
-    Route::get('/subscriptions', [App\Http\Controllers\Admin\SubscriptionController::class, 'index']);*/
     Route::get('/payment-logs', [App\Http\Controllers\Admin\PaymentController::class, 'index']);
 
     Route::get('/support/{uuid?}', [App\Http\Controllers\Admin\TicketController::class, 'index'])->name('tickets');
@@ -258,9 +256,9 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::post('/support/{uuid}/priority', [App\Http\Controllers\Admin\TicketController::class, 'changePriority']);
     Route::post('/support/{uuid}/assign', [App\Http\Controllers\Admin\TicketController::class, 'assign']);
 
-    Route::get('/settings', [App\Http\Controllers\Admin\SettingController::class, 'index']);
+    Route::get(SETTINGS_ROUTE, [App\Http\Controllers\Admin\SettingController::class, 'index']);
     Route::match(['get', 'post'], '/settings/general', [App\Http\Controllers\Admin\SettingController::class, 'general']);
-    Route::put('/settings', [App\Http\Controllers\Admin\SettingController::class, 'update']);
+    Route::put(SETTINGS_ROUTE, [App\Http\Controllers\Admin\SettingController::class, 'update']);
     Route::get('/settings/smtp', [App\Http\Controllers\Admin\SettingController::class, 'email']);
     Route::get('/settings/broadcast-drivers', [App\Http\Controllers\Admin\SettingController::class, 'broadcast_driver']);
     Route::match(['get', 'post'], '/settings/timezone', [App\Http\Controllers\Admin\SettingController::class, 'timezone']);
@@ -269,9 +267,9 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::put('/settings/email-template/{id}', [App\Http\Controllers\Admin\EmailTemplateController::class, 'update']);
     Route::get('/settings/pages', [App\Http\Controllers\Admin\PagesController::class, 'index']);
     Route::post('/settings/pages', [App\Http\Controllers\Admin\PagesController::class, 'store']);
-    Route::get('/settings/page/{id}', [App\Http\Controllers\Admin\PagesController::class, 'show']);
-    Route::put('/settings/page/{id}', [App\Http\Controllers\Admin\PagesController::class, 'update']);
-    Route::delete('/settings/page/{id}', [App\Http\Controllers\Admin\PagesController::class, 'delete']);
+    Route::get(SETTINGS_PAGE_ID_ROUTE, [App\Http\Controllers\Admin\PagesController::class, 'show']);
+    Route::put(SETTINGS_PAGE_ID_ROUTE, [App\Http\Controllers\Admin\PagesController::class, 'update']);
+    Route::delete(SETTINGS_PAGE_ID_ROUTE, [App\Http\Controllers\Admin\PagesController::class, 'delete']);
     Route::match(['get', 'post'], '/settings/billing', [App\Http\Controllers\Admin\SettingController::class, 'billing']);
     Route::get('/settings/storage', [App\Http\Controllers\Admin\SettingController::class, 'storage']);
     Route::get('/settings/socials', [App\Http\Controllers\Admin\SettingController::class, 'socials']);
@@ -279,7 +277,7 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
 
     Route::get('/updates', [App\Http\Controllers\Admin\UpdateController::class, 'index']);
     Route::get('/updates/check', [App\Http\Controllers\Admin\UpdateController::class, 'checkUpdate']);
-    Route::post('/update', [App\Http\Controllers\Admin\UpdateController::class, 'update']);
+    Route::post(UPDATE_ROUTE, [App\Http\Controllers\Admin\UpdateController::class, 'update']);
 
     Route::get('/user-logs/notifications', [App\Http\Controllers\Admin\NotificationController::class, 'index']);
     Route::get('/user-logs/emails', [App\Http\Controllers\Admin\EmailLogController::class, 'index']);

@@ -29,7 +29,7 @@ class TaxService
      * @param string $id
      * @return \App\Models\TaxRate
      */
-    public function store(object $request, $id = NULL)
+    public function store(object $request, $id = null)
     {
         $taxrate = $id === null ? new TaxRate() : TaxRate::where('id', $id)->firstOrFail();
         $taxrate->name = $request->name;

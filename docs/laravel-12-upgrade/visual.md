@@ -16,7 +16,7 @@ graph TB
         INERTIA_BE[Inertia.js Backend 2.0.6<br/>✅ Successfully Upgraded]
         SANCTUM[Sanctum 4.2.0<br/>✅ Successfully Upgraded]
         KERNEL[HTTP Kernel<br/>Multi-Guard Auth]
-        MIDDLEWARE[Middleware Stack<br/>CSRF + Organization Context]
+        MIDDLEWARE[Middleware Stack<br/>CSRF + workspace Context]
     end
     
     subgraph "Service Layer"

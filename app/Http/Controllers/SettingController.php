@@ -9,18 +9,20 @@ use App\Helpers\CustomHelper;
 use App\Http\Requests\StoreWhatsappProfile;
 use App\Models\Addon;
 use App\Models\Contact;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Template;
 use App\Services\ContactFieldService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
-use Validator;
 
 class SettingController extends BaseController
 {
+    protected $contactFieldService;
+
     public function __construct(ContactFieldService $contactFieldService)
     {
         $this->contactFieldService = $contactFieldService;
@@ -28,15 +30,15 @@ class SettingController extends BaseController
 
     public function index(Request $request, $display = null){
         if ($request->isMethod('get')) {
-            $organizationId = session()->get('current_organization');
+            $workspaceId = session()->get('current_workspace');
             $data['title'] = __('Settings');
-            $data['settings'] = Organization::where('id', $organizationId)->first();
+            $data['settings'] = workspace::where('id', $workspaceId)->first();
             $data['timezones'] = config('formats.timezones');
             $data['countries'] = config('formats.countries');
             $data['sounds'] = config('sounds');
             $data['modules'] = Addon::get();
             $contactModel = new Contact;
-            $data['contactGroups'] = $contactModel->getAllContactGroups($organizationId);
+            $data['contactGroups'] = $contactModel->getAllContactGroups($workspaceId);
 
             return Inertia::render('User/Settings/General', $data);
         }
@@ -44,17 +46,17 @@ class SettingController extends BaseController
 
     public function mobileView(Request $request){
         $data['title'] = __('Settings');
-        $data['settings'] = Organization::where('id', session()->get('current_organization'))->first();
+        $data['settings'] = workspace::where('id', session()->get('current_workspace'))->first();
         return Inertia::render('User/Settings/Main', $data);
     }
 
     public function viewGeneralSettings(Request $request){
         $contactModel = new Contact;
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
         $data['title'] = __('Settings');
-        $data['settings'] = Organization::where('id', session()->get('current_organization'))->first();
+        $data['settings'] = workspace::where('id', session()->get('current_workspace'))->first();
         $data['modules'] = Addon::get();
-        $data['contactGroups'] = $contactModel->getAllContactGroups($organizationId);
+        $data['contactGroups'] = $contactModel->getAllContactGroups($workspaceId);
         
         return Inertia::render('User/Settings/General', $data);
     }
@@ -68,7 +70,7 @@ class SettingController extends BaseController
             'graphAPIVersion' => config('graph.api_version'),
             'appId' => $settings->get('whatsapp_client_id', null),
             'configId' => $settings->get('whatsapp_config_id', null),
-            'settings' => Organization::where('id', session()->get('current_organization'))->first(),
+            'settings' => workspace::where('id', session()->get('current_workspace'))->first(),
             'modules' => Addon::get(),
             'title' => __('Settings'),
         ];
@@ -94,8 +96,8 @@ class SettingController extends BaseController
             return $response;
         }
         
-        $organizationId = session()->get('current_organization');
-        $config = Organization::findOrFail($organizationId)->metadata;
+        $workspaceId = session()->get('current_workspace');
+        $config = workspace::findOrFail($workspaceId)->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         return $this->saveWhatsappSettings(
@@ -107,15 +109,13 @@ class SettingController extends BaseController
     }
     
     public function refreshWhatsappData() {
-        $organizationId = session()->get('current_organization');
-        $config = Organization::findOrFail($organizationId)->metadata;
+        $workspaceId = session()->get('current_workspace');
+        $config = workspace::findOrFail($workspaceId)->metadata;
         $config = $config ? json_decode($config, true) : [];
 
-        if($config['whatsapp']['is_embedded_signup'] && $config['whatsapp']['is_embedded_signup'] == 1){
-            if (class_exists(\Modules\EmbeddedSignup\Services\MetaService::class)) {
-                $embeddedSetup = new \Modules\EmbeddedSignup\Services\MetaService();
-                $embeddedSetup->overrideWabaCallbackUrl($organizationId);
-            }
+        if($config['whatsapp']['is_embedded_signup'] && $config['whatsapp']['is_embedded_signup'] == 1 && class_exists(\Modules\EmbeddedSignup\Services\MetaService::class)) {
+            $embeddedSetup = new \Modules\EmbeddedSignup\Services\MetaService();
+            $embeddedSetup->overrideWabaCallbackUrl($workspaceId);
         }
     
         return $this->saveWhatsappSettings(
@@ -128,8 +128,8 @@ class SettingController extends BaseController
 
     public function contacts(Request $request){
         if ($request->isMethod('get')) {
-            $contactFieldService = new ContactFieldService(session()->get('current_organization'));
-            $settings = Organization::where('id', session()->get('current_organization'))->first();
+            $contactFieldService = new ContactFieldService(session()->get('current_workspace'));
+            $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
             return Inertia::render('User/Settings/Contact', [
                 'title' => __('Settings'),
@@ -138,22 +138,22 @@ class SettingController extends BaseController
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
-        } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_organization');
-            $organizationConfig = Organization::where('id', $currentOrganizationId)->first();
+        } elseif($request->isMethod('post')) {
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
-            $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+            $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['contacts']['location'] = $request->location;
 
             $updatedMetadataJson = json_encode($metadataArray);
 
-            $organizationConfig->metadata = $updatedMetadataJson;
-            $organizationConfig->save();
+            $workspaceConfig->metadata = $updatedMetadataJson;
+            $workspaceConfig->save();
 
             return back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Settings updated successfully')
                 ]
             );
@@ -162,8 +162,8 @@ class SettingController extends BaseController
 
     public function tickets(Request $request){
         if ($request->isMethod('get')) {
-            $contactFieldService = new ContactFieldService(session()->get('current_organization'));
-            $settings = Organization::where('id', session()->get('current_organization'))->first();
+            $contactFieldService = new ContactFieldService(session()->get('current_workspace'));
+            $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
             return Inertia::render('User/Settings/Ticket', [
                 'title' => __('Settings'),
@@ -172,11 +172,11 @@ class SettingController extends BaseController
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
-        } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_organization');
-            $organizationConfig = Organization::where('id', $currentOrganizationId)->first();
+        } elseif($request->isMethod('post')) {
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
-            $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+            $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
             $metadataArray['tickets']['active'] = $request->active;
             $metadataArray['tickets']['auto_assignment'] = $request->auto_assignment;
@@ -185,44 +185,30 @@ class SettingController extends BaseController
 
             $updatedMetadataJson = json_encode($metadataArray);
 
-            $organizationConfig->metadata = $updatedMetadataJson;
-            $organizationConfig->save();
-
-            /*return back()->with(
-                'status', [
-                    'type' => 'success', 
-                    'message' => __('Settings updated successfully')
-                ]
-            );*/
+            $workspaceConfig->metadata = $updatedMetadataJson;
+            $workspaceConfig->save();
         }
     }
 
     public function automation(Request $request){
         if ($request->isMethod('get')) {
-            $settings = Organization::where('id', session()->get('current_organization'))->first();
+            $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
             return Inertia::render('User/Settings/Automation', [
                 'title' => __('Settings'),
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
-        } else if($request->isMethod('post')) {
-            $currentOrganizationId = session()->get('current_organization');
-            $organizationConfig = Organization::where('id', $currentOrganizationId)->first();
+        } elseif($request->isMethod('post')) {
+            $currentworkspaceId = session()->get('current_workspace');
+            $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
-            $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+            $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
             $metadataArray['automation']['response_sequence'] = $request->response_sequence;
 
             $updatedMetadataJson = json_encode($metadataArray);
-            $organizationConfig->metadata = $updatedMetadataJson;
-            $organizationConfig->save();
-
-            /*return back()->with(
-                'status', [
-                    'type' => 'success', 
-                    'message' => __('Settings updated successfully')
-                ]
-            );*/
+            $workspaceConfig->metadata = $updatedMetadataJson;
+            $workspaceConfig->save();
         }
     }
 
@@ -231,8 +217,8 @@ class SettingController extends BaseController
             return $response;
         }
 
-        $organizationId = session()->get('current_organization');
-        $config = Organization::where('id', $organizationId)->first()->metadata;
+        $workspaceId = session()->get('current_workspace');
+        $config = workspace::where('id', $workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         if(isset($config['whatsapp'])){
@@ -242,21 +228,21 @@ class SettingController extends BaseController
             $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
             $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-            $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $organizationId);
+            $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
             
             $response = $whatsappService->updateBusinessProfile($request);
 
             if($response->success === true){
                 return back()->with(
                     'status', [
-                        'type' => 'success', 
+                        'type' => 'success',
                         'message' => __('Your whatsapp business profile has been changed successfully!')
                     ]
                 );
             } else {
                 return back()->with(
                     'status', [
-                        'type' => 'error', 
+                        'type' => 'error',
                         'message' => __('Something went wrong! Your business profile could not be updated!')
                     ]
                 );
@@ -265,7 +251,7 @@ class SettingController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => 'error', 
+                'type' => 'error',
                 'message' => __('Setup your whatsapp integration first!')
             ]
         );
@@ -277,14 +263,14 @@ class SettingController extends BaseController
         }
 
         $embeddedSignupActive = Setting::where('key', 'is_embedded_signup_active')->value('value');
-        $organizationId = session()->get('current_organization');
-        $organizationConfig = Organization::where('id', $organizationId)->first();
-        $config = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+        $workspaceId = session()->get('current_workspace');
+        $workspaceConfig = workspace::where('id', $workspaceId)->first();
+        $config = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
         if(isset($config['whatsapp'])){
             if($embeddedSignupActive == 1){
                 //Unsubscribe webhook
-                $organizationId = session()->get('current_organization');
+                $workspaceId = session()->get('current_workspace');
                 $apiVersion = config('graph.api_version');
 
                 $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -292,8 +278,8 @@ class SettingController extends BaseController
                 $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
                 $wabaId = $config['whatsapp']['waba_id'] ?? null;
             
-                $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $organizationId);
-                $unsubscribe = $whatsappService->unSubscribeToWaba();
+                $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
+                $whatsappService->unSubscribeToWaba();
             }
             
             //Delete whatsapp settings
@@ -302,11 +288,11 @@ class SettingController extends BaseController
             }
 
             $updatedMetadataJson = json_encode($config);
-            $organizationConfig->metadata = $updatedMetadataJson;
-            $organizationConfig->save();
+            $workspaceConfig->metadata = $updatedMetadataJson;
+            $workspaceConfig->save();
 
             //Delete templates
-            $templates = Template::where('organization_id', $organizationId)->get();
+            $templates = Template::where('workspace_id', $workspaceId)->get();
             foreach ($templates as $template) {
                 $template->deleted_at = now();
                 $template->save();
@@ -314,7 +300,7 @@ class SettingController extends BaseController
 
             return back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Your integration has been removed successfully!')
                 ]
             );
@@ -322,36 +308,36 @@ class SettingController extends BaseController
 
         return back()->with(
             'status', [
-                'type' => 'error', 
+                'type' => 'error',
                 'message' => __('Setup your whatsapp integration first!')
             ]
         );
     }
 
-    private function saveWhatsappSettings($accessToken, $appId, $phoneNumberId, $wabaId, $subscribeToWebhook = false) {
-        $organizationId = session()->get('current_organization');
+    private function saveWhatsappSettings($accessToken, $appId, $phoneNumberId, $wabaId) {
+        $workspaceId = session()->get('current_workspace');
         $apiVersion = config('graph.api_version');
     
-        $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $organizationId);
+        $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
 
         $phoneNumberResponse = $whatsappService->getPhoneNumberId($accessToken, $wabaId);
         
         if(!$phoneNumberResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $phoneNumberResponse->data->error->message
                 ]
             );
         }
 
         //Get Phone Number Status
-        $phoneNumberStatusResponse = $whatsappService->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id); 
+        $phoneNumberStatusResponse = $whatsappService->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id);
         
         if(!$phoneNumberStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $phoneNumberStatusResponse->data->error->message
                 ]
             );
@@ -363,27 +349,27 @@ class SettingController extends BaseController
         if(!$accountReviewStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $accountReviewStatusResponse->data->error->message
                 ]
             );
         }
 
         //Get business profile
-        $businessProfileResponse = $whatsappService->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);  
+        $businessProfileResponse = $whatsappService->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);
         
         if(!$businessProfileResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => $businessProfileResponse->data->error->message
                 ]
             );
         }
 
-        $organizationConfig = Organization::where('id', $organizationId)->first();
+        $workspaceConfig = workspace::where('id', $workspaceId)->first();
         
-        $metadataArray = $organizationConfig->metadata ? json_decode($organizationConfig->metadata, true) : [];
+        $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
         $metadataArray['whatsapp']['is_embedded_signup'] = $metadataArray['whatsapp']['is_embedded_signup'] ?? 0;
         $metadataArray['whatsapp']['access_token'] = $accessToken;
         $metadataArray['whatsapp']['app_id'] = $appId;
@@ -393,35 +379,35 @@ class SettingController extends BaseController
         $metadataArray['whatsapp']['verified_name'] = $phoneNumberResponse->data->verified_name;
         $metadataArray['whatsapp']['quality_rating'] = $phoneNumberResponse->data->quality_rating;
         $metadataArray['whatsapp']['name_status'] = $phoneNumberResponse->data->name_status;
-        $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneNumberResponse->data->messaging_limit_tier ?? NULL;
-        $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = NULL;
-        $metadataArray['whatsapp']['max_phone_numbers_per_business'] = NULL;
+        $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneNumberResponse->data->messaging_limit_tier ?? null;
+        $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = null;
+        $metadataArray['whatsapp']['max_phone_numbers_per_business'] = null;
         $metadataArray['whatsapp']['number_status'] = $phoneNumberStatusResponse->data->status;
         $metadataArray['whatsapp']['code_verification_status'] = $phoneNumberStatusResponse->data->code_verification_status;
         $metadataArray['whatsapp']['business_verification'] = '';
         $metadataArray['whatsapp']['account_review_status'] = $accountReviewStatusResponse->data->account_review_status;
-        $metadataArray['whatsapp']['business_profile']['about'] = $businessProfileResponse->data->about ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['address'] = $businessProfileResponse->data->address ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['description'] = $businessProfileResponse->data->description ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['industry'] = $businessProfileResponse->data->vertical ?? NULL;
-        $metadataArray['whatsapp']['business_profile']['email'] = $businessProfileResponse->data->email ?? NULL;
+        $metadataArray['whatsapp']['business_profile']['about'] = $businessProfileResponse->data->about ?? null;
+        $metadataArray['whatsapp']['business_profile']['address'] = $businessProfileResponse->data->address ?? null;
+        $metadataArray['whatsapp']['business_profile']['description'] = $businessProfileResponse->data->description ?? null;
+        $metadataArray['whatsapp']['business_profile']['industry'] = $businessProfileResponse->data->vertical ?? null;
+        $metadataArray['whatsapp']['business_profile']['email'] = $businessProfileResponse->data->email ?? null;
 
         $updatedMetadataJson = json_encode($metadataArray);
-        $organizationConfig->metadata = $updatedMetadataJson;
+        $workspaceConfig->metadata = $updatedMetadataJson;
 
-        if($organizationConfig->save()){
+        if($workspaceConfig->save()){
             $whatsappService->syncTemplates($accessToken, $wabaId);
 
             return back()->with(
                 'status', [
-                    'type' => 'success', 
+                    'type' => 'success',
                     'message' => __('Whatsapp settings updated successfully')
                 ]
             );
         } else {
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Something went wrong. Refresh the page and try again')
                 ]
             );
@@ -429,12 +415,12 @@ class SettingController extends BaseController
     }
 
     protected function abortIfDemo(){
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
-        if (app()->environment('demo') && $organizationId == 1) {
+        if (app()->environment('demo') && $workspaceId == 1) {
             return back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('You cannot perform this action using the demo account. To test this feature, please create your own account.')
                 ]
             );

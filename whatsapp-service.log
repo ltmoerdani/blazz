@@ -1,0 +1,12 @@
+
+> whatsapp-webjs-service@1.0.0 dev
+> npx nodemon server.js
+
+(node:63763) ExperimentalWarning: CommonJS module /opt/homebrew/lib/node_modules/npm/node_modules/debug/src/node.js is loading ES Module /opt/homebrew/lib/node_modules/npm/node_modules/supports-color/index.js using require().
+Support for loading ES Module in require() is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[33m[nodemon] 3.1.10[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node server.js`[39m

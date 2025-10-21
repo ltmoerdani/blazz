@@ -16,7 +16,7 @@ class CreateContactGroupsTable extends Migration
         Schema::create('contact_groups', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->integer('organization_id');
+            $table->integer('workspace_id');
             $table->string('name');
             $table->integer('created_by');
             $table->timestamps();

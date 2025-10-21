@@ -154,7 +154,7 @@
 - Multiple whatsapp-web.js instances supported
 - Session isolation between different accounts
 - Instance management UI for starting/stopping sessions
-- Message routing to correct organization/account
+- Message routing to correct workspace/account
 - Resource management for multiple concurrent sessions
 
 ## ASSUMPTIONS & DEPENDENCIES
@@ -352,7 +352,7 @@
 **3. Models (8 files):**
 - `app/Models/Chat.php` - Core chat data with wam_id field (7 references)
 - `app/Models/Contact.php` - Contact information
-- `app/Models/Organization.php` - Organization settings (metadata JSON)
+- `app/Models/workspace.php` - workspace settings (metadata JSON)
 - `app/Models/Template.php` - WhatsApp templates
 - `app/Models/Campaign.php` - Bulk messaging campaigns
 - `app/Models/AutoReply.php` - Automated responses
@@ -382,7 +382,7 @@
 **chats table:**
 - `id`: bigint(20) unsigned (required) - Primary key
 - `uuid`: char(50) (required) - Unique identifier
-- `organization_id`: int(11) (required) - Organization reference
+- `organization_id`: int(11) (required) - workspace reference
 - `wam_id`: varchar(128) (nullable) - **Meta message ID (7 references found)**
 - `contact_id`: int(11) (required) - Contact reference
 - `user_id`: bigint(20) unsigned (nullable) - User reference
@@ -398,7 +398,7 @@
 **contacts table:**
 - `id`: bigint(20) unsigned (required) - Primary key
 - `uuid`: char(50) (required) - Unique identifier
-- `organization_id`: int(11) (required) - Organization reference
+- `organization_id`: int(11) (required) - workspace reference
 - `first_name`: varchar(128) (nullable) - Contact first name
 - `last_name`: varchar(128) (nullable) - Contact last name
 - `phone`: varchar(255) (nullable) - **Phone number (format may change)**
@@ -418,7 +418,7 @@
 **templates table:**
 - `id`: bigint(20) unsigned (required) - Primary key
 - `uuid`: char(50) (required) - Unique identifier
-- `organization_id`: bigint(20) unsigned (required) - Organization reference
+- `organization_id`: bigint(20) unsigned (required) - workspace reference
 - `meta_id`: varchar(128) (required) - **Meta template ID (not available in web.js)**
 - `name`: varchar(128) (required) - Template name
 - `category`: varchar(128) (required) - Template category
@@ -433,11 +433,11 @@
 **organizations table:**
 - `id`: bigint(20) unsigned (required) - Primary key
 - `uuid`: char(50) (required) - Unique identifier
-- `identifier`: varchar(128) (required) - Organization identifier
-- `name`: varchar(255) (nullable) - Organization name
-- `address`: text (nullable) - Organization address
+- `identifier`: varchar(128) (required) - workspace identifier
+- `name`: varchar(255) (nullable) - workspace name
+- `address`: text (nullable) - workspace address
 - `metadata`: longtext (nullable) - **JSON storage for WhatsApp config**
-- `timezone`: varchar(128) (nullable) - Organization timezone
+- `timezone`: varchar(128) (nullable) - workspace timezone
 - `created_by`: bigint(20) unsigned (required) - Creator reference
 - `deleted_at`: timestamp (nullable) - Soft delete timestamp
 - `deleted_by`: bigint(20) unsigned (nullable) - Soft delete reference
@@ -458,7 +458,7 @@
 **campaigns table:**
 - `id`: bigint(20) unsigned (required) - Primary key
 - `uuid`: char(50) (required) - Unique identifier
-- `organization_id`: int(11) (required) - Organization reference
+- `organization_id`: int(11) (required) - workspace reference
 - `name`: varchar(128) (required) - Campaign name
 - `template_id`: int(11) (required) - Template reference
 - `contact_group_id`: int(11) (required) - Contact group reference
@@ -473,7 +473,7 @@
 **auto_replies table:**
 - `id`: bigint(20) unsigned (required) - Primary key
 - `uuid`: char(50) (required) - Unique identifier
-- `organization_id`: int(11) (required) - Organization reference
+- `organization_id`: int(11) (required) - workspace reference
 - `name`: varchar(128) (required) - Auto-reply name
 - `trigger`: text (required) - Trigger keywords/phrases
 - `match_criteria`: varchar(100) (required) - Match criteria
@@ -587,7 +587,7 @@
 
 **Alternative Strategy:**
 - Implement multiple whatsapp-web.js instances
-- Session storage and isolation per organization/user
+- Session storage and isolation per workspace/user
 - Instance management UI for start/stop operations
 - Message routing based on phone number/account
 

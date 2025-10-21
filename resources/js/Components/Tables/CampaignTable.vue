@@ -1,8 +1,7 @@
 <script setup>
-    import { Link } from "@inertiajs/vue3";
+    import { Link, router, useForm } from '@inertiajs/vue3';
     import { ref } from 'vue';
     import debounce from 'lodash/debounce';
-    import { router, useForm } from '@inertiajs/vue3';
     import AlertModal from '@/Components/AlertModal.vue';
     import { useAlertModal } from '@/Composables/useAlertModal';
     import Table from '@/Components/Table.vue';
@@ -46,10 +45,14 @@
     const emit = defineEmits(['delete']);
 
     const formatPercentageRate = (numeratorCount, contactCount, contactGroupCount) => {
+        // Prevent division by zero error
         if(contactCount > 0){
             return (numeratorCount/contactCount * 100).toFixed(2) + '%';
-        } else {
+        } else if (contactGroupCount > 0) {
             return (numeratorCount/contactGroupCount * 100).toFixed(2) + '%';
+        } else {
+            // Both counts are zero, return 0%
+            return '0.00%';
         }
     };
 

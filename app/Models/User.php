@@ -9,6 +9,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -59,7 +61,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return "{$this->first_name} {$this->last_name}";
     }
     
-    public function listAll($role, $searchTerm, $organizationId = null)
+    public function listAll($role, $searchTerm, $workspaceId = null)
     {
         $query = $this->where(function ($query) use ($role) {
                 if ($role === 'user') {
@@ -76,9 +78,9 @@ class User extends Authenticatable implements MustVerifyEmail
             })
             ->latest('users.created_at');
 
-        if ($organizationId !== null) {
+        if ($workspaceId !== null) {
             $query->join('teams', 'teams.user_id', '=', 'users.id')
-                ->where('teams.organization_id', '=', $organizationId)
+                ->where('teams.Workspace_id', '=', $workspaceId)
                 ->select('users.*', 'teams.role');
         }
 
@@ -90,8 +92,8 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Team::class);
     }
 
-    public function teamsWithOrganizations(){
-        return $this->teams()->with('organization');
+    public function teamsWithWorkspaces(){
+        return $this->teams()->with('workspace');
     }
 
     public function role(){
@@ -100,9 +102,41 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function sendEmailVerificationNotification(){
         try {
-            \Mail::to($this->email)->send(new CustomEmailVerification($this));
+            Mail::to($this->email)->send(new CustomEmailVerification($this));
         } catch (\Exception $e) {
-            \Log::error('Failed to send verification email: ' . $e->getMessage());
+            Log::error('Failed to send verification email: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Determine if the user has verified their email address.
+     *
+     * @return bool
+     */
+    public function hasVerifiedEmail()
+    {
+        return ! is_null($this->email_verified_at);
+    }
+
+    /**
+     * Mark the given user's email as verified.
+     *
+     * @return bool
+     */
+    public function markEmailAsVerified()
+    {
+        return $this->forceFill([
+            'email_verified_at' => $this->freshTimestamp(),
+        ])->save();
+    }
+
+    /**
+     * Get the email address that should be used for verification.
+     *
+     * @return string
+     */
+    public function getEmailForVerification()
+    {
+        return $this->email;
     }
 }

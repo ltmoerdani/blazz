@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\Contact;
 use App\Models\ContactField;
 use App\Models\ContactGroup;
-use App\Models\Organization;
+use App\Models\workspace;
 use App\Exports\ContactsExport;
 use App\Http\Requests\StoreContact;
 use App\Http\Resources\ContactResource;
@@ -17,24 +17,24 @@ use App\Services\ContactService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
-use Excel;
-use Validator;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ContactController extends BaseController
 {
     private function contactService()
     {
-        return new ContactService(session()->get('current_organization'));
+        return new ContactService(session()->get('current_workspace'));
     }
 
-    private function getCurrentOrganizationId()
+    private function getCurrentworkspaceId()
     {
-        return session()->get('current_organization');
+        return session()->get('current_workspace');
     }
 
     public function index(Request $request, $uuid = null){
-        $organizationId = $this->getCurrentOrganizationId();
+        $workspaceId = $this->getCurrentworkspaceId();
         $contactModel = new Contact;
 
         if($uuid === 'export') {
@@ -44,13 +44,12 @@ class ContactController extends BaseController
             $uuid = $request->query('id') ? $request->query('id') : $uuid ;
             $editContact = $request->query('edit') === 'true' ? true : false;
 
-            $contacts = $contactModel->getAllContacts($organizationId, $searchTerm);
-            $rowCount = $contactModel->countContacts($organizationId);
-            $contactGroups = $contactModel->getAllContactGroups($organizationId);
+            $contacts = $contactModel->getAllContacts($workspaceId, $searchTerm);
+            $rowCount = $contactModel->countContacts($workspaceId);
+            $contactGroups = $contactModel->getAllContactGroups($workspaceId);
             $contact = Contact::with('contactGroups')->where('uuid', $uuid)->where('deleted_at', null)->first();
-            $contactFields = ContactField::where('organization_id', $organizationId)->where('deleted_at', null)->get();
+            $contactFields = ContactField::where('workspace_id', $workspaceId)->where('deleted_at', null)->get();
 
-            //dd($contact);
             return Inertia::render('User/Contact/Index', [
                 'title' => __('Contacts'),
                 'rows' => ContactResource::collection($contacts),
@@ -91,7 +90,7 @@ class ContactController extends BaseController
 
         return redirect('/contacts')->with(
             'status', [
-                'type' => $statusType, 
+                'type' => $statusType,
                 'message' => $statusMessage,
                 'import_summary' => array(
                     'total_imports' => $totalImports,
@@ -111,7 +110,7 @@ class ContactController extends BaseController
         
         return redirect('/contacts?id=' . $contact->uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact added successfully!')
             ]
         );
@@ -123,7 +122,7 @@ class ContactController extends BaseController
 
         return redirect('/contacts/' . $contact->uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact updated successfully!')
             ]
         );
@@ -135,7 +134,7 @@ class ContactController extends BaseController
 
         return redirect('/contacts/' . $uuid)->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact updated successfully!')
             ]
         );
@@ -148,15 +147,15 @@ class ContactController extends BaseController
 
         return redirect('/contacts')->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('Contact(s) deleted successfully')
             ]
         );
     }
 
     private function getLocationSettings(){
-        // Retrieve the settings for the current organization
-        $settings = Organization::where('id', session()->get('current_organization'))->first();
+        // Retrieve the settings for the current workspace
+        $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
         if ($settings) {
             // Decode the JSON metadata column into an associative array
@@ -164,10 +163,7 @@ class ContactController extends BaseController
 
             if (isset($metadata['contacts'])) {
                 // If the 'contacts' key exists, retrieve the 'location' value
-                $location = $metadata['contacts']['location'];
-
-                // Now, you have the location value available
-                return $location;
+                return $metadata['contacts']['location'];
             } else {
                 return null;
             }

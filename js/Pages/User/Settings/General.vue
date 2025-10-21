@@ -6,23 +6,23 @@
                     <div class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4 pb-2">
                         <div class="flex px-4 pt-2 pb-4">
                             <div>
-                                <h2 class="text-[17px]">{{ $t('Organization details') }}</h2>
+                                <h2 class="text-[17px]">{{ $t('workspace details') }}</h2>
                                 <span class="flex items-center mt-1">
                                     <svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v5m0 5a9 9 0 1 1 0-18a9 9 0 0 1 0 18Zm.05-13v.1h-.1V8h.1Z"/></svg>
-                                    {{ $t('Update your organization settings') }}
+                                    {{ $t('Update your workspace settings') }}
                                 </span>
                             </div>
                         </div>
                         <div class="flex space-x-10 border-b w-full px-4 py-6">
                             <div class="w-[40%]">
-                                <span class="text-slate-600">{{ $t('Organization name') }}</span>
+                                <span class="text-slate-600">{{ $t('workspace name') }}</span>
                                 <div class="text-xs text-slate-700 flex items-center">
                                     <svg class="mr-1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v5m0 5a9 9 0 1 1 0-18a9 9 0 0 1 0 18Zm.05-13v.1h-.1V8h.1Z"/></svg>
-                                    <span>{{ $t('Specify the name of your business/organization') }}</span>
+                                    <span>{{ $t('Specify the name of your business/workspace') }}</span>
                                 </div>
                             </div>
                             <div class="w-[60%]">
-                                <FormInput v-model="form2.organization_name" :error="form2.errors.organization_name" :name="''" :type="'text'" :class="'col-span-4'"/>
+                                <FormInput v-model="form2.Workspace_name" :error="form2.errors.Workspace_name" :name="''" :type="'text'" :class="'col-span-4'"/>
                             </div>
                         </div>
                         <div class="flex space-x-10 w-full px-4 py-6">
@@ -70,7 +70,7 @@
                                 <span class="text-slate-600">{{ $t('Enable notification sound') }}</span>
                                 <div class="text-xs text-slate-700 flex items-center">
                                     <svg class="mr-1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v5m0 5a9 9 0 1 1 0-18a9 9 0 0 1 0 18Zm.05-13v.1h-.1V8h.1Z"/></svg>
-                                    <span>{{ $t('Specify the name of your business/organization') }}</span>
+                                    <span>{{ $t('Specify the name of your business/workspace') }}</span>
                                 </div>
                             </div>
                             <div class="w-[60%] flex justify-end">
@@ -176,17 +176,12 @@
 <script setup>
     import SettingLayout from "./Layout.vue";
     import { ref } from 'vue';
-    import EmbeddedSignupBtn from '@/Components/EmbeddedSignupBtn.vue';
-    import FormModal from '@/Components/FormModal.vue';
     import FormInput from '@/Components/FormInput.vue';
     import FormSelect from '@/Components/FormSelect.vue';
-    import FormTextArea from '@/Components/FormTextArea.vue';
     import FormToggleSwitch from '@/Components/FormToggleSwitch.vue';
-    import Modal from '@/Components/Modal.vue';
-    import { trans } from 'laravel-vue-i18n';
-    import { router, useForm } from "@inertiajs/vue3";
+    import { useForm } from "@inertiajs/vue3";
 
-    const props = defineProps(['contactGroups', 'settings', 'timezones', 'modules', 'organization', 'countries', 'sounds']);
+    const props = defineProps(['contactGroups', 'settings', 'timezones', 'modules', 'workspace', 'countries', 'sounds']);
     const statusView = ref(false);
     const config = ref(props.settings.metadata);
     const settings = ref(config.value ? JSON.parse(config.value) : null);
@@ -233,7 +228,7 @@
     };
 
     const form2 = useForm({
-        organization_name: props.settings?.name,
+        Workspace_name: props.settings?.name,
         address: getAddressDetail(props.settings?.address, 'street'),
         city: getAddressDetail(props.settings?.address, 'city'),
         state: getAddressDetail(props.settings?.address, 'state'),
@@ -261,7 +256,7 @@
     }
 
     const submitForm2 = () => {
-        form2.put('./profile/organization', {
+        form2.put('./profile/workspace', {
             preserveScroll: true
         });
     }

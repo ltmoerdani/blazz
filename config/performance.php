@@ -32,7 +32,7 @@ return [
             'enabled' => env('CACHE_TAGS_ENABLED', true),
             'chat_prefix' => 'chat',
             'user_prefix' => 'user',
-            'organization_prefix' => 'org',
+            'Workspace_prefix' => 'org',
             'contact_prefix' => 'contact',
         ],
 

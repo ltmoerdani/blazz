@@ -13,14 +13,27 @@ class CampaignLog extends Model {
     protected $guarded = [];
     public $timestamps = true;
 
+    /**
+     * Convert datetime value to workspace timezone
+     */
+    private function convertToWorkspaceTimezone($value)
+    {
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
+    }
+
     public function getCreatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return $this->convertToWorkspaceTimezone($value);
     }
 
     public function getUpdatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        // Apply workspace timezone conversion for updated_at timestamp
+        // Maintains consistency with created_at conversion method
+        if ($value) {
+            return $this->convertToWorkspaceTimezone($value);
+        }
+        return $value;
     }
 
     public function campaign(){
@@ -37,5 +50,9 @@ class CampaignLog extends Model {
 
     public function retries(){
         return $this->hasMany(CampaignLogRetry::class);
+    }
+
+    public function whatsappSession(){
+        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
     }
 }

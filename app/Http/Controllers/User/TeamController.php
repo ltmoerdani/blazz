@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\User;
 
-use DB;
 use App\Http\Controllers\Controller as BaseController;
+use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreTeam;
 use App\Http\Resources\TeamResource;
 use App\Models\Team;
@@ -23,14 +23,14 @@ class TeamController extends BaseController
 
     public function index(Request $request){
         $rows = TeamResource::collection(
-            Team::with('user')->where('organization_id', session()->get('current_organization'))
+            Team::with('user')->where('workspace_id', session()->get('current_workspace'))
                 ->latest()->paginate(10)
         );
 
         if($request->expectsJson()){
             $rows = DB::table('users')
                 ->join('teams', 'users.id', '=', 'teams.user_id')
-                ->where('teams.organization_id', '=', session()->get('current_organization'))
+                ->where('teams.Workspace_id', '=', session()->get('current_workspace'))
                 ->whereNull('teams.deleted_at')
                 ->select('users.*')
                 ->get();
@@ -54,7 +54,7 @@ class TeamController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('User invited successfully!')
             ]
         );
@@ -65,7 +65,7 @@ class TeamController extends BaseController
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('User account updated successfully!')
             ]
         );

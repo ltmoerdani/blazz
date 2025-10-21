@@ -16,7 +16,7 @@ class CreateBillingPaymentsTable extends Migration
         Schema::create('billing_payments', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->char('uuid', 50)->unique();
-            $table->integer('organization_id');
+            $table->integer('workspace_id');
             $table->string('processor');
             $table->text('details')->default(NULL);
             $table->decimal('amount', 13, 10);

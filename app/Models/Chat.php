@@ -26,19 +26,11 @@ class Chat extends Model {
             }
         });
 
-        /*static::updated(function ($chat) {
-            $contact = $chat->contact;
-            if ($contact) {
-                $latestChat = Chat::where('contact_id', $contact->id)->orderBy('created_at', 'desc')->first();
-                $contact->latest_chat_created_at = $latestChat ? $latestChat->created_at : null;
-                $contact->save();
-            }
-        });*/
     }
     
     public function getCreatedAtAttribute($value)
     {
-        return DateTimeHelper::convertToOrganizationTimezone($value)->toDateTimeString();
+        return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
     
     public function contact()
@@ -59,5 +51,10 @@ class Chat extends Model {
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    public function whatsappSession()
+    {
+        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
     }
 }

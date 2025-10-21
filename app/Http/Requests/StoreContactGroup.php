@@ -23,15 +23,15 @@ class StoreContactGroup extends FormRequest
      */
     public function rules(): array
     {
-        $organizationId = session()->get('current_organization');
+        $workspaceId = session()->get('current_workspace');
 
         // If it's an update request, exclude the current record from the uniqueness check
         if (!$this->route('uuid')) {
             $rules = [
                 'name' => [
                     'required',
-                    Rule::unique('contact_groups', 'name')->where(function ($query) use ($organizationId) {
-                        return $query->where('organization_id', $organizationId)
+                    Rule::unique('contact_groups', 'name')->where(function ($query) use ($workspaceId) {
+                        return $query->where('workspace_id', $workspaceId)
                             ->where('deleted_at', null);
                     }),
                 ],
@@ -39,9 +39,9 @@ class StoreContactGroup extends FormRequest
             ];
         } else {
             $rules['name'][] = Rule::unique('contact_groups', 'name')
-            ->where(function ($query) use ($organizationId) {
+            ->where(function ($query) use ($workspaceId) {
                 return $query
-                    ->where('organization_id', $organizationId)
+                    ->where('workspace_id', $workspaceId)
                     ->where('deleted_at', null)
                     ->whereNotIn('uuid', [$this->route('uuid')]);
             });

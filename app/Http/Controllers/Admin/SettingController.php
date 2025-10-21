@@ -42,17 +42,17 @@ class SettingController extends BaseController
             // Return a response indicating that the function is not allowed in demo environment
             return Redirect::back()->with(
                 'status', [
-                    'type' => 'error', 
+                    'type' => 'error',
                     'message' => __('Updating settings is not allowed in demo.')
                 ]
             );
         }
 
-        $settings = $this->settingService->updateSettings($request);
+        $this->settingService->updateSettings($request);
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success', 
+                'type' => 'success',
                 'message' => __('You\'ve updated your settings successfully')
             ]
         );
