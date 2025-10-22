@@ -27,6 +27,11 @@
         },
         chatSortDirection: {
             type: String
+        },
+        // NEW: WhatsApp sessions for filter dropdown (TASK-FE-1)
+        sessions: {
+            type: Array,
+            default: () => []
         }
     });
 
@@ -133,7 +138,11 @@
 
     const params = ref({
         search: props.filters.search,
+        session_id: props.filters?.session_id || '', // NEW: Track session filter
     });
+
+    // NEW: Session filter state (TASK-FE-1)
+    const selectedSessionId = ref(props.filters?.session_id || '');
 
     const search = debounce(() => {
         isSearching.value = true;
@@ -152,6 +161,19 @@
     const clearSearch = () => {
         params.value.search = null;
         runSearch();
+    }
+
+    // NEW: Filter by WhatsApp session (TASK-FE-1)
+    const filterBySession = () => {
+        params.value.session_id = selectedSessionId.value;
+        runSearch();
+    }
+
+    // NEW: Format phone number for display (TASK-FE-1)
+    const formatPhone = (phone) => {
+        if (!phone) return '';
+        // Format: +62 812-3456-7890
+        return phone.replace(/(\+\d{2})(\d{3})(\d{4})(\d+)/, '$1 $2-$3-$4');
     }
 </script>
 <template>
@@ -174,6 +196,25 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="3.5" r="1.5" fill="currentColor" opacity="0"><animateTransform attributeName="transform" calcMode="discrete" dur="2.4s" repeatCount="indefinite" type="rotate" values="0 12 12;90 12 12;180 12 12;270 12 12"/><animate attributeName="opacity" dur="0.6s" keyTimes="0;0.5;1" repeatCount="indefinite" values="1;1;0"/></circle><circle cx="12" cy="3.5" r="1.5" fill="currentColor" opacity="0"><animateTransform attributeName="transform" begin="0.2s" calcMode="discrete" dur="2.4s" repeatCount="indefinite" type="rotate" values="30 12 12;120 12 12;210 12 12;300 12 12"/><animate attributeName="opacity" begin="0.2s" dur="0.6s" keyTimes="0;0.5;1" repeatCount="indefinite" values="1;1;0"/></circle><circle cx="12" cy="3.5" r="1.5" fill="currentColor" opacity="0"><animateTransform attributeName="transform" begin="0.4s" calcMode="discrete" dur="2.4s" repeatCount="indefinite" type="rotate" values="60 12 12;150 12 12;240 12 12;330 12 12"/><animate attributeName="opacity" begin="0.4s" dur="0.6s" keyTimes="0;0.5;1" repeatCount="indefinite" values="1;1;0"/></circle></svg>
             </span>
         </div>
+
+        <!-- NEW: Session Filter Dropdown (TASK-FE-1) -->
+        <div v-if="sessions && sessions.length > 0" class="mt-3">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                {{ $t('Filter by WhatsApp Number') }}
+            </label>
+            <select
+                v-model="selectedSessionId"
+                @change="filterBySession"
+                class="w-full rounded-md border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+                <option value="">{{ $t('All Conversations') }}</option>
+                <option v-for="session in sessions" :key="session.id" :value="session.id">
+                    {{ formatPhone(session.phone_number) }}
+                    <template v-if="session.provider_type === 'webjs'"> (WhatsApp Web.js)</template>
+                    <template v-if="session.unread_count > 0"> ({{ session.unread_count }} unread)</template>
+                </option>
+            </select>
+        </div>
         <div v-if="ticketingIsEnabled" class="grid grid-cols-2 mt-4 items-center w-full">
             <TicketStatusToggle :status="status" :rowCount="rowCount"/>
             <div class="flex ml-auto gap-x-1">
@@ -187,17 +228,51 @@
     <div class="flex-grow overflow-y-auto h-[65vh]" ref="scrollContainer">
         <Link :href="'/chats/' + contact.uuid + '?page=' + props.rows.meta.current_page" class="block border-b group-hover:pr-0" :class="contact.unread_messages > 0 ? 'bg-green-50' : ''" v-for="(contact, index) in rows.data" :key="index">
             <div class="flex space-x-2 hover:bg-gray-50 cursor-pointer py-3 px-4">
-                <div class="w-[15%]">
-                    <img v-if="contact.avatar" class="rounded-full w-10 h-10" :src="contact.avatar">
-                    <div v-else class="rounded-full w-10 h-10 flex items-center justify-center bg-slate-200 capitalize">{{ contact.full_name.substring(0, 1) }}</div>
+                <!-- NEW: Chat Type Icon (TASK-FE-2) -->
+                <div class="w-[15%] relative">
+                    <!-- Group Chat Icon -->
+                    <div v-if="contact.chat_type === 'group'" class="rounded-full w-10 h-10 flex items-center justify-center bg-blue-100">
+                        <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                        </svg>
+                    </div>
+                    <!-- Private Chat Icon -->
+                    <template v-else>
+                        <img v-if="contact.avatar" class="rounded-full w-10 h-10" :src="contact.avatar">
+                        <div v-else class="rounded-full w-10 h-10 flex items-center justify-center bg-slate-200 capitalize">{{ contact.full_name.substring(0, 1) }}</div>
+                    </template>
                 </div>
                 <div class="w-[85%]">
-                    <div class="flex justify-between">
-                        <h3 class="truncate">{{ contact.full_name }}</h3>
-                        <span class="self-center text-slate-500 text-xs">{{ formatTime(contact?.last_chat?.created_at) }}</span>
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1 min-w-0">
+                            <!-- Contact/Group Name -->
+                            <h3 class="truncate font-semibold">
+                                {{ contact.chat_type === 'group' ? contact.group_name : contact.full_name }}
+                                <!-- NEW: Participant count for groups (TASK-FE-2) -->
+                                <span v-if="contact.chat_type === 'group' && contact.participants_count" class="text-xs text-gray-500 font-normal ml-1">
+                                    ({{ contact.participants_count }} members)
+                                </span>
+                            </h3>
+                            <!-- NEW: Provider Type Badge (TASK-FE-2) -->
+                            <div class="flex items-center gap-1 mt-1">
+                                <span v-if="contact.provider_type === 'webjs'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    WhatsApp Web.js
+                                </span>
+                                <span v-else-if="contact.provider_type === 'meta'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    Meta API
+                                </span>
+                            </div>
+                        </div>
+                        <span class="self-center text-slate-500 text-xs ml-2">{{ formatTime(contact?.last_chat?.created_at) }}</span>
                     </div>
                     <div v-if="contact?.last_chat?.deleted_at === null" class="flex justify-between">
-                        <div v-if="contentType(contact?.last_chat?.metadata) ==='text'" class="text-slate-500 text-xs truncate self-end"> {{ content(contact?.last_chat?.metadata).text.body }}</div>
+                        <div v-if="contentType(contact?.last_chat?.metadata) ==='text'" class="text-slate-500 text-xs truncate self-end">
+                            <!-- NEW: Show sender name for group messages (TASK-FE-2) -->
+                            <span v-if="contact.chat_type === 'group' && contact.last_sender_name" class="font-medium text-gray-700">
+                                {{ contact.last_sender_name }}:
+                            </span>
+                            {{ content(contact?.last_chat?.metadata).text.body }}
+                        </div>
                         <div v-if="contentType(contact?.last_chat?.metadata) ==='button'" class="text-slate-500 text-xs truncate self-end"> {{ content(contact?.last_chat?.metadata).button.text }}</div>
                         <div v-if="contentType(contact?.last_chat?.metadata) ==='interactive'" class="text-slate-500 text-xs truncate self-end"> {{ content(contact?.last_chat?.metadata).interactive?.button_reply?.title || content(contact?.last_chat?.metadata).interactive?.list_reply?.title }}</div>
                         <div v-if="contentType(contact?.last_chat?.metadata) ==='image'" class="text-slate-500 text-xs truncate self-end"> 
