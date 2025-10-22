@@ -73,7 +73,7 @@ class WhatsAppSession extends Model
      */
     public function chats(): HasMany
     {
-        return $this->hasMany(Chat::class);
+        return $this->hasMany(Chat::class, 'whatsapp_session_id');
     }
 
     /**
@@ -81,7 +81,7 @@ class WhatsAppSession extends Model
      */
     public function campaignLogs(): HasMany
     {
-        return $this->hasMany(CampaignLog::class);
+        return $this->hasMany(CampaignLog::class, 'whatsapp_session_id');
     }
 
     /**
@@ -89,7 +89,7 @@ class WhatsAppSession extends Model
      */
     public function contactSessions(): HasMany
     {
-        return $this->hasMany(ContactSession::class);
+        return $this->hasMany(ContactSession::class, 'whatsapp_session_id');
     }
 
     /**

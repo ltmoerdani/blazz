@@ -16,16 +16,23 @@ const crypto = require('crypto');
 const axios = require('axios');
 
 class WebhookNotifier {
-    constructor() {
+    constructor(logger = console) {
+        this.logger = logger;
         this.secret = process.env.HMAC_SECRET || process.env.API_SECRET;
         this.laravelUrl = process.env.LARAVEL_URL || 'http://localhost:8000';
         this.maxRetries = parseInt(process.env.WEBHOOK_MAX_RETRIES) || 3;
         this.timeout = parseInt(process.env.WEBHOOK_TIMEOUT) || 10000; // 10 seconds
 
         if (!this.secret) {
-            console.error('[WebhookNotifier] FATAL: HMAC_SECRET not configured in environment');
+            this.logger.error('[WebhookNotifier] FATAL: HMAC_SECRET not configured in environment');
             throw new Error('HMAC_SECRET environment variable is required');
         }
+
+        this.logger.info('[WebhookNotifier] Initialized', {
+            laravelUrl: this.laravelUrl,
+            maxRetries: this.maxRetries,
+            timeout: this.timeout
+        });
     }
 
     /**
@@ -59,7 +66,7 @@ class WebhookNotifier {
 
         const url = `${this.laravelUrl}${endpoint}`;
 
-        console.log('[WebhookNotifier] Sending webhook notification', {
+        this.logger.info('[WebhookNotifier] Sending webhook notification', {
             endpoint,
             url,
             timestamp,
@@ -81,7 +88,7 @@ class WebhookNotifier {
             });
 
             if (response.status >= 200 && response.status < 300) {
-                console.log('[WebhookNotifier] Webhook notification successful', {
+                this.logger.info('[WebhookNotifier] Webhook notification successful', {
                     endpoint,
                     status: response.status,
                     response_data: response.data,
@@ -89,7 +96,7 @@ class WebhookNotifier {
 
                 return response.data;
             } else if (response.status === 401) {
-                console.error('[WebhookNotifier] Webhook authentication failed', {
+                this.logger.error('[WebhookNotifier] Webhook authentication failed', {
                     endpoint,
                     status: response.status,
                     error: response.data?.message,
@@ -98,7 +105,7 @@ class WebhookNotifier {
 
                 throw new Error(`Webhook authentication failed: ${response.data?.message || 'Invalid signature'}`);
             } else if (response.status === 429) {
-                console.warn('[WebhookNotifier] Rate limit exceeded', {
+                this.logger.warn('[WebhookNotifier] Rate limit exceeded', {
                     endpoint,
                     status: response.status,
                 });
@@ -106,14 +113,14 @@ class WebhookNotifier {
                 // Retry with exponential backoff for rate limits
                 if (retryCount < this.maxRetries) {
                     const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-                    console.log(`[WebhookNotifier] Retrying after ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries})`);
+                    this.logger.info(`[WebhookNotifier] Retrying after ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries})`);
                     await this.sleep(delay);
                     return this.notify(endpoint, payload, { retryCount: retryCount + 1 });
                 }
 
                 throw new Error('Webhook rate limit exceeded after retries');
             } else {
-                console.error('[WebhookNotifier] Webhook request failed', {
+                this.logger.error('[WebhookNotifier] Webhook request failed', {
                     endpoint,
                     status: response.status,
                     error: response.data,
@@ -125,7 +132,7 @@ class WebhookNotifier {
         } catch (error) {
             // Network errors, timeout errors
             if (error.code === 'ECONNABORTED' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-                console.error('[WebhookNotifier] Network error', {
+                this.logger.error('[WebhookNotifier] Network error', {
                     endpoint,
                     error_code: error.code,
                     message: error.message,
@@ -135,14 +142,14 @@ class WebhookNotifier {
                 // Retry with exponential backoff
                 if (retryCount < this.maxRetries) {
                     const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
-                    console.log(`[WebhookNotifier] Retrying after ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries})`);
+                    this.logger.info(`[WebhookNotifier] Retrying after ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries})`);
                     await this.sleep(delay);
                     return this.notify(endpoint, payload, { retryCount: retryCount + 1 });
                 }
             }
 
             // Re-throw if not retryable or max retries exceeded
-            console.error('[WebhookNotifier] Webhook notification failed permanently', {
+            this.logger.error('[WebhookNotifier] Webhook notification failed permanently', {
                 endpoint,
                 error: error.message,
                 retries: retryCount,
@@ -212,22 +219,22 @@ class WebhookNotifier {
      */
     async testConnection() {
         try {
-            console.log('[WebhookNotifier] Testing webhook connection...');
+            this.logger.info('[WebhookNotifier] Testing webhook connection...');
 
             const response = await this.notify('/api/whatsapp/webhooks/webjs', {
                 event: 'connection_test',
                 timestamp: Date.now(),
             });
 
-            console.log('[WebhookNotifier] Connection test successful');
+            this.logger.info('[WebhookNotifier] Connection test successful');
             return true;
 
         } catch (error) {
-            console.error('[WebhookNotifier] Connection test failed:', error.message);
+            this.logger.error('[WebhookNotifier] Connection test failed:', error.message);
             return false;
         }
     }
 }
 
-// Export singleton instance
-module.exports = new WebhookNotifier();
+// Export the class, not an instance (allow instantiation with logger)
+module.exports = WebhookNotifier;

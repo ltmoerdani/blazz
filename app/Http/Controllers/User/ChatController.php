@@ -7,6 +7,7 @@ use App\Models\AutoReply;
 use App\Models\Chat;
 use App\Models\Contact;
 use App\Models\workspace;
+use App\Models\WhatsAppSession; // NEW: For session filter dropdown (TASK-FE-1)
 use App\Services\ChatService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
@@ -22,7 +23,15 @@ class ChatController extends BaseController
 
     public function index(Request $request, $uuid = null)
     {
-        return $this->chatService()->getChatList($request, $uuid, $request->query('search'));
+        // NEW: Support session filter (TASK-FE-1)
+        $sessionId = $request->query('session_id');
+
+        return $this->chatService()->getChatList(
+            $request,
+            $uuid,
+            $request->query('search'),
+            $sessionId
+        );
     }
 
     public function updateChatSortDirection(Request $request)
