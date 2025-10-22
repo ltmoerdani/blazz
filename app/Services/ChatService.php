@@ -63,7 +63,7 @@ class ChatService
         $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
 
-    public function getChatList($request, $uuid = null, $searchTerm = null)
+    public function getChatList($request, $uuid = null, $searchTerm = null, $sessionId = null)
     {
         $role = Auth::user()->teams[0]->role;
         $contact = new Contact;
@@ -83,8 +83,8 @@ class ChatService
                 $ticketingActive = true;
 
                 //Check for chats that don't have corresponding chat ticket rows
-                $contacts = $contact->contactsWithChats($this->workspaceId, null);
-                
+                $contacts = $contact->contactsWithChats($this->workspaceId, null, false, null, 'asc', 'owner', true, $sessionId);
+
                 foreach($contacts as $contact){
                     ChatTicket::firstOrCreate(
                         ['contact_id' => $contact->id],
@@ -101,9 +101,9 @@ class ChatService
             }
         }
 
-        // Retrieve the list of contacts with chats
-        $contacts = $contact->contactsWithChats($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
-        $rowCount = $contact->contactsWithChatsCount($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
+        // Retrieve the list of contacts with chats (with session filter support)
+        $contacts = $contact->contactsWithChats($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats, $sessionId);
+        $rowCount = $contact->contactsWithChatsCount($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats, $sessionId);
 
         $pusherSettings = Setting::whereIn('key', [
             'pusher_app_id',
