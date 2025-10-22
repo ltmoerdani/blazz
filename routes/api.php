@@ -39,6 +39,11 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
     // Session management for Node.js service (HMAC secured)
     Route::get('/sessions/{sessionId}/status', [App\Http\Controllers\Api\WhatsAppWebJSController::class, 'getSessionStatus']);
 
+    // Chat Sync Endpoints (HMAC secured + rate limited)
+    Route::post('/chats/sync', [App\Http\Controllers\API\WhatsAppSyncController::class, 'syncBatch'])
+        ->middleware('whatsapp.throttle');
+    Route::get('/sessions/{sessionId}/sync-status', [App\Http\Controllers\API\WhatsAppSyncController::class, 'getSyncStatus']);
+
     // Broadcasting events (for testing) - requires HMAC
     Route::post('/broadcast', function (Request $request) {
         $event = $request->input('event');

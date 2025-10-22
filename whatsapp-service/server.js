@@ -19,6 +19,10 @@ const SessionPool = require('./src/services/SessionPool');
 const QRRateLimiter = require('./src/services/QRRateLimiter');
 const TimeoutHandler = require('./src/middleware/TimeoutHandler');
 
+// Import handlers and utilities (TASK-NODE-2)
+const ChatSyncHandler = require('./src/handlers/chatSyncHandler');
+const WebhookNotifier = require('./utils/webhookNotifier');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -53,6 +57,10 @@ class WhatsAppSessionManager {
         this.sessions = new Map();
         this.metadata = new Map();
         this.qrCodes = new Map();
+
+        // Initialize webhook notifier and chat sync handler (TASK-NODE-2)
+        this.webhookNotifier = new WebhookNotifier(logger);
+        this.chatSyncHandler = new ChatSyncHandler(logger, this.webhookNotifier);
     }
 
     async createSession(sessionId, workspaceId) {
@@ -184,6 +192,31 @@ class WhatsAppSessionManager {
                         phone_number: info.wid.user,
                         status: 'connected'
                     });
+
+                    // TASK-NODE-2: Trigger initial chat sync after session is ready
+                    logger.info('Triggering initial chat sync', {
+                        sessionId,
+                        workspaceId
+                    });
+
+                    // Run sync in background (non-blocking)
+                    this.chatSyncHandler.syncAllChats(client, sessionId, workspaceId, {
+                        syncType: 'initial'
+                    }).then(result => {
+                        logger.info('Initial chat sync completed', {
+                            sessionId,
+                            workspaceId,
+                            result
+                        });
+                    }).catch(error => {
+                        logger.error('Initial chat sync failed', {
+                            sessionId,
+                            workspaceId,
+                            error: error.message,
+                            stack: error.stack
+                        });
+                    });
+
                 } catch (error) {
                     logger.error('Error in ready event handler', {
                         sessionId,
@@ -224,36 +257,59 @@ class WhatsAppSessionManager {
                 }
             });
 
-            // Message Event
+            // Message Event (TASK-NODE-3: Enhanced with group support)
             client.on('message', async (message) => {
                 try {
+                    // Get chat to detect if it's a group
+                    const chat = await message.getChat();
+                    const isGroup = chat.isGroup;
+
                     logger.debug('Message received', {
                         sessionId,
                         workspaceId,
                         from: message.from,
                         to: message.to,
-                        type: message.type
+                        type: message.type,
+                        is_group: isGroup
                     });
+
+                    // Base message data
+                    const messageData = {
+                        id: message.id._serialized,
+                        from: message.from,
+                        to: message.to,
+                        body: message.body,
+                        timestamp: message.timestamp,
+                        from_me: message.fromMe,
+                        type: message.type,
+                        has_media: message.hasMedia,
+                        chat_type: isGroup ? 'group' : 'private'
+                    };
+
+                    // Add group-specific data if it's a group message
+                    if (isGroup) {
+                        messageData.group_id = chat.id._serialized;
+                        messageData.group_name = chat.name || 'Unnamed Group';
+
+                        // Get sender contact info for group messages
+                        if (!message.fromMe) {
+                            const contact = await message.getContact();
+                            messageData.sender_phone = contact.id.user;
+                            messageData.sender_name = contact.pushname || contact.name || contact.id.user;
+                        }
+                    }
 
                     await this.sendToLaravel('message_received', {
                         workspace_id: workspaceId,
                         session_id: sessionId,
-                        message: {
-                            id: message.id._serialized,
-                            from: message.from,
-                            to: message.to,
-                            body: message.body,
-                            timestamp: message.timestamp,
-                            from_me: message.fromMe,
-                            type: message.type,
-                            has_media: message.hasMedia
-                        }
+                        message: messageData
                     });
                 } catch (error) {
                     logger.error('Error in message event handler', {
                         sessionId,
                         workspaceId,
-                        error: error.message
+                        error: error.message,
+                        stack: error.stack
                     });
                 }
             });

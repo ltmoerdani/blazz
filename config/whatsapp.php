@@ -50,6 +50,10 @@ return [
         'messages_per_hour' => env('WHATSAPP_RATE_LIMIT_MESSAGES_PER_HOUR', 1000),
         'unique_contacts_per_day' => env('WHATSAPP_RATE_LIMIT_CONTACTS_PER_DAY', 500),
         'broadcast_size_limit' => env('WHATSAPP_BROADCAST_SIZE_LIMIT', 256),
+
+        // Sync API rate limiting (TASK-SEC-2)
+        'sync_max_requests' => env('WHATSAPP_SYNC_MAX_REQUESTS', 60), // requests per minute per session
+        'sync_decay_minutes' => env('WHATSAPP_SYNC_DECAY_MINUTES', 1),
     ],
 
     /*
