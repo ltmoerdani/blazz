@@ -6,6 +6,7 @@ use App\Events\WhatsAppQRGeneratedEvent;
 use App\Events\WhatsAppSessionStatusChangedEvent;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsAppSession;
+use App\Services\ContactProvisioningService; // NEW: For contact creation
 use App\Services\ProviderSelector;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -198,19 +199,156 @@ class WhatsAppWebJSController extends Controller
 
     /**
      * Handle message received event
+     * IMPLEMENTED: Week 1-3 Integration (BUGFIX)
      */
     private function handleMessageReceived(array $data): void
     {
-        // This would integrate with existing chat processing
-        // For now, just log the event
-        Log::info('WhatsApp message received via WebJS', [
-            'workspace_id' => $data['workspace_id'],
-            'session_id' => $data['session_id'],
-            'message_id' => $data['message']['id'] ?? null,
-            'from' => $data['message']['from'] ?? null,
-        ]);
+        try {
+            $workspaceId = $data['workspace_id'];
+            $sessionId = $data['session_id'];
+            $message = $data['message'];
 
-        // TODO: Integrate with existing ChatService to process incoming messages
+            Log::info('WhatsApp message received via WebJS', [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'message_id' => $message['id'] ?? null,
+                'from' => $message['from'] ?? null,
+            ]);
+
+            // Skip status updates (status@broadcast messages)
+            if (isset($message['from']) && strpos($message['from'], 'status@broadcast') !== false) {
+                Log::debug('Skipping WhatsApp status update message');
+                return;
+            }
+
+            // Get session from database
+            $session = WhatsAppSession::where('session_id', $sessionId)
+                ->where('workspace_id', $workspaceId)
+                ->first();
+
+            if (!$session) {
+                Log::error('WhatsApp session not found', [
+                    'session_id' => $sessionId,
+                    'workspace_id' => $workspaceId
+                ]);
+                return;
+            }
+
+            // Extract phone number from WhatsApp ID (format: 6282146291472@c.us)
+            $from = $message['from'];
+            $phoneNumber = str_replace(['@c.us', '@g.us'], '', $from);
+
+            // Determine if this is a group or private chat
+            $isGroup = strpos($from, '@g.us') !== false;
+            $chatType = $isGroup ? 'group' : 'private';
+
+            Log::debug('Processing WhatsApp message', [
+                'phone_number' => $phoneNumber,
+                'chat_type' => $chatType,
+                'is_group' => $isGroup,
+                'message_type' => $message['type'] ?? 'unknown',
+                'has_body' => isset($message['body']),
+                'body_preview' => isset($message['body']) ? substr($message['body'], 0, 50) : 'N/A'
+            ]);
+
+            // Use ProviderSelector to get appropriate provider
+            $providerSelector = new ProviderSelector();
+            $provider = $providerSelector->selectProvider($workspaceId, 'webjs');
+
+            // Provision contact using ContactProvisioningService
+            $provisioningService = new ContactProvisioningService();
+
+            // Get contact name: group messages have sender_name, private chats use phone number
+            $contactName = $isGroup
+                ? ($message['sender_name'] ?? $phoneNumber)
+                : ($message['notifyName'] ?? $phoneNumber);
+
+            $contact = $provisioningService->getOrCreateContact(
+                $phoneNumber,
+                $contactName,
+                $workspaceId,
+                'webjs',
+                $session->id
+            );
+
+            if (!$contact) {
+                Log::error('Failed to provision contact', [
+                    'phone_number' => $phoneNumber,
+                    'workspace_id' => $workspaceId
+                ]);
+                return;
+            }
+
+            Log::info('Contact provisioned successfully', [
+                'contact_id' => $contact->id,
+                'phone' => $contact->phone,
+                'session_id' => $session->id
+            ]);
+
+            // Process the message using provider's processIncomingWebhook
+            // This will create chat entry, handle media, trigger events, etc.
+
+            // Map WhatsApp Web.js message type to Meta API type
+            $messageType = $message['type'] ?? 'chat';
+            $metaApiType = ($messageType === 'chat') ? 'text' : $messageType;
+
+            $webhookData = [
+                'object' => 'whatsapp_business_account',
+                'entry' => [
+                    [
+                        'changes' => [
+                            [
+                                'value' => [
+                                    'messaging_product' => 'whatsapp',
+                                    'metadata' => [
+                                        'display_phone_number' => $session->phone_number,
+                                        'phone_number_id' => 'webjs_' . $session->id,
+                                    ],
+                                    'messages' => [
+                                        [
+                                            'id' => $message['id'],
+                                            'from' => $phoneNumber,
+                                            'timestamp' => $message['timestamp'] ?? time(),
+                                            'type' => $metaApiType,
+                                            'text' => isset($message['body']) ? [
+                                                'body' => $message['body']
+                                            ] : null,
+                                            // Add other message types as needed
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+
+            Log::debug('Converted to Meta API format', [
+                'original_type' => $messageType,
+                'meta_api_type' => $metaApiType,
+                'phone_number' => $phoneNumber
+            ]);
+
+            // Convert to Meta API format and process
+            $request = new Request();
+            $request->merge($webhookData);
+
+            // Call provider's webhook handler
+            $provider->processIncomingWebhook($request);
+
+            Log::info('WhatsApp WebJS message processed successfully', [
+                'contact_id' => $contact->id,
+                'message_id' => $message['id'],
+                'provider_type' => 'webjs'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error processing WhatsApp WebJS message', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $data
+            ]);
+        }
     }
 
     /**

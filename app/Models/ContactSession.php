@@ -38,7 +38,7 @@ class ContactSession extends Model
      */
     public function whatsappSession(): BelongsTo
     {
-        return $this->belongsTo(WhatsAppSession::class);
+        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id');
     }
 
     /**
