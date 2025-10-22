@@ -11,7 +11,16 @@ return [
     |
     */
 
-    'node_service_url' => env('WHATSAPP_NODE_SERVICE_URL', 'http://localhost:3000'),
+        /*
+    |--------------------------------------------------------------------------
+    | WhatsApp Web.js Node Service URL
+    |--------------------------------------------------------------------------
+    |
+    | URL endpoint untuk Node.js service yang menjalankan WhatsApp Web.js
+    | Default: http://localhost:3001 (verified running via health check)
+    |
+    */
+    'node_service_url' => env('WHATSAPP_NODE_SERVICE_URL', 'http://localhost:3001'),
     'node_api_key' => env('WHATSAPP_NODE_API_KEY', 'your-node-api-key'),
     'node_api_secret' => env('WHATSAPP_NODE_API_SECRET', 'your-node-api-secret'),
 
