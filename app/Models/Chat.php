@@ -57,4 +57,9 @@ class Chat extends Model {
     {
         return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
     }
+
+    public function group()
+    {
+        return $this->belongsTo(WhatsAppGroup::class, 'group_id', 'id');
+    }
 }
