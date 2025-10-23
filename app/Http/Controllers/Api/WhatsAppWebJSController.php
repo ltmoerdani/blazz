@@ -375,6 +375,49 @@ class WhatsAppWebJSController extends Controller
                 // First handle ticket assignment (creates ticket if needed)
                 (new \App\Services\ChatService($workspaceId))->handleTicketAssignment($contact->id);
 
+                // Normalize metadata to Meta API format for frontend compatibility
+                $normalizedMetadata = [
+                    'id' => $message['id'],
+                    'from' => $message['from'],
+                    'timestamp' => $message['timestamp'] ?? time(),
+                    'type' => $metaApiType, // 'text', 'image', etc.
+                ];
+
+                // Add message content based on type
+                if ($metaApiType === 'text' && isset($message['body'])) {
+                    $normalizedMetadata['text'] = [
+                        'body' => $message['body']
+                    ];
+                } elseif ($metaApiType === 'image' && isset($message['body'])) {
+                    $normalizedMetadata['image'] = [
+                        'caption' => $message['body']
+                    ];
+                } elseif ($metaApiType === 'video' && isset($message['body'])) {
+                    $normalizedMetadata['video'] = [
+                        'caption' => $message['body']
+                    ];
+                } elseif ($metaApiType === 'document' && isset($message['body'])) {
+                    $normalizedMetadata['document'] = [
+                        'caption' => $message['body']
+                    ];
+                } elseif (isset($message['body'])) {
+                    // Fallback for other types
+                    $normalizedMetadata['text'] = [
+                        'body' => $message['body']
+                    ];
+                }
+
+                // Add WebJS-specific fields for reference
+                if ($isGroup) {
+                    $normalizedMetadata['_webjs'] = [
+                        'chat_type' => 'group',
+                        'group_id' => $message['group_id'] ?? null,
+                        'group_name' => $message['group_name'] ?? null,
+                        'sender_phone' => $message['sender_phone'] ?? null,
+                        'sender_name' => $message['sender_name'] ?? null,
+                    ];
+                }
+
                 // Create new chat record (same pattern as Meta API webhook)
                 $chat = new \App\Models\Chat();
                 $chat->workspace_id = $workspaceId;
@@ -382,7 +425,7 @@ class WhatsAppWebJSController extends Controller
                 $chat->contact_id = $contact->id;
                 $chat->type = 'inbound';
                 $chat->status = 'delivered';
-                $chat->metadata = json_encode($message);
+                $chat->metadata = json_encode($normalizedMetadata);
                 $chat->provider_type = 'webjs';
                 $chat->chat_type = $isGroup ? 'group' : 'private';
                 $chat->save();
