@@ -36,8 +36,8 @@ class ThrottleWhatsAppSync
         // Create rate limit key per session
         $key = 'whatsapp_sync:' . $sessionId;
 
-        // Maximum attempts: 60 requests per minute
-        $maxAttempts = config('whatsapp.rate_limiting.sync_max_requests', 60);
+        // Maximum attempts: 500 requests per minute (increased for initial sync)
+        $maxAttempts = config('whatsapp.rate_limiting.sync_max_requests', 500);
         $decayMinutes = config('whatsapp.rate_limiting.sync_decay_minutes', 1);
 
         // Check if rate limit exceeded

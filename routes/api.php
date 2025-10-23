@@ -39,6 +39,10 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
     // Session management for Node.js service (HMAC secured)
     Route::get('/sessions/{sessionId}/status', [App\Http\Controllers\Api\WhatsAppWebJSController::class, 'getSessionStatus']);
 
+    // Session Restoration Endpoints (for auto-reconnect feature)
+    Route::get('/sessions/active', [App\Http\Controllers\Api\WhatsAppWebJSController::class, 'getActiveSessions']);
+    Route::post('/sessions/{sessionId}/mark-disconnected', [App\Http\Controllers\Api\WhatsAppWebJSController::class, 'markDisconnected']);
+
     // Chat Sync Endpoints (HMAC secured + rate limited)
     Route::post('/chats/sync', [App\Http\Controllers\API\WhatsAppSyncController::class, 'syncBatch'])
         ->middleware('whatsapp.throttle');

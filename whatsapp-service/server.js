@@ -23,6 +23,10 @@ const TimeoutHandler = require('./src/middleware/TimeoutHandler');
 const ChatSyncHandler = require('./src/handlers/chatSyncHandler');
 const WebhookNotifier = require('./utils/webhookNotifier');
 
+// Import session restoration and auto-reconnect services
+const SessionRestoration = require('./src/services/SessionRestoration');
+const AutoReconnect = require('./src/services/AutoReconnect');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -61,6 +65,10 @@ class WhatsAppSessionManager {
         // Initialize webhook notifier and chat sync handler (TASK-NODE-2)
         this.webhookNotifier = new WebhookNotifier(logger);
         this.chatSyncHandler = new ChatSyncHandler(logger, this.webhookNotifier);
+
+        // Initialize session restoration and auto-reconnect services
+        this.sessionRestoration = new SessionRestoration(this, logger);
+        this.autoReconnect = new AutoReconnect(this, logger);
     }
 
     async createSession(sessionId, workspaceId) {
@@ -248,6 +256,9 @@ class WhatsAppSessionManager {
                         session_id: sessionId,
                         reason: reason
                     });
+
+                    // Trigger auto-reconnect for technical disconnects
+                    await this.autoReconnect.handleDisconnection(sessionId, workspaceId, reason);
                 } catch (error) {
                     logger.error('Error in disconnected event handler', {
                         sessionId,
@@ -715,10 +726,27 @@ process.on('SIGINT', async () => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     logger.info(`WhatsApp Service started on port ${PORT}`);
     logger.info(`Laravel backend: ${process.env.LARAVEL_URL}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+    // Restore all active sessions from database on startup
+    logger.info('🔄 Initiating session restoration...');
+    try {
+        const result = await sessionManager.sessionRestoration.restoreAllSessions();
+
+        if (result.success) {
+            logger.info(`✅ Session restoration completed: ${result.restored} restored, ${result.failed} failed, ${result.total || 0} total`);
+        } else {
+            logger.error('❌ Session restoration failed:', result.error);
+        }
+    } catch (error) {
+        logger.error('❌ Session restoration error:', {
+            error: error.message,
+            stack: error.stack
+        });
+    }
 });
 
 module.exports = { app, sessionManager };
