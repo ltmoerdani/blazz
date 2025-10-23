@@ -226,6 +226,12 @@ class WhatsAppWebJSController extends Controller
                 ->where('workspace_id', $workspaceId)
                 ->first();
 
+            Log::debug('🔍 DEBUG: Session lookup result', [
+                'session_found' => $session ? 'YES' : 'NO',
+                'session_id' => $sessionId,
+                'workspace_id' => $workspaceId
+            ]);
+
             if (!$session) {
                 Log::error('WhatsApp session not found', [
                     'session_id' => $sessionId,
@@ -252,8 +258,17 @@ class WhatsAppWebJSController extends Controller
             ]);
 
             // Use ProviderSelector to get appropriate provider
+            Log::debug('🔍 DEBUG: About to select provider', [
+                'workspace_id' => $workspaceId,
+                'preferred_provider' => 'webjs'
+            ]);
+
             $providerSelector = new ProviderSelector();
             $provider = $providerSelector->selectProvider($workspaceId, 'webjs');
+
+            Log::debug('🔍 DEBUG: Provider selected', [
+                'provider_type' => $provider ? get_class($provider) : 'NULL'
+            ]);
 
             // Provision contact using ContactProvisioningService
             $provisioningService = new ContactProvisioningService();
@@ -263,6 +278,13 @@ class WhatsAppWebJSController extends Controller
                 ? ($message['sender_name'] ?? $phoneNumber)
                 : ($message['notifyName'] ?? $phoneNumber);
 
+            Log::debug('🔍 DEBUG: About to provision contact', [
+                'phone_number' => $phoneNumber,
+                'contact_name' => $contactName,
+                'workspace_id' => $workspaceId,
+                'session_id' => $session->id
+            ]);
+
             $contact = $provisioningService->getOrCreateContact(
                 $phoneNumber,
                 $contactName,
@@ -270,6 +292,12 @@ class WhatsAppWebJSController extends Controller
                 'webjs',
                 $session->id
             );
+
+            Log::debug('🔍 DEBUG: Contact provision result', [
+                'contact_created' => $contact ? 'YES' : 'NO',
+                'contact_id' => $contact->id ?? null,
+                'contact_phone' => $contact->phone ?? null
+            ]);
 
             if (!$contact) {
                 Log::error('Failed to provision contact', [
@@ -333,14 +361,69 @@ class WhatsAppWebJSController extends Controller
             $request = new Request();
             $request->merge($webhookData);
 
-            // Call provider's webhook handler
-            $provider->processIncomingWebhook($request);
-
-            Log::info('WhatsApp WebJS message processed successfully', [
+            Log::debug('🔍 DEBUG: About to create chat and message', [
                 'contact_id' => $contact->id,
-                'message_id' => $message['id'],
-                'provider_type' => 'webjs'
+                'phone' => $contact->phone
             ]);
+
+            // Check if chat already exists for this message
+            $chat = \App\Models\Chat::where('wam_id', $message['id'])
+                ->where('workspace_id', $workspaceId)
+                ->first();
+
+            if (!$chat) {
+                // First handle ticket assignment (creates ticket if needed)
+                (new \App\Services\ChatService($workspaceId))->handleTicketAssignment($contact->id);
+
+                // Create new chat record (same pattern as Meta API webhook)
+                $chat = new \App\Models\Chat();
+                $chat->workspace_id = $workspaceId;
+                $chat->wam_id = $message['id'];
+                $chat->contact_id = $contact->id;
+                $chat->type = 'inbound';
+                $chat->status = 'delivered';
+                $chat->metadata = json_encode($message);
+                $chat->provider_type = 'webjs';
+                $chat->chat_type = $isGroup ? 'group' : 'private';
+                $chat->save();
+
+                Log::debug('🔍 DEBUG: Chat created', [
+                    'chat_id' => $chat->id,
+                    'wam_id' => $chat->wam_id
+                ]);
+
+                // Reload chat with relationships
+                $chat = \App\Models\Chat::with('contact', 'media')->where('id', $chat->id)->first();
+
+                // Create chat log entry
+                $chatLog = new \App\Models\ChatLog();
+                $chatLog->contact_id = $contact->id;
+                $chatLog->entity_type = 'chat';
+                $chatLog->entity_id = $chat->id;
+                $chatLog->created_at = now();
+                $chatLog->save();
+                $chatLogId = $chatLog->id;
+
+                // Prepare chat array for event (same format as Meta API)
+                $chatLog = \App\Models\ChatLog::where('id', $chatLogId)
+                    ->where('deleted_at', null)
+                    ->first();
+
+                $chatArray = array([
+                    'type' => 'chat',
+                    'value' => $chatLog->relatedEntities
+                ]);
+
+                // Broadcast event for real-time UI update
+                event(new \App\Events\NewChatEvent($chatArray, $workspaceId));
+
+                Log::info('✅ WhatsApp WebJS message processed successfully', [
+                    'contact_id' => $contact->id,
+                    'chat_id' => $chat->id,
+                    'message_id' => $message['id'],
+                    'provider_type' => 'webjs'
+                ]);
+            }
 
         } catch (\Exception $e) {
             Log::error('Error processing WhatsApp WebJS message', [
@@ -405,5 +488,116 @@ class WhatsAppWebJSController extends Controller
             'last_activity_at' => $session->last_activity_at,
             'health_score' => $session->health_score,
         ]);
+    }
+
+    /**
+     * Get all active sessions for restoration
+     * Called by Node.js service on startup
+     */
+    public function getActiveSessions(Request $request)
+    {
+        try {
+            // Get all sessions that should be active (connected or authenticated)
+            $sessions = WhatsAppSession::whereIn('status', ['connected', 'authenticated'])
+                ->where('is_active', true)
+                ->select('id', 'session_id', 'workspace_id', 'phone_number', 'status', 'provider_type')
+                ->get()
+                ->map(function ($session) {
+                    return [
+                        'id' => $session->id,
+                        'session_id' => $session->session_id,
+                        'workspace_id' => $session->workspace_id,
+                        'phone_number' => $session->phone_number,
+                        'status' => $session->status,
+                        'provider_type' => $session->provider_type
+                    ];
+                });
+
+            Log::info('Active sessions requested by Node.js', [
+                'count' => $sessions->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'sessions' => $sessions,
+                'count' => $sessions->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get active sessions', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark session as disconnected
+     * Called by Node.js when session restoration fails
+     */
+    public function markDisconnected(Request $request, $sessionId)
+    {
+        try {
+            $workspaceId = $request->input('workspace_id');
+            $reason = $request->input('reason', 'Unknown');
+
+            $session = WhatsAppSession::where('session_id', $sessionId)
+                ->where('workspace_id', $workspaceId)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Session not found'
+                ], 404);
+            }
+
+            $session->update([
+                'status' => 'disconnected',
+                'last_activity_at' => now(),
+                'metadata' => array_merge($session->metadata ?? [], [
+                    'last_disconnect_reason' => $reason,
+                    'last_disconnect_at' => now()->toISOString()
+                ])
+            ]);
+
+            Log::info('Session marked as disconnected', [
+                'session_id' => $sessionId,
+                'workspace_id' => $workspaceId,
+                'reason' => $reason
+            ]);
+
+            // Broadcast status change
+            broadcast(new WhatsAppSessionStatusChangedEvent(
+                $sessionId,
+                'disconnected',
+                $workspaceId,
+                $session->phone_number,
+                [
+                    'reason' => $reason,
+                    'timestamp' => now()->toISOString()
+                ]
+            ));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Session marked as disconnected'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to mark session as disconnected', [
+                'session_id' => $sessionId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

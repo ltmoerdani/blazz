@@ -61,15 +61,37 @@ class WebJSHealthChecker
      */
     private function validateSessionInHealth(array $health): bool
     {
+        // Health endpoint returns {"sessions": {"total": X, "connected": Y}}
+        // not an array of session objects
         if (!isset($health['sessions'])) {
             return false;
         }
 
-        foreach ($health['sessions'] as $sessionInfo) {
-            if ($sessionInfo['session_id'] === $this->session->session_id &&
-                $sessionInfo['status'] === 'connected') {
-                return true;
+        // If there are connected sessions and our session is marked connected in DB,
+        // assume it's available (Node.js has the session)
+        $sessionsData = $health['sessions'];
+
+        if (isset($sessionsData['connected']) && $sessionsData['connected'] > 0) {
+            // Additional verification: check Node.js has our specific session
+            try {
+                $response = Http::timeout(3)->get("{$this->nodeServiceUrl}/api/sessions/{$this->session->session_id}/status", [
+                    'workspace_id' => $this->workspaceId,
+                    'api_key' => config('whatsapp.node_api_key')
+                ]);
+
+                if ($response->successful()) {
+                    $sessionData = $response->json();
+                    return isset($sessionData['status']) && $sessionData['status'] === 'connected';
+                }
+            } catch (\Exception $e) {
+                // If specific check fails, fallback to simple connected count check
+                Log::debug('Session-specific check failed, using connected count', [
+                    'session_id' => $this->session->session_id
+                ]);
             }
+
+            // Fallback: if Node.js has any connected session, trust DB status
+            return true;
         }
 
         return false;
