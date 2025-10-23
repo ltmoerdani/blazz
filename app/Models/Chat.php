@@ -35,11 +35,25 @@ class Chat extends Model {
 
     /**
      * Get message body from metadata JSON
+     * Supports both Meta API format and legacy WebJS format
      */
     public function getBodyAttribute()
     {
         if ($this->metadata) {
             $data = is_string($this->metadata) ? json_decode($this->metadata, true) : $this->metadata;
+
+            // Try Meta API format first (text.body, image.caption, video.caption, etc.)
+            if (isset($data['text']['body'])) {
+                return $data['text']['body'];
+            } elseif (isset($data['image']['caption'])) {
+                return $data['image']['caption'];
+            } elseif (isset($data['video']['caption'])) {
+                return $data['video']['caption'];
+            } elseif (isset($data['document']['caption'])) {
+                return $data['document']['caption'];
+            }
+
+            // Fallback to legacy format (direct body field)
             return $data['body'] ?? null;
         }
         return null;
