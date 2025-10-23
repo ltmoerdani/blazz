@@ -32,6 +32,26 @@ class Chat extends Model {
     {
         return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
+
+    /**
+     * Get message body from metadata JSON
+     */
+    public function getBodyAttribute()
+    {
+        if ($this->metadata) {
+            $data = is_string($this->metadata) ? json_decode($this->metadata, true) : $this->metadata;
+            return $data['body'] ?? null;
+        }
+        return null;
+    }
+
+    /**
+     * Get contact name for UI display
+     */
+    public function getContactNameAttribute()
+    {
+        return $this->contact ? $this->contact->first_name : null;
+    }
     
     public function contact()
     {
