@@ -295,29 +295,113 @@ class ChatService
 
     public function sendMessage(object $request)
     {
-        if($request->type === 'text'){
-            return $this->whatsappService->sendMessage($request->uuid, $request->message, Auth::id());
-        } else {
-            $storage = Setting::where('key', 'storage_system')->first()->value;
-            $fileName = $request->file('file')->getClientOriginalName();
-            $fileContent = $request->file('file');
+        try {
+            // Get contact
+            $contact = Contact::where('uuid', $request->uuid)->first();
 
-            if($storage === 'local'){
-                $location = 'local';
-                $file = Storage::disk('local')->put('public', $fileContent);
-                $mediaFilePath = $file;
-                $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-            } elseif($storage === 'aws') {
-                $location = 'amazon';
-                $file = $request->file('file');
-                $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
-                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
-                $s3Disk = Storage::disk('s3');
-                $mediaFilePath = $s3Disk->url($uploadedFile);
-                $mediaUrl = $mediaFilePath;
+            if (!$contact) {
+                Log::error('Contact not found for sending message', ['uuid' => $request->uuid]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Contact not found'
+                ], 404);
             }
-    
-            $this->whatsappService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
+
+            // Find the most recent WhatsApp session for this contact
+            $contactSession = \App\Models\ContactSession::where('contact_id', $contact->id)
+                ->orderBy('last_interaction_at', 'desc')
+                ->first();
+
+            // Get WhatsApp session
+            $whatsappSession = null;
+            if ($contactSession) {
+                $whatsappSession = $contactSession->whatsappSession;
+            }
+
+            // If no session found via contact, try to get primary session for workspace
+            if (!$whatsappSession) {
+                $whatsappSession = \App\Models\WhatsAppSession::where('workspace_id', $this->workspaceId)
+                    ->where('status', 'connected')
+                    ->orderBy('is_primary', 'desc')
+                    ->orderBy('last_connected_at', 'desc')
+                    ->first();
+            }
+
+            if (!$whatsappSession) {
+                Log::error('No active WhatsApp session found', [
+                    'workspace_id' => $this->workspaceId,
+                    'contact_id' => $contact->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No active WhatsApp session available'
+                ], 503);
+            }
+
+            // Use ProviderSelector to get the appropriate adapter
+            $providerSelector = new ProviderSelector();
+            $provider = $providerSelector->selectProvider($this->workspaceId, $whatsappSession->provider_type);
+
+            Log::info('Sending message via provider', [
+                'provider_type' => $whatsappSession->provider_type,
+                'session_id' => $whatsappSession->session_id,
+                'contact_id' => $contact->id,
+                'message_type' => $request->type
+            ]);
+
+            // Send message based on type
+            if ($request->type === 'text') {
+                $result = $provider->sendMessage($contact, $request->message, Auth::id());
+            } else {
+                // Handle media upload
+                $storage = Setting::where('key', 'storage_system')->first()->value;
+                $fileName = $request->file('file')->getClientOriginalName();
+                $fileContent = $request->file('file');
+
+                if ($storage === 'local') {
+                    $location = 'local';
+                    $file = Storage::disk('local')->put('public', $fileContent);
+                    $mediaFilePath = $file;
+                    $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
+                } elseif ($storage === 'aws') {
+                    $location = 'amazon';
+                    $file = $request->file('file');
+                    $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
+                    /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                    $s3Disk = Storage::disk('s3');
+                    $mediaFilePath = $s3Disk->url($uploadedFile);
+                    $mediaUrl = $mediaFilePath;
+                }
+
+                $result = $provider->sendMedia($contact, $request->type, $mediaUrl, '', Auth::id());
+            }
+
+            // Return result
+            if (isset($result['success']) && $result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Message sent successfully',
+                    'data' => $result
+                ]);
+            } else {
+                Log::error('Failed to send message', [
+                    'result' => $result,
+                    'contact_id' => $contact->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['error'] ?? 'Failed to send message'
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            Log::error('Exception in sendMessage', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while sending the message: ' . $e->getMessage()
+            ], 500);
         }
     }
 

@@ -75,8 +75,19 @@
 
                 processingForm.value = false;
             } catch (error) {
-                // Handle the error
-                // console.error('Error:', error);
+                processingForm.value = false;
+
+                // Extract error message
+                let errorMessage = 'Failed to send message';
+                if (error.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+
+                // Show error to user
+                console.error('Error sending message:', errorMessage, error);
+                alert('Error: ' + errorMessage);
             }
         } else {
             if(isAudioRecording.value == true){
@@ -103,8 +114,17 @@
                 deleteRecording();
             }
         } catch (error) {
-            // Handle the error
-            // console.error('Error:', error);
+            // Extract error message
+            let errorMessage = 'Failed to send audio message';
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Show error to user
+            console.error('Error sending audio message:', errorMessage, error);
+            alert('Error: ' + errorMessage);
         }
     }
 

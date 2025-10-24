@@ -2,6 +2,9 @@
 
 namespace App\Services\Adapters;
 
+use App\Events\NewChatEvent;
+use App\Models\Chat;
+use App\Models\ChatLog;
 use App\Models\Contact;
 use App\Models\WhatsAppSession;
 use Illuminate\Support\Facades\Http;
@@ -57,10 +60,28 @@ class WebJSMessageSender
                 'message' => $message,
                 'type' => $type,
                 'user_id' => $userId,
+                'api_key' => config('whatsapp.node_api_key'),
             ]);
 
             if ($response->successful()) {
-                return $this->handleSuccessfulResponse($response);
+                $data = $response->json();
+
+                // Update session statistics
+                $this->session->update([
+                    'last_activity_at' => now(),
+                    'metadata' => array_merge($this->session->metadata ?? [], [
+                        'last_message_sent' => now()->toISOString()
+                    ])
+                ]);
+
+                // Create Chat record
+                $this->createChatRecord($contact, $message, $type, $data, $userId);
+
+                return [
+                    'success' => true,
+                    'data' => $data,
+                    'provider' => 'webjs'
+                ];
             }
 
             return [
@@ -87,10 +108,28 @@ class WebJSMessageSender
                 'type' => $mediaType,
                 'caption' => $caption,
                 'user_id' => $userId,
+                'api_key' => config('whatsapp.node_api_key'),
             ]);
 
             if ($response->successful()) {
-                return $this->handleSuccessfulMediaResponse($response);
+                $data = $response->json();
+
+                // Update session statistics
+                $this->session->update([
+                    'last_activity_at' => now(),
+                    'metadata' => array_merge($this->session->metadata ?? [], [
+                        'last_media_sent' => now()->toISOString()
+                    ])
+                ]);
+
+                // Create Chat record (using caption as message text)
+                $this->createChatRecord($contact, $caption ?: '(Media file)', $mediaType, $data, $userId);
+
+                return [
+                    'success' => true,
+                    'data' => $data,
+                    'provider' => 'webjs'
+                ];
             }
 
             return [
@@ -119,10 +158,28 @@ class WebJSMessageSender
                 'type' => 'text',
                 'user_id' => $userId,
                 'campaign_id' => $campaignId,
+                'api_key' => config('whatsapp.node_api_key'),
             ]);
 
             if ($response->successful()) {
-                return $this->handleSuccessfulTemplateResponse($response);
+                $data = $response->json();
+
+                // Update session statistics
+                $this->session->update([
+                    'last_activity_at' => now(),
+                    'metadata' => array_merge($this->session->metadata ?? [], [
+                        'last_template_sent' => now()->toISOString()
+                    ])
+                ]);
+
+                // Create Chat record
+                $this->createChatRecord($contact, $message, 'text', $data, $userId);
+
+                return [
+                    'success' => true,
+                    'data' => $data,
+                    'provider' => 'webjs'
+                ];
             }
 
             return [
@@ -135,71 +192,6 @@ class WebJSMessageSender
         }
     }
 
-    /**
-     * Handle successful API response
-     */
-    private function handleSuccessfulResponse($response): array
-    {
-        $data = $response->json();
-
-        // Update session statistics
-        $this->session->update([
-            'last_activity_at' => now(),
-            'metadata' => array_merge($this->session->metadata ?? [], [
-                'last_message_sent' => now()->toISOString()
-            ])
-        ]);
-
-        return [
-            'success' => true,
-            'data' => $data,
-            'provider' => 'webjs'
-        ];
-    }
-
-    /**
-     * Handle successful media API response
-     */
-    private function handleSuccessfulMediaResponse($response): array
-    {
-        $data = $response->json();
-
-        // Update session statistics
-        $this->session->update([
-            'last_activity_at' => now(),
-            'metadata' => array_merge($this->session->metadata ?? [], [
-                'last_media_sent' => now()->toISOString()
-            ])
-        ]);
-
-        return [
-            'success' => true,
-            'data' => $data,
-            'provider' => 'webjs'
-        ];
-    }
-
-    /**
-     * Handle successful template API response
-     */
-    private function handleSuccessfulTemplateResponse($response): array
-    {
-        $data = $response->json();
-
-        // Update session statistics
-        $this->session->update([
-            'last_activity_at' => now(),
-            'metadata' => array_merge($this->session->metadata ?? [], [
-                'last_template_sent' => now()->toISOString()
-            ])
-        ]);
-
-        return [
-            'success' => true,
-            'data' => $data,
-            'provider' => 'webjs'
-        ];
-    }
 
     /**
      * Handle error response
@@ -238,5 +230,67 @@ class WebJSMessageSender
         }
 
         return 'Template message';
+    }
+
+    /**
+     * Create Chat record and broadcast event
+     */
+    private function createChatRecord(Contact $contact, string $message, string $type, array $responseData, ?int $userId = null): void
+    {
+        try {
+            // Build metadata in Meta API format for consistency
+            $metadata = [
+                'text' => ['body' => $message],
+                'type' => $type
+            ];
+
+            // Create Chat record
+            $chat = Chat::create([
+                'workspace_id' => $contact->Workspace_id,
+                'contact_id' => $contact->id,
+                'whatsapp_session_id' => $this->session->id,
+                'type' => 'outbound',
+                'user_id' => $userId,
+                'status' => 'sent',
+                'metadata' => json_encode($metadata),
+                'wam_id' => $responseData['message_id'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Create ChatLog entry
+            $chatLogId = ChatLog::insertGetId([
+                'contact_id' => $contact->id,
+                'entity_type' => 'chat',
+                'entity_id' => $chat->id,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            // Reload chat with relationships for broadcasting
+            $chat = Chat::with('contact', 'media')->where('id', $chat->id)->first();
+
+            // Prepare chat array for broadcast
+            $chatLogArray = ChatLog::where('id', $chatLogId)->where('deleted_at', null)->first();
+            $chatArray = array([
+                'type' => 'chat',
+                'value' => $chatLogArray->relatedEntities
+            ]);
+
+            // Broadcast event
+            event(new NewChatEvent($chatArray, $contact->Workspace_id));
+
+            Log::info('Chat record created for WebJS message', [
+                'chat_id' => $chat->id,
+                'contact_id' => $contact->id,
+                'session_id' => $this->session->session_id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to create chat record for WebJS message', [
+                'contact_id' => $contact->id,
+                'error' => $e->getMessage()
+            ]);
+            // Don't throw exception - message was sent successfully even if recording failed
+        }
     }
 }
