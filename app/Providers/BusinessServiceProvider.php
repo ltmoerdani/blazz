@@ -33,11 +33,22 @@ use App\Models\workspace;
 
 class BusinessServiceProvider extends ServiceProvider
 {
+    /**
+     * Get current workspace from session/auth
+     */
+    private function getCurrentWorkspace(): workspace
+    {
+        $workspaceId = session()->get('current_workspace') 
+            ?? \Illuminate\Support\Facades\Auth::user()?->teams->first()?->workspace_id 
+            ?? 1;
+        return workspace::findOrFail($workspaceId);
+    }
+
     public function register(): void
     {
         // Auto Reply Service
         $this->app->singleton(AutoReplyService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new AutoReplyService(
                 $workspace->id,
                 $app->make('App\Services\WhatsApp\MessageSendingService'),
@@ -47,7 +58,7 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Campaign Service
         $this->app->singleton(CampaignService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new CampaignService($workspace->id);
         });
 
@@ -58,13 +69,13 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Billing Service
         $this->app->singleton(BillingService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new BillingService($workspace->id);
         });
 
         // Team Service
         $this->app->singleton(TeamService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new TeamService($workspace->id);
         });
 
@@ -85,13 +96,13 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Contact Provisioning Service
         $this->app->singleton(ContactProvisioningService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new ContactProvisioningService($workspace->id);
         });
 
         // Contact Field Service
         $this->app->singleton(ContactFieldService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new ContactFieldService($workspace->id);
         });
 
@@ -167,7 +178,7 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Subscription Service
         $this->app->singleton(SubscriptionService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new SubscriptionService($workspace->id);
         });
 

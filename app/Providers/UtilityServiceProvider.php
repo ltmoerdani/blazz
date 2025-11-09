@@ -25,6 +25,17 @@ use App\Models\workspace;
 
 class UtilityServiceProvider extends ServiceProvider
 {
+    /**
+     * Get current workspace from session/auth
+     */
+    private function getCurrentWorkspace(): workspace
+    {
+        $workspaceId = session()->get('current_workspace') 
+            ?? \Illuminate\Support\Facades\Auth::user()?->teams->first()?->workspace_id 
+            ?? 1;
+        return workspace::findOrFail($workspaceId);
+    }
+
     public function register(): void
     {
         // Template Service - requires runtime workspace context, not registered as singleton
@@ -90,32 +101,32 @@ class UtilityServiceProvider extends ServiceProvider
 
         // Payment Services
         $this->app->singleton(StripeService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new StripeService($workspace->id);
         });
 
         $this->app->singleton(PayPalService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new PayPalService($workspace->id);
         });
 
         $this->app->singleton(RazorPayService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new RazorPayService($workspace->id);
         });
 
         $this->app->singleton(FlutterwaveService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new FlutterwaveService($workspace->id);
         });
 
         $this->app->singleton(PayStackService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new PayStackService($workspace->id);
         });
 
         $this->app->singleton(CoinbaseService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new CoinbaseService($workspace->id);
         });
     }
