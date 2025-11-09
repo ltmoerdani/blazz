@@ -15,17 +15,12 @@ use App\Services\ModuleService;
 use App\Services\TestimonialService;
 use App\Services\FaqService;
 use App\Services\SubscriptionPlanService;
-use App\Services\SubscriptionService;
-use App\Services\ContactService;
-use App\Services\ChatService;
-use App\Services\MediaService;
 use App\Services\StripeService;
 use App\Services\PayPalService;
 use App\Services\RazorPayService;
 use App\Services\FlutterwaveService;
 use App\Services\PayStackService;
 use App\Services\CoinbaseService;
-use App\Services\WhatsApp\TemplateManagementService;
 use App\Models\workspace;
 
 class UtilityServiceProvider extends ServiceProvider
@@ -90,32 +85,8 @@ class UtilityServiceProvider extends ServiceProvider
             return new SubscriptionPlanService();
         });
 
-        // Subscription Service
-        $this->app->singleton(SubscriptionService::class, function ($app) {
-            return new SubscriptionService();
-        });
-
-        // Contact Service
-        $this->app->singleton(ContactService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
-            return new ContactService($workspace->id);
-        });
-
-        // Chat Service (with WhatsApp dependencies)
-        $this->app->singleton(ChatService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
-            return new ChatService(
-                $workspace->id,
-                $app->make(\App\Services\WhatsApp\MessageSendingService::class),
-                $app->make(\App\Services\WhatsApp\MediaProcessingService::class),
-                $app->make(\App\Services\WhatsApp\WhatsAppHealthService::class)
-            );
-        });
-
-        // Media Service
-        $this->app->singleton(MediaService::class, function ($app) {
-            return new MediaService();
-        });
+        // NOTE: Core services (ChatService, ContactService, MediaService, SubscriptionService)
+        // are registered in AppServiceProvider to avoid duplication
 
         // Payment Services
         $this->app->singleton(StripeService::class, function ($app) {

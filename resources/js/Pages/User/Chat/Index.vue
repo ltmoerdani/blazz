@@ -79,7 +79,7 @@
     import { getEchoInstance } from '../../../echo';
 
     const props = defineProps({
-        rows: Array,
+        rows: Object,
         rowCount: Number,
         pusherSettings: Object,
         workspaceId: Number,
@@ -103,6 +103,16 @@
         simpleForm: Boolean
     });
 
+    // Debug props
+    console.log('💡 Chat Index Props:', {
+        rows: props.rows,
+        rowsType: typeof props.rows,
+        rowsData: props.rows?.data,
+        rowsDataLength: props.rows?.data?.length,
+        rowCount: props.rowCount,
+        contact: props.contact
+    });
+
     const rows = ref(props.rows);
     const rowCount = ref(props.rowCount);
     const scrollContainer2 = ref(null);
@@ -112,7 +122,7 @@
     const formLoading = ref(false);
     const isChatLimitReached = ref(props.isChatLimitReached);
     const toggleNavbarBtn = ref(null);
-    const config = ref(props.settings.metadata);
+    const config = ref(props.settings?.metadata ?? null);
     const settings = ref(config.value ? JSON.parse(config.value) : null);
     const ticketingIsEnabled = ref(settings.value?.tickets?.active ?? false);
     const chatThread = ref(props.chatThread);

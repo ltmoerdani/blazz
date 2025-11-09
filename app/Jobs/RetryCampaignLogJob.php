@@ -161,8 +161,8 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
             return workspace::find($this->workspaceId)->metadata ?? [];
         });
 
-        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
-        $config = $config ? json_decode($config, true) : [];
+        $workspace = workspace::where('id', $this->workspaceId)->first();
+        $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
         $apiVersion = 'v18.0';
