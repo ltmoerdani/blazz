@@ -22,16 +22,17 @@ use Inertia\Inertia;
 
 class DashboardController extends BaseController
 {
-    public function __construct()
-    {
-        $this->subscriptionService = new SubscriptionService();
+    public function __construct(
+        private SubscriptionService $subscriptionService
+    ) {
+        // Constructor injection - no manual instantiation
     }
 
     public function index(Request $request){
         $workspaceId = session()->get('current_workspace');
         $data['subscription'] = Subscription::with('plan')->where('workspace_id', $workspaceId)->first();
-        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
-        $data['subscriptionIsActive'] = SubscriptionService::isSubscriptionActive($workspaceId);
+        $data['subscriptionDetails'] = $this->subscriptionService->calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
+        $data['subscriptionIsActive'] = $this->subscriptionService->isSubscriptionActive($workspaceId);
         $data['chatCount'] = Chat::where('workspace_id', $workspaceId)
             ->whereNull('deleted_at')
             ->whereHas('contact', function ($query) {

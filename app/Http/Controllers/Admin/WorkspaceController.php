@@ -14,16 +14,10 @@ use Inertia\Inertia;
 
 class WorkspaceController extends BaseController
 {
-    private $WorkspaceService;
-
-    /**
-     * WorkspaceController constructor.
-     *
-     * @param UserService $WorkspaceService
-     */
-    public function __construct()
-    {
-        $this->WorkspaceService = new WorkspaceService();
+    public function __construct(
+        private WorkspaceService $workspaceService
+    ) {
+        // Constructor injection - no manual instantiation
     }
     
     public function index(){
@@ -43,7 +37,7 @@ class WorkspaceController extends BaseController
 
     public function store(StoreUserWorkspace $request)
     {
-        $workspace = $this->WorkspaceService->store($request);
+        $workspace = $this->workspaceService->store($request);
 
         if($workspace){
             session()->put('current_workspace', $workspace->id);
