@@ -146,14 +146,19 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
         }
     }
 
+    /**
+     * @deprecated Use injected MessageSendingService instead
+     * OLD CODE - Commented out
+     */
+    /*
     private function initializeWhatsappService()
     {
         $config = cache()->remember("workspace.{$this->workspaceId}.metadata", 3600, function() {
             return workspace::find($this->workspaceId)->metadata ?? [];
         });
 
-        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
-        $config = $config ? json_decode($config, true) : [];
+        $workspace = workspace::where('id', $this->workspaceId)->first();
+        $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
         $apiVersion = 'v18.0';
@@ -171,7 +176,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
         );
     }
 
-    /*private function initializeWhatsappService()
+    private function initializeWhatsappService()
     {
         $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];

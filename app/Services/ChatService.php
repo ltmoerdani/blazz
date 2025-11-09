@@ -100,7 +100,7 @@ class ChatService
         $aimodule = CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE);
 
         //Check if tickets module has been enabled
-        if($config->metadata != null){
+        if($config && $config->metadata != null){
             $settings = json_decode($config->metadata);
 
             if(isset($settings->tickets) && $settings->tickets->active === true){
@@ -164,7 +164,7 @@ class ChatService
                     'result' => ContactResource::collection($contacts)->response()->getData(),
                 ], 200);
             } else {
-                $settings = json_decode($config->metadata);
+                $settings = $config && $config->metadata ? json_decode($config->metadata) : null;
 
                 //To ensure the unread message counter is updated
                 $unreadMessages = Chat::where('workspace_id', $this->workspaceId)
@@ -187,14 +187,14 @@ class ChatService
                 return Inertia::render('User/Chat/Index', [
                     'title' => 'Chats',
                     'rows' => ContactResource::collection($contacts),
-                    'simpleForm' => CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) && optional(optional($settings)->ai)->ai_chat_form_active ? false : true,
+                    'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty(optional($settings)->ai->ai_chat_form_active),
                     'rowCount' => $rowCount,
                     'filters' => request()->all(),
                     'pusherSettings' => $pusherSettings,
                     'workspaceId' => $this->workspaceId,
                     'state' => app()->environment(),
                     'demoNumber' => env('DEMO_NUMBER'),
-                    'settings' => $config,
+                    'settings' => $config ?? (object)['metadata' => null],
                     'templates' => $messageTemplates,
                     'status' => $request->status ?? 'all',
                     'chatThread' => $initialMessages['messages'],
@@ -219,7 +219,7 @@ class ChatService
                 'result' => ContactResource::collection($contacts)->response()->getData(),
             ], 200);
         } else {
-            $settings = json_decode($config->metadata);
+            $settings = $config && $config->metadata ? json_decode($config->metadata) : null;
 
             // NEW: Get WhatsApp sessions for filter dropdown (TASK-FE-1)
             $sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
@@ -235,13 +235,13 @@ class ChatService
             return Inertia::render('User/Chat/Index', [
                 'title' => 'Chats',
                 'rows' => ContactResource::collection($contacts),
-                'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty($settings->ai->ai_chat_form_active),
+                'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty(optional($settings)->ai->ai_chat_form_active),
                 'rowCount' => $rowCount,
                 'filters' => request()->all(),
                 'pusherSettings' => $pusherSettings,
                 'workspaceId' => $this->workspaceId,
                 'state' => app()->environment(),
-                'settings' => $config,
+                'settings' => $config ?? (object)['metadata' => null],
                 'templates' => $messageTemplates,
                 'status' => $request->status ?? 'all',
                 'agents' => $agents,
@@ -249,15 +249,27 @@ class ChatService
                 'ticket' => array(),
                 'chat_sort_direction' => $sortDirection,
                 'sessions' => $sessions, // NEW: WhatsApp sessions for filter (TASK-FE-1)
-                'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit')
+                'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit'),
+                // Add missing props for consistency with UUID route
+                'contact' => null,
+                'chatThread' => [],
+                'hasMoreMessages' => false,
+                'nextPage' => null,
+                'fields' => ContactField::where('workspace_id', $this->workspaceId)->where('deleted_at', null)->get(),
+                'locationSettings' => $this->getLocationSettings(),
             ]);
         }
     }
 
     public function handleTicketAssignment($contactId){
         $workspaceId = $this->workspaceId;
-        $settings = workspace::where('id', $this->workspaceId)->first();
-        $settings = json_decode($settings->metadata);
+        $workspace = workspace::where('id', $this->workspaceId)->first();
+        
+        if (!$workspace || !$workspace->metadata) {
+            return;
+        }
+        
+        $settings = json_decode($workspace->metadata);
 
         // Check if ticket functionality is active
         if(isset($settings->tickets) && $settings->tickets->active === true){
@@ -509,21 +521,19 @@ class ChatService
 
     private function getLocationSettings(){
         // Retrieve the settings for the current workspace
-        $settings = workspace::where('id', $this->workspaceId)->first();
+        $workspace = workspace::where('id', $this->workspaceId)->first();
 
-        if ($settings) {
+        if ($workspace && $workspace->metadata) {
             // Decode the JSON metadata column into an associative array
-            $metadata = json_decode($settings->metadata, true);
+            $metadata = json_decode($workspace->metadata, true);
 
             if (isset($metadata['contacts'])) {
                 // If the 'contacts' key exists, retrieve the 'location' value
                 return $metadata['contacts']['location'];
-            } else {
-                return null;
             }
-        } else {
-            return null;
         }
+        
+        return null;
     }
 
     public function getChatMessages($contactId, $page = 1, $perPage = 10)

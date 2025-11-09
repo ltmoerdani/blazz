@@ -23,18 +23,29 @@ use App\Services\WhatsApp\WhatsAppHealthService;
 class AppServiceProvider extends ServiceProvider
 {
     /**
+     * Get current workspace from session/auth
+     */
+    private function getCurrentWorkspace(): workspace
+    {
+        $workspaceId = session()->get('current_workspace') 
+            ?? \Illuminate\Support\Facades\Auth::user()?->teams->first()?->workspace_id 
+            ?? 1;
+        return workspace::findOrFail($workspaceId);
+    }
+
+    /**
      * Register any application services.
      */
     public function register(): void
     {
         // Core Services Registration
         $this->app->singleton(ContactService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new ContactService($workspace->id);
         });
 
         $this->app->singleton(ChatService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new ChatService(
                 $workspace->id,
                 $app->make('App\Services\WhatsApp\MessageSendingService'),
@@ -48,7 +59,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(TemplateService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new TemplateService(
                 $workspace->id,
                 $app->make('App\Services\WhatsApp\TemplateManagementService'),
@@ -62,7 +73,7 @@ class AppServiceProvider extends ServiceProvider
 
         // WhatsApp Service Registration (Legacy - maintains backward compatibility)
         $this->app->singleton(WhatsappService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new WhatsappService(
                 $workspace->meta_token,
                 $workspace->meta_version,
@@ -75,7 +86,7 @@ class AppServiceProvider extends ServiceProvider
 
         // NEW: Individual WhatsApp Services Registration
         $this->app->singleton(MessageSendingService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new MessageSendingService(
                 $workspace->meta_token,
                 $workspace->meta_version,
@@ -87,7 +98,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(TemplateManagementService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new TemplateManagementService(
                 $workspace->meta_token,
                 $workspace->meta_version,
@@ -99,7 +110,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(MediaProcessingService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new MediaProcessingService(
                 $workspace->meta_token,
                 $workspace->meta_version,
@@ -111,7 +122,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(BusinessProfileService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new BusinessProfileService(
                 $workspace->meta_token,
                 $workspace->meta_version,
@@ -123,7 +134,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(WhatsAppHealthService::class, function ($app) {
-            $workspace = $app->make('App\Models\Workspace');
+            $workspace = $this->getCurrentWorkspace();
             return new WhatsAppHealthService(
                 $workspace->meta_token,
                 $workspace->meta_version,

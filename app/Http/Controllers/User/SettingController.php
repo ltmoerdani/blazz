@@ -239,8 +239,8 @@ class SettingController extends BaseController
         }
 
         $workspaceId = session()->get('current_workspace');
-        $config = workspace::where('id', $workspaceId)->first()->metadata;
-        $config = $config ? json_decode($config, true) : [];
+        $workspace = workspace::where('id', $workspaceId)->first();
+        $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
         if(isset($config['whatsapp'])){
             $accessToken = $config['whatsapp']['access_token'] ?? null;
