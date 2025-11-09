@@ -21,6 +21,9 @@ use App\Models\Template;
 use App\Models\WhatsAppSession; // NEW: For session filter dropdown
 use App\Services\SubscriptionService;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MediaProcessingService;
+use App\Services\WhatsApp\TemplateManagementService;
 use App\Traits\TemplateTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,15 +44,27 @@ class ChatService
     // Constants for repeated string literals
     const AI_ASSISTANT_MODULE = 'AI Assistant';
 
-    private $whatsappService;
+    private MessageSendingService $messageService;
+    private MediaProcessingService $mediaService;
+    private TemplateManagementService $templateService;
     private $workspaceId;
 
-    public function __construct($workspaceId)
-    {
+    public function __construct(
+        $workspaceId,
+        MessageSendingService $messageService,
+        MediaProcessingService $mediaService,
+        TemplateManagementService $templateService
+    ) {
         $this->workspaceId = $workspaceId;
-        $this->initializeWhatsappService();
+        $this->messageService = $messageService;
+        $this->mediaService = $mediaService;
+        $this->templateService = $templateService;
     }
 
+    /**
+     * @deprecated Use constructor injection instead
+     */
+    /*
     private function initializeWhatsappService()
     {
         $workspace = workspace::where('id', $this->workspaceId)->first();
@@ -70,6 +85,7 @@ class ChatService
 
         $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
+    */
 
     public function getChatList($request, $uuid = null, $searchTerm = null, $sessionId = null)
     {
@@ -327,15 +343,10 @@ class ChatService
 
     public function sendMessage(object $request)
     {
-        if(!$this->whatsappService) {
-            $responseObject = new \stdClass();
-            $responseObject->success = false;
-            $responseObject->message = 'WhatsApp service not available';
-            return $responseObject;
-        }
-
+        // OLD: Code removed during dependency injection migration
+        // NEW: Use injected services
         if($request->type === 'text'){
-            return $this->whatsappService->sendMessage($request->uuid, $request->message, Auth::id());
+            return $this->messageService->sendMessage($request->uuid, $request->message, Auth::id());
         } else {
             $storage = Setting::where('key', 'storage_system')->first()->value;
             $fileName = $request->file('file')->getClientOriginalName();
@@ -356,18 +367,21 @@ class ChatService
                 $mediaUrl = $mediaFilePath;
             }
 
-            return $this->whatsappService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
+            return $this->messageService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
         }
     }
 
     public function sendTemplateMessage(object $request, $uuid)
     {
+        // OLD: Keep for reference during transition
+        /*
         if(!$this->whatsappService) {
             $responseObject = new \stdClass();
             $responseObject->success = false;
             $responseObject->message = 'WhatsApp service not available';
             return $responseObject;
         }
+        */
         $template = Template::where('uuid', $request->template)->first();
         $contact = Contact::where('uuid', $uuid)->first();
         $mediaId = null;
@@ -436,8 +450,9 @@ class ChatService
 
         //Build Template to send
         $template = $this->buildTemplate($template->name, $template->language, json_decode(json_encode($metadata)), $contact);
-        
-        return $this->whatsappService->sendTemplateMessage($contact->uuid, $template, Auth::id(), null, $mediaId);
+
+        // NEW: Use injected service
+        return $this->messageService->sendTemplateMessage($contact->uuid, $template, Auth::id(), null, $mediaId);
     }
 
     public function clearMessage($uuid)

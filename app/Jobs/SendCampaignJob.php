@@ -10,6 +10,7 @@ use App\Models\Contact;
 use App\Models\workspace;
 use App\Models\Setting;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
 use App\Traits\HasUuid;
 use App\Traits\TemplateTrait;
 use Illuminate\Bus\Queueable;
@@ -25,7 +26,14 @@ class SendCampaignJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, TemplateTrait, SerializesModels;
 
     private $workspaceId;
-    private $whatsappService;
+    private MessageSendingService $messageService;
+
+    public function __construct(
+        private Campaign $campaign,
+        MessageSendingService $messageService
+    ) {
+        $this->messageService = $messageService;
+    }
 
     public function handle()
     {
@@ -253,12 +261,19 @@ class SendCampaignJob implements ShouldQueue
                     $log->status = 'ongoing';
                     $log->save();
 
+                    // OLD: Keep for reference during transition
+                    /*
                     //Set workspace Id & initialize whatsapp service
                     $this->workspaceId = $campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
-
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
                     $responseObject = $this->whatsappService->sendTemplateMessage($campaignLog->contact->uuid, $template, $campaign_user_id, $campaignLog->campaign_id);
+                    */
+
+                    // NEW: Use injected service
+                    $this->workspaceId = $campaignLog->campaign->Workspace_id;
+                    $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
+                    $responseObject = $this->messageService->sendTemplateMessage($campaignLog->contact->uuid, $template, $campaign_user_id, $campaignLog->campaign_id);
                     $this->updateCampaignLogStatus($campaignLog, $responseObject);
                 }
             }
@@ -286,12 +301,19 @@ class SendCampaignJob implements ShouldQueue
                     $retryLog->status = 'ongoing';
                     $retryLog->save();
 
+                    // OLD: Keep for reference during transition
+                    /*
                     //Set workspace Id & initialize whatsapp service
                     $this->workspaceId = $campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
-
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
                     $responseObject = $this->whatsappService->sendTemplateMessage($campaignLog->contact->uuid, $template, $campaign_user_id, $campaignLog->campaign_id);
+                    */
+
+                    // NEW: Use injected service
+                    $this->workspaceId = $campaignLog->campaign->Workspace_id;
+                    $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
+                    $responseObject = $this->messageService->sendTemplateMessage($campaignLog->contact->uuid, $template, $campaign_user_id, $campaignLog->campaign_id);
                     $successStatus = ($responseObject->success === true) ? 'success' : 'failed';
 
                     $retryLog->chat_id = $responseObject->data->chat->id ?? null;
@@ -341,6 +363,11 @@ class SendCampaignJob implements ShouldQueue
         $log->save();
     }
 
+    /**
+     * @deprecated Use constructor injection instead
+     * OLD CODE - Commented out
+     */
+    /*
     private function initializeWhatsappService()
     {
         $config = workspace::where('id', $this->workspaceId)->first()->metadata;
@@ -354,7 +381,11 @@ class SendCampaignJob implements ShouldQueue
 
         $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
+    */
 
+    /**
+     * Move contact to failed group after max retries
+     */
     protected function addContactToFailedGroup($campaignLog)
     {
         $campaignSettings = json_decode($campaignLog->campaign->workspace->metadata, true)['campaigns'] ?? [];

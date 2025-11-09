@@ -6,6 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Services\SubscriptionService;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\TemplateManagementService;
+use App\Services\WhatsApp\MediaProcessingService;
+use App\Services\WhatsApp\BusinessProfileService;
+use App\Services\WhatsApp\WhatsAppHealthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Propaganistas\LaravelPhone\PhoneNumber;
@@ -20,6 +25,16 @@ class WhatsAppApiController extends Controller
     const MSG_SUCCESS = 'Request processed successfully';
     const MSG_PROCESSING_ERROR = 'Request unable to be processed';
     const MSG_WHATSAPP_SETUP_REQUIRED = 'Please setup your whatsapp account!';
+
+    public function __construct(
+        private MessageSendingService $messageService,
+        private TemplateManagementService $templateService,
+        private MediaProcessingService $mediaService,
+        private BusinessProfileService $businessService,
+        private WhatsAppHealthService $healthService
+    ) {
+        // Constructor injection - WhatsApp services now injected
+    }
 
     /**
      * Send message via WhatsApp
@@ -76,9 +91,14 @@ class WhatsAppApiController extends Controller
         }
 
         try {
+            // OLD: Keep for reference during transition
+            /*
             $whatsappService = $this->initializeWhatsappService($request->workspace);
-
             $result = $whatsappService->messageSending()->sendMessage($contact->uuid, $request->message);
+            */
+
+            // NEW: Use injected service - same logic, cleaner implementation
+            $result = $this->messageService->sendMessage($contact->uuid, $request->message);
 
             if ($result && isset($result->success) && $result->success) {
                 return response()->json([
@@ -159,10 +179,14 @@ class WhatsAppApiController extends Controller
         }
 
         try {
+            // OLD: Keep for reference during transition
+            /*
             $whatsappService = $this->initializeWhatsappService($request->workspace);
             $mediaService = new \App\Services\MediaService();
+            $result = $whatsappService->messageSending()->sendMedia($contact->uuid, ...
+            */
 
-            // Upload media
+            // Upload media using injected service
             $mediaFile = $request->file('media');
             $mediaUpload = \App\Services\MediaService::upload($mediaFile);
 
@@ -174,8 +198,8 @@ class WhatsAppApiController extends Controller
                 ], 500);
             }
 
-            // Send media message
-            $result = $whatsappService->messageSending()->sendMedia(
+            // Send media message using injected service
+            $result = $this->messageService->sendMedia(
                 $contact->uuid,
                 $mediaFile->getMimeType(),
                 $mediaUpload['name'],
@@ -222,7 +246,9 @@ class WhatsAppApiController extends Controller
 
     /**
      * Initialize WhatsApp service
+     * @deprecated Use constructor injection instead
      */
+    /*
     private function initializeWhatsappService($workspaceId)
     {
         $workspace = \App\Models\Workspace::find($workspaceId);
@@ -240,4 +266,5 @@ class WhatsAppApiController extends Controller
             $workspace->id
         );
     }
+    */
 }

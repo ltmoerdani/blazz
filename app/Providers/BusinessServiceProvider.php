@@ -38,7 +38,11 @@ class BusinessServiceProvider extends ServiceProvider
         // Auto Reply Service
         $this->app->singleton(AutoReplyService::class, function ($app) {
             $workspace = $app->make('App\Models\Workspace');
-            return new AutoReplyService($workspace->id);
+            return new AutoReplyService(
+                $workspace->id,
+                $app->make('App\Services\WhatsApp\MessageSendingService'),
+                $app->make('App\Services\WhatsApp\MediaProcessingService')
+            );
         });
 
         // Campaign Service
