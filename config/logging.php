@@ -118,6 +118,14 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'whatsapp' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/whatsapp.log'),
+            'level' => env('WHATSAPP_LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,

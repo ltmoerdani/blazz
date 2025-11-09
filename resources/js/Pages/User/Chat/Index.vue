@@ -187,9 +187,41 @@
 
         echo.channel('chats.ch' + props.workspaceId)
             .listen('NewChatEvent', (event) => {
-                updateSidePanel(event.chat);
+                // ENHANCED: Support for group chats (TASK-FE-3)
+                console.log('New chat received:', event);
+
+                // Determine if private or group chat
+                const isGroup = event.chat?.chat_type === 'group';
+
+                if (isGroup) {
+                    // For group chats, event.group contains group info
+                    console.log('Group chat received:', event.group);
+
+                    // Update chat thread if user is viewing this group
+                    if (contact.value && contact.value.group_id === event.group?.id) {
+                        updateChatThread(event.chat);
+                    }
+                } else {
+                    // For private chats, event.contact contains contact info
+                    updateSidePanel(event.chat);
+                }
+
+                // Always refresh side panel to show new chat in list
+                refreshSidePanel();
             });
 
         scrollToBottom();
     });
+
+    // NEW: Refresh side panel (for group chats support)
+    const refreshSidePanel = async () => {
+        try {
+            const response = await axios.get('/chats');
+            if (response?.data?.result) {
+                rows.value = response.data.result;
+            }
+        } catch (error) {
+            console.error('Error refreshing side panel:', error);
+        }
+    }
 </script>
