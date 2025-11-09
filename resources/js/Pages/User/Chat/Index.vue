@@ -103,16 +103,6 @@
         simpleForm: Boolean
     });
 
-    // Debug props
-    console.log('💡 Chat Index Props:', {
-        rows: props.rows,
-        rowsType: typeof props.rows,
-        rowsData: props.rows?.data,
-        rowsDataLength: props.rows?.data?.length,
-        rowCount: props.rowCount,
-        contact: props.contact
-    });
-
     const rows = ref(props.rows);
     const rowCount = ref(props.rowCount);
     const scrollContainer2 = ref(null);
