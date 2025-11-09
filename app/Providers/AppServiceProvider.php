@@ -35,7 +35,12 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(ChatService::class, function ($app) {
             $workspace = $app->make('App\Models\Workspace');
-            return new ChatService($workspace->id);
+            return new ChatService(
+                $workspace->id,
+                $app->make('App\Services\WhatsApp\MessageSendingService'),
+                $app->make('App\Services\WhatsApp\MediaProcessingService'),
+                $app->make('App\Services\WhatsApp\TemplateManagementService')
+            );
         });
 
         $this->app->singleton(MediaService::class, function ($app) {
@@ -44,7 +49,11 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(TemplateService::class, function ($app) {
             $workspace = $app->make('App\Models\Workspace');
-            return new TemplateService($workspace->id);
+            return new TemplateService(
+                $workspace->id,
+                $app->make('App\Services\WhatsApp\TemplateManagementService'),
+                $app->make('App\Services\WhatsApp\MessageSendingService')
+            );
         });
 
         $this->app->singleton(SubscriptionService::class, function ($app) {

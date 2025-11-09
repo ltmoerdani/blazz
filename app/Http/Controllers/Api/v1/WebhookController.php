@@ -19,6 +19,9 @@ use App\Services\AutoReplyService;
 use App\Services\ChatService;
 use App\Services\StripeService;
 use App\Services\SubscriptionService;
+use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MediaProcessingService;
+use App\Services\WhatsApp\TemplateManagementService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
@@ -35,10 +38,19 @@ use GuzzleHttp\Exception\RequestException;
 class WebhookController extends BaseController
 {
     protected $paymentPlatformResolver;
+    private ?ChatService $chatService;
+    private ?AutoReplyService $autoReplyService;
 
-    public function __construct()
-    {
+    public function __construct(
+        MessageSendingService $messageService,
+        MediaProcessingService $mediaService,
+        TemplateManagementService $templateService
+    ) {
         $this->paymentPlatformResolver = new PaymentPlatformResolver();
+
+        // Initialize services with workspace ID when needed
+        $this->chatService = null;
+        $this->autoReplyService = null;
 
         Config::set('broadcasting.connections.pusher', [
             'driver' => 'pusher',
@@ -49,6 +61,31 @@ class WebhookController extends BaseController
                 'cluster' => Setting::where('key', 'pusher_app_cluster')->value('value'),
             ],
         ]);
+    }
+
+    private function getChatService($workspaceId)
+    {
+        if (!$this->chatService) {
+            $this->chatService = new ChatService(
+                $workspaceId,
+                app('App\Services\WhatsApp\MessageSendingService'),
+                app('App\Services\WhatsApp\MediaProcessingService'),
+                app('App\Services\WhatsApp\TemplateManagementService')
+            );
+        }
+        return $this->chatService;
+    }
+
+    private function getAutoReplyService($workspaceId)
+    {
+        if (!$this->autoReplyService) {
+            $this->autoReplyService = new AutoReplyService(
+                $workspaceId,
+                app('App\Services\WhatsApp\MessageSendingService'),
+                app('App\Services\WhatsApp\MediaProcessingService')
+            );
+        }
+        return $this->autoReplyService;
     }
 
     public function whatsappWebhook(Request $request){
@@ -216,7 +253,7 @@ class WebhookController extends BaseController
 
                             if(!$chat){
                                 //First open the chat
-                                (new ChatService($workspace->id))->handleTicketAssignment($contact->id);
+                                $this->getChatService($workspace->id)->handleTicketAssignment($contact->id);
 
                                 $chat = new Chat;
                                 $chat->Workspace_id = $workspace->id;
@@ -274,7 +311,7 @@ class WebhookController extends BaseController
 
                                 if(!$isMessageLimitReached){
                                     if($response['type'] === 'text' || $response['type'] === 'button'|| $response['type'] === 'audio'|| $response['type'] === 'interactive'){
-                                        (new AutoReplyService)->checkAutoReply($chat, $isNewContact);
+                                        $this->getAutoReplyService($chat->Workspace_id)->checkAutoReply($chat, $isNewContact);
                                     }
                                 }
                             }

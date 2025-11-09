@@ -6,6 +6,7 @@ use App\Models\CampaignLog;
 use App\Models\CampaignLogRetry;
 use App\Models\workspace;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
 use App\Traits\TemplateTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -24,12 +25,18 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
     private $workspaceId;
     private $campaignLogId;
     protected $retryIndex;
+    private MessageSendingService $messageService;
 
-    public function __construct(int $workspaceId, int $campaignLogId, int $retryIndex)
-    {
+    public function __construct(
+        int $workspaceId,
+        int $campaignLogId,
+        int $retryIndex,
+        MessageSendingService $messageService
+    ) {
         $this->workspaceId = $workspaceId;
         $this->campaignLogId = $campaignLogId;
         $this->retryIndex = $retryIndex;
+        $this->messageService = $messageService;
     }
 
     public function uniqueId()
@@ -57,8 +64,11 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
             return; //Don't process if retry count limit reached
         }
 
+        // OLD: Keep for reference during transition
+        /*
         // Initialize WhatsApp service
         $this->initializeWhatsappService();
+        */
 
         DB::beginTransaction();
 
@@ -72,7 +82,8 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
             $template = $this->buildTemplateRequest($log->campaign_id, $log->contact);
             $campaign_user_id = $log->campaign->created_by;
 
-            $response = $this->whatsappService->sendTemplateMessage(
+            // NEW: Use injected service
+            $response = $this->messageService->sendTemplateMessage(
                 $log->contact->uuid,
                 $template,
                 $campaign_user_id,
@@ -140,6 +151,10 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
         }
     }
 
+    /**
+     * @deprecated Use constructor injection instead
+     */
+    /*
     private function initializeWhatsappService()
     {
         $config = cache()->remember("workspace.{$this->workspaceId}.metadata", 3600, function() {
@@ -156,12 +171,13 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
         $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
         $this->whatsappService = new WhatsappService(
-            $accessToken, 
-            $apiVersion, 
-            $appId, 
-            $phoneNumberId, 
-            $wabaId, 
+            $accessToken,
+            $apiVersion,
+            $appId,
+            $phoneNumberId,
+            $wabaId,
             $this->workspaceId
         );
     }
+    */
 }

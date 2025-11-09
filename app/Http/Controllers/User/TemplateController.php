@@ -7,15 +7,30 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\TemplateResource;
 use App\Models\Template;
 use App\Services\TemplateService;
+use App\Services\WhatsApp\TemplateManagementService;
+use App\Services\WhatsApp\MessageSendingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Validator;
 
 class TemplateController extends BaseController
 {
+    private TemplateService $templateService;
+
+    public function __construct(
+        TemplateManagementService $templateManagementService,
+        MessageSendingService $messageSendingService
+    ) {
+        $this->templateService = new TemplateService(
+            session()->get('current_workspace'),
+            $templateManagementService,
+            $messageSendingService
+        );
+    }
+
     private function templateService()
     {
-        return new TemplateService(session()->get('current_workspace'));
+        return $this->templateService;
     }
 
     public function index(Request $request, $uuid = null)

@@ -14,6 +14,10 @@ use App\Models\Setting;
 use App\Models\Template;
 use App\Services\ContactFieldService;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\TemplateManagementService;
+use App\Services\WhatsApp\BusinessProfileService;
+use App\Services\WhatsApp\WhatsAppHealthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
@@ -22,9 +26,13 @@ use Validator;
 class SettingController extends BaseController
 {
     public function __construct(
-        private ContactFieldService $contactFieldService
+        private ContactFieldService $contactFieldService,
+        private MessageSendingService $messageService,
+        private TemplateManagementService $templateService,
+        private BusinessProfileService $businessService,
+        private WhatsAppHealthService $healthService
     ) {
-        // Constructor injection - no manual instantiation
+        // Constructor injection - WhatsApp services now injected
     }
 
     public function index(Request $request, $display = null){
@@ -241,9 +249,14 @@ class SettingController extends BaseController
             $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
             $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
+            // OLD: Keep for reference during transition
+            /*
             $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-            
             $response = $whatsappService->businessProfile()->updateBusinessProfile($request);
+            */
+
+            // NEW: Use injected service
+            $response = $this->businessService->updateBusinessProfile($request->validated());
 
             if($response->success === true){
                 return back()->with(
@@ -291,8 +304,14 @@ class SettingController extends BaseController
                 $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
                 $wabaId = $config['whatsapp']['waba_id'] ?? null;
             
+                // OLD: Keep for reference during transition
+                /*
                 $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
                 $unsubscribe = $whatsappService->healthMonitoring()->unSubscribeToWaba();
+                */
+
+                // NEW: Use injected service
+                $unsubscribe = $this->healthService->unSubscribeToWaba();
             }
             
             //Delete whatsapp settings
@@ -331,9 +350,14 @@ class SettingController extends BaseController
         $workspaceId = session()->get('current_workspace');
         $apiVersion = config('graph.api_version');
     
+        // OLD: Keep for reference during transition
+        /*
         $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-
         $phoneNumberResponse = $whatsappService->businessProfile()->getPhoneNumberId($accessToken, $wabaId);
+        */
+
+        // NEW: Use injected service
+        $phoneNumberResponse = $this->businessService->getPhoneNumberId($accessToken, $wabaId);
         
         if(!$phoneNumberResponse->success){
             return back()->with(
@@ -345,7 +369,7 @@ class SettingController extends BaseController
         }
 
         //Get Phone Number Status
-        $phoneNumberStatusResponse = $whatsappService->businessProfile()->getPhoneNumberStatus();
+        $phoneNumberStatusResponse = $this->businessService->getPhoneNumberStatus();
         
         if(!$phoneNumberStatusResponse->success){
             return back()->with(
@@ -357,7 +381,7 @@ class SettingController extends BaseController
         }
 
         //Get Account Review Status
-        $accountReviewStatusResponse = $whatsappService->businessProfile()->getAccountReviewStatus();
+        $accountReviewStatusResponse = $this->businessService->getAccountReviewStatus();
         
         if(!$accountReviewStatusResponse->success){
             return back()->with(
@@ -369,7 +393,7 @@ class SettingController extends BaseController
         }
 
         //Get business profile
-        $businessProfileResponse = $whatsappService->businessProfile()->getBusinessProfile();
+        $businessProfileResponse = $this->businessService->getBusinessProfile();
         
         if(!$businessProfileResponse->success){
             return back()->with(
@@ -409,7 +433,7 @@ class SettingController extends BaseController
         $workspaceConfig->metadata = $updatedMetadataJson;
 
         if($workspaceConfig->save()){
-            $whatsappService->templateManagement()->syncTemplates();
+            $this->templateService->syncTemplates();
 
             return back()->with(
                 'status', [

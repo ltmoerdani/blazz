@@ -7,6 +7,8 @@ use App\Http\Resources\TemplateResource;
 use App\Models\workspace;
 use App\Models\Template;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\TemplateManagementService;
+use App\Services\WhatsApp\MessageSendingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -16,15 +18,25 @@ use Inertia\Inertia;
 
 class TemplateService
 {
-    private $whatsappService;
+    private TemplateManagementService $templateService;
+    private MessageSendingService $messageService;
     private $workspaceId;
 
-    public function __construct($workspaceId)
-    {
+    public function __construct(
+        $workspaceId,
+        TemplateManagementService $templateService,
+        MessageSendingService $messageService
+    ) {
         $this->workspaceId = $workspaceId;
-        $this->initializeWhatsappService();
+        $this->templateService = $templateService;
+        $this->messageService = $messageService;
     }
 
+    /**
+     * @deprecated Use constructor injection instead
+     * OLD CODE - Commented out
+     */
+    /*
     private function initializeWhatsappService()
     {
         $config = workspace::where('id', $this->workspaceId)->first()->metadata;
@@ -38,7 +50,11 @@ class TemplateService
 
         $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
+    */
 
+    /**
+     * Get templates list or sync templates from WhatsApp
+     */
     public function getTemplates(Request $request, $uuid = null)
     {
         $response = [];
@@ -46,7 +62,8 @@ class TemplateService
         if ($uuid === null) {
             $response = $this->getTemplatesListResponse($request);
         } elseif ($uuid === 'sync') {
-            $response = $this->whatsappService->syncTemplates();
+            // NEW: Use injected service
+            $response = $this->templateService->syncTemplates();
         } else {
             $response = $this->getTemplateDetailResponse($request, $uuid);
         }
@@ -113,7 +130,8 @@ class TemplateService
                 return response()->json(['success' => false,'message'=>'Some required fields have not been filled','errors'=>$validator->messages()->get('*')]);
             }
 
-            return $this->whatsappService->createTemplate($request);
+            // NEW: Use injected service
+            return $this->templateService->createTemplate($request);
         }
     }
 
@@ -133,7 +151,8 @@ class TemplateService
             return response()->json(['success' => false,'message'=>'Some required fields have not been filled','errors'=>$validator->messages()->get('*')]);
         }
 
-        return $this->whatsappService->updateTemplate($request, $uuid);
+        // NEW: Use injected service
+        return $this->templateService->updateTemplate($request, $uuid);
     }
 
     public function deleteTemplate($uuid)
@@ -142,7 +161,8 @@ class TemplateService
             return $response;
         }
 
-        $query = $this->whatsappService->deleteTemplate($uuid);
+        // NEW: Use injected service
+        $query = $this->templateService->deleteTemplate($uuid);
 
         if($query->success === true){
             return response()->json([
