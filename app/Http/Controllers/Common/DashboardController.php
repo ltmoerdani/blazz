@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\User;
+namespace App\Http\Controllers\Common;
 
 use Carbon\Carbon;
 use DB;

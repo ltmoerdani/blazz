@@ -82,25 +82,25 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
 });
 
 Route::middleware([AuthenticateBearerToken::class])->group(function () {
-    Route::post('/send', [App\Http\Controllers\ApiController::class, 'sendMessage']);
-    Route::post('/send/template', [App\Http\Controllers\ApiController::class, 'sendTemplateMessage']);
-    Route::post('/send/media', [App\Http\Controllers\ApiController::class, 'sendMediaMessage']);
-    Route::post('/campaigns', [App\Http\Controllers\ApiController::class, 'storeCampaign']);
+    Route::post('/send', [App\Http\Controllers\Api\v1\ApiController::class, 'sendMessage']);
+    Route::post('/send/template', [App\Http\Controllers\Api\v1\ApiController::class, 'sendTemplateMessage']);
+    Route::post('/send/media', [App\Http\Controllers\Api\v1\ApiController::class, 'sendMediaMessage']);
+    Route::post('/campaigns', [App\Http\Controllers\Api\v1\ApiController::class, 'storeCampaign']);
     
-    Route::get('/contacts', [App\Http\Controllers\ApiController::class, 'listContacts']);
-    Route::post('/contacts', [App\Http\Controllers\ApiController::class, 'storeContact']);
-    Route::put('/contacts/{uuid}', [App\Http\Controllers\ApiController::class, 'storeContact']);
-    Route::delete('/contacts/{uuid}', [App\Http\Controllers\ApiController::class, 'destroyContact']);
+    Route::get('/contacts', [App\Http\Controllers\Api\v1\ApiController::class, 'listContacts']);
+    Route::post('/contacts', [App\Http\Controllers\Api\v1\ApiController::class, 'storeContact']);
+    Route::put('/contacts/{uuid}', [App\Http\Controllers\Api\v1\ApiController::class, 'storeContact']);
+    Route::delete('/contacts/{uuid}', [App\Http\Controllers\Api\v1\ApiController::class, 'destroyContact']);
 
-    Route::get('/contact-groups', [App\Http\Controllers\ApiController::class, 'listContactGroups']);
-    Route::post('/contact-groups', [App\Http\Controllers\ApiController::class, 'storeContactGroup']);
-    Route::put('/contact-groups/{uuid}', [App\Http\Controllers\ApiController::class, 'storeContactGroup']);
-    Route::delete('/contact-groups/{uuid}', [App\Http\Controllers\ApiController::class, 'destroyContactGroup']);
+    Route::get('/contact-groups', [App\Http\Controllers\Api\v1\ApiController::class, 'listContactGroups']);
+    Route::post('/contact-groups', [App\Http\Controllers\Api\v1\ApiController::class, 'storeContactGroup']);
+    Route::put('/contact-groups/{uuid}', [App\Http\Controllers\Api\v1\ApiController::class, 'storeContactGroup']);
+    Route::delete('/contact-groups/{uuid}', [App\Http\Controllers\Api\v1\ApiController::class, 'destroyContactGroup']);
 
-    Route::get('/canned-replies', [App\Http\Controllers\ApiController::class, 'listCannedReplies']);
-    Route::post('/canned-replies', [App\Http\Controllers\ApiController::class, 'storeCannedReply']);
-    Route::put('/canned-replies/{uuid}', [App\Http\Controllers\ApiController::class, 'storeCannedReply']);
-    Route::delete('/canned-replies/{uuid}', [App\Http\Controllers\ApiController::class, 'destroyCannedReply']);
+    Route::get('/canned-replies', [App\Http\Controllers\Api\v1\ApiController::class, 'listCannedReplies']);
+    Route::post('/canned-replies', [App\Http\Controllers\Api\v1\ApiController::class, 'storeCannedReply']);
+    Route::put('/canned-replies/{uuid}', [App\Http\Controllers\Api\v1\ApiController::class, 'storeCannedReply']);
+    Route::delete('/canned-replies/{uuid}', [App\Http\Controllers\Api\v1\ApiController::class, 'destroyCannedReply']);
 
-    Route::get('/templates', [App\Http\Controllers\ApiController::class, 'listTemplates']);
+    Route::get('/templates', [App\Http\Controllers\Api\v1\ApiController::class, 'listTemplates']);
 });

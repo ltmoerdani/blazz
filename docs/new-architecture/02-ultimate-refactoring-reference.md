@@ -15,29 +15,30 @@ Ini adalah **dokumen referensi utama dan lengkap** untuk refactoring Blazz Whats
 
 ## 📊 **CURRENT STATE ANALYSIS**
 
-### **Codebase Statistics:**
-- **Total PHP Files:** 15,117 files
-- **Controller Files:** 67 files
+### **Codebase Statistics (UPDATED & ACCURATE):**
+- **Total PHP Files:** 572 files (bukan 15,117)
+- **Controller Files:** 68 files (sudah terorganisir)
 - **Service Files:** 47 files
-- **Test Files:** 10 files (0.07% coverage)
+- **Test Files:** 10 files (fungsional untuk WhatsApp)
 - **Largest Files:**
+  - `SendCampaignJob.php`: 50,200 lines 🚨 **CATASTROPHIC!**
   - `WhatsappService.php`: 1,565 lines (CRITICAL)
   - `ApiController.php`: 764 lines (HIGH)
   - `WhatsAppWebJSController.php`: 703 lines (HIGH)
   - `ChatService.php`: 515 lines (HIGH)
-  - `StripeService.php`: 491 lines (HIGH)
 
-### **Current Folder Structure:**
+### **Current Folder Structure (UPDATED):**
 ```
 app/
 ├── Http/
-│   ├── Controllers/ (67 files - campur aduk)
-│   │   ├── Admin/ (some files)
-│   │   ├── User/ (some files)
-│   │   ├── Api/ (some files)
-│   │   ├── ApiController.php (764 lines)
-│   │   ├── WhatsAppWebJSController.php (703 lines)
-│   │   └── ... (campur semua)
+│   ├── Controllers/ (68 files - sudah terorganisir)
+│   │   ├── Admin/ (17 files) ✅
+│   │   ├── User/ (23 files) ✅
+│   │   ├── Api/ (2 files) ✅
+│   │   ├── Root (26 files perlu dipindahkan)
+│   │   ├── ApiController.php (764 lines) ⚠️
+│   │   ├── WhatsAppWebJSController.php (703 lines) ⚠️
+│   │   └── ... (perlu reorganisasi)
 │   ├── Middleware/
 │   ├── Requests/
 │   └── Resources/
