@@ -243,7 +243,7 @@ class SettingController extends BaseController
 
             $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
             
-            $response = $whatsappService->updateBusinessProfile($request);
+            $response = $whatsappService->businessProfile()->updateBusinessProfile($request);
 
             if($response->success === true){
                 return back()->with(
@@ -292,7 +292,7 @@ class SettingController extends BaseController
                 $wabaId = $config['whatsapp']['waba_id'] ?? null;
             
                 $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-                $unsubscribe = $whatsappService->unSubscribeToWaba();
+                $unsubscribe = $whatsappService->healthMonitoring()->unSubscribeToWaba();
             }
             
             //Delete whatsapp settings
@@ -333,49 +333,49 @@ class SettingController extends BaseController
     
         $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
 
-        $phoneNumberResponse = $whatsappService->getPhoneNumberId($accessToken, $wabaId);
+        $phoneNumberResponse = $whatsappService->businessProfile()->getPhoneNumberId($accessToken, $wabaId);
         
         if(!$phoneNumberResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
-                    'message' => $phoneNumberResponse->data->error->message
+                    'type' => 'error',
+                    'message' => $phoneNumberResponse->error ?? 'Unknown error occurred'
                 ]
             );
         }
 
         //Get Phone Number Status
-        $phoneNumberStatusResponse = $whatsappService->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id); 
+        $phoneNumberStatusResponse = $whatsappService->businessProfile()->getPhoneNumberStatus();
         
         if(!$phoneNumberStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
-                    'message' => $phoneNumberStatusResponse->data->error->message
+                    'type' => 'error',
+                    'message' => $phoneNumberStatusResponse->error ?? 'Unknown error occurred'
                 ]
             );
         }
 
         //Get Account Review Status
-        $accountReviewStatusResponse = $whatsappService->getAccountReviewStatus($accessToken, $wabaId);
+        $accountReviewStatusResponse = $whatsappService->businessProfile()->getAccountReviewStatus();
         
         if(!$accountReviewStatusResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
-                    'message' => $accountReviewStatusResponse->data->error->message
+                    'type' => 'error',
+                    'message' => $accountReviewStatusResponse->error ?? 'Unknown error occurred'
                 ]
             );
         }
 
         //Get business profile
-        $businessProfileResponse = $whatsappService->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);  
+        $businessProfileResponse = $whatsappService->businessProfile()->getBusinessProfile();
         
         if(!$businessProfileResponse->success){
             return back()->with(
                 'status', [
-                    'type' => 'error', 
-                    'message' => $businessProfileResponse->data->error->message
+                    'type' => 'error',
+                    'message' => $businessProfileResponse->error ?? 'Unknown error occurred'
                 ]
             );
         }
@@ -387,9 +387,9 @@ class SettingController extends BaseController
         $metadataArray['whatsapp']['access_token'] = $accessToken;
         $metadataArray['whatsapp']['app_id'] = $appId;
         $metadataArray['whatsapp']['waba_id'] = $wabaId;
-        $metadataArray['whatsapp']['phone_number_id'] = $phoneNumberResponse->data->id;
+        $metadataArray['whatsapp']['phone_number_id'] = $phoneNumberResponse->data->phone_number_id;
         $metadataArray['whatsapp']['display_phone_number'] = $phoneNumberResponse->data->display_phone_number;
-        $metadataArray['whatsapp']['verified_name'] = $phoneNumberResponse->data->verified_name;
+        $metadataArray['whatsapp']['verified_name'] = $phoneNumberResponse->data->name_display;
         $metadataArray['whatsapp']['quality_rating'] = $phoneNumberResponse->data->quality_rating;
         $metadataArray['whatsapp']['name_status'] = $phoneNumberResponse->data->name_status;
         $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneNumberResponse->data->messaging_limit_tier ?? null;
@@ -409,7 +409,7 @@ class SettingController extends BaseController
         $workspaceConfig->metadata = $updatedMetadataJson;
 
         if($workspaceConfig->save()){
-            $whatsappService->syncTemplates($accessToken, $wabaId);
+            $whatsappService->templateManagement()->syncTemplates();
 
             return back()->with(
                 'status', [

@@ -118,7 +118,7 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Auth Service
         $this->app->singleton(AuthService::class, function ($app) {
-            return new AuthService();
+            return new AuthService($app->make('App\Models\Role'));
         });
 
         // Role Service
