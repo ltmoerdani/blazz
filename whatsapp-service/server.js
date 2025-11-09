@@ -310,6 +310,44 @@ class WhatsAppSessionManager {
                         }
                     }
 
+                    // Download media if message has media
+                    if (message.hasMedia) {
+                        try {
+                            logger.debug('Downloading media', {
+                                sessionId,
+                                workspaceId,
+                                messageId: message.id._serialized,
+                                type: message.type
+                            });
+
+                            const media = await message.downloadMedia();
+
+                            if (media) {
+                                messageData.media = {
+                                    data: media.data, // base64 string
+                                    mimetype: media.mimetype,
+                                    filename: media.filename || `${message.type}_${Date.now()}`
+                                };
+
+                                logger.info('Media downloaded successfully', {
+                                    sessionId,
+                                    workspaceId,
+                                    messageId: message.id._serialized,
+                                    mimetype: media.mimetype,
+                                    size: media.data.length
+                                });
+                            }
+                        } catch (error) {
+                            logger.error('Failed to download media', {
+                                sessionId,
+                                workspaceId,
+                                messageId: message.id._serialized,
+                                error: error.message
+                            });
+                            // Continue without media
+                        }
+                    }
+
                     await this.sendToLaravel('message_received', {
                         workspace_id: workspaceId,
                         session_id: sessionId,
