@@ -63,6 +63,39 @@ Dokumen ini adalah **referensi utama dan lengkap** untuk proses refactoring Blaz
 - ✅ Implementation roadmap 4 minggu (REALISTIC)
 - ✅ Priority matrix dan success metrics
 
+#### **🔍 [06-critical-gap-analysis.md](./06-critical-gap-analysis.md)** ⭐ **NEW! CRITICAL**
+**Complete gap analysis findings - REVEALS MAJOR ISSUES**
+- 🔴 **73 manual service instantiations** discovered
+- 🔴 **35+ services tidak terdaftar** di providers
+- 🔴 **New WhatsApp services tidak terintegrasi**
+- 🔴 **Implementation score: 6.5/10** (bukan 9.2/10)
+- ✅ Root cause analysis dan impact assessment
+- ✅ Revised success metrics dan action items
+
+#### **🔧 [07-service-integration-guide.md](./07-service-integration-guide.md)** ⭐ **NEW! PRACTICAL**
+**Step-by-step WhatsApp service integration dengan copy-paste approach**
+- ✅ Detailed code examples untuk setiap controller
+- ✅ Gradual migration methodology
+- ✅ Testing dan validation procedures
+- ✅ Zero downtime implementation
+- ✅ Performance optimization techniques
+
+#### **🔧 [08-dependency-injection-migration.md](./08-dependency-injection-migration.md)** ⭐ **NEW! COMPREHENSIVE**
+**Complete dependency injection migration plan untuk 73 manual instantiations**
+- ✅ Domain-specific service providers (Payment, Business, Utility)
+- ✅ Phase-by-phase migration strategy
+- ✅ Copy-paste code templates
+- ✅ Service-to-service integration patterns
+- ✅ Performance testing framework
+
+#### **✅ [09-practical-fixes-checklist.md](./09-practical-fixes-checklist.md)** ⭐ **NEW! ACTIONABLE**
+**Detailed checklist implementation dengan timeline dan validation**
+- ✅ 6-phase implementation plan (13-19 days)
+- ✅ Step-by-step instructions untuk setiap file
+- ✅ Validation checkpoints untuk setiap phase
+- ✅ Rollback procedures dan risk mitigation
+- ✅ Success metrics dan completion criteria
+
 #### **📋 [04-implementation-summary.md](./04-implementation-summary.md)**
 **Quick reference summary**
 - ✅ Key points summary
@@ -135,32 +168,94 @@ app/Http/Controllers/
 
 ---
 
-## 🚀 **IMPLEMENTATION ROADMAP**
+## 🚀 **UPDATED IMPLEMENTATION ROADMAP**
 
-### **📅 3-Week Timeline**
+### **⚠️ CRITICAL UPDATE: Additional 2-3 Weeks Needed**
 
-#### **Week 1: File Organization (LOW RISK)**
+**Investigation reveals major gaps** in current implementation. Original 3-week plan was incomplete.
+
+#### **📊 Original Status (Weeks 1-3): PARTIALLY COMPLETE**
+- ✅ **Week 1: File Organization** - 98.5% complete
+- ✅ **Week 2: Service Splitting** - 70% complete (services created but not integrated)
+- ✅ **Week 3: Controller Splitting** - 90% complete
+
+#### **🔴 NEW REQUIREMENTS: Weeks 4-6 (Critical Gap Resolution)**
+
+#### **📅 REVISED Complete Timeline: 5-6 Weeks**
+
+**Phase 1: Original Plan (Weeks 1-3) - COMPLETED**
 ```bash
-Day 1-2: Create folder structure & backup
-Day 3-5: Move existing files ke logical folders
-- Move controllers ke Api/, User/, Admin/, Common/
-- Update namespaces dan route definitions
-- Test semua existing endpoints work
+Week 1: File Organization ✅
+- 66 controllers organized (98.5% success)
+- Namespaces updated
+- Routes working
+
+Week 2: Service Splitting ⚠️ PARTIAL
+- WhatsApp services created ✅
+- BUT: Not integrated with controllers ❌
+- BUT: 73 manual instantiations remain ❌
+
+Week 3: Controller Splitting ✅
+- ApiController reduced 81%
+- WhatsAppWebJSController reduced 92%
+- Delegation working
 ```
 
-#### **Week 2: Service Splitting (MEDIUM RISK)**
-```php
-Day 1-2: Copy methods dari WhatsappService.php ke new services
-Day 3-4: Update service providers dan dependencies
-Day 5: Test WhatsApp functionality preserved
+**Phase 2: Gap Resolution (Weeks 4-6) - REQUIRED**
+```bash
+Week 4: WhatsApp Service Integration (HIGH PRIORITY)
+- Integrate new WhatsApp services with controllers
+- Fix 28 WhatsApp manual instantiations
+- Update job dependencies
+- Target: 0 WhatsApp manual instantiation
+
+Week 5: Dependency Injection Migration (CRITICAL)
+- Create domain service providers (Payment, Business, Utility)
+- Fix remaining 45 manual instantiations
+- Register 35+ missing services
+- Update all controllers to use DI
+
+Week 6: Validation & Cleanup (IMPORTANT)
+- Complete testing of all migrated code
+- Performance optimization
+- Documentation updates
+- Remove deprecated code
 ```
 
-#### **Week 3: Controller Splitting (HIGH RISK)**
+---
+
+## 🚨 **CRITICAL ISSUES DISCOVERED**
+
+### **📈 Implementation Score Revision:**
+- **Previous Estimate:** 9.2/10
+- **Actual Status:** 6.5/10
+- **Gap:** 2.7 points due to incomplete service integration
+
+### **🔴 Major Issues Requiring Immediate Attention:**
+
+#### **1. Service Integration Failure (28 instances)**
 ```php
-Day 1-2: Copy methods dari WhatsAppWebJSController.php ke specialized controllers
-Day 3-4: Update routes dan test API endpoints
-Day 5: Full system testing dan validation
+// WHAT'S HAPPENING (WRONG):
+return new WhatsappService($token, $version, $appId, $phone, $waba, $workspace);
+
+// WHAT SHOULD HAPPEN:
+return $this->messageService; // Injected MessageSendingService
 ```
+
+#### **2. Massive Manual Instantiation (73 instances total)**
+- WhatsApp services: 28 instances
+- Payment services: 15 instances
+- Business services: 20 instances
+- Utility services: 10 instances
+
+#### **3. Service Provider Incompleteness (35+ services missing)**
+- Only 11 of 46+ services registered
+- Controllers forced to use manual instantiation
+- Inconsistent dependency patterns
+
+---
+
+## 🎯 **IMMEDIATE ACTION REQUIRED**
 
 ---
 
@@ -374,6 +469,34 @@ class ContactControllerTest extends TestCase {
 - [ ] Verify no changes in API response formats
 - [ ] Full system integration testing
 
+### **🔴 PHASE 4: Critical Gap Resolution (Week 4) - NEW!**
+- [ ] Create WhatsAppServiceProvider
+- [ ] Update WhatsAppApiController (7 instances)
+- [ ] Update Admin/SettingController (3 instances)
+- [ ] Update User/SettingController (3 instances)
+- [ ] Update WhatsApp jobs (8 instances)
+- [ ] Update WhatsApp services (4 instances)
+- [ ] Remove 28 WhatsApp manual instantiations
+- [ ] Test WhatsApp functionality with new services
+
+### **🔴 PHASE 5: Dependency Injection Migration (Week 5) - NEW!**
+- [ ] Create PaymentServiceProvider (6 services)
+- [ ] Create BusinessServiceProvider (15+ services)
+- [ ] Create UtilityServiceProvider (10+ services)
+- [ ] Update all payment controllers (15 instances)
+- [ ] Update all business controllers (20 instances)
+- [ ] Update all utility controllers (10 instances)
+- [ ] Register 35+ missing services
+- [ ] Remove 45 remaining manual instantiations
+
+### **✅ PHASE 6: Validation & Cleanup (Week 6) - NEW!**
+- [ ] Complete integration testing
+- [ ] Performance benchmarking
+- [ ] Remove deprecated methods (after 2 weeks)
+- [ ] Update all documentation
+- [ ] Monitor production deployment
+- [ ] Validate all functionality preserved
+
 ### **✅ TESTING & VALIDATION (Ongoing)**
 - [ ] Add unit tests untuk copied service methods
 - [ ] Add feature tests untuk moved controllers
@@ -428,29 +551,42 @@ class ContactControllerTest extends TestCase {
 5. **User Experience** - Same flows, interactions, and functionality
 6. **Feature Set** - No new features, no removed features
 
-### **⏰ Expected Timeline (UPDATED):**
-- **Week 1:** Quick wins - File organization & constructor injection (Low risk)
-- **Week 2:** Service splitting - WhatsApp services & medium complexity (Medium risk)
-- **Week 3:** Controller splitting - API controllers & high complexity (High risk)
-- **Week 4:** Critical issues - SendCampaignJob.php (50,200 lines!) & optimization (Very High risk)
-- **Total:** 4 weeks for complete refactoring (REALISTIC)
+### **⏰ Expected Timeline (CRITICAL UPDATE):**
+- **Week 1:** Quick wins - File organization ✅ **COMPLETED**
+- **Week 2:** Service splitting - WhatsApp services ⚠️ **PARTIAL**
+- **Week 3:** Controller splitting - API controllers ✅ **COMPLETED**
+- **Week 4:** Critical gap resolution - Service integration 🔴 **REQUIRED**
+- **Week 5:** Dependency injection migration 🔴 **REQUIRED**
+- **Week 6:** Validation & cleanup 🔴 **REQUIRED**
+- **Total:** 6 weeks for complete refactoring (REALISTIC)
+
+### **⚠️ IMMEDIATE ACTION REQUIRED:**
+**Phase 1-3 were incomplete.** Additional 3 weeks needed to fix critical gaps:
+- 73 manual service instantiations need fixing
+- 35+ services need registration
+- New WhatsApp services need integration
+- Architecture patterns need standardization
 
 ---
 
 ## 📞 **How to Use This Documentation**
 
 ### **For Developers:**
-1. **Start with [02-ultimate-refactoring-reference.md](./02-ultimate-refactoring-reference.md)** - Complete guide
-2. **Use [03-practical-refactoring-guide.md](./03-practical-refactoring-guide.md)** - Step-by-step examples
-3. **Reference [01-comprehensive-architecture-audit.md](./01-comprehensive-architecture-audit.md)** - Current state analysis
-4. **Follow checklist** untuk setiap phase
-5. **Test thoroughly** after each change
+1. **🔴 START HERE: [06-critical-gap-analysis.md](./06-critical-gap-analysis.md)** - **CRITICAL: Understand the gaps**
+2. **Follow [07-service-integration-guide.md](./07-service-integration-guide.md)** - WhatsApp service integration
+3. **Use [08-dependency-injection-migration.md](./08-dependency-injection-migration.md)** - Complete DI migration
+4. **Execute [09-practical-fixes-checklist.md](./09-practical-fixes-checklist.md)** - Step-by-step implementation
+5. **Reference [02-ultimate-refactoring-reference.md](./02-ultimate-refactoring-reference.md)** - Original guide
+6. **Use [03-practical-refactoring-guide.md](./03-practical-refactoring-guide.md)** - Additional examples
+7. **Reference [01-comprehensive-architecture-audit.md](./01-comprehensive-architecture-audit.md)** - Current state analysis
+8. **Test thoroughly** after each change
 
 ### **For Project Managers:**
-1. **Review the 3-week timeline** in this document
-2. **Understand the risk levels** for each phase
-3. **Monitor progress** using the checklist
-4. **Validate success metrics** defined in outcomes
+1. **🔴 REVIEW: [06-critical-gap-analysis.md](./06-critical-gap-analysis.md)** - **URGENT: Understand scope increase**
+2. **Review the updated 6-week timeline** in this document
+3. **Understand the critical risk levels** for phases 4-6
+4. **Monitor progress** using the detailed checklist in guide 09
+5. **Validate success metrics** defined in gap analysis
 
 ### **For DevOps:**
 1. **Plan staging deployments** for each phase
@@ -469,16 +605,24 @@ class ContactControllerTest extends TestCase {
 - **📋 Complete Refactoring List:** → [05-daftar-refactoring-lengkap.md](./05-daftar-refactoring-lengkap.md) ⭐ **NEW!**
 - **📋 Quick Summary:** → [04-implementation-summary.md](./04-implementation-summary.md)
 
-### **🔄 Recommended Reading Order:**
-1. **Start Here:** [00-readme.md](./00-readme.md) (Current document - UPDATED)
-2. **Understand Current State:** [01-comprehensive-architecture-audit.md](./01-comprehensive-architecture-audit.md)
-3. **Follow Implementation Guide:** [02-ultimate-refactoring-reference.md](./02-ultimate-refactoring-reference.md)
-4. **Use Practical Examples:** [03-practical-refactoring-guide.md](./03-practical-refactoring-guide.md)
-5. **Check Complete Refactoring List:** [05-daftar-refactoring-lengkap.md](./05-daftar-refactoring-lengkap.md) ⭐ **NEW!**
-6. **Quick Reference:** [04-implementation-summary.md](./04-implementation-summary.md)
+### **🔄 UPDATED Reading Order (CRITICAL):**
+1. **🔴 START HERE:** [00-readme.md](./00-readme.md) (Current document - UPDATED)
+2. **🔴 UNDERSTAND GAPS:** [06-critical-gap-analysis.md](./06-critical-gap-analysis.md) ⭐ **CRITICAL NEW!**
+3. **🔴 WHATSAPP INTEGRATION:** [07-service-integration-guide.md](./07-service-integration-guide.md) ⭐ **NEW!**
+4. **🔴 COMPLETE MIGRATION:** [08-dependency-injection-migration.md](./08-dependency-injection-migration.md) ⭐ **NEW!**
+5. **🔴 STEP-BY-STEP PLAN:** [09-practical-fixes-checklist.md](./09-practical-fixes-checklist.md) ⭐ **NEW!**
+6. **Understand Current State:** [01-comprehensive-architecture-audit.md](./01-comprehensive-architecture-audit.md)
+7. **Reference Original Plan:** [02-ultimate-refactoring-reference.md](./02-ultimate-refactoring-reference.md)
+8. **Use Practical Examples:** [03-practical-refactoring-guide.md](./03-practical-refactoring-guide.md)
+9. **Complete Refactoring List:** [05-daftar-refactoring-lengkap.md](./05-daftar-refactoring-lengkap.md)
+10. **Quick Reference:** [04-implementation-summary.md](./04-implementation-summary.md)
+
+**🚨 CRITICAL: Documents 06-09 are NEW and contain urgent information about major gaps discovered!**
 
 ---
 
-**🎯 KEY SUCCESS METRIC:** After refactoring, semua existing functionality harus bekerja **exactly the same** seperti sebelumnya, hanya dengan code organization yang lebih baik dan maintainability yang improved.
+**🎯 KEY SUCCESS METRIC:** After complete refactoring (6 weeks), semua existing functionality harus bekerja **exactly the same** seperti sebelumnya, hanya dengan code organization yang lebih baik dan maintainability yang improved.
 
-**📈 EXPECTED IMPROVEMENT:** Code organization score dari 6/10 menjadi 9/10, maintainability improvement yang signifikan, tanpa mengubah user experience atau existing functionality.
+**📈 REVISED EXPECTED IMPROVEMENT:** Code organization score dari **6.5/10 menjadi 9.5/10**, maintainability improvement yang signifikan, tanpa mengubah user experience atau existing functionality.
+
+**🚨 CRITICAL REMINDER:** The original 3-week plan was incomplete. Additional 3 weeks (Phases 4-6) are REQUIRED to fix the 73 manual service instantiations and 35+ unregistered services.
