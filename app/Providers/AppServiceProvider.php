@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use App\Services\WhatsappService;
 use App\Services\ChatService;
@@ -11,6 +13,7 @@ use App\Services\MediaService;
 use App\Services\TemplateService;
 use App\Services\SubscriptionService;
 use App\Models\workspace;
+use App\Resolvers\PaymentPlatformResolver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -55,6 +58,11 @@ class AppServiceProvider extends ServiceProvider
                 $workspace->id
             );
         });
+
+        // Payment Platform Resolver
+        $this->app->singleton(PaymentPlatformResolver::class, function ($app) {
+            return new PaymentPlatformResolver();
+        });
     }
 
     /**
@@ -64,8 +72,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
         
-        if (!\App::environment('local')) {
-            \URL::forceScheme('https');
+        if (!App::environment('local')) {
+            URL::forceScheme('https');
         }
     }
 }

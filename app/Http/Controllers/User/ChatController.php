@@ -10,8 +10,8 @@ use App\Models\workspace;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
-use Redirect;
 
 class ChatController extends BaseController
 {

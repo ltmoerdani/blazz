@@ -12,17 +12,9 @@ use Inertia\Inertia;
 
 class SubscriptionPlanController extends BaseController
 {
-    private $SubscriptionPlanService;
-
-    /**
-     * SubscriptionController constructor.
-     *
-     * @param SubscriptionPlanService $subscriptionPlanService
-     */
-    public function __construct(SubscriptionPlanService $subscriptionPlanService)
-    {
-        $this->subscriptionPlanService = $subscriptionPlanService;
-    }
+    public function __construct(
+        private SubscriptionPlanService $subscriptionPlanService
+    ) {}
 
     /**
      * Display a listing of subscription plans.

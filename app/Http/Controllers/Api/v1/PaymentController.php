@@ -10,10 +10,9 @@ use Inertia\Inertia;
 
 class PaymentController extends BaseController
 {
-    public function __construct()
-    {
-        $this->paymentPlatformResolver = new PaymentPlatformResolver();
-    }
+    public function __construct(
+        private PaymentPlatformResolver $paymentPlatformResolver
+    ) {}
 
     public function processPayment(Request $request, $processor)
     {
