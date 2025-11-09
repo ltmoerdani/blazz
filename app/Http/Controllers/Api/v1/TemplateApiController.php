@@ -77,7 +77,7 @@ class TemplateApiController extends Controller
         }
 
         try {
-            $whatsappService = $this->initializeWhatsappService($workspace->id);
+            $messageSendingService = $this->initializeMessageSendingService($workspace->id);
 
             $templateData = [
                 'name' => $request->template_name,
@@ -100,7 +100,7 @@ class TemplateApiController extends Controller
                 ];
             }
 
-            $result = $whatsappService->sendTemplateMessage(
+            $result = $messageSendingService->sendTemplateMessage(
                 $request->contact_uuid,
                 $templateData
             );
@@ -139,9 +139,9 @@ class TemplateApiController extends Controller
     }
 
     /**
-     * Initialize WhatsApp service
+     * Initialize Message Sending service
      */
-    private function initializeWhatsappService($workspaceId)
+    private function initializeMessageSendingService($workspaceId)
     {
         $workspace = \App\Models\Workspace::find($workspaceId);
 
@@ -149,7 +149,7 @@ class TemplateApiController extends Controller
             throw new \Exception('Workspace not found');
         }
 
-        return new \App\Services\WhatsappService(
+        return new \App\Services\WhatsApp\MessageSendingService(
             $workspace->meta_token,
             $workspace->meta_version,
             $workspace->meta_app_id,
