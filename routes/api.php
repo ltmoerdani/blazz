@@ -103,4 +103,35 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
     Route::delete('/canned-replies/{uuid}', [App\Http\Controllers\Api\v1\ApiController::class, 'destroyCannedReply']);
 
     Route::get('/templates', [App\Http\Controllers\Api\v1\ApiController::class, 'listTemplates']);
+
+    // NEW: Specialized API Controllers (Week 3 Implementation)
+    Route::prefix('v2')->group(function () {
+        // WhatsApp API Routes
+        Route::prefix('whatsapp')->group(function () {
+            Route::post('/send', [App\Http\Controllers\Api\v1\WhatsAppApiController::class, 'sendMessage']);
+            Route::post('/send/template', [App\Http\Controllers\Api\v1\TemplateApiController::class, 'sendTemplateMessage']);
+            Route::post('/send/media', [App\Http\Controllers\Api\v1\WhatsAppApiController::class, 'sendMediaMessage']);
+            Route::get('/templates', [App\Http\Controllers\Api\v1\TemplateApiController::class, 'listTemplates']);
+        });
+
+        // Contact API Routes
+        Route::prefix('contacts')->group(function () {
+            Route::get('/', [App\Http\Controllers\Api\v1\ContactApiController::class, 'listContacts']);
+            Route::post('/', [App\Http\Controllers\Api\v1\ContactApiController::class, 'storeContact']);
+            Route::put('/{uuid}', [App\Http\Controllers\Api\v1\ContactApiController::class, 'storeContact']);
+            Route::delete('/{uuid}', [App\Http\Controllers\Api\v1\ContactApiController::class, 'destroyContact']);
+        });
+
+        // WhatsApp Session Management Routes (NEW)
+        Route::prefix('whatsapp/sessions')->group(function () {
+            Route::get('/{sessionId}/status', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'getSessionStatus']);
+            Route::get('/active', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'getActiveSessions']);
+            Route::post('/{sessionId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'markDisconnected']);
+        });
+
+        // WhatsApp Webhook Routes (NEW)
+        Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
+            Route::post('/webhooks/v2', [App\Http\Controllers\Api\v1\WhatsApp\WebhookController::class, 'webhook']);
+        });
+    });
 });
