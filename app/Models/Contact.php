@@ -103,7 +103,7 @@ class Contact extends Model {
         return $this->hasMany(ChatLog::class);
     }
 
-    public function contactsWithChats($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
+    public function contactsWithChats($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true, $sessionId = null)
     {
         $query = $this->newQuery()
             ->where('contacts.Workspace_id', $workspaceId)
@@ -111,13 +111,26 @@ class Contact extends Model {
             ->with(['lastChat', 'lastInboundChat'])
             ->whereNull('contacts.deleted_at')
             ->select('contacts.*')
-            ->selectSub(function ($subquery) use ($workspaceId) {
+            ->selectSub(function ($subquery) use ($workspaceId, $sessionId) {
                 $subquery->from('chats')
                     ->selectRaw('MAX(created_at)')
                     ->whereColumn('chats.contact_id', 'contacts.id')
                     ->whereNull('chats.deleted_at')
                     ->where('chats.Workspace_id', $workspaceId);
+
+                // Filter by session if specified
+                if ($sessionId) {
+                    $subquery->where('chats.whatsapp_session_id', $sessionId);
+                }
             }, 'last_chat_created_at');
+
+        // Filter contacts by session (only show contacts with chats from specific session)
+        if ($sessionId) {
+            $query->whereHas('chats', function ($q) use ($sessionId) {
+                $q->where('whatsapp_session_id', $sessionId)
+                  ->whereNull('deleted_at');
+            });
+        }
 
         // Apply ticketing conditions if active
         if ($ticketingActive) {
@@ -153,7 +166,7 @@ class Contact extends Model {
 
     }
 
-    public function contactsWithChatsCount($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
+    public function contactsWithChatsCount($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true, $sessionId = null)
     {
         $query = $this->newQuery()
             ->where('contacts.Workspace_id', $workspaceId)
@@ -162,6 +175,14 @@ class Contact extends Model {
             ->with(['lastChat', 'lastInboundChat'])
             ->select('contacts.*')
             ->orderBy('contacts.latest_chat_created_at', $sortDirection);
+
+        // Filter by session if specified
+        if ($sessionId) {
+            $query->whereHas('chats', function ($q) use ($sessionId) {
+                $q->where('whatsapp_session_id', $sessionId)
+                  ->whereNull('deleted_at');
+            });
+        }
 
         if($ticketingActive){
             // Conditional join with chat_tickets table and comparison with ticketState

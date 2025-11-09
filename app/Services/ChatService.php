@@ -18,6 +18,7 @@ use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\Template;
+use App\Models\WhatsAppSession; // NEW: For session filter dropdown
 use App\Services\SubscriptionService;
 use App\Services\WhatsappService;
 use App\Traits\TemplateTrait;
@@ -63,7 +64,7 @@ class ChatService
         $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
 
-    public function getChatList($request, $uuid = null, $searchTerm = null)
+    public function getChatList($request, $uuid = null, $searchTerm = null, $sessionId = null)
     {
         $role = Auth::user()->teams[0]->role;
         $contact = new Contact;
@@ -83,8 +84,8 @@ class ChatService
                 $ticketingActive = true;
 
                 //Check for chats that don't have corresponding chat ticket rows
-                $contacts = $contact->contactsWithChats($this->workspaceId, null);
-                
+                $contacts = $contact->contactsWithChats($this->workspaceId, null, false, null, 'asc', 'owner', true, $sessionId);
+
                 foreach($contacts as $contact){
                     ChatTicket::firstOrCreate(
                         ['contact_id' => $contact->id],
@@ -101,9 +102,9 @@ class ChatService
             }
         }
 
-        // Retrieve the list of contacts with chats
-        $contacts = $contact->contactsWithChats($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
-        $rowCount = $contact->contactsWithChatsCount($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats);
+        // Retrieve the list of contacts with chats (with session filter support)
+        $contacts = $contact->contactsWithChats($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats, $sessionId);
+        $rowCount = $contact->contactsWithChatsCount($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats, $sessionId);
 
         $pusherSettings = Setting::whereIn('key', [
             'pusher_app_id',
@@ -149,6 +150,17 @@ class ChatService
                     ->where('is_read', 0)
                     ->count();
 
+                // NEW: Get WhatsApp sessions for filter dropdown (TASK-FE-1)
+                $sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
+                    ->where('status', 'connected')
+                    ->select('id', 'phone_number', 'provider_type')
+                    ->withCount(['chats as unread_count' => function ($query) {
+                        $query->where('is_read', false)
+                              ->where('type', 'inbound')
+                              ->whereNull('deleted_at');
+                    }])
+                    ->get();
+
                 return Inertia::render('User/Chat/Index', [
                     'title' => 'Chats',
                     'rows' => ContactResource::collection($contacts),
@@ -173,6 +185,7 @@ class ChatService
                     'addon' => $aimodule,
                     'chat_sort_direction' => $sortDirection,
                     'unreadMessages' => $unreadMessages,
+                    'sessions' => $sessions, // NEW: WhatsApp sessions for filter (TASK-FE-1)
                     'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit')
                 ]);
             }
@@ -184,7 +197,18 @@ class ChatService
             ], 200);
         } else {
             $settings = json_decode($config->metadata);
-            
+
+            // NEW: Get WhatsApp sessions for filter dropdown (TASK-FE-1)
+            $sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
+                ->where('status', 'connected')
+                ->select('id', 'phone_number', 'provider_type')
+                ->withCount(['chats as unread_count' => function ($query) {
+                    $query->where('is_read', false)
+                          ->where('type', 'inbound')
+                          ->whereNull('deleted_at');
+                }])
+                ->get();
+
             return Inertia::render('User/Chat/Index', [
                 'title' => 'Chats',
                 'rows' => ContactResource::collection($contacts),
@@ -201,6 +225,7 @@ class ChatService
                 'addon' => $aimodule,
                 'ticket' => array(),
                 'chat_sort_direction' => $sortDirection,
+                'sessions' => $sessions, // NEW: WhatsApp sessions for filter (TASK-FE-1)
                 'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit')
             ]);
         }

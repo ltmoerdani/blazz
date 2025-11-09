@@ -32,6 +32,40 @@ class Chat extends Model {
     {
         return DateTimeHelper::convertToWorkspaceTimezone($value)->toDateTimeString();
     }
+
+    /**
+     * Get message body from metadata JSON
+     * Supports both Meta API format and legacy WebJS format
+     */
+    public function getBodyAttribute()
+    {
+        if ($this->metadata) {
+            $data = is_string($this->metadata) ? json_decode($this->metadata, true) : $this->metadata;
+
+            // Try Meta API format first (text.body, image.caption, video.caption, etc.)
+            if (isset($data['text']['body'])) {
+                return $data['text']['body'];
+            } elseif (isset($data['image']['caption'])) {
+                return $data['image']['caption'];
+            } elseif (isset($data['video']['caption'])) {
+                return $data['video']['caption'];
+            } elseif (isset($data['document']['caption'])) {
+                return $data['document']['caption'];
+            }
+
+            // Fallback to legacy format (direct body field)
+            return $data['body'] ?? null;
+        }
+        return null;
+    }
+
+    /**
+     * Get contact name for UI display
+     */
+    public function getContactNameAttribute()
+    {
+        return $this->contact ? $this->contact->first_name : null;
+    }
     
     public function contact()
     {
@@ -56,5 +90,10 @@ class Chat extends Model {
     public function whatsappSession()
     {
         return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
+    }
+
+    public function group()
+    {
+        return $this->belongsTo(WhatsAppGroup::class, 'group_id', 'id');
     }
 }
