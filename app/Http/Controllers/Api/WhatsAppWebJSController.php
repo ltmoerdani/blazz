@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\WhatsAppSession;
 use App\Services\ContactProvisioningService; // NEW: For contact creation
 use App\Services\ProviderSelector;
+use App\Services\MediaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -375,6 +376,51 @@ class WhatsAppWebJSController extends Controller
                 // First handle ticket assignment (creates ticket if needed)
                 (new \App\Services\ChatService($workspaceId))->handleTicketAssignment($contact->id);
 
+                // Process media if present
+                $mediaId = null;
+                if (isset($message['has_media']) && $message['has_media'] && isset($message['media'])) {
+                    try {
+                        Log::debug('Processing media from WebJS', [
+                            'message_id' => $message['id'],
+                            'type' => $metaApiType,
+                            'mimetype' => $message['media']['mimetype'] ?? 'unknown'
+                        ]);
+
+                        $mediaData = MediaService::saveBase64Media(
+                            $message['media']['data'],
+                            $message['media']['mimetype'],
+                            $message['media']['filename'],
+                            $workspaceId
+                        );
+
+                        // Create ChatMedia record
+                        $chatMedia = new \App\Models\ChatMedia();
+                        $chatMedia->name = $mediaData['name'];
+                        $chatMedia->path = $mediaData['path'];
+                        $chatMedia->type = $mediaData['type'];
+                        $chatMedia->size = $mediaData['size'];
+                        $chatMedia->created_at = now();
+                        $chatMedia->save();
+
+                        $mediaId = $chatMedia->id;
+
+                        Log::info('Media saved successfully', [
+                            'media_id' => $mediaId,
+                            'message_id' => $message['id'],
+                            'type' => $metaApiType,
+                            'size' => $mediaData['size']
+                        ]);
+
+                    } catch (\Exception $e) {
+                        Log::error('Failed to save media', [
+                            'error' => $e->getMessage(),
+                            'message_id' => $message['id'],
+                            'type' => $metaApiType
+                        ]);
+                        // Continue without media
+                    }
+                }
+
                 // Normalize metadata to Meta API format for frontend compatibility
                 $normalizedMetadata = [
                     'id' => $message['id'],
@@ -388,17 +434,27 @@ class WhatsAppWebJSController extends Controller
                     $normalizedMetadata['text'] = [
                         'body' => $message['body']
                     ];
-                } elseif ($metaApiType === 'image' && isset($message['body'])) {
+                } elseif ($metaApiType === 'image') {
                     $normalizedMetadata['image'] = [
-                        'caption' => $message['body']
+                        'caption' => $message['body'] ?? ''
                     ];
-                } elseif ($metaApiType === 'video' && isset($message['body'])) {
+                } elseif ($metaApiType === 'video') {
                     $normalizedMetadata['video'] = [
-                        'caption' => $message['body']
+                        'caption' => $message['body'] ?? ''
                     ];
-                } elseif ($metaApiType === 'document' && isset($message['body'])) {
+                } elseif ($metaApiType === 'document') {
                     $normalizedMetadata['document'] = [
-                        'caption' => $message['body']
+                        'caption' => $message['body'] ?? '',
+                        'filename' => $message['media']['filename'] ?? 'document'
+                    ];
+                } elseif ($metaApiType === 'sticker') {
+                    // Sticker doesn't have caption in Meta API format
+                    $normalizedMetadata['sticker'] = [
+                        'mime_type' => $message['media']['mimetype'] ?? 'image/webp'
+                    ];
+                } elseif ($metaApiType === 'audio') {
+                    $normalizedMetadata['audio'] = [
+                        'mime_type' => $message['media']['mimetype'] ?? 'audio/ogg'
                     ];
                 } elseif (isset($message['body'])) {
                     // Fallback for other types
@@ -426,6 +482,7 @@ class WhatsAppWebJSController extends Controller
                 $chat->type = 'inbound';
                 $chat->status = 'delivered';
                 $chat->metadata = json_encode($normalizedMetadata);
+                $chat->media_id = $mediaId;
                 $chat->provider_type = 'webjs';
                 $chat->chat_type = $isGroup ? 'group' : 'private';
                 $chat->save();
