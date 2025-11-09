@@ -52,7 +52,14 @@ class ChatService
 
     private function initializeWhatsappService()
     {
-        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
+        $workspace = workspace::where('id', $this->workspaceId)->first();
+
+        if (!$workspace) {
+            $this->whatsappService = null;
+            return;
+        }
+
+        $config = $workspace->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -320,6 +327,13 @@ class ChatService
 
     public function sendMessage(object $request)
     {
+        if(!$this->whatsappService) {
+            $responseObject = new \stdClass();
+            $responseObject->success = false;
+            $responseObject->message = 'WhatsApp service not available';
+            return $responseObject;
+        }
+
         if($request->type === 'text'){
             return $this->whatsappService->sendMessage($request->uuid, $request->message, Auth::id());
         } else {
@@ -341,13 +355,19 @@ class ChatService
                 $mediaFilePath = $s3Disk->url($uploadedFile);
                 $mediaUrl = $mediaFilePath;
             }
-    
-            $this->whatsappService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
+
+            return $this->whatsappService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
         }
     }
 
     public function sendTemplateMessage(object $request, $uuid)
     {
+        if(!$this->whatsappService) {
+            $responseObject = new \stdClass();
+            $responseObject->success = false;
+            $responseObject->message = 'WhatsApp service not available';
+            return $responseObject;
+        }
         $template = Template::where('uuid', $request->template)->first();
         $contact = Contact::where('uuid', $uuid)->first();
         $mediaId = null;
