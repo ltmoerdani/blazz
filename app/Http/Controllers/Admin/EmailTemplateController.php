@@ -10,16 +10,10 @@ use Inertia\Inertia;
 
 class EmailTemplateController extends BaseController
 {
-    protected $emailService;
-
-    /**
-     * EmailTemplateController constructor.
-     *
-     * @param EmailService $emailService
-     */
-    public function __construct()
-    {
-        $this->emailService = new EmailService();
+    public function __construct(
+        private EmailService $emailService
+    ) {
+        // Constructor injection - no manual instantiation
     }
 
     /**

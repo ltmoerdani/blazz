@@ -21,11 +21,10 @@ use Inertia\Inertia;
 
 class SettingController extends BaseController
 {
-    protected $contactFieldService;
-
-    public function __construct(ContactFieldService $contactFieldService)
-    {
-        $this->contactFieldService = $contactFieldService;
+    public function __construct(
+        private ContactFieldService $contactFieldService
+    ) {
+        // Constructor injection - no manual instantiation
     }
 
     public function index(Request $request, $display = null){
@@ -128,13 +127,12 @@ class SettingController extends BaseController
 
     public function contacts(Request $request){
         if ($request->isMethod('get')) {
-            $contactFieldService = new ContactFieldService(session()->get('current_workspace'));
             $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
             return Inertia::render('User/Settings/Contact', [
                 'title' => __('Settings'),
                 'filters' => $request->all(),
-                'rows' => $contactFieldService->get($request),
+                'rows' => $this->contactFieldService->get($request),
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
@@ -162,13 +160,12 @@ class SettingController extends BaseController
 
     public function tickets(Request $request){
         if ($request->isMethod('get')) {
-            $contactFieldService = new ContactFieldService(session()->get('current_workspace'));
             $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
             return Inertia::render('User/Settings/Ticket', [
                 'title' => __('Settings'),
                 'filters' => $request->all(),
-                'rows' => $contactFieldService->get($request),
+                'rows' => $this->contactFieldService->get($request),
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
@@ -314,6 +311,15 @@ class SettingController extends BaseController
         );
     }
 
+    /**
+     * Save WhatsApp settings with proper validation
+     *
+     * @param string $accessToken
+     * @param string $appId
+     * @param string $phoneNumberId
+     * @param string $wabaId
+     * @return \Illuminate\Http\RedirectResponse
+     */
     private function saveWhatsappSettings($accessToken, $appId, $phoneNumberId, $wabaId) {
         $workspaceId = session()->get('current_workspace');
         $apiVersion = config('graph.api_version');
@@ -321,76 +327,120 @@ class SettingController extends BaseController
         $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
 
         $phoneNumberResponse = $whatsappService->getPhoneNumberId($accessToken, $wabaId);
-        
+
         if(!$phoneNumberResponse->success){
+            $errorMessage = 'Unknown error occurred';
+            $responseData = (object) $phoneNumberResponse->data;
+            if (is_object($responseData) && isset($responseData->error)) {
+                $errorObject = (object) $responseData->error;
+                if (is_object($errorObject) && isset($errorObject->message)) {
+                    $errorMessage = (string) $errorObject->message;
+                }
+            }
             return back()->with(
                 'status', [
                     'type' => 'error',
-                    'message' => $phoneNumberResponse->data->error->message
+                    'message' => $errorMessage
                 ]
             );
         }
 
         //Get Phone Number Status
-        $phoneNumberStatusResponse = $whatsappService->getPhoneNumberStatus($accessToken, $phoneNumberResponse->data->id);
-        
+        $phoneNumberId = $phoneNumberResponse->data->id ?? null;
+        $phoneNumberStatusResponse = $whatsappService->getPhoneNumberStatus($accessToken, $phoneNumberId);
+
         if(!$phoneNumberStatusResponse->success){
+            $errorMessage = 'Unknown error occurred';
+            $responseData = (object) $phoneNumberStatusResponse->data;
+            if (is_object($responseData) && isset($responseData->error)) {
+                $errorObject = (object) $responseData->error;
+                if (is_object($errorObject) && isset($errorObject->message)) {
+                    $errorMessage = (string) $errorObject->message;
+                }
+            }
             return back()->with(
                 'status', [
                     'type' => 'error',
-                    'message' => $phoneNumberStatusResponse->data->error->message
+                    'message' => $errorMessage
                 ]
             );
         }
 
         //Get Account Review Status
         $accountReviewStatusResponse = $whatsappService->getAccountReviewStatus($accessToken, $wabaId);
-        
+
         if(!$accountReviewStatusResponse->success){
+            $errorMessage = 'Unknown error occurred';
+            $responseData = (object) $accountReviewStatusResponse->data;
+            if (is_object($responseData) && isset($responseData->error)) {
+                $errorObject = (object) $responseData->error;
+                if (is_object($errorObject) && isset($errorObject->message)) {
+                    $errorMessage = (string) $errorObject->message;
+                }
+            }
             return back()->with(
                 'status', [
                     'type' => 'error',
-                    'message' => $accountReviewStatusResponse->data->error->message
+                    'message' => $errorMessage
                 ]
             );
         }
 
         //Get business profile
-        $businessProfileResponse = $whatsappService->getBusinessProfile($accessToken, $phoneNumberResponse->data->id);
-        
+        $businessProfileResponse = $whatsappService->getBusinessProfile($accessToken, $phoneNumberId);
+
         if(!$businessProfileResponse->success){
+            $errorMessage = 'Unknown error occurred';
+            $responseData = (object) $businessProfileResponse->data;
+            if (is_object($responseData) && isset($responseData->error)) {
+                $errorObject = (object) $responseData->error;
+                if (is_object($errorObject) && isset($errorObject->message)) {
+                    $errorMessage = (string) $errorObject->message;
+                }
+            }
             return back()->with(
                 'status', [
                     'type' => 'error',
-                    'message' => $businessProfileResponse->data->error->message
+                    'message' => $errorMessage
                 ]
             );
         }
 
         $workspaceConfig = workspace::where('id', $workspaceId)->first();
-        
+
         $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
         $metadataArray['whatsapp']['is_embedded_signup'] = $metadataArray['whatsapp']['is_embedded_signup'] ?? 0;
         $metadataArray['whatsapp']['access_token'] = $accessToken;
         $metadataArray['whatsapp']['app_id'] = $appId;
         $metadataArray['whatsapp']['waba_id'] = $wabaId;
-        $metadataArray['whatsapp']['phone_number_id'] = $phoneNumberResponse->data->id;
-        $metadataArray['whatsapp']['display_phone_number'] = $phoneNumberResponse->data->display_phone_number;
-        $metadataArray['whatsapp']['verified_name'] = $phoneNumberResponse->data->verified_name;
-        $metadataArray['whatsapp']['quality_rating'] = $phoneNumberResponse->data->quality_rating;
-        $metadataArray['whatsapp']['name_status'] = $phoneNumberResponse->data->name_status;
-        $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneNumberResponse->data->messaging_limit_tier ?? null;
+
+        // Extract phone number data safely
+        $phoneData = (object) $phoneNumberResponse->data;
+        $metadataArray['whatsapp']['phone_number_id'] = isset($phoneData->id) ? (string) $phoneData->id : null;
+        $metadataArray['whatsapp']['display_phone_number'] = (string) ($phoneData->display_phone_number ?? '');
+        $metadataArray['whatsapp']['verified_name'] = (string) ($phoneData->verified_name ?? '');
+        $metadataArray['whatsapp']['quality_rating'] = (string) ($phoneData->quality_rating ?? '');
+        $metadataArray['whatsapp']['name_status'] = (string) ($phoneData->name_status ?? '');
+        $metadataArray['whatsapp']['messaging_limit_tier'] = $phoneData->messaging_limit_tier ?? null;
         $metadataArray['whatsapp']['max_daily_conversation_per_phone'] = null;
         $metadataArray['whatsapp']['max_phone_numbers_per_business'] = null;
-        $metadataArray['whatsapp']['number_status'] = $phoneNumberStatusResponse->data->status;
-        $metadataArray['whatsapp']['code_verification_status'] = $phoneNumberStatusResponse->data->code_verification_status;
+        // Extract phone status data safely
+        $phoneStatusData = (object) $phoneNumberStatusResponse->data;
+        $metadataArray['whatsapp']['number_status'] = (string) ($phoneStatusData->status ?? '');
+        $metadataArray['whatsapp']['code_verification_status'] = (string) ($phoneStatusData->code_verification_status ?? '');
         $metadataArray['whatsapp']['business_verification'] = '';
-        $metadataArray['whatsapp']['account_review_status'] = $accountReviewStatusResponse->data->account_review_status;
-        $metadataArray['whatsapp']['business_profile']['about'] = $businessProfileResponse->data->about ?? null;
-        $metadataArray['whatsapp']['business_profile']['address'] = $businessProfileResponse->data->address ?? null;
-        $metadataArray['whatsapp']['business_profile']['description'] = $businessProfileResponse->data->description ?? null;
-        $metadataArray['whatsapp']['business_profile']['industry'] = $businessProfileResponse->data->vertical ?? null;
-        $metadataArray['whatsapp']['business_profile']['email'] = $businessProfileResponse->data->email ?? null;
+
+        // Extract account review data safely
+        $accountReviewData = (object) $accountReviewStatusResponse->data;
+        $metadataArray['whatsapp']['account_review_status'] = (string) ($accountReviewData->account_review_status ?? '');
+
+        // Extract business profile data safely
+        $businessProfileData = (object) $businessProfileResponse->data;
+        $metadataArray['whatsapp']['business_profile']['about'] = $businessProfileData->about ?? null;
+        $metadataArray['whatsapp']['business_profile']['address'] = $businessProfileData->address ?? null;
+        $metadataArray['whatsapp']['business_profile']['description'] = $businessProfileData->description ?? null;
+        $metadataArray['whatsapp']['business_profile']['industry'] = $businessProfileData->vertical ?? null;
+        $metadataArray['whatsapp']['business_profile']['email'] = $businessProfileData->email ?? null;
 
         $updatedMetadataJson = json_encode($metadataArray);
         $workspaceConfig->metadata = $updatedMetadataJson;

@@ -21,9 +21,10 @@ use Validator;
 
 class SettingController extends BaseController
 {
-    public function __construct(ContactFieldService $contactFieldService)
-    {
-        $this->contactFieldService = $contactFieldService;
+    public function __construct(
+        private ContactFieldService $contactFieldService
+    ) {
+        // Constructor injection - no manual instantiation
     }
 
     public function index(Request $request, $display = null){
@@ -128,13 +129,12 @@ class SettingController extends BaseController
 
     public function contacts(Request $request){
         if ($request->isMethod('get')) {
-            $contactFieldService = new ContactFieldService(session()->get('current_workspace'));
             $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
             return Inertia::render('User/Settings/Contact', [
                 'title' => __('Settings'),
                 'filters' => $request->all(),
-                'rows' => $contactFieldService->get($request),
+                'rows' => $this->contactFieldService->get($request),
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
@@ -162,13 +162,12 @@ class SettingController extends BaseController
 
     public function tickets(Request $request){
         if ($request->isMethod('get')) {
-            $contactFieldService = new ContactFieldService(session()->get('current_workspace'));
             $settings = workspace::where('id', session()->get('current_workspace'))->first();
 
             return Inertia::render('User/Settings/Ticket', [
                 'title' => __('Settings'),
                 'filters' => $request->all(),
-                'rows' => $contactFieldService->get($request),
+                'rows' => $this->contactFieldService->get($request),
                 'settings' => $settings,
                 'modules' => Addon::get(),
             ]);
