@@ -49,11 +49,19 @@ Dokumen ini adalah **referensi utama dan lengkap** untuk proses refactoring Blaz
 
 #### **📊 [01-comprehensive-architecture-audit.md](./01-comprehensive-architecture-audit.md)**
 **Audit lengkap dari existing codebase**
-- ✅ 15,117 PHP files analysis
+- ✅ 572 PHP files analysis (UPDATE: bukan 15,117)
 - ✅ Architecture pattern evaluation
 - ✅ Security vulnerability assessment
 - ✅ Performance bottleneck identification
 - ✅ Current issues documentation
+
+#### **🎯 [05-daftar-refactoring-lengkap.md](./05-daftar-refactoring-lengkap.md)** ⭐ **NEW! & UPDATED**
+**Daftar lengkap refactoring dari ringan hingga sulit dengan data aktual**
+- ✅ Reality check vs documentation claims (UPDATED)
+- ✅ 4 tingkat kesulitan (VERY EASY hingga VERY HARD)
+- ✅ Estimasi waktu dan risiko untuk setiap task
+- ✅ Implementation roadmap 4 minggu (REALISTIC)
+- ✅ Priority matrix dan success metrics
 
 #### **📋 [04-implementation-summary.md](./04-implementation-summary.md)**
 **Quick reference summary**
@@ -66,12 +74,13 @@ Dokumen ini adalah **referensi utama dan lengkap** untuk proses refactoring Blaz
 
 ## 🎯 **REFACTORING TARGETS OVERVIEW**
 
-### **📊 Current Statistics:**
-- **Total PHP Files:** 15,117 files
-- **Controller Files:** 67 files (campur aduk di root folder)
+### **📊 Current Statistics (UPDATED & ACCURATE):**
+- **Total PHP Files:** 572 files (bukan 15,117 seperti klaim awal)
+- **Controller Files:** 68 files (sudah terorganisir di folder Admin/, Api/, User/)
 - **Service Files:** 47 files
-- **Test Files:** 10 files (0.07% coverage)
+- **Test Files:** 10 files (fungsional untuk WhatsApp)
 - **Critical Files to Split:**
+  - `SendCampaignJob.php`: 50,200 lines 🚨 **CRITICAL!**
   - `WhatsappService.php`: 1,565 lines ⚠️
   - `ApiController.php`: 764 lines ⚠️
   - `WhatsAppWebJSController.php`: 703 lines ⚠️
@@ -419,11 +428,12 @@ class ContactControllerTest extends TestCase {
 5. **User Experience** - Same flows, interactions, and functionality
 6. **Feature Set** - No new features, no removed features
 
-### **⏰ Expected Timeline:**
-- **Week 1:** File movement and organization (Low risk)
-- **Week 2:** Service splitting and dependency injection (Medium risk)
-- **Week 3:** Controller splitting and testing (High risk)
-- **Total:** 3 weeks for complete refactoring
+### **⏰ Expected Timeline (UPDATED):**
+- **Week 1:** Quick wins - File organization & constructor injection (Low risk)
+- **Week 2:** Service splitting - WhatsApp services & medium complexity (Medium risk)
+- **Week 3:** Controller splitting - API controllers & high complexity (High risk)
+- **Week 4:** Critical issues - SendCampaignJob.php (50,200 lines!) & optimization (Very High risk)
+- **Total:** 4 weeks for complete refactoring (REALISTIC)
 
 ---
 
@@ -456,14 +466,16 @@ class ContactControllerTest extends TestCase {
 - **📊 Current State Analysis:** → [01-comprehensive-architecture-audit.md](./01-comprehensive-architecture-audit.md)
 - **🎯 Complete Implementation Guide:** → [02-ultimate-refactoring-reference.md](./02-ultimate-refactoring-reference.md)
 - **🔧 Practical Code Examples:** → [03-practical-refactoring-guide.md](./03-practical-refactoring-guide.md)
+- **📋 Complete Refactoring List:** → [05-daftar-refactoring-lengkap.md](./05-daftar-refactoring-lengkap.md) ⭐ **NEW!**
 - **📋 Quick Summary:** → [04-implementation-summary.md](./04-implementation-summary.md)
 
 ### **🔄 Recommended Reading Order:**
-1. **Start Here:** [00-readme.md](./00-readme.md) (Current document)
+1. **Start Here:** [00-readme.md](./00-readme.md) (Current document - UPDATED)
 2. **Understand Current State:** [01-comprehensive-architecture-audit.md](./01-comprehensive-architecture-audit.md)
 3. **Follow Implementation Guide:** [02-ultimate-refactoring-reference.md](./02-ultimate-refactoring-reference.md)
 4. **Use Practical Examples:** [03-practical-refactoring-guide.md](./03-practical-refactoring-guide.md)
-5. **Quick Reference:** [04-implementation-summary.md](./04-implementation-summary.md)
+5. **Check Complete Refactoring List:** [05-daftar-refactoring-lengkap.md](./05-daftar-refactoring-lengkap.md) ⭐ **NEW!**
+6. **Quick Reference:** [04-implementation-summary.md](./04-implementation-summary.md)
 
 ---
 

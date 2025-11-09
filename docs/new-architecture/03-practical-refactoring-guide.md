@@ -22,17 +22,19 @@ Fokus utama:
 
 ### **1. Controller Restructuring**
 
-#### **Current Structure:**
+#### **Current Structure (UPDATED):**
 ```
-app/Http/Controllers/ (68 files - campur aduk)
-├── ApiController.php (764 lines)
-├── AuthController.php
-├── ChatController.php
-├── WhatsAppWebJSController.php (703 lines)
-├── WebhookController.php (447 lines)
-├── User/ (sudah ada beberapa)
-├── Admin/ (sudah ada beberapa)
-└── ...
+app/Http/Controllers/ (68 files - sudah terorganisir sebagian)
+├── Admin/ (17 files) ✅
+├── User/ (23 files) ✅
+├── Api/ (2 files) ✅
+├── Root (26 files perlu dipindahkan)
+│   ├── ApiController.php (764 lines) ⚠️
+│   ├── AuthController.php
+│   ├── ChatController.php
+│   ├── WhatsAppWebJSController.php (703 lines) ⚠️
+│   ├── WebhookController.php (447 lines)
+│   └── ... (21 other files)
 ```
 
 #### **Target Structure (MOVE FILES):**

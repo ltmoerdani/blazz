@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\FaqResource;

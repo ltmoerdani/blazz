@@ -21,10 +21,17 @@ Berikut adalah dokumen lengkap untuk refactoring Blazz WhatsApp Business Platfor
 
 ### **📊 [01-comprehensive-architecture-audit.md](./01-comprehensive-architecture-audit.md)**
 **Audit lengkap codebase - 17,831 lines**
-- ✅ 15,117 PHP files analysis
+- ✅ 572 PHP files analysis (UPDATE: bukan 15,117)
 - ✅ Architecture pattern evaluation
 - ✅ Security vulnerability assessment
 - ✅ Performance bottleneck identification
+
+### **🎯 [05-daftar-refactoring-lengkap.md](./05-daftar-refactoring-lengkap.md)** ⭐ **NEW!**
+**Daftar lengkap refactoring dari ringan hingga sulit**
+- ✅ Reality check vs documentation claims
+- ✅ 4 tingkat kesulitan dengan estimasi waktu
+- ✅ Implementation roadmap 4 minggu (REALISTIC)
+- ✅ Priority matrix dan success metrics
 
 ### **📖 [00-readme.md](./00-readme.md)**
 **Overview dan panduan cepat - 17,438 lines**
@@ -69,10 +76,11 @@ Berikut adalah dokumen lengkap untuk refactoring Blazz WhatsApp Business Platfor
 
 ## 📊 **CRITICAL FILES TO REFACTOR**
 
-### **🔥 Priority 1:**
-1. **WhatsappService.php** (1,565 lines) → Split ke 6 services
-2. **ApiController.php** (764 lines) → Reorganize ke API folder
-3. **WhatsAppWebJSController.php** (703 lines) → Split ke specialized controllers
+### **🔥 Priority 1 (UPDATED):**
+1. **SendCampaignJob.php** (50,200 lines) 🚨 **CATASTROPHIC!** → Break into multiple services
+2. **WhatsappService.php** (1,565 lines) → Split ke 6 services
+3. **ApiController.php** (764 lines) → Reorganize ke API folder
+4. **WhatsAppWebJSController.php** (703 lines) → Split ke specialized controllers
 
 ### **📁 Target Folder Structure:**
 ```
