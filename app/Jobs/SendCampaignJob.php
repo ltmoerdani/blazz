@@ -363,26 +363,7 @@ class SendCampaignJob implements ShouldQueue
         $log->save();
     }
 
-    /**
-     * @deprecated Use constructor injection instead
-     * OLD CODE - Commented out
-     */
-    /*
-    private function initializeWhatsappService()
-    {
-        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
-        $config = $config ? json_decode($config, true) : [];
-
-        $accessToken = $config['whatsapp']['access_token'] ?? null;
-        $apiVersion = 'v18.0';
-        $appId = $config['whatsapp']['app_id'] ?? null;
-        $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
-        $wabaId = $config['whatsapp']['waba_id'] ?? null;
-
-        $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
-    }
-    */
-
+    
     /**
      * Move contact to failed group after max retries
      */

@@ -66,12 +66,7 @@ class WebhookController extends BaseController
     private function getChatService($workspaceId)
     {
         if (!$this->chatService) {
-            $this->chatService = new ChatService(
-                $workspaceId,
-                app('App\Services\WhatsApp\MessageSendingService'),
-                app('App\Services\WhatsApp\MediaProcessingService'),
-                app('App\Services\WhatsApp\TemplateManagementService')
-            );
+            $this->chatService = app(ChatService::class, ['workspaceId' => $workspaceId]);
         }
         return $this->chatService;
     }

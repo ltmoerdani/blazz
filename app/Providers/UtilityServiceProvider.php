@@ -31,8 +31,15 @@ class UtilityServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        // Template Service - requires runtime workspace context, not registered as singleton
-        // Keeping manual instantiation for now due to session-based workspace dependency
+        // Template Service
+        $this->app->singleton(TemplateService::class, function ($app) {
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new TemplateService(
+                $workspace->id,
+                $app->make('App\Services\WhatsApp\TemplateManagementService'),
+                $app->make('App\Services\WhatsApp\MessageSendingService')
+            );
+        });
 
         // Coupon Service
         $this->app->singleton(CouponService::class, function ($app) {

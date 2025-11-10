@@ -341,26 +341,7 @@ class AutoReplyService
         }
     }
 
-    /**
-     * @deprecated Use constructor injection instead
-     * OLD CODE - Commented out
-     */
-    /*
-    private function initializeWhatsappService($workspaceId)
-    {
-        $config = workspace::where('id', $workspaceId)->first()->metadata;
-        $config = $config ? json_decode($config, true) : [];
-
-        $accessToken = $config['whatsapp']['access_token'] ?? null;
-        $apiVersion = config('graph.api_version');
-        $appId = $config['whatsapp']['app_id'] ?? null;
-        $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
-        $wabaId = $config['whatsapp']['waba_id'] ?? null;
-
-        return new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-    }
-    */
-
+  
     /**
      * Replace placeholders in message with contact data
      */
