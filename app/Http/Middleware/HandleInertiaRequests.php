@@ -80,7 +80,8 @@ class HandleInertiaRequests extends Middleware
             return ['active' => $tfaActive, 'secret' => $secret, 'qrcode' => $qrcode];
         }
 
-        $googleAuth = Addon::where('name', 'Google Authenticator')->first()->is_active;
+        $googleAuthAddon = Addon::where('name', 'Google Authenticator')->first();
+        $googleAuth = $googleAuthAddon ? $googleAuthAddon->is_active : 0;
         $tfaActive = $googleAuth == 1;
 
         if ($googleAuth == 1) {

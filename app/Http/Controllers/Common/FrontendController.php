@@ -28,8 +28,7 @@ class FrontendController extends BaseController
     }
     
     public function index(Request $request){
-        $frontend = Setting::where('key', 'display_frontend')->first();
-        $frontend_active = $frontend ? $frontend->value : 1;
+        $frontend_active = Setting::getValueByKey('display_frontend', 1);
         
         if($frontend_active){
             $data['plans'] = SubscriptionPlan::where('status', 'active')->whereNull('deleted_at')->get();
@@ -37,13 +36,13 @@ class FrontendController extends BaseController
                 Faq::where('status', '1')->get()
             );
             $data['reviews'] = Review::where('status', 1)->get();
-            $data['currency'] = Setting::where('key', 'currency')->first()->value;
+            $data['currency'] = Setting::getValueByKey('currency', 'USD');
 
             $keys = ['logo', 'company_name', 'address', 'email', 'phone', 'socials', 'trial_period'];
             $data['companyConfig'] = Setting::whereIn('key', $keys)->pluck('value', 'key')->toArray();
             $data['pages'] = Page::get();
             $data['addons'] = Addon::where('status', 1)->where('is_plan_restricted', 1)->pluck('is_active', 'name');
-            $data['enable_ai_billing'] = Setting::where('key', 'enable_ai_billing')->value('value') ?? 0;
+            $data['enable_ai_billing'] = Setting::getValueByKey('enable_ai_billing', 0);
 
             return Inertia::render('Frontend/Index', $data);
         } else {
