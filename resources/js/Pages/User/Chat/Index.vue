@@ -79,7 +79,7 @@
     import { getEchoInstance } from '../../../echo';
 
     const props = defineProps({
-        rows: Array,
+        rows: Object,
         rowCount: Number,
         pusherSettings: Object,
         workspaceId: Number,
@@ -112,7 +112,7 @@
     const formLoading = ref(false);
     const isChatLimitReached = ref(props.isChatLimitReached);
     const toggleNavbarBtn = ref(null);
-    const config = ref(props.settings.metadata);
+    const config = ref(props.settings?.metadata ?? null);
     const settings = ref(config.value ? JSON.parse(config.value) : null);
     const ticketingIsEnabled = ref(settings.value?.tickets?.active ?? false);
     const chatThread = ref(props.chatThread);

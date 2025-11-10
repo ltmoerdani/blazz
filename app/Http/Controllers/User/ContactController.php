@@ -23,10 +23,9 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ContactController extends BaseController
 {
-    private function contactService()
-    {
-        return new ContactService(session()->get('current_workspace'));
-    }
+    public function __construct(
+        private ContactService $contactService
+    ) {}
 
     private function getCurrentworkspaceId()
     {
@@ -106,7 +105,7 @@ class ContactController extends BaseController
     }
 
     public function store(StoreContact $request){
-        $contact = $this->contactService()->store($request);
+        $contact = $this->contactService->store($request);
         
         return redirect('/contacts?id=' . $contact->uuid)->with(
             'status', [
@@ -118,7 +117,7 @@ class ContactController extends BaseController
 
     public function update(StoreContact $request, $uuid)
     {
-        $contact = $this->contactService()->store($request, $uuid);
+        $contact = $this->contactService->store($request, $uuid);
 
         return redirect('/contacts/' . $contact->uuid)->with(
             'status', [
@@ -130,7 +129,7 @@ class ContactController extends BaseController
 
     public function favorite(Request $request, $uuid)
     {
-        $this->contactService()->favorite($request, $uuid);
+        $this->contactService->favorite($request, $uuid);
 
         return redirect('/contacts/' . $uuid)->with(
             'status', [
@@ -143,7 +142,7 @@ class ContactController extends BaseController
     public function delete(Request $request)
     {
         $uuids = $request->input('uuids', []);
-        $this->contactService()->delete($uuids);
+        $this->contactService->delete($uuids);
 
         return redirect('/contacts')->with(
             'status', [

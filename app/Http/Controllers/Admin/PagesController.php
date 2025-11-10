@@ -10,16 +10,10 @@ use Inertia\Inertia;
 
 class PagesController extends BaseController
 {
-    private $pageService;
-
-    /**
-     * EmailTemplateController constructor.
-     *
-     * @param PageService $pageService
-     */
-    public function __construct()
-    {
-        $this->pageService = new pageService();
+    public function __construct(
+        private PageService $pageService
+    ) {
+        // Constructor injection - no manual instantiation
     }
 
     /**
