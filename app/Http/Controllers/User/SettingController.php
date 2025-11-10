@@ -249,13 +249,7 @@ class SettingController extends BaseController
             $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
             $wabaId = $config['whatsapp']['waba_id'] ?? null;
 
-            // OLD: Keep for reference during transition
-            /*
-            $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-            $response = $whatsappService->businessProfile()->updateBusinessProfile($request);
-            */
-
-            // NEW: Use injected service
+            // Use injected service
             $response = $this->businessService->updateBusinessProfile($request->validated());
 
             if($response->success === true){
@@ -304,13 +298,7 @@ class SettingController extends BaseController
                 $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
                 $wabaId = $config['whatsapp']['waba_id'] ?? null;
             
-                // OLD: Keep for reference during transition
-                /*
-                $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-                $unsubscribe = $whatsappService->healthMonitoring()->unSubscribeToWaba();
-                */
-
-                // NEW: Use injected service
+                // Use injected service
                 $unsubscribe = $this->healthService->unSubscribeToWaba();
             }
             
@@ -350,13 +338,7 @@ class SettingController extends BaseController
         $workspaceId = session()->get('current_workspace');
         $apiVersion = config('graph.api_version');
     
-        // OLD: Keep for reference during transition
-        /*
-        $whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-        $phoneNumberResponse = $whatsappService->businessProfile()->getPhoneNumberId($accessToken, $wabaId);
-        */
-
-        // NEW: Use injected service
+        // Use injected service
         $phoneNumberResponse = $this->businessService->getPhoneNumberId($accessToken, $wabaId);
         
         if(!$phoneNumberResponse->success){

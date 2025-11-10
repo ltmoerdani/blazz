@@ -28,9 +28,9 @@ class FlutterwaveService
     protected $publicKey;
     protected $secretKey;
 
-    public function __construct()
+    public function __construct(SubscriptionService $subscriptionService)
     {
-        $this->subscriptionService = new SubscriptionService();
+        $this->subscriptionService = $subscriptionService;
 
         $methodInfo = PaymentGateway::where('name', 'Flutterwave')->first();
 

@@ -26,9 +26,9 @@ class StripeService
     protected $subscriptionService;
     protected $stripe;
 
-    public function __construct()
+    public function __construct(SubscriptionService $subscriptionService)
     {
-        $this->subscriptionService = new SubscriptionService();
+        $this->subscriptionService = $subscriptionService;
 
         $stripeInfo = PaymentGateway::where('name', 'Stripe')->first();
         $this->config = json_decode($stripeInfo->metadata);

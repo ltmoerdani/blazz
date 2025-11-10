@@ -38,9 +38,14 @@ class AuthController extends BaseController
     protected $userService;
     protected $role;
 
-    public function __construct($role = 'user')
+    public function __construct(UserService $userService = null, $role = 'user')
     {
-        $this->userService = new UserService($role);
+        // Use appropriate user service based on role
+        if ($role === 'admin') {
+            $this->userService = app('App\Services\AdminUserService');
+        } else {
+            $this->userService = $userService ?: app(UserService::class);
+        }
         $this->role = $role;
     }
 
