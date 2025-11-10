@@ -19,7 +19,7 @@ class CheckSubscriptionStatus
 
             // Check if the user role is 'user'
             if ($user->role === 'user') {
-                $subscriptionService = new SubscriptionService();
+                $subscriptionService = app(SubscriptionService::class);
                 $workspaceId = session()->get('current_workspace');
                 //$activate = $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspaceId);
 

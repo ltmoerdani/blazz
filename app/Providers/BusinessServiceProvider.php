@@ -175,25 +175,13 @@ class BusinessServiceProvider extends ServiceProvider
             return new ModuleService();
         });
 
-        // Subscription Service
-        $this->app->singleton(SubscriptionService::class, function ($app) {
-            $workspace = WorkspaceHelper::getCurrentWorkspace();
-            return new SubscriptionService($workspace->id);
-        });
+        // Subscription Service moved to SubscriptionServiceProvider to avoid duplication
 
         // Subscription Plan Service
         $this->app->singleton(SubscriptionPlanService::class, function ($app) {
             return new SubscriptionPlanService();
         });
 
-        // Template Service
-        $this->app->singleton(TemplateService::class, function ($app) {
-            $workspace = WorkspaceHelper::getCurrentWorkspace();
-            return new TemplateService(
-                $workspace->id,
-                $app->make('App\Services\WhatsApp\TemplateManagementService'),
-                $app->make('App\Services\WhatsApp\MessageSendingService')
-            );
-        });
+        // Template Service moved to UtilityServiceProvider to avoid duplication
     }
 }

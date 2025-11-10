@@ -24,9 +24,9 @@ class DashboardController extends BaseController
 {
     protected $subscriptionService;
 
-    public function __construct()
+    public function __construct(SubscriptionService $subscriptionService)
     {
-        $this->subscriptionService = new SubscriptionService();
+        $this->subscriptionService = $subscriptionService;
     }
 
     public function index(Request $request){
