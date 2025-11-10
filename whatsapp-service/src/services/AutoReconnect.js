@@ -123,13 +123,44 @@ class AutoReconnect {
         });
 
         try {
-            // Try to create/restore session
-            const result = await this.sessionManager.createSession(sessionId, workspaceId);
+            // Try to restore existing session first (preserve QR code if still valid)
+            let result;
+            if (this.sessionManager.restoreSession) {
+                result = await this.sessionManager.restoreSession(sessionId, workspaceId);
+
+                // If restore fails or session doesn't exist, create new session
+                if (!result.success) {
+                    this.logger.info('Session restore failed, creating new session', {
+                        sessionId,
+                        error: result.error || 'Unknown error'
+                    });
+                    result = await this.sessionManager.createSession(sessionId, workspaceId);
+                } else {
+                    // Restoration successful - check if it's already connected
+                    if (result.message === 'Session already connected') {
+                        this.logger.info('✅ Session already connected, no QR needed', {
+                            sessionId,
+                            attempts
+                        });
+
+                        // Clear retry counter
+                        this.reconnectAttempts.delete(sessionId);
+
+                        // Notify Laravel of successful reconnection
+                        await this.notifyReconnectSuccess(sessionId, workspaceId);
+                        return;
+                    }
+                }
+            } else {
+                // Fallback to createSession if restoreSession not available
+                result = await this.sessionManager.createSession(sessionId, workspaceId);
+            }
 
             if (result.success) {
                 this.logger.info('✅ Auto-reconnection successful', {
                     sessionId,
-                    attempts
+                    attempts,
+                    action: this.sessionManager.restoreSession && result.restored ? 'restored' : 'created'
                 });
 
                 // Clear retry counter

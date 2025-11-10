@@ -38,7 +38,7 @@ class AuthController extends BaseController
     protected $userService;
     protected $role;
 
-    public function __construct(UserService $userService = null, $role = 'user')
+    public function __construct(?UserService $userService = null, $role = 'user')
     {
         // Use appropriate user service based on role
         if ($role === 'admin') {
@@ -61,7 +61,7 @@ class AuthController extends BaseController
         
         if (!$user) {
             return back()->withErrors([
-                'email' => 'Email tidak terdaftar atau password salah.',
+                'email' => __('auth.email_not_found'),
             ]);
         }
         
@@ -109,7 +109,11 @@ class AuthController extends BaseController
         $guard = $user->role == 'user' ? 'user' : 'admin';
 
         if ($request->email || $request->password) {
-            Auth::guard($guard)->attempt(['email' => $request->email, 'password' => $request->password], $remember);
+            if (!Auth::guard($guard)->attempt(['email' => $request->email, 'password' => $request->password], $remember)) {
+                return back()->withErrors([
+                    'email' => __('auth.invalid_credentials'),
+                ]);
+            }
         } else {
             Auth::guard($guard)->login($user, $remember);
         }

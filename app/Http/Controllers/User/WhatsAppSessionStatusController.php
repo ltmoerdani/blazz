@@ -76,7 +76,17 @@ class WhatsAppSessionStatusController extends Controller
                 ]);
 
                 // Fire status changed event
-                event(new WhatsAppSessionStatusChangedEvent($session, 'disconnected'));
+                event(new WhatsAppSessionStatusChangedEvent(
+                    $session->session_id,
+                    'disconnected',
+                    $workspaceId,
+                    $session->phone_number,
+                    [
+                        'action' => 'disconnect',
+                        'uuid' => $session->uuid,
+                        'timestamp' => now()->toISOString()
+                    ]
+                ));
 
                 return response()->json([
                     'success' => true,
@@ -86,7 +96,11 @@ class WhatsAppSessionStatusController extends Controller
 
             // Get provider adapter
             $providerSelector = app(ProviderSelector::class);
-            $provider = $providerSelector->getProvider($session->provider_type);
+            try {
+                $provider = $providerSelector->selectProvider($workspaceId, $session->provider_type);
+            } catch (\Exception $e) {
+                $provider = null;
+            }
 
             if (!$provider) {
                 return response()->json([
@@ -96,19 +110,22 @@ class WhatsAppSessionStatusController extends Controller
             }
 
             // Disconnect from provider
-            $disconnectResult = $provider->disconnect($session->session_id);
+            if ($session->provider_type === 'webjs') {
+                $webjsAdapter = new WebJSAdapter($workspaceId, $session);
+                $disconnectResult = $webjsAdapter->disconnectSession();
 
-            if (!$disconnectResult->success) {
-                Log::error('Provider disconnection failed', [
-                    'session_uuid' => $uuid,
-                    'provider_type' => $session->provider_type,
-                    'error' => $disconnectResult->message ?? 'Unknown error'
-                ]);
+                if (!$disconnectResult['success']) {
+                    Log::error('Provider disconnection failed', [
+                        'session_uuid' => $uuid,
+                        'provider_type' => $session->provider_type,
+                        'error' => $disconnectResult['error'] ?? 'Unknown error'
+                    ]);
 
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to disconnect from provider: ' . ($disconnectResult->message ?? 'Unknown error')
-                ], 500);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to disconnect from provider: ' . ($disconnectResult['error'] ?? 'Unknown error')
+                    ], 500);
+                }
             }
 
             // Update session status
@@ -121,7 +138,17 @@ class WhatsAppSessionStatusController extends Controller
             ]);
 
             // Fire status changed event
-            event(new WhatsAppSessionStatusChangedEvent($session, 'disconnected'));
+            event(new WhatsAppSessionStatusChangedEvent(
+                $session->session_id,
+                'disconnected',
+                $workspaceId,
+                $session->phone_number,
+                [
+                    'action' => 'disconnect',
+                    'uuid' => $session->uuid,
+                    'timestamp' => now()->toISOString()
+                ]
+            ));
 
             return response()->json([
                 'success' => true,
@@ -148,47 +175,49 @@ class WhatsAppSessionStatusController extends Controller
     public function reconnect(string $uuid)
     {
         $workspaceId = session('current_workspace');
+        $response = null;
 
         $session = WhatsAppSession::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
-        try {
-            // Reset session status for reconnection
-            $session->update([
-                'status' => 'connecting',
-                'is_active' => false,
-                'qr_code' => null,
-                'qr_expires_at' => null,
-                'session_id' => 'webjs_' . $workspaceId . '_' . time() . '_' . Str::random(8),
-                'last_activity_at' => now()
-            ]);
-
-            // Fire status changed event
-            event(new WhatsAppSessionStatusChangedEvent($session, 'connecting'));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Session reconnection initiated',
-                'data' => [
-                    'uuid' => $session->uuid,
-                    'status' => $session->status,
-                    'session_id' => $session->session_id
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to reconnect WhatsApp session', [
-                'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
-                'workspace_id' => $workspaceId
-            ]);
-
-            return response()->json([
+        if ($session->status === 'connected') {
+            $response = response()->json([
                 'success' => false,
-                'message' => 'Failed to reconnect session: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Session is already connected'
+            ], 400);
+        } else {
+            try {
+                $adapter = new WebJSAdapter($workspaceId, $session);
+                $result = $adapter->reconnectSession();
+
+                if (!$result['success']) {
+                    $response = response()->json([
+                        'success' => false,
+                        'message' => $result['error'] ?? 'Failed to reconnect session'
+                    ], 500);
+                } else {
+                    $response = response()->json([
+                        'success' => true,
+                        'message' => 'Reconnection initiated. Please scan QR code.',
+                        'qr_code' => $result['qr_code'] ?? null,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to reconnect WhatsApp session', [
+                    'workspace_id' => $workspaceId,
+                    'session_id' => $session->session_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $response = response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reconnect session: ' . $e->getMessage()
+                ], 500);
+            }
         }
+
+        return $response;
     }
 
     /**
@@ -205,7 +234,11 @@ class WhatsAppSessionStatusController extends Controller
         try {
             // Get provider adapter
             $providerSelector = app(ProviderSelector::class);
-            $provider = $providerSelector->getProvider($session->provider_type);
+            try {
+                $provider = $providerSelector->selectProvider($workspaceId, $session->provider_type);
+            } catch (\Exception $e) {
+                $provider = null;
+            }
 
             if (!$provider) {
                 return response()->json([
@@ -215,41 +248,50 @@ class WhatsAppSessionStatusController extends Controller
             }
 
             // Generate new QR code
-            $qrResult = $provider->generateQR($session);
+            if ($session->provider_type === 'webjs') {
+                $webjsAdapter = new WebJSAdapter($workspaceId, $session);
+                $qrResult = $webjsAdapter->regenerateQR();
 
-            if (!$qrResult->success) {
-                Log::error('Failed to generate QR code', [
-                    'session_uuid' => $uuid,
-                    'provider_type' => $session->provider_type,
-                    'error' => $qrResult->message ?? 'Unknown error'
+                if (!$qrResult['success']) {
+                    Log::error('Failed to generate QR code', [
+                        'session_uuid' => $uuid,
+                        'provider_type' => $session->provider_type,
+                        'error' => $qrResult['error'] ?? 'Unknown error'
+                    ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to generate QR code: ' . ($qrResult['error'] ?? 'Unknown error')
+                    ], 500);
+                }
+
+                // Update session with new QR code
+                $session->update([
+                    'qr_code' => $qrResult['qr_code'],
+                    'qr_expires_at' => now()->addMinutes(5),
+                    'status' => 'qr_generated',
+                    'last_activity_at' => now()
                 ]);
 
+                // Fire QR generated event
+                event(new WhatsAppQRGeneratedEvent(
+                    $qrResult['qr_code'],
+                    300, // 5 minutes in seconds
+                    $workspaceId,
+                    $session->session_id
+                ));
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to generate QR code: ' . ($qrResult->message ?? 'Unknown error')
-                ], 500);
+                    'success' => true,
+                    'message' => 'QR code regenerated successfully',
+                    'qr_code' => $qrResult['qr_code'],
+                ]);
             }
 
-            // Update session with new QR code
-            $session->update([
-                'qr_code' => $qrResult->qr_code,
-                'qr_expires_at' => now()->addMinutes(5),
-                'status' => 'qr_generated',
-                'last_activity_at' => now()
-            ]);
-
-            // Fire QR generated event
-            event(new WhatsAppQRGeneratedEvent($session, $qrResult->qr_code));
-
             return response()->json([
-                'success' => true,
-                'message' => 'QR code regenerated successfully',
-                'data' => [
-                    'qr_code' => $qrResult->qr_code,
-                    'qr_expires_at' => $session->qr_expires_at,
-                    'status' => $session->status
-                ]
-            ]);
+                'success' => false,
+                'message' => 'QR generation not supported for this provider type'
+            ], 400);
 
         } catch (\Exception $e) {
             Log::error('Failed to regenerate QR code', [
@@ -279,7 +321,11 @@ class WhatsAppSessionStatusController extends Controller
 
             // Get provider adapter for additional stats
             $providerSelector = app(ProviderSelector::class);
-            $provider = $providerSelector->getProvider($session->provider_type);
+            try {
+                $provider = $providerSelector->selectProvider($workspaceId, $session->provider_type);
+            } catch (\Exception $e) {
+                $provider = null;
+            }
 
             $statistics = [
                 'session_id' => $session->id,
@@ -309,9 +355,9 @@ class WhatsAppSessionStatusController extends Controller
             // Get provider-specific statistics
             if ($provider) {
                 try {
-                    $providerStats = $provider->getSessionStatistics($session->session_id);
-                    if ($providerStats->success) {
-                        $statistics['provider_stats'] = $providerStats->data;
+                    $providerStats = $provider->getHealthInfo();
+                    if ($providerStats) {
+                        $statistics['provider_stats'] = $providerStats;
                     }
                 } catch (\Exception $e) {
                     Log::warning('Failed to get provider statistics', [

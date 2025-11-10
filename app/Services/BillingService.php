@@ -80,7 +80,9 @@ class BillingService
             ]);
 
             //Activate workspace's plan if credits cover cost of plan
-            $this->subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, Auth::id());
+            if ($this->subscriptionService) {
+                $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, Auth::id());
+            }
 
             return $transaction;
         });

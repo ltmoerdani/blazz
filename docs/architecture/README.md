@@ -22,6 +22,8 @@
    - Layer-by-layer responsibilities
    - Design patterns yang digunakan
    - Multi-tenancy architecture
+   - Dual-server architecture overview
+   - Multi-provider WhatsApp support
    - Security & scalability considerations
 
 2. **[02-component-connections.md](./02-component-connections.md)**
@@ -31,11 +33,14 @@
    - Job queue chains
    - Event broadcasting patterns
    - External API integration
+   - Cross-server communication patterns
 
 3. **[03-folder-structure.md](./03-folder-structure.md)**
    - Recommended folder organization
    - File placement guidelines
    - Naming conventions
+   - Dual-server structure (Laravel + Node.js)
+   - WhatsApp service organization
    - Scalability considerations
    - Module structure template
 
@@ -45,6 +50,34 @@
    - Testing guidelines
    - Development checklist
    - Common patterns
+   - Cross-service feature development
+
+5. **[05-visual-diagrams.md](./05-visual-diagrams.md)**
+   - Architecture visualization diagrams
+   - Data flow diagrams
+   - Component interaction maps
+   - Request lifecycle visualization
+   - Queue processing flows
+   - Dual-server communication diagrams
+
+6. **[06-dual-server-architecture.md](./06-dual-server-architecture.md)** 🔥
+   - Comprehensive dual-server architecture explanation
+   - Laravel + Node.js integration patterns
+   - WhatsApp service implementation details
+   - Inter-service communication protocols
+   - Provider management system
+   - Deployment & scaling strategies
+   - Performance optimization techniques
+
+7. **[07-development-patterns-guidelines.md](./07-development-patterns-guidelines.md)** 🛠️
+   - Complete development workflow & patterns
+   - Step-by-step feature implementation guide
+   - Code organization & naming conventions
+   - Security patterns & best practices
+   - Testing strategies & examples
+   - Performance optimization guidelines
+   - Complete development checklist
+   - DO's & DON'Ts for consistent code quality
 
 ---
 
@@ -756,8 +789,160 @@ class CampaignService
 
 ---
 
+## 🛠️ Development Quick Reference
+
+### **🎯 Standard Development Workflow:**
+
+```bash
+# 1. Planning Phase
+# - Define requirements & API contracts
+# - Design database schema
+# - Identify cross-service impacts
+
+# 2. Database Layer
+php artisan make:migration create_{table}_table
+php artisan make:model {Model} -mfs
+
+# 3. Service Layer (Business Logic)
+# Create: app/Services/{Entity}Service.php
+
+# 4. Controller Layer (HTTP Handling)
+php artisan make:controller User/{Entity}Controller
+php artisan make:request Store{Entity}Request
+
+# 5. Background Processing (if needed)
+php artisan make:job {Action}{Entity}Job
+
+# 6. Frontend Layer
+# Create: resources/js/Pages/User/{Entity}/
+# - Index.vue, Create.vue, Edit.vue
+
+# 7. Testing
+php artisan make:test {Entity}Test
+php artisan test --filter={Entity}Test
+```
+
+### **📁 Mandatory Code Patterns:**
+
+```php
+// ✅ Service (always workspace-scoped)
+class AutoReplyService {
+    public function __construct($workspaceId) {
+        $this->workspaceId = $workspaceId;
+    }
+
+    public function create(array $data) {
+        try {
+            DB::beginTransaction();
+            // Business logic here
+            DB::commit();
+
+            return (object) [
+                'success' => true,
+                'data' => $result,
+                'message' => 'Success message',
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Operation failed', ['error' => $e->getMessage()]);
+
+            return (object) [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+}
+
+// ✅ Model (workspace-scoped with scopes)
+class AutoReply extends Model {
+    use HasUuid, SoftDeletes;
+
+    public function scopeInWorkspace($query, $workspaceId) {
+        return $query->where('workspace_id', $workspaceId);
+    }
+
+    public function scopeActive($query) {
+        return $query->where('status', 'active');
+    }
+}
+
+// ✅ Controller (thin logic, delegates to service)
+class AutoReplyController extends Controller {
+    protected $autoReplyService;
+
+    public function __construct() {
+        $this->autoReplyService = new AutoReplyService(
+            session()->get('current_workspace')
+        );
+    }
+
+    public function store(StoreAutoReplyRequest $request) {
+        $result = $this->autoReplyService->create($request->validated());
+
+        return redirect()->back()->with('status', [
+            'type' => $result->success ? 'success' : 'error',
+            'message' => $result->message,
+        ]);
+    }
+}
+```
+
+### **🔐 Security Rules (MANDATORY):**
+
+```php
+// ✅ ALWAYS scope queries by workspace
+AutoReply::where('workspace_id', $this->workspaceId)->get();
+
+// ✅ ALWAYS validate input
+$request->validate([
+    'keyword' => 'required|string|max:255',
+    'message' => 'required|string|max:1000',
+]);
+
+// ✅ ALWAYS use parameterized queries (Eloquent handles this)
+// NEVER use raw SQL with user input
+
+// ✅ ALWAYS sanitize output
+{{ clean($userInput) }} // Use clean() helper
+```
+
+### **❌ NEVER DO (Critical Rules):**
+
+- ❌ Create global queries (AutoReply::all())
+- ❌ Skip workspace scoping
+- ❌ Put business logic in controllers
+- ❌ Use eval() or dangerous functions
+- ❌ Skip input validation
+- ❌ Create N+1 query problems
+- ❌ Ignore error handling
+- ❌ Mix concerns (UI logic in services)
+
+### **📊 Performance Guidelines:**
+
+```php
+// ✅ Prevent N+1 queries
+$campaigns = Campaign::with(['template', 'contactGroup'])->get();
+
+// ✅ Use query caching
+$stats = Cache::remember("stats.{$workspaceId}", 300, function() {
+    return ['total' => Model::count()];
+});
+
+// ✅ Process large datasets in chunks
+Model::chunk(100, function ($items) {
+    foreach ($items as $item) {
+        // Process item
+    }
+});
+```
+
+---
+
 ## 📚 Further Reading
 
+### **📖 Documentation:**
+- **[07-development-patterns-guidelines.md](./07-development-patterns-guidelines.md)** - Complete development guide with patterns & examples
 - **Laravel Documentation:** https://laravel.com/docs
 - **Inertia.js Documentation:** https://inertiajs.com
 - **Vue.js 3 Documentation:** https://vuejs.org
@@ -798,6 +983,8 @@ Jika ada pertanyaan tentang arsitektur atau implementation patterns, refer to:
 
 ---
 
-**Last Updated:** October 6, 2025  
-**Architecture Version:** v1.0  
+**Last Updated:** November 10, 2025
+**Architecture Version:** v2.0 (Dual-Server)
 **Laravel Version:** 12.29.0
+**Node.js Version:** 18+
+**Key Feature:** Multi-Provider WhatsApp Integration

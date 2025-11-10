@@ -69,7 +69,7 @@ class BusinessServiceProvider extends ServiceProvider
         // Billing Service
         $this->app->singleton(BillingService::class, function ($app) {
             $workspace = WorkspaceHelper::getCurrentWorkspace();
-            return new BillingService($workspace->id);
+            return new BillingService($app->make(SubscriptionService::class));
         });
 
         // Team Service
