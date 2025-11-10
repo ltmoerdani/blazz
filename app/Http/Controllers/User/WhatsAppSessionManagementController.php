@@ -113,7 +113,17 @@ class WhatsAppSessionManagementController extends Controller
                 }
 
                 // Fire status changed event
-                event(new WhatsAppSessionStatusChangedEvent($session, 'qr_scanning'));
+                event(new WhatsAppSessionStatusChangedEvent(
+                    $session->session_id,
+                    'qr_scanning',
+                    $workspaceId,
+                    $session->phone_number,
+                    [
+                        'action' => 'session_created',
+                        'uuid' => $session->uuid,
+                        'timestamp' => now()->toISOString()
+                    ]
+                ));
 
                 $response = response()->json([
                     'success' => true,
@@ -167,7 +177,11 @@ class WhatsAppSessionManagementController extends Controller
 
             // Get provider adapter for additional session info
             $providerSelector = app(ProviderSelector::class);
-            $provider = $providerSelector->getProvider($session->provider_type);
+            try {
+                $provider = $providerSelector->selectProvider($session->workspace_id, $session->provider_type);
+            } catch (\Exception $e) {
+                $provider = null;
+            }
 
             $sessionData = [
                 'id' => $session->id,
@@ -191,9 +205,9 @@ class WhatsAppSessionManagementController extends Controller
             // Add provider-specific information
             if ($provider) {
                 try {
-                    $providerStatus = $provider->getSessionStatus($session->session_id);
-                    if ($providerStatus->success) {
-                        $sessionData['provider_status'] = $providerStatus->data;
+                    $providerStatus = $provider->getHealthInfo();
+                    if ($providerStatus) {
+                        $sessionData['provider_status'] = $providerStatus;
                     }
                 } catch (\Exception $e) {
                     Log::warning('Failed to get provider status', [
@@ -244,17 +258,25 @@ class WhatsAppSessionManagementController extends Controller
 
             // Get provider adapter and disconnect from provider first
             $providerSelector = app(ProviderSelector::class);
-            $provider = $providerSelector->getProvider($session->provider_type);
+            try {
+                $provider = $providerSelector->selectProvider($session->workspace_id, $session->provider_type);
+            } catch (\Exception $e) {
+                $provider = null;
+            }
 
             if ($provider && $session->session_id) {
                 try {
-                    $disconnectResult = $provider->disconnect($session->session_id);
-                    if (!$disconnectResult->success) {
-                        Log::warning('Provider disconnection failed during session deletion', [
-                            'session_uuid' => $uuid,
-                            'provider_type' => $session->provider_type,
-                            'error' => $disconnectResult->message ?? 'Unknown error'
-                        ]);
+                    // For WebJS adapter, we need to create a new instance with the session
+                    if ($session->provider_type === 'webjs') {
+                        $webjsAdapter = new WebJSAdapter($session->workspace_id, $session);
+                        $disconnectResult = $webjsAdapter->disconnectSession();
+                        if (!$disconnectResult['success']) {
+                            Log::warning('Provider disconnection failed during session deletion', [
+                                'session_uuid' => $uuid,
+                                'provider_type' => $session->provider_type,
+                                'error' => $disconnectResult['error'] ?? 'Unknown error'
+                            ]);
+                        }
                     }
                 } catch (\Exception $e) {
                     Log::warning('Provider disconnection error during session deletion', [
@@ -266,7 +288,17 @@ class WhatsAppSessionManagementController extends Controller
             }
 
             // Fire status changed event before deletion
-            event(new WhatsAppSessionStatusChangedEvent($session, 'deleted'));
+            event(new WhatsAppSessionStatusChangedEvent(
+                $session->session_id,
+                'deleted',
+                $workspaceId,
+                $session->phone_number,
+                [
+                    'action' => 'session_deleted',
+                    'uuid' => $session->uuid,
+                    'timestamp' => now()->toISOString()
+                ]
+            ));
 
             // Delete the session
             $session->delete();
