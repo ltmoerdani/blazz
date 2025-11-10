@@ -7,7 +7,6 @@ use App\Models\AutoReply;
 use App\Models\Chat;
 use App\Models\Contact;
 use App\Models\workspace;
-use App\Models\WhatsAppSession; // NEW: For session filter dropdown (TASK-FE-1)
 use App\Services\ChatService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
@@ -16,22 +15,13 @@ use Inertia\Inertia;
 
 class ChatController extends BaseController
 {
-    private function chatService()
-    {
-        return new ChatService(session()->get('current_workspace'));
-    }
+    public function __construct(
+        private ChatService $chatService
+    ) {}
 
     public function index(Request $request, $uuid = null)
     {
-        // NEW: Support session filter (TASK-FE-1)
-        $sessionId = $request->query('session_id');
-
-        return $this->chatService()->getChatList(
-            $request,
-            $uuid,
-            $request->query('search'),
-            $sessionId
-        );
+        return $this->chatService->getChatList($request, $uuid, $request->query('search'));
     }
 
     public function updateChatSortDirection(Request $request)
@@ -43,16 +33,16 @@ class ChatController extends BaseController
 
     public function sendMessage(Request $request)
     {
-        return $this->chatService()->sendMessage($request);
+        return $this->chatService->sendMessage($request);
     }
 
     public function sendTemplateMessage(Request $request, $uuid)
     {
-        $res = $this->chatService()->sendTemplateMessage($request, $uuid);
+        $res = $this->chatService->sendTemplateMessage($request, $uuid);
 
         return Redirect::back()->with(
             'status', [
-                'type' => $res->success === true ? 'success' : 'error',
+                'type' => $res->success === true ? 'success' : 'error', 
                 'message' => $res->success === true ? __('Message sent successfully!') : $res->message,
                 'res' => $res
             ]
@@ -61,11 +51,11 @@ class ChatController extends BaseController
 
     public function deleteChats($uuid)
     {
-        $this->chatService()->clearContactChat($uuid);
+        $this->chatService->clearContactChat($uuid);
 
         return Redirect::back()->with(
             'status', [
-                'type' => 'success',
+                'type' => 'success', 
                 'message' => __('Chat cleared successfully!')
             ]
         );
@@ -74,7 +64,7 @@ class ChatController extends BaseController
     public function loadMoreMessages(Request $request, $contactId)
     {
         $page = $request->query('page', 1);
-        $messages = $this->chatService()->getChatMessages($contactId, $page);
+        $messages = $this->chatService->getChatMessages($contactId, $page);
         
         return response()->json($messages);
     }

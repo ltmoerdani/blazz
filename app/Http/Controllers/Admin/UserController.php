@@ -5,23 +5,19 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\StoreUser;
 use App\Services\UserService;
+use App\Services\TeamService;
+use App\Services\RoleService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class UserController extends BaseController
 {
-    private $userService;
-    private $role;
-
-    /**
-     * UserController constructor.
-     *
-     * @param UserService $userService
-     */
-    public function __construct($role = 'user')
-    {
-        $this->userService = new UserService($role);
-        $this->role = $role;
+    public function __construct(
+        private UserService $userService,
+        private TeamService $teamService,
+        private RoleService $roleService
+    ) {
+        // Constructor injection - no manual instantiation
     }
 
     /**

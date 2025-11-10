@@ -21,12 +21,12 @@ use Illuminate\Support\Facades\File;
 */
 
 //Installer routes
-Route::get('/install/{step?}', [App\Http\Controllers\InstallerController::class, 'index'])->name('install');
-Route::post('/install/configure-database', [App\Http\Controllers\InstallerController::class, 'configureDatabase']);
-Route::post('/install/configure-company', [App\Http\Controllers\InstallerController::class, 'configureCompany']);
-Route::post('/install/migrate', [App\Http\Controllers\InstallerController::class, 'runMigrations']);
-Route::get(RouteConstants::UPDATE_PATH, [App\Http\Controllers\InstallerController::class, 'update'])->name('install.update');
-Route::post(RouteConstants::UPDATE_PATH, [App\Http\Controllers\InstallerController::class, 'runUpdate']);
+Route::get('/install/{step?}', [App\Http\Controllers\Common\InstallerController::class, 'index'])->name('install');
+Route::post('/install/configure-database', [App\Http\Controllers\Common\InstallerController::class, 'configureDatabase']);
+Route::post('/install/configure-company', [App\Http\Controllers\Common\InstallerController::class, 'configureCompany']);
+Route::post('/install/migrate', [App\Http\Controllers\Common\InstallerController::class, 'runMigrations']);
+Route::get(RouteConstants::UPDATE_PATH, [App\Http\Controllers\Common\InstallerController::class, 'update'])->name('install.update');
+Route::post(RouteConstants::UPDATE_PATH, [App\Http\Controllers\Common\InstallerController::class, 'runUpdate']);
 
 Route::get('/current-locale', function () {
     return response()->json(['locale' => app()->getLocale()]);
@@ -48,63 +48,63 @@ Route::get('/translations/{locale}', function ($locale) {
 });
 
 //Frontend Routes
-Route::match(['get', 'post'], '/', [App\Http\Controllers\FrontendController::class, 'index']);
-Route::match(['get', 'post'], '/pages/{slug}', [App\Http\Controllers\FrontendController::class, 'pages']);
-Route::match(['get', 'post'], '/privacy', [App\Http\Controllers\FrontendController::class, 'privacy']);
-Route::match(['get', 'post'], '/terms-of-service', [App\Http\Controllers\FrontendController::class, 'termsOfService']);
-Route::match(['get', 'post'], '/process-campaign', [App\Http\Controllers\FrontendController::class, 'buildTemplateChatMessage']);
-Route::get('/language/{locale}', [App\Http\Controllers\FrontendController::class, 'changeLanguage']);
+Route::match(['get', 'post'], '/', [App\Http\Controllers\Common\FrontendController::class, 'index']);
+Route::match(['get', 'post'], '/pages/{slug}', [App\Http\Controllers\Common\FrontendController::class, 'pages']);
+Route::match(['get', 'post'], '/privacy', [App\Http\Controllers\Common\FrontendController::class, 'privacy']);
+Route::match(['get', 'post'], '/terms-of-service', [App\Http\Controllers\Common\FrontendController::class, 'termsOfService']);
+Route::match(['get', 'post'], '/process-campaign', [App\Http\Controllers\Common\FrontendController::class, 'buildTemplateChatMessage']);
+Route::get('/language/{locale}', [App\Http\Controllers\Common\FrontendController::class, 'changeLanguage']);
 
 //File Route
-Route::get('media/{filename}', [App\Http\Controllers\FileController::class, 'show'])->where('filename', '.*');
+Route::get('media/{filename}', [App\Http\Controllers\Admin\FileController::class, 'show'])->where('filename', '.*');
 
 //Invite Routes
-Route::get('/invite/{identifier}', [App\Http\Controllers\AuthController::class, 'viewInvite']);
-Route::post('/invite/{identifier}', [App\Http\Controllers\AuthController::class, 'invite']);
+Route::get('/invite/{identifier}', [App\Http\Controllers\Common\RegistrationController::class, 'viewInvite']);
+Route::post('/invite/{identifier}', [App\Http\Controllers\Common\RegistrationController::class, 'invite']);
 
-Route::get('/logout', [App\Http\Controllers\AuthController::class, 'logout'])->name('logout');
+Route::get('/logout', [App\Http\Controllers\Common\LoginController::class, 'logout'])->name('logout');
 
 //Webhook
-Route::match(['get', 'post'], '/webhook/whatsapp/{identifier?}', [App\Http\Controllers\WebhookController::class, 'handle']);
-Route::match(['get', 'post'], '/webhook/waba', [App\Http\Controllers\WebhookController::class, 'whatsappWebhook']);
-Route::match(['get', 'post'], '/webhook/{processor}', [App\Http\Controllers\WebhookController::class, 'processWebhook']);
-Route::match(['get', 'post'], '/payment/{processor}', [App\Http\Controllers\PaymentController::class, 'processPayment']);
+Route::match(['get', 'post'], '/webhook/whatsapp/{identifier?}', [App\Http\Controllers\Api\v1\WhatsAppWebhookController::class, 'handle']);
+Route::match(['get', 'post'], '/webhook/waba', [App\Http\Controllers\Api\v1\WhatsAppWebhookController::class, 'whatsappWebhook']);
+Route::match(['get', 'post'], '/webhook/{processor}', [App\Http\Controllers\Api\v1\PaymentWebhookController::class, 'processWebhook']);
+Route::match(['get', 'post'], '/payment/{processor}', [App\Http\Controllers\Api\v1\PaymentController::class, 'processPayment']);
 
-Route::get('/campaign-send', [App\Http\Controllers\FrontendController::class, 'sendCampaign']);
-Route::get('/migrate-upgrade', [App\Http\Controllers\FrontendController::class, 'migrate']);
+Route::get('/campaign-send', [App\Http\Controllers\Common\FrontendController::class, 'sendCampaign']);
+Route::get('/migrate-upgrade', [App\Http\Controllers\Common\FrontendController::class, 'migrate']);
 
 Route::middleware(['guest', 'redirectIfAuthenticated:user,admin'])->group(function () {
-    Route::get('/login', [App\Http\Controllers\AuthController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [App\Http\Controllers\AuthController::class, 'login'])->name('login.submit');
-    Route::get('/tfa', [App\Http\Controllers\AuthController::class, 'showTfaForm']);
-    Route::post('/tfa', [App\Http\Controllers\AuthController::class, 'tfaVerify']);
-    Route::get('/social-login/{type?}', [App\Http\Controllers\AuthController::class, 'socialLogin']);
-    Route::get('/google/callback', [App\Http\Controllers\AuthController::class, 'googleCallback'])->name('google.callback');
-    Route::get('/facebook/callback', [App\Http\Controllers\AuthController::class, 'handleFacebookCallback']);
-    Route::get('/signup', [App\Http\Controllers\AuthController::class, 'showRegistrationForm']);
-    Route::post('/signup', [App\Http\Controllers\AuthController::class, 'handleRegistration']);
-    Route::get('/forgot-password', [App\Http\Controllers\AuthController::class, 'showForgotForm']);
-    Route::post('/forgot-password', [App\Http\Controllers\AuthController::class, 'createPasswordResetToken']);
-    Route::get('/reset-password', [App\Http\Controllers\AuthController::class, 'showResetForm'])->name('password.reset');
-    Route::post('/reset-password', [App\Http\Controllers\AuthController::class, 'resetPassword']);
+    Route::get('/login', [App\Http\Controllers\Common\LoginController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [App\Http\Controllers\Common\LoginController::class, 'login'])->name('login.submit');
+    Route::get('/tfa', [App\Http\Controllers\Common\LoginController::class, 'showTfaForm']);
+    Route::post('/tfa', [App\Http\Controllers\Common\LoginController::class, 'tfaVerify']);
+    Route::get('/social-login/{type?}', [App\Http\Controllers\Common\LoginController::class, 'socialLogin']);
+    Route::get('/google/callback', [App\Http\Controllers\Common\LoginController::class, 'googleCallback'])->name('google.callback');
+    Route::get('/facebook/callback', [App\Http\Controllers\Common\LoginController::class, 'handleFacebookCallback']);
+    Route::get('/signup', [App\Http\Controllers\Common\RegistrationController::class, 'showRegistrationForm']);
+    Route::post('/signup', [App\Http\Controllers\Common\RegistrationController::class, 'handleRegistration']);
+    Route::get('/forgot-password', [App\Http\Controllers\Common\PasswordController::class, 'showForgotForm']);
+    Route::post('/forgot-password', [App\Http\Controllers\Common\PasswordController::class, 'createPasswordResetToken']);
+    Route::get('/reset-password', [App\Http\Controllers\Common\PasswordController::class, 'showResetForm'])->name('password.reset');
+    Route::post('/reset-password', [App\Http\Controllers\Common\PasswordController::class, 'resetPassword']);
 });
 
 Route::middleware(['auth:user,admin'])->group(function () {
-    Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update']);
-    Route::put('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword']);
-    Route::put('/profile/tfa', [App\Http\Controllers\ProfileController::class, 'updateTfa']);
-    Route::put('/profile/workspace', [App\Http\Controllers\ProfileController::class, 'updateWorkspace']);
+    Route::put('/profile', [App\Http\Controllers\User\ProfileController::class, 'update']);
+    Route::put('/profile/password', [App\Http\Controllers\User\ProfileController::class, 'updatePassword']);
+    Route::put('/profile/tfa', [App\Http\Controllers\User\ProfileController::class, 'updateTfa']);
+    Route::put('/profile/workspace', [App\Http\Controllers\User\ProfileController::class, 'updateWorkspace']);
 });
 
 Route::middleware(['auth:user'])->group(function () {
-    Route::get('/email/verify', [App\Http\Controllers\AuthController::class, 'verifyEmail'])->middleware('auth')->name('verification.notice');
+    Route::get('/email/verify', [App\Http\Controllers\Common\RegistrationController::class, 'verifyEmail'])->middleware('auth')->name('verification.notice');
     
     Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
         $request->fulfill();
         return redirect(RouteConstants::DASHBOARD_PATH);
     })->middleware(['auth', 'signed'])->name('verification.verify');
 
-    Route::post('/email/verification-notification', [App\Http\Controllers\AuthController::class, 'sendEmailVerification'])->middleware(['auth', 'throttle:6,1'])->name('verification.send');
+    Route::post('/email/verification-notification', [App\Http\Controllers\Common\RegistrationController::class, 'resendVerification'])->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
     Route::group(['middleware' => ['check.email.verification']], function () {
         Route::get('/select-workspace', [App\Http\Controllers\User\WorkspaceController::class, 'index'])->name('user.workspace.index');
@@ -183,32 +183,32 @@ Route::middleware(['auth:user'])->group(function () {
                 Route::get('/team', [App\Http\Controllers\User\TeamController::class, 'index'])->name('team');
 
                 Route::group(['middleware' => 'check.client.role'], function () {
-                    Route::get(RouteConstants::SETTINGS_PATH, [App\Http\Controllers\User\SettingController::class, 'index']);
-                    Route::get('/settings/m', [App\Http\Controllers\User\SettingController::class, 'mobileView']);
+                    Route::get(RouteConstants::SETTINGS_PATH, [App\Http\Controllers\User\UserSettingsController::class, 'index']);
+                    Route::get('/settings/m', [App\Http\Controllers\User\UserSettingsController::class, 'mobileView']);
 
-                    Route::get('/settings/whatsapp', [App\Http\Controllers\User\SettingController::class, 'viewWhatsappSettings']);
+                    Route::get('/settings/whatsapp', [App\Http\Controllers\User\WhatsAppUserSettingsController::class, 'viewWhatsappSettings']);
                     Route::get('/settings/plugins', [App\Http\Controllers\User\PluginController::class, 'index']);
-                    Route::get('/settings/whatsapp/refresh', [App\Http\Controllers\User\SettingController::class, 'refreshWhatsappData']);
-                    Route::post('/settings/whatsapp/token', [App\Http\Controllers\User\SettingController::class, 'updateToken']);
-                    Route::post('/settings/whatsapp', [App\Http\Controllers\User\SettingController::class, 'storeWhatsappSettings']);
-                    Route::post('/settings/whatsapp/business-profile', [App\Http\Controllers\User\SettingController::class, 'whatsappBusinessProfileUpdate']);
-                    Route::delete('/settings/whatsapp/business-profile', [App\Http\Controllers\User\SettingController::class, 'deleteWhatsappIntegration']);
+                    Route::get('/settings/whatsapp/refresh', [App\Http\Controllers\User\WhatsAppUserSettingsController::class, 'refreshWhatsappData']);
+                    Route::post('/settings/whatsapp/token', [App\Http\Controllers\User\WhatsAppUserSettingsController::class, 'updateToken']);
+                    Route::post('/settings/whatsapp', [App\Http\Controllers\User\WhatsAppUserSettingsController::class, 'storeWhatsappSettings']);
+                    Route::post('/settings/whatsapp/business-profile', [App\Http\Controllers\User\WhatsAppUserSettingsController::class, 'whatsappBusinessProfileUpdate']);
+                    Route::delete('/settings/whatsapp/business-profile', [App\Http\Controllers\User\WhatsAppUserSettingsController::class, 'deleteWhatsappIntegration']);
 
                     // WhatsApp WebJS Session Management Routes
                     Route::prefix('settings/whatsapp-sessions')->name('whatsapp.sessions.')->group(function () {
-                        Route::get('/', [App\Http\Controllers\User\WhatsAppSessionController::class, 'index'])->name('index');
-                        Route::post('/', [App\Http\Controllers\User\WhatsAppSessionController::class, 'store'])->name('store');
-                        Route::get('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionController::class, 'show'])->name('show');
-                        Route::post('/{uuid}/set-primary', [App\Http\Controllers\User\WhatsAppSessionController::class, 'setPrimary'])->name('set-primary');
-                        Route::post('/{uuid}/disconnect', [App\Http\Controllers\User\WhatsAppSessionController::class, 'disconnect'])->name('disconnect');
-                        Route::delete('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionController::class, 'destroy'])->name('destroy');
-                        Route::post('/{uuid}/reconnect', [App\Http\Controllers\User\WhatsAppSessionController::class, 'reconnect'])->name('reconnect');
-                        Route::post('/{uuid}/regenerate-qr', [App\Http\Controllers\User\WhatsAppSessionController::class, 'regenerateQR'])->name('regenerate-qr');
-                        Route::get('/{uuid}/statistics', [App\Http\Controllers\User\WhatsAppSessionController::class, 'statistics'])->name('statistics');
+                        Route::get('/', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'index'])->name('index');
+                        Route::post('/', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'store'])->name('store');
+                        Route::get('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'show'])->name('show');
+                        Route::post('/{uuid}/set-primary', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'setPrimary'])->name('set-primary');
+                        Route::post('/{uuid}/disconnect', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'disconnect'])->name('disconnect');
+                        Route::delete('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'destroy'])->name('destroy');
+                        Route::post('/{uuid}/reconnect', [App\Http\Controllers\User\WhatsAppSessionStatusController::class, 'reconnect'])->name('reconnect');
+                        Route::post('/{uuid}/regenerate-qr', [App\Http\Controllers\User\WhatsAppSessionStatusController::class, 'regenerateQR'])->name('regenerate-qr');
+                        Route::get('/{uuid}/statistics', [App\Http\Controllers\User\WhatsAppSessionStatusController::class, 'statistics'])->name('statistics');
                     });
-                    Route::match(['get', 'post'], '/settings/contacts', [App\Http\Controllers\User\SettingController::class, 'contacts']);
-                    Route::match(['get', 'post'], '/settings/tickets', [App\Http\Controllers\User\SettingController::class, 'tickets']);
-                    Route::match(['get', 'post'], '/settings/automation', [App\Http\Controllers\User\SettingController::class, 'automation']);
+                    Route::match(['get', 'post'], '/settings/contacts', [App\Http\Controllers\User\UserSettingsController::class, 'contacts']);
+                    Route::match(['get', 'post'], '/settings/tickets', [App\Http\Controllers\User\UserSettingsController::class, 'tickets']);
+                    Route::match(['get', 'post'], '/settings/automation', [App\Http\Controllers\User\UserSettingsController::class, 'automation']);
                     Route::resource('contact-fields', App\Http\Controllers\User\ContactFieldController::class);
 
                     Route::post('/team/invite', [App\Http\Controllers\User\TeamController::class, 'invite'])->name('team.store');
@@ -271,12 +271,12 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::post('/support/{uuid}/priority', [App\Http\Controllers\Admin\TicketController::class, 'changePriority']);
     Route::post('/support/{uuid}/assign', [App\Http\Controllers\Admin\TicketController::class, 'assign']);
 
-    Route::get(RouteConstants::SETTINGS_PATH, [App\Http\Controllers\Admin\SettingController::class, 'index']);
-    Route::match(['get', 'post'], '/settings/general', [App\Http\Controllers\Admin\SettingController::class, 'general']);
-    Route::put('/settings', [App\Http\Controllers\Admin\SettingController::class, 'update']);
-    Route::get('/settings/smtp', [App\Http\Controllers\Admin\SettingController::class, 'email']);
-    Route::get('/settings/broadcast-drivers', [App\Http\Controllers\Admin\SettingController::class, 'broadcast_driver']);
-    Route::match(['get', 'post'], '/settings/timezone', [App\Http\Controllers\Admin\SettingController::class, 'timezone']);
+    Route::get(RouteConstants::SETTINGS_PATH, [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'index']);
+    Route::match(['get', 'post'], '/settings/general', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'general']);
+    Route::put('/settings', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'update']);
+    Route::get('/settings/smtp', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'email']);
+    Route::get('/settings/broadcast-drivers', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'broadcast_driver']);
+    Route::match(['get', 'post'], '/settings/timezone', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'timezone']);
     Route::get('/settings/email-templates', [App\Http\Controllers\Admin\EmailTemplateController::class, 'index']);
     Route::get('/settings/email-template/{id}', [App\Http\Controllers\Admin\EmailTemplateController::class, 'show']);
     Route::put('/settings/email-template/{id}', [App\Http\Controllers\Admin\EmailTemplateController::class, 'update']);
@@ -285,10 +285,10 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::get(RouteConstants::SETTINGS_PAGE_PATH, [App\Http\Controllers\Admin\PagesController::class, 'show']);
     Route::put(RouteConstants::SETTINGS_PAGE_PATH, [App\Http\Controllers\Admin\PagesController::class, 'update']);
     Route::delete(RouteConstants::SETTINGS_PAGE_PATH, [App\Http\Controllers\Admin\PagesController::class, 'delete']);
-    Route::match(['get', 'post'], '/settings/billing', [App\Http\Controllers\Admin\SettingController::class, 'billing']);
-    Route::get('/settings/storage', [App\Http\Controllers\Admin\SettingController::class, 'storage']);
-    Route::get('/settings/socials', [App\Http\Controllers\Admin\SettingController::class, 'socials']);
-    Route::get('/settings/subscription', [App\Http\Controllers\Admin\SettingController::class, 'subscription']);
+    Route::match(['get', 'post'], '/settings/billing', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'billing']);
+    Route::get('/settings/storage', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'storage']);
+    Route::get('/settings/socials', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'socials']);
+    Route::get('/settings/subscription', [App\Http\Controllers\Admin\AdminGeneralSettingsController::class, 'subscription']);
 
     Route::get('/updates', [App\Http\Controllers\Admin\UpdateController::class, 'index']);
     Route::get('/updates/check', [App\Http\Controllers\Admin\UpdateController::class, 'checkUpdate']);
