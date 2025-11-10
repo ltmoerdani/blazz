@@ -25,9 +25,9 @@ class RegistrationController extends BaseController
 {
     protected $userService;
 
-    public function __construct(UserService $userService)
+    public function __construct()
     {
-        $this->userService = $userService;
+        $this->userService = new UserService('user');
     }
 
     /**
@@ -66,12 +66,12 @@ class RegistrationController extends BaseController
             }
 
             // Create user
-            $user = $this->userService->createUser([
-                'name' => $request->name,
+            $user = User::create([
+                'first_name' => $request->name,
+                'last_name' => '',
                 'email' => $request->email,
-                'password' => $request->password,
+                'password' => bcrypt($request->password),
                 'phone' => $request->phone ?? null,
-                'status' => 'active',
                 'email_verified_at' => now(),
             ]);
 
@@ -171,12 +171,12 @@ class RegistrationController extends BaseController
             // Create user if doesn't exist
             $user = User::where('email', $request->email)->first();
             if (!$user) {
-                $user = $this->userService->createUser([
-                    'name' => $request->name,
+                $user = User::create([
+                    'first_name' => $request->name,
+                    'last_name' => '',
                     'email' => $request->email,
-                    'password' => $request->password,
+                    'password' => bcrypt($request->password),
                     'phone' => $request->phone ?? null,
-                    'status' => 'active',
                     'email_verified_at' => now(),
                 ]);
             }
@@ -234,13 +234,14 @@ class RegistrationController extends BaseController
 
         $workspace = workspace::create([
             'name' => $request->company_name ?? $user->name . "'s Workspace",
-            'owner_id' => $user->id,
-            'status' => 'active',
-            'trial_expires_at' => now()->addDays($trialPeriod),
-            'max_whatsapp_sessions' => 1, // Default limit
+            'address' => $request->country ?? 'Unknown',
             'timezone' => $request->timezone ?? 'UTC',
-            'country' => $request->country ?? 'US',
-            'currency' => $request->currency ?? 'USD',
+            'created_by' => $user->id,
+            'metadata' => [
+                'trial_expires_at' => now()->addDays($trialPeriod)->toISOString(),
+                'registration_source' => 'web',
+                'default_whatsapp_sessions_limit' => 1,
+            ]
         ]);
 
         return $workspace;
@@ -309,7 +310,8 @@ class RegistrationController extends BaseController
         }
 
         try {
-            $this->userService->sendEmailVerification($user);
+            // Send verification email manually
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\CustomEmailVerification($user));
 
             return response()->json([
                 'success' => true,
