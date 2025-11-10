@@ -2,13 +2,73 @@
 
 ## Ringkasan Eksekutif
 
-**Blazz** adalah enterprise-grade **multi-tenant WhatsApp Business Platform** yang menggunakan **Hybrid Service-Oriented Architecture** dengan **Module-Based Extension System**. Arsitektur ini menggabungkan kekuatan **MVC Pattern** sebagai foundation dengan **Service Layer Pattern** untuk business logic isolation, **Job Queue System** untuk asynchronous processing, dan **Modular Architecture** untuk feature extensibility.
+**Blazz** adalah enterprise-grade **multi-tenant WhatsApp Business Platform** yang menggunakan **Hybrid Service-Oriented Architecture with Dual-Server Integration**. Arsitektur ini menggabungkan kekuatan **MVC Pattern** sebagai foundation dengan **Service Layer Pattern** untuk business logic isolation, **Dual-Server WhatsApp Architecture** (Laravel + Node.js), **Multi-Provider WhatsApp Support**, **Job Queue System** untuk asynchronous processing, dan **Modular Architecture** untuk feature extensibility.
 
 ---
 
 ## 🎯 Arsitektur Pattern yang Digunakan
 
-### **1. Core Architecture: Enhanced MVC + Service Layer**
+### **1. Dual-Server Architecture (Primary Innovation)** ⭐
+
+Blazz menggunakan **dual-server approach** untuk WhatsApp integration:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     PRIMARY SERVER                          │
+│                  (Laravel - PHP 8.2+)                       │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │   Web App    │  │   REST API   │  │  Admin Panel │    │
+│  │  (Vue.js)    │  │  Endpoints   │  │             │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘    │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │ Controllers  │  │   Services   │  │   Models     │    │
+│  │              │  │              │  │              │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘    │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │            HTTP API TO WHATSAPP SERVICE              │  │
+│  │          /api/whatsapp/* endpoints                   │  │
+│  └─────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼ HTTP Communication
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                   SECONDARY SERVER                           │
+│               (Node.js + TypeScript)                         │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │           WHATSAPP SERVICE CORE                     │  │
+│  │                                                     │  │
+│  │  ┌──────────────┐  ┌──────────────┐                │  │
+│  │  │   Meta API   │  │ WhatsApp    │  │               │  │
+│  │  │   Adapter    │  │ Web.js      │  │               │  │
+│  │  │              │  │ Adapter     │  │               │  │
+│  │  └──────────────┘  └──────────────┘                │  │
+│  │                                                     │  │
+│  │  ┌──────────────┐  ┌──────────────┐                │  │
+│  │  │   Session    │  │   QR Code   │  │               │  │
+│  │  │ Management   │  │ Generation  │  │               │  │
+│  │  └──────────────┘  └──────────────┘                │  │
+│  └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │              EXPRESS.js SERVER                       │  │
+│  │          /internal/* endpoints                      │  │
+│  └─────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Benefits Dual-Server:**
+- ✅ **Process Isolation** - WhatsApp operations tidak block main application
+- ✅ **Technology Flexibility** - Best tool untuk job (Node.js untuk real-time)
+- ✅ **Independent Scaling** - Scale WhatsApp services separately
+- ✅ **Fault Tolerance** - WhatsApp service crash tidak down main app
+- ✅ **Performance** - Asynchronous WhatsApp operations
+
+### **2. Core Architecture: Enhanced MVC + Service Layer**
 
 Blazz mengimplementasikan **Enhanced MVC Pattern** dengan additional **Service Layer** untuk memisahkan business logic dari controller logic:
 
@@ -289,7 +349,61 @@ class SendCampaignJob implements ShouldQueue
 
 ---
 
-### **5. Module System - Feature Extensibility** 🔌
+### **5. Multi-Provider WhatsApp System** 📱
+
+**Dynamic Provider Selection Pattern:**
+
+```php
+// Laravel Service Provider Selection
+class WhatsAppProviderSelector
+{
+    public function getProvider($workspaceId): WhatsAppProviderInterface
+    {
+        $workspace = Workspace::find($workspaceId);
+
+        return match ($workspace->whatsapp_provider) {
+            'meta_api' => new MetaApiProvider($workspace),
+            'web_js' => new WebJsProvider($workspace),
+            'fallback' => new FallbackProvider($workspace),
+            default => throw new InvalidProviderException()
+        };
+    }
+}
+
+// Node.js Provider Management
+class WhatsAppServiceManager
+{
+    private providers: Map<string, WhatsAppProvider> = new Map();
+
+    async switchProvider(workspaceId: string, providerType: string): Promise<void> {
+        const provider = this.createProvider(providerType);
+        await this.migrateSessions(workspaceId, provider);
+        this.providers.set(workspaceId, provider);
+    }
+}
+```
+
+**Supported Providers:**
+1. **Meta API (Cloud)**
+   - Official WhatsApp Business API
+   - High throughput (up to 250K messages/day)
+   - Rate limited: 80 messages/second
+   - Reliable production-ready
+
+2. **WhatsApp Web.js (Browser Automation)**
+   - Browser-based WhatsApp Web
+   - Lower cost, unlimited rate
+   - Risk: Account ban for commercial use
+   - Good for testing/small scale
+
+3. **Provider Auto-Switching**
+   - Failover mechanism
+   - Session migration between providers
+   - Configuration-based selection
+
+---
+
+### **6. Module System - Feature Extensibility** 🔌
 
 **Responsibilities:**
 - Third-party integrations
