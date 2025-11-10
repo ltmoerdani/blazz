@@ -1,23 +1,27 @@
 # 📊 Arsitektur Proyek Blazz - Executive Summary
 
-**Document Created:** October 6, 2025  
-**Project:** Blazz - Enterprise WhatsApp Business Platform  
-**Laravel Version:** 12.29.0  
-**Architecture Type:** Hybrid Service-Oriented Modular Architecture
+**Document Created:** October 6, 2025
+**Last Updated:** November 10, 2025
+**Project:** Blazz - Enterprise WhatsApp Business Platform
+**Laravel Version:** 12.29.0
+**Architecture Type:** Hybrid Service-Oriented Modular Architecture with Dual-Server WhatsApp Integration
 
 ---
 
 ## 🎯 Tipe Arsitektur yang Digunakan
 
-**Blazz menggunakan:** **Hybrid Service-Oriented Modular Architecture**
+**Blazz menggunakan:** **Hybrid Service-Oriented Modular Architecture with Dual-Server Integration**
 
 Kombinasi dari:
 1. ✅ **Enhanced MVC Pattern** (Foundation)
 2. ✅ **Service Layer Pattern** (Business Logic)
-3. ✅ **Job Queue System** (Async Processing)
-4. ✅ **Module Architecture** (Extensibility)
-5. ✅ **Multi-tenancy Design** (Workspace Isolation)
-6. ✅ **Event-Driven Communication** (Real-time)
+3. ✅ **Dual-Server WhatsApp Architecture** (Laravel + Node.js)
+4. ✅ **Multi-Provider WhatsApp Support** (Meta API + Web.js)
+5. ✅ **Job Queue System** (Async Processing)
+6. ✅ **Module Architecture** (Extensibility)
+7. ✅ **Multi-tenancy Design** (Workspace Isolation)
+8. ✅ **Event-Driven Communication** (Real-time)
+9. ✅ **Provider Selection Pattern** (Dynamic WhatsApp Provider)
 
 ---
 
@@ -66,7 +70,21 @@ Kombinasi dari:
   - Soft deletes
   - Timezone handling
 
-### **6. Module Layer**
+### **6. Dual-Server WhatsApp Architecture** 🔥
+- **Primary Server:** Laravel application (PHP)
+- **Secondary Server:** Node.js WhatsApp Service (TypeScript)
+- **Communication:** HTTP API + Redis pub/sub
+- **Location:** `whatsapp-service/` (Node.js), `app/Services/WhatsApp/` (Laravel)
+- **Features:** Session persistence, auto-reconnect, QR generation
+
+### **7. Multi-Provider System**
+- **Providers:** Meta API (Cloud), WhatsApp Web.js (Browser-based)
+- **Pattern:** Adapter + Strategy pattern
+- **Selector:** Dynamic provider selection based on configuration
+- **Location:** `app/Services/WhatsApp/Adapters/`
+- **Flexibility:** Easy switching between providers
+
+### **8. Module Layer**
 - **Pattern:** Plugin architecture
 - **Responsibility:** Feature extensions, third-party integrations
 - **Location:** `modules/`
@@ -87,6 +105,12 @@ Middleware Stack (Auth, Validation, Rate Limit)
 Controller (Thin, delegates to service)
   ↓
 Service Layer (Business logic execution)
+  ↓
+  ├─> WhatsApp Operations → WhatsApp Service (Node.js) via HTTP API
+  │       ↓
+  │   WhatsApp Provider (Meta API / Web.js)
+  │       ↓
+  │   Session Management & Message Delivery
   ↓
 Model/Database (Data operations)
   ↓
