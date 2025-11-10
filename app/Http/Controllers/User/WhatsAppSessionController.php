@@ -123,7 +123,21 @@ class WhatsAppSessionController extends Controller
                     $response = response()->json([
                         'success' => true,
                         'message' => 'WhatsApp session created successfully. QR code will be sent via websocket.',
-                        'session' => $session,
+                        'session' => [
+                            'id' => $session->id,
+                            'uuid' => $session->uuid,
+                            'session_id' => $session->session_id,
+                            'phone_number' => $session->phone_number,
+                            'provider_type' => $session->provider_type,
+                            'status' => $session->status,
+                            'is_primary' => $session->is_primary,
+                            'is_active' => $session->is_active,
+                            'last_activity_at' => $session->last_activity_at,
+                            'last_connected_at' => $session->last_connected_at,
+                            'health_score' => $session->health_score,
+                            'formatted_phone_number' => $session->formatted_phone_number,
+                            'created_at' => $session->created_at,
+                        ],
                         // QR code will be sent via webhook/websocket event
                         'qr_code' => null,
                     ]);
@@ -548,13 +562,39 @@ class WhatsAppSessionController extends Controller
             ->where('status', 'connected')
             ->count();
 
-        // Get plan limits from subscription_plans table or workspace settings
+        // Get plan limits from subscription metadata or workspace settings
         $workspace = \App\Models\Workspace::find($workspaceId);
-        if ($workspace && $workspace->subscription) {
-            $maxSessions = $workspace->subscription->plan->whatsapp_sessions_limit ?? 10;
+        $maxSessions = 10; // Default fallback
+
+        if ($workspace && $workspace->subscription && $workspace->subscription->plan) {
+            // Try to get from plan metadata first
+            $metadata = $workspace->subscription->plan->metadata;
+            if ($metadata && is_string($metadata)) {
+                $decodedMetadata = json_decode($metadata, true);
+                if ($decodedMetadata && isset($decodedMetadata['limits']['whatsapp_sessions'])) {
+                    $maxSessions = (int) $decodedMetadata['limits']['whatsapp_sessions'];
+                } elseif (isset($decodedMetadata['features'])) {
+                    // Fallback: parse from features text (e.g., "1 WhatsApp Session")
+                    foreach ($decodedMetadata['features'] as $feature) {
+                        if (str_contains(strtolower($feature), 'whatsapp session')) {
+                            preg_match('/(\d+)/', $feature, $matches);
+                            if (isset($matches[1])) {
+                                $maxSessions = (int) $matches[1];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         } else {
-            // Fallback to workspace settings or default (set to 10 for development)
-            $maxSessions = $workspace->settings()->where('key', 'whatsapp_sessions_limit')->first()?->value ?? 10;
+            // Fallback to workspace metadata or default if no subscription
+            $metadata = $workspace->metadata;
+            if ($metadata && is_string($metadata)) {
+                $decodedMetadata = json_decode($metadata, true);
+                $maxSessions = $decodedMetadata['default_whatsapp_sessions_limit'] ?? 10;
+            } else {
+                $maxSessions = 10; // Default fallback
+            }
         }
 
         return $currentCount < $maxSessions;

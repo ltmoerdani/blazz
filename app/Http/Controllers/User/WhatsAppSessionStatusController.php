@@ -175,57 +175,49 @@ class WhatsAppSessionStatusController extends Controller
     public function reconnect(string $uuid)
     {
         $workspaceId = session('current_workspace');
+        $response = null;
 
         $session = WhatsAppSession::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
-        try {
-            // Reset session status for reconnection
-            $session->update([
-                'status' => 'connecting',
-                'is_active' => false,
-                'qr_code' => null,
-                'qr_expires_at' => null,
-                'session_id' => 'webjs_' . $workspaceId . '_' . time() . '_' . Str::random(8),
-                'last_activity_at' => now()
-            ]);
-
-            // Fire status changed event
-            event(new WhatsAppSessionStatusChangedEvent(
-                $session->session_id,
-                'connecting',
-                $workspaceId,
-                $session->phone_number,
-                [
-                    'action' => 'reconnect',
-                    'uuid' => $session->uuid,
-                    'timestamp' => now()->toISOString()
-                ]
-            ));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Session reconnection initiated',
-                'data' => [
-                    'uuid' => $session->uuid,
-                    'status' => $session->status,
-                    'session_id' => $session->session_id
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to reconnect WhatsApp session', [
-                'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
-                'workspace_id' => $workspaceId
-            ]);
-
-            return response()->json([
+        if ($session->status === 'connected') {
+            $response = response()->json([
                 'success' => false,
-                'message' => 'Failed to reconnect session: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Session is already connected'
+            ], 400);
+        } else {
+            try {
+                $adapter = new WebJSAdapter($workspaceId, $session);
+                $result = $adapter->reconnectSession();
+
+                if (!$result['success']) {
+                    $response = response()->json([
+                        'success' => false,
+                        'message' => $result['error'] ?? 'Failed to reconnect session'
+                    ], 500);
+                } else {
+                    $response = response()->json([
+                        'success' => true,
+                        'message' => 'Reconnection initiated. Please scan QR code.',
+                        'qr_code' => $result['qr_code'] ?? null,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to reconnect WhatsApp session', [
+                    'workspace_id' => $workspaceId,
+                    'session_id' => $session->session_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $response = response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reconnect session: ' . $e->getMessage()
+                ], 500);
+            }
         }
+
+        return $response;
     }
 
     /**
@@ -292,11 +284,7 @@ class WhatsAppSessionStatusController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'QR code regenerated successfully',
-                    'data' => [
-                        'qr_code' => $qrResult['qr_code'],
-                        'qr_expires_at' => $session->qr_expires_at,
-                        'status' => $session->status
-                    ]
+                    'qr_code' => $qrResult['qr_code'],
                 ]);
             }
 
