@@ -16,12 +16,12 @@ class TeamController extends BaseController
     /**
      * TeamController constructor.
      *
-     * @param UserService $userService
      * @param string $role
      */
     public function __construct($role = 'admin')
     {
-        $this->userService = new UserService($role);
+        // Use admin-specific user service
+        $this->userService = app('App\Services\AdminUserService');
         $this->role = $role;
     }
 

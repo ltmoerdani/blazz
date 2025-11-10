@@ -29,26 +29,20 @@ use App\Services\SocialLoginService;
 use App\Services\ModuleService;
 use App\Services\SubscriptionService;
 use App\Services\SubscriptionPlanService;
-use App\Models\workspace;
+use App\Services\TemplateService;
+use App\Helpers\WorkspaceHelper;
 
 class BusinessServiceProvider extends ServiceProvider
 {
     /**
-     * Get current workspace from session/auth
+     * Workspace resolution moved to WorkspaceHelper to eliminate duplication
      */
-    private function getCurrentWorkspace(): workspace
-    {
-        $workspaceId = session()->get('current_workspace') 
-            ?? \Illuminate\Support\Facades\Auth::user()?->teams->first()?->workspace_id 
-            ?? 1;
-        return workspace::findOrFail($workspaceId);
-    }
 
     public function register(): void
     {
         // Auto Reply Service
         $this->app->singleton(AutoReplyService::class, function ($app) {
-            $workspace = $this->getCurrentWorkspace();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
             return new AutoReplyService(
                 $workspace->id,
                 $app->make('App\Services\WhatsApp\MessageSendingService'),
@@ -58,24 +52,29 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Campaign Service
         $this->app->singleton(CampaignService::class, function ($app) {
-            $workspace = $this->getCurrentWorkspace();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
             return new CampaignService($workspace->id);
         });
 
-        // User Service
-        $this->app->singleton(UserService::class, function ($app) {
-            return new UserService($app->make('App\Models\Role'));
+        // User Service - with role support
+        $this->app->bind(UserService::class, function ($app) {
+            return new UserService('user'); // default role
+        });
+
+        // Admin User Service
+        $this->app->bind('App\Services\AdminUserService', function ($app) {
+            return new UserService('admin');
         });
 
         // Billing Service
         $this->app->singleton(BillingService::class, function ($app) {
-            $workspace = $this->getCurrentWorkspace();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
             return new BillingService($workspace->id);
         });
 
         // Team Service
         $this->app->singleton(TeamService::class, function ($app) {
-            $workspace = $this->getCurrentWorkspace();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
             return new TeamService($workspace->id);
         });
 
@@ -96,13 +95,13 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Contact Provisioning Service
         $this->app->singleton(ContactProvisioningService::class, function ($app) {
-            $workspace = $this->getCurrentWorkspace();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
             return new ContactProvisioningService($workspace->id);
         });
 
         // Contact Field Service
         $this->app->singleton(ContactFieldService::class, function ($app) {
-            $workspace = $this->getCurrentWorkspace();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
             return new ContactFieldService($workspace->id);
         });
 
@@ -178,13 +177,23 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Subscription Service
         $this->app->singleton(SubscriptionService::class, function ($app) {
-            $workspace = $this->getCurrentWorkspace();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
             return new SubscriptionService($workspace->id);
         });
 
         // Subscription Plan Service
         $this->app->singleton(SubscriptionPlanService::class, function ($app) {
             return new SubscriptionPlanService();
+        });
+
+        // Template Service
+        $this->app->singleton(TemplateService::class, function ($app) {
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new TemplateService(
+                $workspace->id,
+                $app->make('App\Services\WhatsApp\TemplateManagementService'),
+                $app->make('App\Services\WhatsApp\MessageSendingService')
+            );
         });
     }
 }

@@ -16,16 +16,17 @@ use Validator;
 class TemplateController extends BaseController
 {
     private TemplateService $templateService;
+    private TemplateManagementService $templateManagementService;
+    private MessageSendingService $messageSendingService;
 
     public function __construct(
+        TemplateService $templateService,
         TemplateManagementService $templateManagementService,
         MessageSendingService $messageSendingService
     ) {
-        $this->templateService = new TemplateService(
-            session()->get('current_workspace'),
-            $templateManagementService,
-            $messageSendingService
-        );
+        $this->templateService = $templateService;
+        $this->templateManagementService = $templateManagementService;
+        $this->messageSendingService = $messageSendingService;
     }
 
     private function templateService()
