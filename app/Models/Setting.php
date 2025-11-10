@@ -15,10 +15,10 @@ class Setting extends Model
     protected $fillable = ['key', 'value'];
     public $timestamps = false;
 
-    public static function getValueByKey($key)
+    public static function getValueByKey($key, $default = null)
     {
         $setting = self::where('key', $key)->first();
 
-        return $setting ? $setting->value : null;
+        return $setting ? $setting->value : $default;
     }
 }
