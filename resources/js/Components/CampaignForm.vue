@@ -12,6 +12,10 @@
         templates: Object,
         contactGroups: Object,
         settings: Array,
+        whatsappSessions: {
+            type: Array,
+            default: () => []
+        },
         contact: {
             type: String,
             default: null
@@ -40,6 +44,17 @@
     const templateOptions = ref([]);
     const config = ref(props.settings?.metadata);
     const settings = ref(config.value ? JSON.parse(config.value) : null);
+
+    // Check if WhatsApp is connected via either Meta API or WhatsApp Web JS
+    const isWhatsAppConnected = computed(() => {
+        // Check for Meta API connection
+        const hasMetaApi = settings.value?.whatsapp;
+
+        // Check for WhatsApp Web JS sessions
+        const hasWebJsSessions = props.whatsappSessions && props.whatsappSessions.length > 0;
+
+        return hasMetaApi || hasWebJsSessions;
+    });
 
     const variableOptions = ref([
         { value: 'static', label: trans('static') },
@@ -233,16 +248,37 @@
 </script>
 <template>
     <div :class="'md:flex md:flex-grow-1'">
-        <div v-if="!settings?.whatsapp" class="md:w-[50%] p-4 md:p-8 overflow-y-auto h-[90vh]">
+        <div v-if="!isWhatsAppConnected" class="md:w-[50%] p-4 md:p-8 overflow-y-auto h-[90vh]">
             <div class="bg-slate-50 border border-primary shadow rounded-md p-4 py-8">
                 <div class="flex justify-center mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 48 48"><path fill="black" d="M43.634 4.366a1.25 1.25 0 0 1 0 1.768l-4.913 4.913a9.253 9.253 0 0 1-.744 12.244l-3.343 3.343a1.25 1.25 0 0 1-1.768 0l-11.5-11.5a1.25 1.25 0 0 1 0-1.768l3.343-3.343a9.25 9.25 0 0 1 12.244-.743l4.913-4.914a1.25 1.25 0 0 1 1.768 0m-7.611 7.425a6.75 6.75 0 0 0-9.546 0l-2.46 2.459l9.733 9.732l2.46-2.459a6.75 6.75 0 0 0 0-9.546zM9.28 36.953l-4.914 4.913a1.25 1.25 0 0 0 1.768 1.768l4.913-4.913a9.253 9.253 0 0 0 12.244-.744l3.343-3.343a1.25 1.25 0 0 0 0-1.768L25.268 31.5l3.366-3.366a1.25 1.25 0 0 0-1.768-1.768L23.5 29.732L18.268 24.5l3.366-3.366a1.25 1.25 0 0 0-1.768-1.768L16.5 22.732l-1.366-1.366a1.25 1.25 0 0 0-1.768 0l-3.343 3.343a9.25 9.25 0 0 0-.743 12.244m2.51-10.476l2.46-2.46l9.732 9.733l-2.459 2.46a6.75 6.75 0 0 1-9.546 0l-.186-.187a6.75 6.75 0 0 1 0-9.546"/></svg>
                 </div>
                 <h3 class="text-center text-lg font-medium mb-4">{{ $t('Connect your whatsapp account') }}</h3>
                 <h4 class="text-center mb-4">{{ $t('You need to connect your WhatsApp account first before you can send out campaigns.') }}</h4>
-                <div class="flex justify-center">
+
+                <!-- Show connection status details -->
+                <div class="text-center mb-4 text-sm text-gray-600">
+                    <div v-if="!settings?.whatsapp && (!whatsappSessions || whatsappSessions.length === 0)" class="mb-2">
+                        <p class="mb-2">{{ $t('No WhatsApp connection found. You can connect via:') }}</p>
+                        <div class="space-y-1">
+                            <p>• {{ $t('Meta API (Business API)') }}</p>
+                            <p>• {{ $t('WhatsApp Web JS (Direct connection)') }}</p>
+                        </div>
+                    </div>
+                    <div v-if="!settings?.whatsapp && whatsappSessions && whatsappSessions.length > 0" class="mb-2">
+                        <p class="text-green-600">{{ $t('WhatsApp Web JS sessions found, but none are connected.') }}</p>
+                    </div>
+                    <div v-if="settings?.whatsapp && (!whatsappSessions || whatsappSessions.length === 0)" class="mb-2">
+                        <p class="text-green-600">{{ $t('Meta API is configured.') }}</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center space-x-3">
                     <Link href="/settings/whatsapp" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 bg-primary" :disabled="isLoading">
-                        <span v-if="!isLoading">{{ $t('Connect Whatsapp account') }}</span>
+                        <span v-if="!isLoading">{{ $t('Connect Meta API') }}</span>
+                    </Link>
+                    <Link href="/settings/whatsapp/sessions" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 bg-green-600" :disabled="isLoading">
+                        <span v-if="!isLoading">{{ $t('Manage WhatsApp Sessions') }}</span>
                     </Link>
                 </div>
             </div>
