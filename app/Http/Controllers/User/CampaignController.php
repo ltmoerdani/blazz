@@ -13,6 +13,7 @@ use App\Models\ContactGroup;
 use App\Models\workspace;
 use App\Models\Template;
 use App\Services\CampaignService;
+use App\Models\WhatsAppSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
@@ -58,6 +59,24 @@ class CampaignController extends BaseController
             $data['contactGroups'] = ContactGroup::where('workspace_id', $workspaceId)
                 ->where('deleted_at', null)
                 ->get();
+
+            // Get WhatsApp sessions for WebJS compatibility check
+            $data['whatsappSessions'] = WhatsAppSession::forWorkspace($workspaceId)
+                ->where('status', 'connected')
+                ->get()
+                ->map(function ($session) {
+                    return [
+                        'id' => $session->id,
+                        'uuid' => $session->uuid,
+                        'session_id' => $session->session_id,
+                        'phone_number' => $session->phone_number,
+                        'provider_type' => $session->provider_type,
+                        'status' => $session->status,
+                        'is_primary' => $session->is_primary,
+                        'is_active' => $session->is_active,
+                        'formatted_phone_number' => $session->formatted_phone_number,
+                    ];
+                });
 
             $data['title'] = __('Create campaign');
 
