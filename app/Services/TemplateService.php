@@ -6,6 +6,7 @@ use App\Events\NewChatEvent;
 use App\Http\Resources\TemplateResource;
 use App\Models\workspace;
 use App\Models\Template;
+use App\Models\WhatsAppSession;
 use App\Services\WhatsappService;
 use App\Services\WhatsApp\TemplateManagementService;
 use App\Services\WhatsApp\MessageSendingService;
@@ -113,7 +114,25 @@ class TemplateService
         if ($request->isMethod('get')){
             $data['languages'] = config('languages');
             $data['settings'] = workspace::where('id', $this->workspaceId)->first();
-            
+
+            // Get WhatsApp sessions for WebJS compatibility check
+            $data['whatsappSessions'] = WhatsAppSession::forWorkspace($this->workspaceId)
+                ->where('status', 'connected')
+                ->get()
+                ->map(function ($session) {
+                    return [
+                        'id' => $session->id,
+                        'uuid' => $session->uuid,
+                        'session_id' => $session->session_id,
+                        'phone_number' => $session->phone_number,
+                        'provider_type' => $session->provider_type,
+                        'status' => $session->status,
+                        'is_primary' => $session->is_primary,
+                        'is_active' => $session->is_active,
+                        'formatted_phone_number' => $session->formatted_phone_number,
+                    ];
+                });
+
             return Inertia::render('User/Templates/Add', $data);
         } elseif ($request->isMethod('post')){
             if ($response = $this->abortIfDemo('create')) {
