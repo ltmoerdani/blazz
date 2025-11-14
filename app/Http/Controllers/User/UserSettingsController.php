@@ -9,6 +9,7 @@ use App\Models\workspace;
 use App\Models\Setting;
 use App\Services\ContactFieldService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -84,7 +85,7 @@ class UserSettingsController extends BaseController
             'timezones' => config('formats.timezones'),
         ];
 
-        return Inertia::render('User/Settings/Contacts', $data);
+        return Inertia::render('User/Settings/Contact', $data);
     }
 
     /**
@@ -101,7 +102,7 @@ class UserSettingsController extends BaseController
             'sounds' => config('sounds'),
         ];
 
-        return Inertia::render('User/Settings/Tickets', $data);
+        return Inertia::render('User/Settings/Ticket', $data);
     }
 
     /**
@@ -360,6 +361,9 @@ class UserSettingsController extends BaseController
             $workspace = workspace::findOrFail($workspaceId);
             $contactFields = $this->contactFieldService->getFields($workspaceId);
 
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+            
             $exportData = [
                 'workspace' => [
                     'name' => $workspace->name,
@@ -371,7 +375,7 @@ class UserSettingsController extends BaseController
                 ],
                 'contact_fields' => $contactFields,
                 'exported_at' => now()->toISOString(),
-                'exported_by' => auth()->user()->email,
+                'exported_by' => $user ? $user->email : null,
             ];
 
             $filename = 'user_settings_' . $workspace->id . '_' . date('Y-m-d_H-i-s') . '.json';
