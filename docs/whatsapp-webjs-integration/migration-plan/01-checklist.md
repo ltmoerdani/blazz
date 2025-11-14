@@ -138,6 +138,7 @@
 - Documentation files (all `.md` files)
 - All test files (already current)
 - Log files and backup files
+- **Language files** (`resources/lang/en.json`, `resources/lang/id.json`) - Low priority
 
 ### **Immediate Risk Mitigation Required:**
 1. **Database backup** before any migration
