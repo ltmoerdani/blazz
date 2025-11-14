@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
         $tfaData = $this->getTwoFactorAuthData($user);
         $workspaceData = $this->getWorkspaceData($user);
         $appConfig = $this->getApplicationConfig();
+        $translations = $this->getCurrentTranslations($language);
 
         return array_merge(parent::share($request), [
             'csrf_token' => csrf_token(),
@@ -60,6 +61,7 @@ class HandleInertiaRequests extends Middleware
             'languages' => $appConfig['languages'],
             'unreadMessages' => $workspaceData['unreadMessages'],
             'currentLanguage' => $language,
+            'translations' => $translations,
             'tfa' => [
                 'status' => $tfaData['active'],
                 'secret' => $tfaData['secret'],
@@ -155,6 +157,34 @@ class HandleInertiaRequests extends Middleware
         $isRtl = $currentLanguage ? $currentLanguage->is_rtl : false;
 
         return ['config' => $config, 'languages' => $languages, 'isRtl' => $isRtl];
+    }
+
+    /**
+     * Get current language translations.
+     *
+     * @param string $languageCode
+     * @return array
+     */
+    private function getCurrentTranslations(string $languageCode): array
+    {
+        if (!$this->isInstalled()) {
+            return [];
+        }
+
+        // Try to load from JSON file first
+        $translationPath = base_path("lang/{$languageCode}.json");
+
+        if (file_exists($translationPath)) {
+            return json_decode(file_get_contents($translationPath), true) ?? [];
+        }
+
+        // Fallback to default language
+        $fallbackPath = base_path("lang/en.json");
+        if (file_exists($fallbackPath)) {
+            return json_decode(file_get_contents($fallbackPath), true) ?? [];
+        }
+
+        return [];
     }
 
     /**
