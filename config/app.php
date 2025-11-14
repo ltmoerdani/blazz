@@ -19,6 +19,11 @@ $providers = [
     App\Providers\RouteServiceProvider::class,
     App\Providers\RecaptchaServiceProvider::class,
     Mews\Purifier\PurifierServiceProvider::class,
+
+    // NEW: Domain-specific service providers for Phase 4 migration
+    App\Providers\BusinessServiceProvider::class,
+    App\Providers\UtilityServiceProvider::class,
+    App\Providers\WhatsAppServiceProvider::class,
 ];
 
 // Conditionally add module service providers if they exist

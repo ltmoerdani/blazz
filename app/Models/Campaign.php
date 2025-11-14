@@ -6,13 +6,63 @@ use App\Helpers\DateTimeHelper;
 use App\Http\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Campaign extends Model {
     use HasFactory;
     use HasUuid;
+    use SoftDeletes;
 
     protected $guarded = [];
     public $timestamps = false;
+
+    protected $fillable = [
+        'uuid',
+        'workspace_id',
+        'name',
+        'campaign_type',
+        'template_id',
+        'contact_group_id',
+        'message_content',
+        'header_type',
+        'header_text',
+        'header_media',
+        'body_text',
+        'footer_text',
+        'buttons_data',
+        'preferred_provider',
+        'whatsapp_account_id',
+        'status',
+        'scheduled_at',
+        'started_at',
+        'completed_at',
+        'messages_sent',
+        'messages_delivered',
+        'messages_read',
+        'messages_failed',
+        'error_message',
+        'metadata',
+        'created_by'
+    ];
+
+    protected $casts = [
+        'buttons_data' => 'array',
+        'metadata' => 'array',
+        'scheduled_at' => 'datetime',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'campaign_type' => 'string',
+        'preferred_provider' => 'string'
+    ];
+
+    protected $attributes = [
+        'campaign_type' => 'template',
+        'preferred_provider' => 'webjs',
+        'messages_sent' => 0,
+        'messages_delivered' => 0,
+        'messages_read' => 0,
+        'messages_failed' => 0
+    ];
 
     public function getCreatedAtAttribute($value)
     {
@@ -30,7 +80,7 @@ class Campaign extends Model {
     }
 
     public function workspace(){
-        return $this->belongsTo(workspace::class, 'workspace_id', 'id');
+        return $this->belongsTo(Workspace::class, 'workspace_id', 'id');
     }
 
     public function template(){
@@ -43,6 +93,14 @@ class Campaign extends Model {
 
     public function campaignLogs(){
         return $this->hasMany(CampaignLog::class, 'campaign_id', 'id');
+    }
+
+    public function whatsappAccount(){
+        return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id', 'id');
+    }
+
+    public function creator(){
+        return $this->belongsTo(User::class, 'created_by', 'id');
     }
 
     public function contactsCount(){
@@ -106,5 +164,176 @@ class Campaign extends Model {
             ->leftJoin('chats as chat', 'chat.id', '=', 'campaign_logs.chat_id')
             ->where('campaign_logs.campaign_id', $this->id)
             ->first();
+    }
+
+    /**
+     * Hybrid Campaign Methods
+     */
+
+    /**
+     * Check if campaign is template-based
+     */
+    public function isTemplateBased(): bool
+    {
+        return $this->campaign_type === 'template';
+    }
+
+    /**
+     * Check if campaign is direct message
+     */
+    public function isDirectMessage(): bool
+    {
+        return $this->campaign_type === 'direct';
+    }
+
+    /**
+     * Get resolved message content based on campaign type
+     */
+    public function getResolvedMessageContent(): array
+    {
+        if ($this->isTemplateBased() && $this->template) {
+            return [
+                'header_type' => $this->template->header_type,
+                'header_text' => $this->template->header_text,
+                'header_media' => $this->template->header_media,
+                'body_text' => $this->template->body_text,
+                'footer_text' => $this->template->footer_text,
+                'buttons_data' => $this->template->buttons_data
+            ];
+        }
+
+        return [
+            'header_type' => $this->header_type,
+            'header_text' => $this->header_text,
+            'header_media' => $this->header_media,
+            'body_text' => $this->body_text,
+            'footer_text' => $this->footer_text,
+            'buttons_data' => $this->buttons_data ?? []
+        ];
+    }
+
+    /**
+     * Get campaign statistics using performance counters (optimized)
+     */
+    public function getStatistics(): array
+    {
+        $totalContacts = $this->contactGroupCount();
+        $sentCount = max($this->messages_sent, $this->sentCount());
+        $deliveredCount = max($this->messages_delivered, $this->deliveryCount());
+        $readCount = max($this->messages_read, $this->readCount());
+        $failedCount = max($this->messages_failed, $this->failedCount());
+
+        return [
+            'total_contacts' => $totalContacts,
+            'messages_sent' => $sentCount,
+            'messages_delivered' => $deliveredCount,
+            'messages_read' => $readCount,
+            'messages_failed' => $failedCount,
+            'pending_count' => max(0, $totalContacts - $sentCount - $failedCount),
+            'delivery_rate' => $sentCount > 0 ? round(($deliveredCount / $sentCount) * 100, 2) : 0,
+            'read_rate' => $deliveredCount > 0 ? round(($readCount / $deliveredCount) * 100, 2) : 0,
+            'success_rate' => $totalContacts > 0 ? round(($sentCount / $totalContacts) * 100, 2) : 0,
+        ];
+    }
+
+    /**
+     * Update performance counters (optimized for large campaigns)
+     */
+    public function updatePerformanceCounters(): void
+    {
+        $counts = $this->getCounts();
+
+        $this->update([
+            'messages_sent' => $counts->total_sent_count ?? 0,
+            'messages_delivered' => $counts->total_delivered_count ?? 0,
+            'messages_read' => $counts->total_read_count ?? 0,
+            'messages_failed' => $counts->total_failed_count ?? 0,
+        ]);
+    }
+
+    /**
+     * Mark campaign as started
+     */
+    public function markAsStarted(): void
+    {
+        $this->update([
+            'status' => 'ongoing',
+            'started_at' => now(),
+        ]);
+    }
+
+    /**
+     * Mark campaign as completed
+     */
+    public function markAsCompleted(): void
+    {
+        $this->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
+        // Update final performance counters
+        $this->updatePerformanceCounters();
+    }
+
+    /**
+     * Mark campaign as failed
+     */
+    public function markAsFailed(string $errorMessage): void
+    {
+        $this->update([
+            'status' => 'failed',
+            'completed_at' => now(),
+            'error_message' => $errorMessage,
+        ]);
+    }
+
+    /**
+     * Check if campaign can be processed
+     */
+    public function canBeProcessed(): bool
+    {
+        return in_array($this->status, ['pending', 'scheduled']) &&
+               (!$this->scheduled_at || $this->scheduled_at->isPast());
+    }
+
+    /**
+     * Check if campaign is active (processing or completed)
+     */
+    public function isActive(): bool
+    {
+        return in_array($this->status, ['ongoing', 'completed']);
+    }
+
+    /**
+     * Scope to get campaigns by type
+     */
+    public function scopeByType($query, $type)
+    {
+        return $query->where('campaign_type', $type);
+    }
+
+    /**
+     * Scope to get campaigns by provider
+     */
+    public function scopeByProvider($query, $provider)
+    {
+        return $query->where('preferred_provider', $provider);
+    }
+
+    /**
+     * Scope to get active campaigns
+     */
+    public function scopeActive($query)
+    {
+        return $query->whereIn('status', ['pending', 'scheduled', 'ongoing']);
+    }
+
+    /**
+     * Scope to get completed campaigns
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
     }
 }

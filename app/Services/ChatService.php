@@ -18,9 +18,13 @@ use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\Template;
-use App\Models\WhatsAppSession; // NEW: For session filter dropdown
+use App\Models\WhatsAppAccount; // NEW: For session filter dropdown
 use App\Services\SubscriptionService;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MediaProcessingService;
+use App\Services\WhatsApp\TemplateManagementService;
+use App\Services\AutoReplyService;
 use App\Traits\TemplateTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,8 +33,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Exception;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -41,18 +47,39 @@ class ChatService
     // Constants for repeated string literals
     const AI_ASSISTANT_MODULE = 'AI Assistant';
 
-    private $whatsappService;
+    private MessageSendingService $messageService;
+    private MediaProcessingService $mediaService;
+    private TemplateManagementService $templateService;
+    private ?AutoReplyService $autoReplyService;
     private $workspaceId;
 
-    public function __construct($workspaceId)
-    {
+    public function __construct(
+        $workspaceId,
+        MessageSendingService $messageService,
+        MediaProcessingService $mediaService,
+        TemplateManagementService $templateService
+    ) {
         $this->workspaceId = $workspaceId;
-        $this->initializeWhatsappService();
+        $this->messageService = $messageService;
+        $this->mediaService = $mediaService;
+        $this->templateService = $templateService;
+        $this->autoReplyService = null;
     }
 
+    /**
+     * @deprecated Use constructor injection instead
+     */
+    /*
     private function initializeWhatsappService()
     {
-        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
+        $workspace = workspace::where('id', $this->workspaceId)->first();
+
+        if (!$workspace) {
+            $this->whatsappService = null;
+            return;
+        }
+
+        $config = $workspace->metadata;
         $config = $config ? json_decode($config, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -63,6 +90,7 @@ class ChatService
 
         $this->whatsappService = new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $this->workspaceId);
     }
+    */
 
     public function getChatList($request, $uuid = null, $searchTerm = null, $sessionId = null)
     {
@@ -77,7 +105,7 @@ class ChatService
         $aimodule = CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE);
 
         //Check if tickets module has been enabled
-        if($config->metadata != null){
+        if($config && $config->metadata != null){
             $settings = json_decode($config->metadata);
 
             if(isset($settings->tickets) && $settings->tickets->active === true){
@@ -141,7 +169,7 @@ class ChatService
                     'result' => ContactResource::collection($contacts)->response()->getData(),
                 ], 200);
             } else {
-                $settings = json_decode($config->metadata);
+                $settings = $config && $config->metadata ? json_decode($config->metadata) : null;
 
                 //To ensure the unread message counter is updated
                 $unreadMessages = Chat::where('workspace_id', $this->workspaceId)
@@ -151,7 +179,7 @@ class ChatService
                     ->count();
 
                 // NEW: Get WhatsApp sessions for filter dropdown (TASK-FE-1)
-                $sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
+                $sessions = WhatsAppAccount::where('workspace_id', $this->workspaceId)
                     ->where('status', 'connected')
                     ->select('id', 'phone_number', 'provider_type')
                     ->withCount(['chats as unread_count' => function ($query) {
@@ -164,14 +192,14 @@ class ChatService
                 return Inertia::render('User/Chat/Index', [
                     'title' => 'Chats',
                     'rows' => ContactResource::collection($contacts),
-                    'simpleForm' => CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) && optional(optional($settings)->ai)->ai_chat_form_active ? false : true,
+                    'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty(optional($settings)->ai->ai_chat_form_active),
                     'rowCount' => $rowCount,
                     'filters' => request()->all(),
                     'pusherSettings' => $pusherSettings,
                     'workspaceId' => $this->workspaceId,
                     'state' => app()->environment(),
                     'demoNumber' => env('DEMO_NUMBER'),
-                    'settings' => $config,
+                    'settings' => $config ?? (object)['metadata' => null],
                     'templates' => $messageTemplates,
                     'status' => $request->status ?? 'all',
                     'chatThread' => $initialMessages['messages'],
@@ -196,10 +224,10 @@ class ChatService
                 'result' => ContactResource::collection($contacts)->response()->getData(),
             ], 200);
         } else {
-            $settings = json_decode($config->metadata);
+            $settings = $config && $config->metadata ? json_decode($config->metadata) : null;
 
             // NEW: Get WhatsApp sessions for filter dropdown (TASK-FE-1)
-            $sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
+            $sessions = WhatsAppAccount::where('workspace_id', $this->workspaceId)
                 ->where('status', 'connected')
                 ->select('id', 'phone_number', 'provider_type')
                 ->withCount(['chats as unread_count' => function ($query) {
@@ -212,13 +240,13 @@ class ChatService
             return Inertia::render('User/Chat/Index', [
                 'title' => 'Chats',
                 'rows' => ContactResource::collection($contacts),
-                'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty($settings->ai->ai_chat_form_active),
+                'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty(optional($settings)->ai->ai_chat_form_active),
                 'rowCount' => $rowCount,
                 'filters' => request()->all(),
                 'pusherSettings' => $pusherSettings,
                 'workspaceId' => $this->workspaceId,
                 'state' => app()->environment(),
-                'settings' => $config,
+                'settings' => $config ?? (object)['metadata' => null],
                 'templates' => $messageTemplates,
                 'status' => $request->status ?? 'all',
                 'agents' => $agents,
@@ -226,15 +254,27 @@ class ChatService
                 'ticket' => array(),
                 'chat_sort_direction' => $sortDirection,
                 'sessions' => $sessions, // NEW: WhatsApp sessions for filter (TASK-FE-1)
-                'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit')
+                'isChatLimitReached' => SubscriptionService::isSubscriptionFeatureLimitReached($this->workspaceId, 'message_limit'),
+                // Add missing props for consistency with UUID route
+                'contact' => null,
+                'chatThread' => [],
+                'hasMoreMessages' => false,
+                'nextPage' => null,
+                'fields' => ContactField::where('workspace_id', $this->workspaceId)->where('deleted_at', null)->get(),
+                'locationSettings' => $this->getLocationSettings(),
             ]);
         }
     }
 
     public function handleTicketAssignment($contactId){
         $workspaceId = $this->workspaceId;
-        $settings = workspace::where('id', $this->workspaceId)->first();
-        $settings = json_decode($settings->metadata);
+        $workspace = workspace::where('id', $this->workspaceId)->first();
+        
+        if (!$workspace || !$workspace->metadata) {
+            return;
+        }
+        
+        $settings = json_decode($workspace->metadata);
 
         // Check if ticket functionality is active
         if(isset($settings->tickets) && $settings->tickets->active === true){
@@ -320,8 +360,10 @@ class ChatService
 
     public function sendMessage(object $request)
     {
+        // OLD: Code removed during dependency injection migration
+        // NEW: Use injected services
         if($request->type === 'text'){
-            return $this->whatsappService->sendMessage($request->uuid, $request->message, Auth::id());
+            return $this->messageService->sendMessage($request->uuid, $request->message, Auth::id());
         } else {
             $storage = Setting::where('key', 'storage_system')->first()->value;
             $fileName = $request->file('file')->getClientOriginalName();
@@ -341,13 +383,22 @@ class ChatService
                 $mediaFilePath = $s3Disk->url($uploadedFile);
                 $mediaUrl = $mediaFilePath;
             }
-    
-            $this->whatsappService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
+
+            return $this->messageService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
         }
     }
 
     public function sendTemplateMessage(object $request, $uuid)
     {
+        // OLD: Keep for reference during transition
+        /*
+        if(!$this->whatsappService) {
+            $responseObject = new \stdClass();
+            $responseObject->success = false;
+            $responseObject->message = 'WhatsApp service not available';
+            return $responseObject;
+        }
+        */
         $template = Template::where('uuid', $request->template)->first();
         $contact = Contact::where('uuid', $uuid)->first();
         $mediaId = null;
@@ -416,8 +467,9 @@ class ChatService
 
         //Build Template to send
         $template = $this->buildTemplate($template->name, $template->language, json_decode(json_encode($metadata)), $contact);
-        
-        return $this->whatsappService->sendTemplateMessage($contact->uuid, $template, Auth::id(), null, $mediaId);
+
+        // NEW: Use injected service
+        return $this->messageService->sendTemplateMessage($contact->uuid, $template, Auth::id(), null, $mediaId);
     }
 
     public function clearMessage($uuid)
@@ -474,21 +526,19 @@ class ChatService
 
     private function getLocationSettings(){
         // Retrieve the settings for the current workspace
-        $settings = workspace::where('id', $this->workspaceId)->first();
+        $workspace = workspace::where('id', $this->workspaceId)->first();
 
-        if ($settings) {
+        if ($workspace && $workspace->metadata) {
             // Decode the JSON metadata column into an associative array
-            $metadata = json_decode($settings->metadata, true);
+            $metadata = json_decode($workspace->metadata, true);
 
             if (isset($metadata['contacts'])) {
                 // If the 'contacts' key exists, retrieve the 'location' value
                 return $metadata['contacts']['location'];
-            } else {
-                return null;
             }
-        } else {
-            return null;
         }
+        
+        return null;
     }
 
     public function getChatMessages($contactId, $page = 1, $perPage = 10)
@@ -511,5 +561,277 @@ class ChatService
             'hasMoreMessages' => $chatLogs->hasMorePages(),
             'nextPage' => $chatLogs->currentPage() + 1
         ];
+    }
+
+    /**
+     * Process text message from WhatsApp webhook
+     */
+    public function processTextMessage($message, $metadata, $workspace)
+    {
+        try {
+            $contact = $this->findOrCreateContact($message, $metadata, $workspace);
+            $this->createChatFromMessage($contact, $message, 'text', $workspace);
+
+            // Handle auto-reply if enabled
+            $chat = Chat::where('contact_id', $contact->id)
+                ->where('message_id', $message['id'])
+                ->first();
+
+            if ($chat && $this->autoReplyService) {
+                $this->autoReplyService->checkAutoReply($chat, false);
+            }
+
+            // Broadcast new message event
+            event(new NewChatEvent($contact->id, [
+                'type' => 'text',
+                'message' => $message['text']['body'],
+                'message_id' => $message['id'],
+            ]));
+
+        } catch (Exception $e) {
+            Log::error('Error processing text message', [
+                'error' => $e->getMessage(),
+                'message_id' => $message['id'] ?? null,
+                'workspace_id' => $workspace->id,
+            ]);
+        }
+    }
+
+    /**
+     * Process media message from WhatsApp webhook
+     */
+    public function processMediaMessage($message, $metadata, $workspace)
+    {
+        try {
+            $contact = $this->findOrCreateContact($message, $metadata, $workspace);
+            $this->createChatFromMessage($contact, $message, $message['type'], $workspace);
+
+            // Handle auto-reply if enabled
+            $chat = Chat::where('contact_id', $contact->id)
+                ->where('message_id', $message['id'])
+                ->first();
+
+            if ($chat && $this->autoReplyService) {
+                $this->autoReplyService->checkAutoReply($chat, false);
+            }
+
+            // Broadcast new message event
+            event(new NewChatEvent($contact->id, [
+                'type' => $message['type'],
+                'message_id' => $message['id'],
+                'media_url' => $message[$message['type']]['url'] ?? null,
+            ]));
+
+        } catch (Exception $e) {
+            Log::error('Error processing media message', [
+                'error' => $e->getMessage(),
+                'message_id' => $message['id'] ?? null,
+                'workspace_id' => $workspace->id,
+            ]);
+        }
+    }
+
+    /**
+     * Process interactive message from WhatsApp webhook
+     */
+    public function processInteractiveMessage($message, $metadata, $workspace)
+    {
+        try {
+            $contact = $this->findOrCreateContact($message, $metadata, $workspace);
+            $this->createChatFromMessage($contact, $message, 'interactive', $workspace);
+
+            // Handle auto-reply if enabled
+            $chat = Chat::where('contact_id', $contact->id)
+                ->where('message_id', $message['id'])
+                ->first();
+
+            if ($chat && $this->autoReplyService) {
+                $this->autoReplyService->checkAutoReply($chat, false);
+            }
+
+            // Broadcast new message event
+            event(new NewChatEvent($contact->id, [
+                'type' => 'interactive',
+                'message_id' => $message['id'],
+                'interactive_type' => $message['interactive']['type'] ?? null,
+            ]));
+
+        } catch (Exception $e) {
+            Log::error('Error processing interactive message', [
+                'error' => $e->getMessage(),
+                'message_id' => $message['id'] ?? null,
+                'workspace_id' => $workspace->id,
+            ]);
+        }
+    }
+
+    /**
+     * Process button message from WhatsApp webhook
+     */
+    public function processButtonMessage($message, $metadata, $workspace)
+    {
+        try {
+            $contact = $this->findOrCreateContact($message, $metadata, $workspace);
+            $this->createChatFromMessage($contact, $message, 'button', $workspace);
+
+            // Handle auto-reply if enabled
+            $chat = Chat::where('contact_id', $contact->id)
+                ->where('message_id', $message['id'])
+                ->first();
+
+            if ($chat && $this->autoReplyService) {
+                $this->autoReplyService->checkAutoReply($chat, false);
+            }
+
+            // Broadcast new message event
+            event(new NewChatEvent($contact->id, [
+                'type' => 'button',
+                'message_id' => $message['id'],
+                'button_text' => $message['button']['text'] ?? null,
+            ]));
+
+        } catch (Exception $e) {
+            Log::error('Error processing button message', [
+                'error' => $e->getMessage(),
+                'message_id' => $message['id'] ?? null,
+                'workspace_id' => $workspace->id,
+            ]);
+        }
+    }
+
+    /**
+     * Process location message from WhatsApp webhook
+     */
+    public function processLocationMessage($message, $metadata, $workspace)
+    {
+        try {
+            $contact = $this->findOrCreateContact($message, $metadata, $workspace);
+            $this->createChatFromMessage($contact, $message, 'location', $workspace);
+
+            // Handle auto-reply if enabled
+            $chat = Chat::where('contact_id', $contact->id)
+                ->where('message_id', $message['id'])
+                ->first();
+
+            if ($chat && $this->autoReplyService) {
+                $this->autoReplyService->checkAutoReply($chat, false);
+            }
+
+            // Broadcast new message event
+            event(new NewChatEvent($contact->id, [
+                'type' => 'location',
+                'message_id' => $message['id'],
+                'latitude' => $message['location']['latitude'] ?? null,
+                'longitude' => $message['location']['longitude'] ?? null,
+            ]));
+
+        } catch (Exception $e) {
+            Log::error('Error processing location message', [
+                'error' => $e->getMessage(),
+                'message_id' => $message['id'] ?? null,
+                'workspace_id' => $workspace->id,
+            ]);
+        }
+    }
+
+    /**
+     * Process contacts message from WhatsApp webhook
+     */
+    public function processContactsMessage($message, $metadata, $workspace)
+    {
+        try {
+            $contact = $this->findOrCreateContact($message, $metadata, $workspace);
+            $this->createChatFromMessage($contact, $message, 'contacts', $workspace);
+
+            // Handle auto-reply if enabled
+            $chat = Chat::where('contact_id', $contact->id)
+                ->where('message_id', $message['id'])
+                ->first();
+
+            if ($chat && $this->autoReplyService) {
+                $this->autoReplyService->checkAutoReply($chat, false);
+            }
+
+            // Broadcast new message event
+            event(new NewChatEvent($contact->id, [
+                'type' => 'contacts',
+                'message_id' => $message['id'],
+                'contacts_count' => count($message['contacts'] ?? []),
+            ]));
+
+        } catch (Exception $e) {
+            Log::error('Error processing contacts message', [
+                'error' => $e->getMessage(),
+                'message_id' => $message['id'] ?? null,
+                'workspace_id' => $workspace->id,
+            ]);
+        }
+    }
+
+    /**
+     * Find or create contact from WhatsApp message
+     */
+    private function findOrCreateContact($message, $metadata, $workspace)
+    {
+        $phoneNumber = $message['from'];
+        $contactName = null;
+
+        // Try to get contact name from message if it's a new contact
+        if (isset($message['contacts'][0]['name'])) {
+            $contactName = $message['contacts'][0]['name']['formatted_name'] ??
+                          $message['contacts'][0]['name']['full_name'] ??
+                          null;
+        }
+
+        // Find existing contact by phone number
+        $contact = Contact::where('phone', $phoneNumber)
+            ->where('workspace_id', $workspace->id)
+            ->first();
+
+        if (!$contact) {
+            // Create new contact
+            $contact = new Contact();
+            $contact->uuid = Str::uuid();
+            $contact->workspace_id = $workspace->id;
+            $contact->phone = $phoneNumber;
+
+            if ($contactName) {
+                $nameParts = explode(' ', $contactName, 2);
+                $contact->first_name = $nameParts[0] ?? null;
+                $contact->last_name = $nameParts[1] ?? null;
+                $contact->full_name = $contactName;
+            }
+
+            $contact->save();
+        }
+
+        return $contact;
+    }
+
+    /**
+     * Create chat entry from message
+     */
+    private function createChatFromMessage($contact, $message, $type, $workspace)
+    {
+        $chat = new Chat();
+        $chat->uuid = Str::uuid();
+        $chat->contact_id = $contact->id;
+        $chat->workspace_id = $workspace->id;
+        $chat->message_id = $message['id'];
+        $chat->type = 'inbound';
+        $chat->metadata = json_encode($message);
+        $chat->created_at = $message['timestamp'] ?? now();
+        $chat->save();
+
+        // Create chat log entry
+        ChatLog::create([
+            'contact_id' => $contact->id,
+            'entity_type' => 'chat',
+            'entity_id' => $chat->id,
+            'created_at' => $chat->created_at,
+        ]);
+
+        // Handle ticket assignment if enabled
+        $this->handleTicketAssignment($contact->id);
     }
 }

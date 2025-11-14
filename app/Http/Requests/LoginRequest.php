@@ -34,7 +34,7 @@ class LoginRequest extends FormRequest
                 'email',
                 function ($attribute, $value, $fail) {
                     if (!$this->emailExists($this->email)) {
-                        $fail(__('This email does not exist!'));
+                        $fail(__('auth.email_not_registered'));
                     }
                 },
             ],
@@ -44,14 +44,15 @@ class LoginRequest extends FormRequest
                     $user = Auth::getProvider()->retrieveByCredentials(['email' => $this->email]);
 
                     if (!$user || !Hash::check($value, $user->getAuthPassword())) {
-                        return $fail(__('Your credentials are incorrect!'));
+                        return $fail(__('auth.password_incorrect'));
                     }
                 },
             ],
         ];
 
         // Check if recaptcha_active is 1, then add recaptcha_response rule
-        if (Addon::where('name', 'Google Recaptcha')->first()->is_active === '1') {
+        $recaptchaAddon = Addon::where('name', 'Google Recaptcha')->first();
+        if ($recaptchaAddon && $recaptchaAddon->is_active === '1') {
             $rules['recaptcha_response'] = ['required', new Recaptcha];
         }
 

@@ -33,7 +33,21 @@ blazz/
 │   ├── Resolvers/            → Custom resolvers
 │   ├── Rules/                → Custom validation rules
 │   ├── Services/             → Business logic services
+│   │   └── WhatsApp/         → WhatsApp integration services
+│   │       ├── Adapters/     → Provider adapters (Meta, WebJS)
+│   │       ├── Http/         → WhatsApp HTTP client
+│   │       └── Webhook/      → Webhook handlers
 │   └── Traits/               → Reusable traits
+├── whatsapp-service/         → Node.js WhatsApp service
+│   ├── src/
+│   │   ├── adapters/         → Provider adapters
+│   │   ├── services/         → WhatsApp services
+│   │   ├── models/           → Data models
+│   │   └── utils/            → Utility functions
+│   ├── config/               → Service configuration
+│   ├── dist/                 → Compiled JavaScript
+│   ├── package.json          → Node.js dependencies
+│   └── tsconfig.json         → TypeScript configuration
 ├── bootstrap/
 ├── config/                   → Configuration files
 ├── database/

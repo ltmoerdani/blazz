@@ -17,7 +17,12 @@
         @if($favicon)
         <link rel="icon" href="{{ url($favicon) }}">
         @endif
-        <link href="https://fonts.bunny.net/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+
+        <!-- Preload Critical Fonts -->
+        <link rel="preload" href="/resources/fonts/outfit/Outfit-Regular.ttf" as="font" type="font/ttf" crossorigin>
+        <link rel="preload" href="/resources/fonts/outfit/Outfit-Medium.ttf" as="font" type="font/ttf" crossorigin>
+        <link rel="preload" href="/resources/fonts/outfit/Outfit-SemiBold.ttf" as="font" type="font/ttf" crossorigin>
+
         @vite(['resources/js/app.js', 'resources/css/app.css'])
         @inertiaHead
         @if (!empty($google_analytics))

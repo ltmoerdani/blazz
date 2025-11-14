@@ -29,9 +29,9 @@ class PayPalService
     protected $clientId;
     protected $clientSecret;
 
-    public function __construct()
+    public function __construct(SubscriptionService $subscriptionService)
     {
-        $this->subscriptionService = new SubscriptionService();
+        $this->subscriptionService = $subscriptionService;
 
         $paypalInfo = PaymentGateway::where('name', 'Paypal')->first();
 

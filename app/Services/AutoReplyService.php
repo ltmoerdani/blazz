@@ -11,6 +11,8 @@ use App\Models\workspace;
 use App\Models\Setting;
 use App\Services\MediaService;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MediaProcessingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +26,20 @@ class AutoReplyService
 {
     // Constants for repeated string literals
     const AUTOMATED_FLOWS = 'Automated Flows';
+
+    private MessageSendingService $messageService;
+    private MediaProcessingService $mediaService;
+    private $workspaceId;
+
+    public function __construct(
+        $workspaceId,
+        MessageSendingService $messageService,
+        MediaProcessingService $mediaService
+    ) {
+        $this->workspaceId = $workspaceId;
+        $this->messageService = $messageService;
+        $this->mediaService = $mediaService;
+    }
     
     public function getRows(object $request)
     {
@@ -304,6 +320,8 @@ class AutoReplyService
         $metadata = json_decode($autoreply->metadata);
         $replyType = $metadata->type;
 
+        // OLD: Keep for reference during transition
+        /*
         if($replyType === 'text'){
             $message = $this->replacePlaceholders($workspace_id, $contact->uuid, $metadata->data->text);
             $this->initializeWhatsappService($workspace_id)->sendMessage($contact->uuid, $message);
@@ -311,22 +329,22 @@ class AutoReplyService
             $location = strpos($metadata->data->file->location, 'public\\') === 0 ? 'local' : 'amazon';
             $this->initializeWhatsappService($workspace_id)->sendMedia($contact->uuid, $replyType, $metadata->data->file->name, $metadata->data->file->location, $metadata->data->file->url, $location);
         }
+        */
+
+        // NEW: Use injected services
+        if($replyType === 'text'){
+            $message = $this->replacePlaceholders($workspace_id, $contact->uuid, $metadata->data->text);
+            $this->messageService->sendMessage($contact->uuid, $message);
+        } elseif($replyType === 'audio' || $replyType === 'image'){
+            $location = strpos($metadata->data->file->location, 'public\\') === 0 ? 'local' : 'amazon';
+            $this->messageService->sendMedia($contact->uuid, $replyType, $metadata->data->file->name, $metadata->data->file->location, $metadata->data->file->url, $location);
+        }
     }
 
-    private function initializeWhatsappService($workspaceId)
-    {
-        $config = workspace::where('id', $workspaceId)->first()->metadata;
-        $config = $config ? json_decode($config, true) : [];
-
-        $accessToken = $config['whatsapp']['access_token'] ?? null;
-        $apiVersion = config('graph.api_version');
-        $appId = $config['whatsapp']['app_id'] ?? null;
-        $phoneNumberId = $config['whatsapp']['phone_number_id'] ?? null;
-        $wabaId = $config['whatsapp']['waba_id'] ?? null;
-
-        return new WhatsappService($accessToken, $apiVersion, $appId, $phoneNumberId, $wabaId, $workspaceId);
-    }
-
+  
+    /**
+     * Replace placeholders in message with contact data
+     */
     private function replacePlaceholders($workspaceId, $contactUuid, $message){
         $workspace = workspace::where('id', $workspaceId)->first();
         $contact = Contact::with('contactGroups')->where('uuid', $contactUuid)->first();

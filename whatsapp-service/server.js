@@ -116,6 +116,22 @@ class WhatsAppSessionManager {
             // QR Code Event
             client.on('qr', async (qr) => {
                 try {
+                    const sessionMetadata = this.metadata.get(sessionId);
+                    const now = new Date();
+
+                    // Check if QR code already exists and is still valid (5 minutes)
+                    if (sessionMetadata.qrGeneratedAt) {
+                        const timeDiff = (now - sessionMetadata.qrGeneratedAt) / 1000; // in seconds
+                        if (timeDiff < 300) { // 5 minutes = 300 seconds
+                            logger.info('QR code already exists and is still valid, skipping regeneration', {
+                                sessionId,
+                                workspaceId,
+                                timeSinceLastQR: timeDiff
+                            });
+                            return;
+                        }
+                    }
+
                     logger.info('QR code generated', { sessionId, workspaceId });
 
                     const qrCodeData = await qrcode.toDataURL(qr, {
@@ -128,7 +144,7 @@ class WhatsAppSessionManager {
                     });
 
                     this.metadata.set(sessionId, {
-                        ...this.metadata.get(sessionId),
+                        ...sessionMetadata,
                         status: 'qr_scanning',
                         qrCode: qrCodeData,
                         qrGeneratedAt: new Date()
@@ -491,6 +507,133 @@ class WhatsAppSessionManager {
                 error: error.message
             });
             throw error;
+        }
+    }
+
+    /**
+     * Restore existing session without creating new one
+     * Attempts to reinitialize existing session from LocalAuth
+     */
+    async restoreSession(sessionId, workspaceId) {
+        logger.info('Attempting to restore existing WhatsApp session', { sessionId, workspaceId });
+
+        try {
+            // Check if session already exists in memory
+            if (this.sessions.has(sessionId)) {
+                const existingClient = this.sessions.get(sessionId);
+
+                // Check if client is still connected and ready
+                if (existingClient && existingClient.info && existingClient.info.wid) {
+                    logger.info('Session already exists and is connected', { sessionId });
+                    return {
+                        success: true,
+                        restored: true,
+                        message: 'Session already connected'
+                    };
+                }
+            }
+
+            // Check if LocalAuth data exists for this session
+            const fs = require('fs').promises;
+            const path = require('path');
+            const sessionPath = path.join(process.cwd(), 'sessions', workspaceId.toString(), sessionId);
+
+            try {
+                // Check if session folder exists
+                await fs.access(sessionPath);
+
+                // Look for session files
+                const files = await fs.readdir(sessionPath);
+                const hasSessionData = files.some(file =>
+                    file.includes('session') || file.includes('LocalAuth') || file.includes('storage')
+                );
+
+                if (!hasSessionData) {
+                    logger.info('No existing session data found, will create new session', { sessionId, workspaceId });
+                    return {
+                        success: false,
+                        restored: false,
+                        error: 'No existing session data'
+                    };
+                }
+
+            } catch (accessError) {
+                logger.info('Session directory does not exist, will create new session', {
+                    sessionId,
+                    workspaceId,
+                    error: accessError.message
+                });
+                return {
+                    success: false,
+                    restored: false,
+                    error: 'Session directory not found'
+                };
+            }
+
+            // Attempt to create new client with existing LocalAuth data
+            const client = new Client({
+                authStrategy: new LocalAuth({
+                    clientId: sessionId,
+                    dataPath: `./sessions/${workspaceId}/${sessionId}`
+                }),
+                puppeteer: {
+                    headless: true,
+                    timeout: 90000,
+                    protocolTimeout: 90000,
+                    args: [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-gpu',
+                        '--disable-web-security',
+                        '--disable-features=VizDisplayCompositor'
+                    ],
+                    executablePath: undefined,
+                },
+                webVersionCache: {
+                    type: 'remote',
+                    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+                }
+            });
+
+            // Set up event handlers for restoration
+            this.setupClientEventHandlers(client, sessionId, workspaceId);
+
+            // Initialize client (this will try to restore from existing auth)
+            await client.initialize();
+
+            // Store session info
+            this.sessions.set(sessionId, client);
+            this.metadata.set(sessionId, {
+                workspaceId,
+                createdAt: new Date(),
+                restored: true // Mark as restored session
+            });
+
+            logger.info('✅ Session restoration initiated successfully', { sessionId, workspaceId });
+
+            return {
+                success: true,
+                restored: true,
+                message: 'Session restoration initiated'
+            };
+
+        } catch (error) {
+            logger.error('Failed to restore session', {
+                sessionId,
+                workspaceId,
+                error: error.message,
+                stack: error.stack
+            });
+
+            return {
+                success: false,
+                restored: false,
+                error: error.message
+            };
         }
     }
 

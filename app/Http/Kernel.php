@@ -36,13 +36,13 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
+            \App\Http\Middleware\Localization::class,                 // PERTAMA: Set locale sebelum middleware lain
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \App\Http\Middleware\SetWorkspaceFromSession::class, // FIRST: Set workspace context
-            \App\Http\Middleware\AuditLoggingMiddleware::class,       // SECOND: Log dengan workspace context
-            \App\Http\Middleware\Localization::class,
+            \App\Http\Middleware\HandleInertiaRequests::class,        // KEDUA: Handle Inertia dengan locale yang sudah diset
+            \App\Http\Middleware\SetWorkspaceFromSession::class,      // KETIGA: Set workspace context
+            \App\Http\Middleware\AuditLoggingMiddleware::class,       // TERAKHIR: Log dengan workspace context
         ],
 
         'api' => [
