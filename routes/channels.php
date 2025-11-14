@@ -66,3 +66,14 @@ Broadcast::channel('message.{messageId}.status', function ($user, $messageId) {
 
     return $user->workspaces()->where('workspace_id', $chat->workspace_id)->exists();
 });
+
+// Contact presence channels (for individual contact updates)
+Broadcast::channel('contact.{contactId}.presence', function ($user, $contactId) {
+    $contact = \App\Models\Contact::find($contactId);
+
+    if (!$contact) {
+        return false;
+    }
+
+    return $user->workspaces()->where('workspace_id', $contact->workspace_id)->exists();
+});

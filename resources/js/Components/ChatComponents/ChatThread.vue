@@ -10,6 +10,10 @@ const props = defineProps({
         type: Number,
         required: true
     },
+    workspaceId: {
+        type: Number,
+        required: true
+    },
     initialMessages: {
         type: Array,
         required: true
@@ -95,6 +99,22 @@ const initializeEchoListeners = () => {
                 addNewMessage(e.message);
             });
 
+        // Listen for contact presence updates
+        echo.value.private(`contact.${props.contactId}.presence`)
+            .listen('.contact.presence.updated', (e) => {
+                console.log('👤 Contact presence updated:', e);
+                handleContactPresenceUpdate(e);
+            });
+
+        // Listen for workspace-wide presence updates (for contact list)
+        if (props.workspaceId) {
+            echo.value.private(`workspace.${props.workspaceId}.presence`)
+                .listen('.contact.presence.updated', (e) => {
+                    console.log('👥 Workspace presence updated:', e);
+                    handleWorkspacePresenceUpdate(e);
+                });
+        }
+
         console.log('✅ Real-time listeners established successfully');
 
     } catch (error) {
@@ -172,6 +192,73 @@ const addNewMessage = (messageData) => {
     }
 };
 
+// Handle contact presence updates (online/offline, typing status)
+const handleContactPresenceUpdate = (event) => {
+    console.log('🔄 Contact presence update received:', {
+        contact_id: event.contact_id,
+        is_online: event.is_online,
+        typing_status: event.typing_status,
+        timestamp: event.timestamp
+    });
+
+    // Update local state if this is the current contact
+    if (event.contact_id === props.contactId) {
+        // Update typing indicator
+        if (event.typing_status === 'typing' && event.is_online) {
+            isTyping.value = true;
+            typingUser.value = {
+                name: event.contact_name || 'Contact',
+                timestamp: event.timestamp
+            };
+
+            // Auto-hide after 3 seconds of no updates
+            clearTimeout(window.typingTimeout);
+            window.typingTimeout = setTimeout(() => {
+                isTyping.value = false;
+                typingUser.value = null;
+            }, 3000);
+        } else {
+            isTyping.value = false;
+            typingUser.value = null;
+        }
+
+        // Emit presence update to parent component
+        emit('presenceUpdated', {
+            contactId: event.contact_id,
+            isOnline: event.is_online,
+            typingStatus: event.typing_status,
+            lastActivity: event.last_activity
+        });
+    }
+};
+
+// Handle workspace-wide presence updates (for contact list)
+const handleWorkspacePresenceUpdate = (event) => {
+    console.log('🔄 Workspace presence update received:', {
+        contact_id: event.contact_id,
+        contact_name: event.contact_name,
+        is_online: event.is_online,
+        typing_status: event.typing_status
+    });
+
+    // Emit to parent component for contact list updates
+    emit('workspacePresenceUpdated', {
+        contactId: event.contact_id,
+        contactName: event.contact_name,
+        isOnline: event.is_online,
+        typingStatus: event.typing_status,
+        lastActivity: event.last_activity,
+        lastMessageAt: event.last_message_at
+    });
+};
+
+// Emit events for parent components
+const emit = defineEmits([
+    'presenceUpdated',
+    'workspacePresenceUpdated',
+    'messageStatusUpdated'
+]);
+
 // Setup and cleanup Echo listeners
 onMounted(() => {
     console.log('🚀 ChatThread mounted for contact:', props.contactId);
@@ -183,6 +270,12 @@ onUnmounted(() => {
     if (echo.value) {
         try {
             echo.value.leave(`chat.${props.contactId}`);
+            echo.value.leave(`contact.${props.contactId}.presence`);
+
+            if (props.workspaceId) {
+                echo.value.leave(`workspace.${props.workspaceId}.presence`);
+            }
+
             console.log('🧹 Cleaned up Echo listeners for contact:', props.contactId);
         } catch (error) {
             console.error('Error cleaning up Echo listeners:', error);
