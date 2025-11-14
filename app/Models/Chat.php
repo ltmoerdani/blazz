@@ -87,9 +87,9 @@ class Chat extends Model {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
-    public function whatsappSession()
+    public function whatsappAccount()
     {
-        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
+        return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id', 'id');
     }
 
     public function group()

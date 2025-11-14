@@ -8,6 +8,7 @@ use App\Models\CampaignLog;
 use App\Models\CampaignLogRetry;
 use App\Models\workspace;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
 use App\Traits\TemplateTrait;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
@@ -24,14 +25,17 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
 
     private $campaignLog;
     private $workspaceId;
-    private $whatsappService;
+    private MessageSendingService $messageService;
 
     public $timeout = 300; // 5 minutes timeout for single message
     public $tries = 3;
 
-    public function __construct(CampaignLog $campaignLog)
-    {
+    public function __construct(
+        CampaignLog $campaignLog,
+        MessageSendingService $messageService
+    ) {
         $this->campaignLog = $campaignLog;
+        $this->messageService = $messageService;
     }
 
     public function handle()
@@ -49,11 +53,17 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
                     $lockedLog->status = 'ongoing';
                     $lockedLog->save();
 
+                    // OLD: Keep for reference during transition
+                    /*
                     $this->workspaceId = $this->campaignLog->campaign->Workspace_id;
                     $this->initializeWhatsappService();
-
                     $template = $this->buildTemplateRequest($this->campaignLog->campaign_id, $this->campaignLog->contact);
-                    $responseObject = $this->whatsappService->sendTemplateMessage(
+                    */
+
+                    // NEW: Use injected service
+                    $this->workspaceId = $this->campaignLog->campaign->Workspace_id;
+                    $template = $this->buildTemplateRequest($this->campaignLog->campaign_id, $this->campaignLog->contact);
+                    $responseObject = $this->messageService->sendTemplateMessage(
                         $this->campaignLog->contact->uuid,
                         $template,
                         $campaign_user_id,
@@ -136,14 +146,19 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
         }
     }
 
+    /**
+     * @deprecated Use injected MessageSendingService instead
+     * OLD CODE - Commented out
+     */
+    /*
     private function initializeWhatsappService()
     {
         $config = cache()->remember("workspace.{$this->workspaceId}.metadata", 3600, function() {
             return workspace::find($this->workspaceId)->metadata ?? [];
         });
 
-        $config = workspace::where('id', $this->workspaceId)->first()->metadata;
-        $config = $config ? json_decode($config, true) : [];
+        $workspace = workspace::where('id', $this->workspaceId)->first();
+        $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
         $accessToken = $config['whatsapp']['access_token'] ?? null;
         $apiVersion = 'v18.0';
@@ -161,7 +176,7 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
         );
     }
 
-    /*private function initializeWhatsappService()
+    private function initializeWhatsappService()
     {
         $config = workspace::where('id', $this->workspaceId)->first()->metadata;
         $config = $config ? json_decode($config, true) : [];

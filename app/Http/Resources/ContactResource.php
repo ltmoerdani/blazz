@@ -24,6 +24,22 @@ class ContactResource extends JsonResource
             ->where('is_read', 0)
             ->count();
         
+        // Include last_chat relationship if loaded
+        if ($this->relationLoaded('lastChat')) {
+            $data['last_chat'] = $this->lastChat ? [
+                'id' => $this->lastChat->id,
+                'created_at' => $this->lastChat->created_at,
+                'metadata' => $this->lastChat->metadata,
+                'deleted_at' => $this->lastChat->deleted_at,
+                'media' => $this->lastChat->media ?? null,
+            ] : null;
+        }
+
+        // Include last_inbound_chat relationship if loaded
+        if ($this->relationLoaded('lastInboundChat')) {
+            $data['last_inbound_chat'] = $this->lastInboundChat;
+        }
+        
         return $data;
     }
 }
