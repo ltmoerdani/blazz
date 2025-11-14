@@ -36,17 +36,17 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
     // Webhook for Node.js service callbacks (HMAC secured)
     Route::post('/webhooks/webjs', [App\Http\Controllers\Api\v1\WhatsApp\WebhookController::class, 'webhook']);
 
-    // Session management for Node.js service (HMAC secured)
-    Route::get('/sessions/{sessionId}/status', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'getSessionStatus']);
+    // Account management for Node.js service (HMAC secured)
+    Route::get('/accounts/{accountId}/status', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'getAccountStatus']);
 
-    // Session Restoration Endpoints (for auto-reconnect feature)
-    Route::get('/sessions/active', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'getActiveSessions']);
-    Route::post('/sessions/{sessionId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'markDisconnected']);
+    // Account Restoration Endpoints (for auto-reconnect feature)
+    Route::get('/accounts/active', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'getActiveAccounts']);
+    Route::post('/accounts/{accountId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'markDisconnected']);
 
     // Chat Sync Endpoints (HMAC secured + rate limited)
     Route::post('/chats/sync', [App\Http\Controllers\API\WhatsAppSyncController::class, 'syncBatch'])
         ->middleware('whatsapp.throttle');
-    Route::get('/sessions/{sessionId}/sync-status', [App\Http\Controllers\API\WhatsAppSyncController::class, 'getSyncStatus']);
+    Route::get('/accounts/{accountId}/sync-status', [App\Http\Controllers\API\WhatsAppSyncController::class, 'getSyncStatus']);
 
     // Broadcasting events (for testing) - requires HMAC
     Route::post('/broadcast', function (Request $request) {
@@ -63,9 +63,9 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
                 ));
                 break;
 
-            case 'session-status-changed':
-                broadcast(new \App\Events\WhatsAppSessionStatusChangedEvent(
-                    $data['session_id'],
+            case 'account-status-changed':
+                broadcast(new \App\Events\WhatsAppAccountStatusChangedEvent(
+                    $data['account_id'],
                     $data['status'],
                     $data['workspace_id'],
                     $data['phone_number'] ?? null,
@@ -124,11 +124,11 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
             Route::delete('/{uuid}', [App\Http\Controllers\Api\v1\ContactApiController::class, 'destroyContact']);
         });
 
-        // WhatsApp Session Management Routes (NEW)
-        Route::prefix('whatsapp/sessions')->group(function () {
-            Route::get('/{sessionId}/status', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'getSessionStatus']);
-            Route::get('/active', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'getActiveSessions']);
-            Route::post('/{sessionId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\SessionController::class, 'markDisconnected']);
+        // WhatsApp Account Management Routes (NEW)
+        Route::prefix('whatsapp/accounts')->group(function () {
+            Route::get('/{accountId}/status', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'getAccountStatus']);
+            Route::get('/active', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'getActiveAccounts']);
+            Route::post('/{accountId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'markDisconnected']);
         });
 
         // WhatsApp Webhook Routes (NEW)

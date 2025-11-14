@@ -29,6 +29,22 @@ class ContactFieldService
         return ContactFieldResource::collection($rows);
     }
 
+    /**
+     * Get all contact fields for workspace (non-paginated)
+     *
+     * @param int $workspaceId
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getFields($workspaceId = null)
+    {
+        $targetWorkspaceId = $workspaceId ?? $this->workspaceId;
+
+        return ContactField::where('workspace_id', $targetWorkspaceId)
+            ->where('deleted_at', null)
+            ->orderBy('position')
+            ->get();
+    }
+
     public function getByUuid($uuid = null)
     {
         return ContactField::where('workspace_id', $this->workspaceId)->where('uuid', $uuid)->first();
@@ -82,5 +98,55 @@ class ContactFieldService
             'deleted_at' => date('Y-m-d H:i:s'),
             'deleted_by' => Auth::id()
         ]);
+    }
+
+    /**
+     * Update contact fields for workspace
+     *
+     * @param int $workspaceId
+     * @param array $fields
+     * @return void
+     */
+    public function updateFields($workspaceId, array $fields)
+    {
+        // Delete existing fields that are not in the new list
+        $existingFieldIds = collect($fields)->pluck('id')->filter();
+        
+        ContactField::where('workspace_id', $workspaceId)
+            ->when($existingFieldIds->isNotEmpty(), function ($query) use ($existingFieldIds) {
+                $query->whereNotIn('id', $existingFieldIds);
+            })
+            ->update([
+                'deleted_at' => now(),
+                'deleted_by' => Auth::id()
+            ]);
+
+        // Update or create fields
+        foreach ($fields as $index => $fieldData) {
+            $field = isset($fieldData['id']) 
+                ? ContactField::find($fieldData['id']) 
+                : new ContactField();
+
+            if (!$field) {
+                $field = new ContactField();
+            }
+
+            $field->workspace_id = $workspaceId;
+            $field->name = $fieldData['name'];
+            $field->type = $fieldData['type'];
+            $field->required = $fieldData['required'] ?? false;
+            $field->position = $index + 1;
+
+            // Handle select field options
+            if ($fieldData['type'] === 'select' && isset($fieldData['options'])) {
+                $field->value = is_array($fieldData['options']) 
+                    ? implode(', ', $fieldData['options']) 
+                    : $fieldData['options'];
+            } elseif (in_array($fieldData['type'], ['text', 'email', 'phone', 'date', 'textarea'])) {
+                $field->value = $fieldData['type'];
+            }
+
+            $field->save();
+        }
     }
 }

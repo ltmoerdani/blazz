@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class WhatsAppSession extends Model
+class WhatsAppAccount extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'whatsapp_sessions';
+    protected $table = 'whatsapp_accounts';
 
     protected $fillable = [
         'uuid',
@@ -73,7 +73,7 @@ class WhatsAppSession extends Model
      */
     public function chats(): HasMany
     {
-        return $this->hasMany(Chat::class, 'whatsapp_session_id');
+        return $this->hasMany(Chat::class, 'whatsapp_account_id');
     }
 
     /**
@@ -81,7 +81,7 @@ class WhatsAppSession extends Model
      */
     public function campaignLogs(): HasMany
     {
-        return $this->hasMany(CampaignLog::class, 'whatsapp_session_id');
+        return $this->hasMany(CampaignLog::class, 'whatsapp_account_id');
     }
 
     /**
@@ -89,7 +89,7 @@ class WhatsAppSession extends Model
      */
     public function contactSessions(): HasMany
     {
-        return $this->hasMany(ContactSession::class, 'whatsapp_session_id');
+        return $this->hasMany(ContactAccount::class, 'whatsapp_account_id');
     }
 
     /**
@@ -97,7 +97,7 @@ class WhatsAppSession extends Model
      */
     public function contacts()
     {
-        return $this->belongsToMany(Contact::class, 'contact_sessions')
+        return $this->belongsToMany(Contact::class, 'contact_accounts')
             ->withPivot(['first_interaction_at', 'last_interaction_at', 'total_messages'])
             ->withTimestamps();
     }

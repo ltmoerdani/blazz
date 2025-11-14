@@ -6,15 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ContactSession extends Model
+class ContactAccount extends Model
 {
     use HasFactory;
 
-    protected $table = 'contact_sessions';
+    protected $table = 'contact_accounts';
 
     protected $fillable = [
         'contact_id',
-        'whatsapp_session_id',
+        'whatsapp_account_id',
         'first_interaction_at',
         'last_interaction_at',
         'total_messages',
@@ -34,11 +34,11 @@ class ContactSession extends Model
     }
 
     /**
-     * Get the WhatsApp session associated with this contact session
+     * Get the WhatsApp account associated with this contact account
      */
-    public function whatsappSession(): BelongsTo
+    public function whatsappAccount(): BelongsTo
     {
-        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id');
+        return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id');
     }
 
     /**
@@ -64,11 +64,11 @@ class ContactSession extends Model
     }
 
     /**
-     * Scope to get contact sessions for a specific WhatsApp session
+     * Scope to get contact accounts for a specific WhatsApp account
      */
-    public function scopeForWhatsAppSession($query, $sessionId)
+    public function scopeForWhatsAppAccount($query, $accountId)
     {
-        return $query->where('whatsapp_session_id', $sessionId);
+        return $query->where('whatsapp_account_id', $accountId);
     }
 
     /**
@@ -80,7 +80,7 @@ class ContactSession extends Model
     }
 
     /**
-     * Get the most recent contact sessions
+     * Get the most recent contact accounts
      */
     public function scopeRecent($query, $limit = 10)
     {

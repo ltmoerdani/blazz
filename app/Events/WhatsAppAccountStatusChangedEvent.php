@@ -8,11 +8,11 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class WhatsAppSessionStatusChangedEvent implements ShouldBroadcastNow
+class WhatsAppAccountStatusChangedEvent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public string $sessionId;
+    public string $accountId;
     public string $status;
     public int $workspaceId;
     public ?string $phoneNumber;
@@ -21,9 +21,9 @@ class WhatsAppSessionStatusChangedEvent implements ShouldBroadcastNow
     /**
      * Create a new event instance.
      */
-    public function __construct(string $sessionId, string $status, int $workspaceId, ?string $phoneNumber = null, array $metadata = [])
+    public function __construct(string $accountId, string $status, int $workspaceId, ?string $phoneNumber = null, array $metadata = [])
     {
-        $this->sessionId = $sessionId;
+        $this->accountId = $accountId;
         $this->status = $status;
         $this->workspaceId = $workspaceId;
         $this->phoneNumber = $phoneNumber;
@@ -54,7 +54,7 @@ class WhatsAppSessionStatusChangedEvent implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'session_id' => $this->sessionId,
+            'session_id' => $this->accountId,
             'status' => $this->status,
             'workspace_id' => $this->workspaceId,
             'phone_number' => $this->phoneNumber,
