@@ -3,19 +3,24 @@
 namespace App\Services;
 
 use Carbon\Carbon;
-use DB;
-use Helper;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use App\Helpers\CustomHelper;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
-use App\Models\BillingHistory;
+use App\Models\BillingPayment;
 use App\Models\Coupon;
 use App\Models\User;
-use App\Models\UserSubscription;
+use App\Models\Subscription;
 use App\Traits\ConsumesExternalServices;
 
 class PayStackService
 {
+    private $config;
+    private $baseUri;
+    private $secretKey;
+
     public function __construct()
     {
         $paystackInfo = DB::table('integrations')->where('name', 'PayStack')->first();
@@ -54,14 +59,14 @@ class PayStackService
                 'name' => $plan->name,
                 'interval' => 'monthly',
                 'amount' => $paystackAmount,
-                'currency' => Helper::config('currency'),
+                'currency' => CustomHelper::config('currency'),
                 'description' => http_build_query([
-                    'user' => auth()->user()->id,
+                    'user' => Auth::user()->id,
                     'plan' => $plan->id,
                     'plan_amount' => $interval == 'year' ? $plan->yearly_price : $plan->monthly_price,
                     'amount' => $amount,
                     'interval' => $interval,
-                    "transcurrency" => Helper::config('currency'),
+                    "transcurrency" => CustomHelper::config('currency'),
                     'coupon' => $coupon->id ?? null,
                     'tax_rates' => isset($taxRates) ?? $taxRates->pluck('id')->implode('_'),
                 ])
@@ -75,9 +80,9 @@ class PayStackService
             'POST',
             '/transaction/initialize',
             [
-                'email' => auth()->user()->email,
+                'email' => Auth::user()->email,
                 'amount' => $paystackAmount,
-                'currency' => Helper::config('currency'),
+                'currency' => CustomHelper::config('currency'),
                 'callback_url' => url('billing'),
                 'plan' => $paystackPlan->data->plan_code
             ],
@@ -86,7 +91,7 @@ class PayStackService
 
     public function handleSubscription(Request $request,$plan, $coupon, $taxRates, $amount, $interval)
     {
-        $paystackAmount = in_array(Helper::config('currency'), config('currencies.zero_decimals')) ? $amount : ($amount * 100);
+        $paystackAmount = in_array(CustomHelper::config('currency'), config('currencies.zero_decimals')) ? $amount : ($amount * 100);
 
         // Attempt to create the plan
         $paystackPlan = $this->createPlan($plan, $amount, $paystackAmount, $interval, $coupon, $taxRates);
@@ -141,7 +146,7 @@ class PayStackService
 
             if (isset($metadata['user'])) {
                 $user = User::where('id', '=', $metadata['user'])->first();
-                $user_subscription = UserSubscription::where('user_id', $metadata['user'])->first();
+                $user_subscription = Subscription::where('user_id', $metadata['user'])->first();
 
                 // If a user was found
                 if ($user) {
@@ -198,8 +203,8 @@ class PayStackService
 
                     if ($payload->event == 'charge.success') {
                         // If the payment does not exist
-                        if (!BillingHistory::where([['processor', '=', 'paystack'], ['payment_id', '=', $payload->data->reference]])->exists()) {
-                            $payment = BillingHistory::create([
+                        if (!BillingPayment::where([['processor', '=', 'paystack'], ['payment_id', '=', $payload->data->reference]])->exists()) {
+                            $payment = BillingPayment::create([
                                 'user_id' => $user->id,
                                 'plan_id' => $metadata['plan'],
                                 'payment_id' => $payload->data->reference,
