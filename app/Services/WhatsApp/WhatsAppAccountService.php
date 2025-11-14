@@ -21,7 +21,7 @@ class WhatsAppAccountService
     public function __construct(ProviderSelector $providerSelector, $workspaceId = null)
     {
         $this->providerSelector = $providerSelector;
-        $this->workspaceId = $workspaceId ?: account('current_workspace');
+        $this->workspaceId = $workspaceId ?: session()->get('current_workspace');
     }
 
     /**
