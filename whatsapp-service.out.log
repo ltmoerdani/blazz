@@ -1,5 +1,0 @@
-(node:10580) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-info: WhatsApp Service started on port 3001 {"service":"whatsapp-service","timestamp":"2025-10-13T05:28:41.633Z"}
-info: Laravel backend: http://127.0.0.1:8000 {"service":"whatsapp-service","timestamp":"2025-10-13T05:28:41.637Z"}
-info: Environment: development {"service":"whatsapp-service","timestamp":"2025-10-13T05:28:41.637Z"}
