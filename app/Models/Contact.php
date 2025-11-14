@@ -276,4 +276,167 @@ class Contact extends Model {
             return chr(hexdec($matches[1]));
         }, $value);
     }
+
+    // Business Methods
+    /**
+     * Update contact presence information
+     */
+    public function updatePresence(array $data): self
+    {
+        if (isset($data['is_online'])) {
+            $this->is_online = $data['is_online'];
+        }
+
+        if (isset($data['typing_status'])) {
+            $this->typing_status = $data['typing_status'];
+        }
+
+        if (isset($data['last_activity'])) {
+            $this->last_activity = $data['last_activity'];
+        }
+
+        if (isset($data['last_message_at'])) {
+            $this->last_message_at = $data['last_message_at'];
+        }
+
+        $this->save();
+        return $this;
+    }
+
+    /**
+     * Set contact as online
+     */
+    public function setOnline(): self
+    {
+        return $this->updatePresence([
+            'is_online' => true,
+            'last_activity' => now()
+        ]);
+    }
+
+    /**
+     * Set contact as offline
+     */
+    public function setOffline(): self
+    {
+        return $this->updatePresence([
+            'is_online' => false,
+            'typing_status' => 'idle',
+            'last_activity' => now()
+        ]);
+    }
+
+    /**
+     * Set typing status
+     */
+    public function setTyping(string $status = 'typing'): self
+    {
+        return $this->updatePresence([
+            'typing_status' => $status,
+            'last_activity' => now()
+        ]);
+    }
+
+    /**
+     * Update last message timestamp
+     */
+    public function updateLastMessageTime(): self
+    {
+        return $this->updatePresence([
+            'last_message_at' => now(),
+            'last_activity' => now()
+        ]);
+    }
+
+    // Workspace Scopes
+    /**
+     * Scope query to only include contacts in specific workspace
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
+
+    /**
+     * Scope query to include workspace relationship
+     */
+    public function scopeWithWorkspace($query)
+    {
+        return $query->with('workspace');
+    }
+
+    /**
+     * Scope query to get online contacts
+     */
+    public function scopeOnline($query)
+    {
+        return $query->where('is_online', true);
+    }
+
+    /**
+     * Scope query to get typing contacts
+     */
+    public function scopeTyping($query)
+    {
+        return $query->where('typing_status', 'typing');
+    }
+
+    /**
+     * Scope query to get contacts with recent activity
+     */
+    public function scopeWithRecentActivity($query, int $minutes = 30)
+    {
+        return $query->where('last_activity', '>=', now()->subMinutes($minutes));
+    }
+
+    /**
+     * Get contacts for specific workspace with optional filters
+     */
+    public static function getForWorkspace(int $workspaceId, array $filters = [])
+    {
+        $query = static::inWorkspace($workspaceId)->whereNull('deleted_at');
+
+        if (!empty($filters['is_online'])) {
+            $query->online();
+        }
+
+        if (!empty($filters['typing_status'])) {
+            if ($filters['typing_status'] === 'typing') {
+                $query->typing();
+            } else {
+                $query->where('typing_status', $filters['typing_status']);
+            }
+        }
+
+        if (!empty($filters['recent_activity'])) {
+            $query->withRecentActivity($filters['recent_activity_minutes'] ?? 30);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Get workspace presence statistics
+     */
+    public static function getWorkspacePresenceStats(int $workspaceId): array
+    {
+        $contacts = static::inWorkspace($workspaceId)->whereNull('deleted_at');
+
+        return [
+            'total_contacts' => $contacts->count(),
+            'online_contacts' => $contacts->online()->count(),
+            'typing_contacts' => $contacts->typing()->count(),
+            'recent_activity_contacts' => $contacts->withRecentActivity(30)->count(),
+        ];
+    }
 }

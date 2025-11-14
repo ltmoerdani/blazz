@@ -118,6 +118,81 @@ class UpdateMessageStatusJob implements ShouldQueue
     }
 
     /**
+     * Handle a job failure.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('UpdateMessageStatusJob failed permanently', [
+            'message_id' => $this->messageId,
+            'status' => $this->status,
+            'event_type' => $this->eventType,
+            'attempt' => $this->attempts(),
+            'exception' => [
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'trace' => $exception->getTraceAsString()
+            ]
+        ]);
+
+        // Try to find the chat and mark it as failed
+        try {
+            $chat = \App\Models\Chat::where('whatsapp_message_id', $this->messageId)->first();
+
+            if ($chat) {
+                $chat->update([
+                    'message_status' => 'failed',
+                    'retry_count' => ($chat->retry_count ?? 0) + 1,
+                    'metadata' => array_merge(
+                        $chat->metadata ? json_decode($chat->metadata, true) : [],
+                        [
+                            'job_error' => $exception->getMessage(),
+                            'job_failed_at' => now()->toISOString(),
+                            'job_attempts' => $this->attempts()
+                        ]
+                    )
+                ]);
+
+                Log::info('Marked message as failed due to job failure', [
+                    'chat_id' => $chat->id,
+                    'whatsapp_message_id' => $this->messageId
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::critical('Failed to mark chat as failed after job failure', [
+                'message_id' => $this->messageId,
+                'job_error' => $exception->getMessage(),
+                'additional_error' => $e->getMessage()
+            ]);
+        }
+
+        // Optionally notify administrators
+        $this->notifyAdministratorsOnFailure($exception);
+    }
+
+    /**
+     * Notify administrators about critical job failures
+     */
+    private function notifyAdministratorsOnFailure(\Throwable $exception): void
+    {
+        // Only notify for specific error types or after multiple attempts
+        $shouldNotify = $this->attempts() >= 2 ||
+                        str_contains($exception->getMessage(), 'Connection') ||
+                        str_contains($exception->getMessage(), 'Authentication') ||
+                        str_contains($exception->getMessage(), 'API');
+
+        if ($shouldNotify) {
+            // You can implement notification logic here
+            // For example: send email, Slack notification, etc.
+            Log::critical('Critical message status update job failure', [
+                'message_id' => $this->messageId,
+                'attempts' => $this->attempts(),
+                'requires_admin_attention' => true
+            ]);
+        }
+    }
+
+    /**
      * Get the tags that should be assigned to the job.
      *
      * @return array<int, string>

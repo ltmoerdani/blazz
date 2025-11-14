@@ -41,7 +41,7 @@
         form.value.uuid = props.contact.uuid;
     });
 
-    const emit = defineEmits(['response', 'viewTemplate']);
+    const emit = defineEmits(['response', 'viewTemplate', 'optimisticMessageSent']);
 
     const viewTemplate = () => {
         emit('viewTemplate', true);
@@ -52,38 +52,92 @@
         processingForm.value = true;
 
         if(form.value.message != null || form.value.file != null){
-            const formData = new FormData();
+            // Generate unique ID for optimistic message
+            const optimisticId = 'optimistic-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-            formData.append('message', form.value.message);
-            formData.append('type', form.value.type);
-            formData.append('uuid', form.value.uuid);
-
-            if (form.value.file) {
-                formData.append('file', form.value.file);
-            }
-
-            try {
-                const response = await axios.post('/chats', formData);
-
-                if(isAudioRecording.value == true){
-                    await sendAudioMessage();
+            // Prepare optimistic message data
+            const optimisticMessage = {
+                id: optimisticId,
+                isOptimistic: true,
+                type: 'outbound',
+                value: {
+                    id: optimisticId,
+                    whatsapp_message_id: optimisticId,
+                    body: form.value.message,
+                    type: form.value.type || 'text',
+                    message_status: 'pending',
+                    ack_level: 1,
+                    created_at: new Date().toISOString(),
+                    is_outbound: true,
+                    from_me: true,
+                    has_media: !!form.value.file,
+                    metadata: {
+                        body: form.value.message,
+                        type: form.value.type || 'text',
+                        from_me: true,
+                        optimistic: true
+                    }
                 }
+            };
 
-                form.value.message = null;
-                formTextInput.value = null;
-                form.value.file = null;
+            // Emit optimistic message instantly for immediate UI update
+            emit('optimisticMessageSent', optimisticMessage);
 
-                processingForm.value = false;
-            } catch (error) {
-                // Handle the error
-                // console.error('Error:', error);
+            // Clear form immediately for instant UI feedback
+            const originalMessage = form.value.message;
+            const originalFile = form.value.file;
+
+            form.value.message = null;
+            formTextInput.value = null;
+            form.value.file = null;
+
+            // Send actual message in background (non-blocking)
+            sendActualMessage(originalMessage, originalFile, optimisticId)
+                .then(() => {
+                    // Success - optimistic message will be replaced by real message
+                    console.log('✅ Message sent successfully');
+                })
+                .catch((error) => {
+                    // Handle error - update optimistic message to failed status
+                    console.error('❌ Message failed to send:', error);
+                    emit('optimisticMessageFailed', {
+                        optimisticId: optimisticId,
+                        error: error.response?.data?.message || 'Failed to send message'
+                    });
+                })
+                .finally(() => {
+                    processingForm.value = false;
+                });
+
+            if(isAudioRecording.value == true){
+                await sendAudioMessage();
             }
+
         } else {
             if(isAudioRecording.value == true){
                 await sendAudioMessage();
             }
 
             processingForm.value = false;
+        }
+    }
+
+    const sendActualMessage = async (message, file, optimisticId) => {
+        const formData = new FormData();
+        formData.append('message', message);
+        formData.append('type', form.value.type);
+        formData.append('uuid', form.value.uuid);
+        formData.append('optimistic_id', optimisticId); // Send optimistic ID for tracking
+
+        if (file) {
+            formData.append('file', file);
+        }
+
+        try {
+            const response = await axios.post('/chats', formData);
+            return response.data;
+        } catch (error) {
+            throw error;
         }
     }
 

@@ -259,6 +259,127 @@ const emit = defineEmits([
     'messageStatusUpdated'
 ]);
 
+// Accept optimistic message events from parent (ChatForm)
+const optimisticMessages = ref(new Map()); // Track optimistic messages by ID
+
+// Handle optimistic message sent event (from ChatForm)
+const handleOptimisticMessageSent = (optimisticMessage) => {
+    console.log('🚀 Optimistic message received:', optimisticMessage);
+
+    // Add optimistic message to the UI immediately
+    const messageArray = [{
+        type: 'chat',
+        value: optimisticMessage.value,
+        isOptimistic: true
+    }];
+
+    messages.value.push(messageArray);
+
+    // Store optimistic message for later replacement
+    optimisticMessages.set(optimisticMessage.id, optimisticMessage);
+
+    // Auto-scroll to bottom to show new message
+    autoScrollToBottom();
+
+    console.log(`✅ Optimistic message added: ${optimisticMessage.id}`);
+};
+
+// Handle optimistic message failed event
+const handleOptimisticMessageFailed = (errorData) => {
+    console.log('❌ Optimistic message failed:', errorData);
+
+    // Find and update the optimistic message to failed status
+    const messageIndex = messages.value.findIndex(msg =>
+        msg[0]?.value?.id === errorData.optimisticId
+    );
+
+    if (messageIndex !== -1) {
+        messages.value[messageIndex][0].value.message_status = 'failed';
+        messages.value[messageIndex][0].value.error = errorData.error;
+        console.log(`✅ Updated optimistic message to failed status: ${errorData.optimisticId}`);
+    }
+
+    // Remove from tracking map
+    optimisticMessages.delete(errorData.optimisticId);
+};
+
+// Replace optimistic message with real message
+const replaceOptimisticMessage = (realMessage) => {
+    const whatsappMessageId = realMessage.whatsapp_message_id;
+    const optimisticId = realMessage.optimistic_id;
+
+    // Try to find by WhatsApp message ID first, then by optimistic ID
+    let messageIndex = -1;
+
+    if (whatsappMessageId) {
+        messageIndex = messages.value.findIndex(msg =>
+            msg[0]?.value?.whatsapp_message_id === whatsappMessageId ||
+            msg[0]?.value?.id === whatsappMessageId
+        );
+    }
+
+    if (messageIndex === -1 && optimisticId) {
+        messageIndex = messages.value.findIndex(msg =>
+            msg[0]?.value?.id === optimisticId
+        );
+    }
+
+    if (messageIndex !== -1) {
+        // Replace optimistic message with real message
+        messages.value[messageIndex] = [{
+            type: 'chat',
+            value: {
+                ...realMessage,
+                isOptimistic: false
+            }
+        }];
+
+        console.log(`🔄 Replaced optimistic message with real message: ${optimisticId || whatsappMessageId}`);
+
+        // Clean up tracking
+        optimisticMessages.delete(optimisticId);
+
+    } else {
+        // If not found, add as new message
+        addNewMessage(realMessage);
+    }
+};
+
+// Auto-scroll to bottom when new messages arrive
+const autoScrollToBottom = () => {
+    setTimeout(() => {
+        const chatContainer = document.querySelector('.chat-thread-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }, 100);
+};
+
+// Retry failed message
+const retryMessage = (failedMessage) => {
+    console.log('🔄 Retrying failed message:', failedMessage);
+
+    // Remove the failed message from UI
+    const messageIndex = messages.value.findIndex(msg =>
+        msg[0]?.value?.id === failedMessage.id
+    );
+
+    if (messageIndex !== -1) {
+        messages.value.splice(messageIndex, 1);
+    }
+
+    // Emit retry event to parent component
+    emit('retryMessage', failedMessage);
+};
+
+// Expose functions for parent component access
+defineExpose({
+    handleOptimisticMessageSent,
+    handleOptimisticMessageFailed,
+    replaceOptimisticMessage,
+    autoScrollToBottom
+});
+
 // Setup and cleanup Echo listeners
 onMounted(() => {
     console.log('🚀 ChatThread mounted for contact:', props.contactId);
@@ -317,10 +438,27 @@ onUnmounted(() => {
              :class="chat[0].type === 'ticket' ? 'justify-center' : 'justify-end'">
 
             <!-- Chat messages with status indicators -->
-            <div v-if="chat[0].type === 'chat'" class="flex items-end gap-2">
-                <ChatBubble
-                    :content="chat[0].value"
-                    :type="chat[0].value.type" />
+            <div v-if="chat[0].type === 'chat'"
+                 class="flex items-end gap-2"
+                 :class="{ 'optimistic-message': chat[0].isOptimistic }">
+
+                <div class="relative">
+                    <ChatBubble
+                        :content="chat[0].value"
+                        :type="chat[0].value.type" />
+
+                    <!-- Optimistic message indicator -->
+                    <div v-if="chat[0].isOptimistic"
+                         class="absolute top-0 right-0 -mt-1 -mr-1">
+                        <div class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                    </div>
+
+                    <!-- Failed message indicator -->
+                    <div v-if="chat[0].value.message_status === 'failed'"
+                         class="absolute top-0 right-0 -mt-1 -mr-1">
+                        <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                    </div>
+                </div>
 
                 <!-- Message status component for outbound messages -->
                 <MessageStatus
@@ -330,6 +468,13 @@ onUnmounted(() => {
                     :show-indicators="true"
                     :show-timestamp="true"
                     size="small" />
+
+                <!-- Retry button for failed messages -->
+                <button v-if="chat[0].value.message_status === 'failed'"
+                        @click="retryMessage(chat[0].value)"
+                        class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors">
+                    Retry
+                </button>
             </div>
 
             <!-- Ticket messages -->
@@ -469,5 +614,70 @@ onUnmounted(() => {
 /* Loading states */
 .loading .typing-indicator {
     opacity: 0.6;
+}
+
+/* Optimistic Message Styles */
+.optimistic-message {
+    opacity: 0.8;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.optimistic-message .ChatBubble {
+    border: 1px dashed #e5e7eb;
+    background-color: #f9fafb;
+}
+
+.optimistic-message:hover {
+    opacity: 1;
+}
+
+/* Failed message styles */
+.message-status-failed {
+    border: 1px solid #ef4444;
+    background-color: #fef2f2;
+}
+
+/* Retry button styles */
+button.bg-red-100:hover {
+    transform: scale(1.05);
+}
+
+/* Optimistic indicator animation */
+@keyframes optimisticPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+.animate-pulse {
+    animation: optimisticPulse 2s infinite ease-in-out;
+}
+
+/* Message transition animations */
+.messages-container > div {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Smooth scrolling behavior */
+.chat-thread-container {
+    scroll-behavior: smooth;
+}
+
+/* Dark mode support for optimistic messages */
+@media (prefers-color-scheme: dark) {
+    .optimistic-message .ChatBubble {
+        border-color: #374151;
+        background-color: #1f2937;
+    }
+
+    .message-status-failed {
+        border-color: #dc2626;
+        background-color: #450a0a;
+    }
 }
 </style>

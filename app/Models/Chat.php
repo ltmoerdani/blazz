@@ -96,4 +96,108 @@ class Chat extends Model {
     {
         return $this->belongsTo(WhatsAppGroup::class, 'group_id', 'id');
     }
+
+    // Business Methods
+    /**
+     * Mark chat as failed
+     */
+    public function markAsFailed(?string $error = null): self
+    {
+        $this->message_status = 'failed';
+        $this->retry_count = ($this->retry_count ?? 0) + 1;
+
+        if ($error) {
+            $metadata = $this->metadata ? json_decode($this->metadata, true) : [];
+            $metadata['error'] = $error;
+            $this->metadata = json_encode($metadata);
+        }
+
+        $this->save();
+        return $this;
+    }
+
+    /**
+     * Update message status with proper timestamps
+     */
+    public function updateStatus(string $status, ?int $ackLevel = null): self
+    {
+        $this->message_status = $status;
+
+        if ($ackLevel) {
+            $this->ack_level = $ackLevel;
+        }
+
+        // Update specific timestamps based on status
+        if ($status === 'delivered') {
+            $this->delivered_at = now();
+        } elseif ($status === 'read') {
+            $this->read_at = now();
+        }
+
+        $this->save();
+        return $this;
+    }
+
+    // Workspace Scopes
+    /**
+     * Scope query to only include chats in specific workspace
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
+
+    /**
+     * Scope query to include workspace relationship
+     */
+    public function scopeWithWorkspace($query)
+    {
+        return $query->with('workspace');
+    }
+
+    /**
+     * Get chats for specific workspace with optional filters
+     */
+    public static function getForWorkspace(int $workspaceId, array $filters = [])
+    {
+        $query = static::inWorkspace($workspaceId);
+
+        if (!empty($filters['contact_id'])) {
+            $query->where('contact_id', $filters['contact_id']);
+        }
+
+        if (!empty($filters['message_status'])) {
+            $query->where('message_status', $filters['message_status']);
+        }
+
+        if (!empty($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
+
+        if (!empty($filters['date_from'])) {
+            $query->where('created_at', '>=', $filters['date_from']);
+        }
+
+        if (!empty($filters['date_to'])) {
+            $query->where('created_at', '<=', $filters['date_to']);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Get workspace chat statistics
+     */
+    public static function getWorkspaceStats(int $workspaceId): array
+    {
+        return [
+            'total_messages' => static::inWorkspace($workspaceId)->count(),
+            'sent_messages' => static::inWorkspace($workspaceId)->where('type', 'outbound')->count(),
+            'received_messages' => static::inWorkspace($workspaceId)->where('type', 'inbound')->count(),
+            'failed_messages' => static::inWorkspace($workspaceId)->where('message_status', 'failed')->count(),
+            'pending_messages' => static::inWorkspace($workspaceId)->where('message_status', 'pending')->count(),
+            'delivered_messages' => static::inWorkspace($workspaceId)->where('message_status', 'delivered')->count(),
+            'read_messages' => static::inWorkspace($workspaceId)->where('message_status', 'read')->count(),
+        ];
+    }
 }
