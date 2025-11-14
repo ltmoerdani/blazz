@@ -16,6 +16,14 @@
             type: Array,
             default: () => []
         },
+        campaignTypes: {
+            type: Array,
+            default: () => []
+        },
+        providerOptions: {
+            type: Array,
+            default: () => []
+        },
         contact: {
             type: String,
             default: null
@@ -69,12 +77,30 @@
         { value: 'email', label: trans('contact email') },
     ]);
 
+    // Campaign type options
+    const campaignTypeOptions = ref(props.campaignTypes.length > 0 ? props.campaignTypes : [
+        { value: 'template', label: trans('Use Template'), description: trans('Select an approved template from your template library') },
+        { value: 'direct', label: trans('Direct Message'), description: trans('Create a custom message without using templates') }
+    ]);
+
+    // Provider options with default values
+    const providerSelectOptions = ref(props.providerOptions.length > 0 ? props.providerOptions : [
+        { value: 'webjs', label: 'WhatsApp Web JS', description: trans('Recommended for better compatibility and features') },
+        { value: 'meta_api', label: 'Meta Business API', description: trans('Official WhatsApp Business API') }
+    ]);
+
     const form = useForm({
         name: null,
+        campaign_type: 'direct', // Default to direct message as requested
         template: null,
         contacts: null,
+        preferred_provider: 'webjs', // Default to WhatsApp Web JS as requested
+        whatsapp_session_id: null,
         time: null,
+        scheduled_at: null,
         skip_schedule: false,
+
+        // Template campaign fields
         'header' : {
             'format' : null,
             'text' : null,
@@ -88,6 +114,14 @@
             'text' : null,
         },
         'buttons' : [],
+
+        // Direct message fields
+        header_type: 'text',
+        header_text: null,
+        header_media: null,
+        body_text: null,
+        footer_text: null,
+        buttons: [],
     });
 
     const loadTemplate = async() => {
@@ -223,16 +257,116 @@
         }));
     };
 
+    // Computed properties for hybrid functionality
+    const isTemplateMode = computed(() => form.campaign_type === 'template');
+    const isDirectMode = computed(() => form.campaign_type === 'direct');
+    const hasWebJsSessions = computed(() => props.whatsappSessions?.some(s => s.provider_type === 'webjs') || false);
+    const hasMetaApiSessions = computed(() => props.whatsappSessions?.some(s => s.provider_type === 'meta_api') || false);
+
+    // Watch for campaign type changes to reset form fields
+    const onCampaignTypeChange = () => {
+        // Reset form fields when switching between campaign types
+        form.template = null;
+        form.header_text = null;
+        form.header_media = null;
+        form.body_text = null;
+        form.footer_text = null;
+        form.buttons = [];
+
+        // Reset template-specific fields
+        form.header = {
+            format: null,
+            text: null,
+            parameters: []
+        };
+        form.body = {
+            text: null,
+            parameters: []
+        };
+        form.footer = {
+            text: null,
+        };
+        form.buttons = [];
+    };
+
+    // Add button for direct message campaigns
+    const addDirectButton = () => {
+        const newButton = {
+            type: 'reply',
+            text: '',
+        };
+        form.buttons.push(newButton);
+    };
+
+    // Remove button from direct message campaigns
+    const removeDirectButton = (index) => {
+        form.buttons.splice(index, 1);
+    };
+
+    // Handle direct media upload
+    const handleDirectMediaUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                form.header_media = file;
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const submitForm = () => {
         isLoading.value = true;
-        form.post(props.isCampaignFlow ? '/campaigns' : '/chat/' + props.contact + '/send/template', {
-            onFinish: () => {
-                isLoading.value = false;
-                if(!props.isCampaignFlow){
-                    emit('viewTemplate', false);
+
+        if (isTemplateMode.value) {
+            // Use existing template submission logic
+            form.post(props.isCampaignFlow ? '/campaigns' : '/chat/' + props.contact + '/send/template', {
+                onFinish: () => {
+                    isLoading.value = false;
+                    if(!props.isCampaignFlow){
+                        emit('viewTemplate', false);
+                    }
+                },
+            });
+        } else {
+            // Use hybrid campaign endpoint for direct messages
+            const formData = new FormData();
+
+            // Add all form fields to FormData
+            Object.keys(form.data()).forEach(key => {
+                if (key === 'buttons' && Array.isArray(form.data()[key])) {
+                    formData.append(key, JSON.stringify(form.data()[key]));
+                } else if (form.data()[key] !== null && form.data()[key] !== undefined) {
+                    formData.append(key, form.data()[key]);
                 }
-            },
-        });
+            });
+
+            // Convert FormData to JSON for the hybrid endpoint
+            const jsonData = {};
+            formData.forEach((value, key) => {
+                if (key === 'buttons') {
+                    try {
+                        jsonData[key] = JSON.parse(value);
+                    } catch (e) {
+                        jsonData[key] = value;
+                    }
+                } else {
+                    jsonData[key] = value;
+                }
+            });
+
+            form.transform(() => jsonData).post('/campaigns/hybrid', {
+                onFinish: () => {
+                    isLoading.value = false;
+                },
+                onSuccess: () => {
+                    // Reset form on success
+                    form.reset();
+                    form.campaign_type = 'direct'; // Reset to default
+                    form.preferred_provider = 'webjs'; // Reset to default
+                }
+            });
+        }
     }
 
     const emit = defineEmits(['viewTemplate']);
@@ -286,21 +420,178 @@
 
         <form v-else @submit.prevent="submitForm()" class="overflow-y-auto md:w-[50%]" :class="isCampaignFlow ? 'p-4 md:p-8 h-[90vh]' : ' h-full'">
             <div v-if="displayTitle" class="m-1 rounded px-3 pt-3 pb-3 bg-slate-100 flex items-center justify-between mb-4">
-                <h3 class="text-[15px]">{{ $t('Send Template Message') }}</h3>
+                <h3 class="text-[15px]">{{ isTemplateMode ? $t('Send Template Message') : $t('Send Direct Message') }}</h3>
                 <button @click="viewTemplate()" class="text-sm md:inline-flex hidden justify-center rounded-md border border-transparent bg-red-800 px-4 py-1 text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">Cancel</button>
             </div>
-            <div class="grid gap-x-6 gap-y-4 mb-8" :class="isCampaignFlow ? 'sm:grid-cols-6' : 'p-3 md:p-3'">
-                <FormInput v-if="isCampaignFlow" v-model="form.name" :name="$t('Campaign name')" :type="'text'" :error="form.errors.name" :required="true" :class="'sm:col-span-6'"/>
-                <FormSelect v-model="form.template" @update:modelValue="loadTemplate" :options="templateOptions" :required="true" :error="form.errors.template" :name="$t('Template')" :class="'sm:col-span-3'" :placeholder="$t('Select template')"/>
-                <FormSelect v-if="isCampaignFlow" v-model="form.contacts" :options="contactGroupOptions" :name="$t('Send to')" :required="true" :class="'sm:col-span-3'" :placeholder="$t('Select contacts')" :error="form.errors.contacts"/>
-                <FormInput v-if="isCampaignFlow && !form.skip_schedule" v-model="form.time" :name="$t('Scheduled time')" :type="'datetime-local'" :error="form.errors.time" :required="true" :class="'sm:col-span-6'"/>
-                <div v-if="isCampaignFlow" class="relative flex gap-x-3 sm:col-span-6">
+
+            <!-- Campaign Configuration Section -->
+            <div v-if="isCampaignFlow" class="grid gap-x-6 gap-y-4 mb-6 sm:grid-cols-6 p-3 md:p-3">
+                <!-- Campaign Name -->
+                <FormInput v-model="form.name" :name="$t('Campaign name')" :type="'text'" :error="form.errors.name" :required="true" :class="'sm:col-span-6'"/>
+
+                <!-- Campaign Type Selection -->
+                <div class="sm:col-span-6">
+                    <label class="block text-sm font-medium leading-6 text-gray-900 mb-2">
+                        {{ $t('Campaign Type') }}
+                    </label>
+                    <div class="space-y-3">
+                        <div v-for="type in campaignTypeOptions" :key="type.value" class="relative flex items-center">
+                            <input
+                                :id="'campaign-type-' + type.value"
+                                v-model="form.campaign_type"
+                                @change="onCampaignTypeChange"
+                                :value="type.value"
+                                name="campaign_type"
+                                type="radio"
+                                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                            >
+                            <label :for="'campaign-type-' + type.value" class="ml-3 flex flex-col">
+                                <span class="block text-sm font-medium text-gray-900">{{ type.label }}</span>
+                                <span class="block text-sm text-gray-500">{{ type.description }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div v-if="form.errors.campaign_type" class="mt-1 text-sm text-red-600">{{ form.errors.campaign_type }}</div>
+                </div>
+
+                <!-- Provider Selection -->
+                <div class="sm:col-span-6">
+                    <label class="block text-sm font-medium leading-6 text-gray-900 mb-2">
+                        {{ $t('Preferred WhatsApp Provider') }}
+                    </label>
+                    <div class="space-y-3">
+                        <div v-for="provider in providerSelectOptions" :key="provider.value" class="relative flex items-center">
+                            <input
+                                :id="'provider-' + provider.value"
+                                v-model="form.preferred_provider"
+                                :value="provider.value"
+                                name="preferred_provider"
+                                type="radio"
+                                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                :disabled="(provider.value === 'webjs' && !hasWebJsSessions) || (provider.value === 'meta_api' && !hasMetaApiSessions)"
+                            >
+                            <label :for="'provider-' + provider.value" class="ml-3 flex flex-col">
+                                <span class="block text-sm font-medium text-gray-900">{{ provider.label }}</span>
+                                <span class="block text-sm text-gray-500">{{ provider.description }}</span>
+                                <span v-if="(provider.value === 'webjs' && !hasWebJsSessions) || (provider.value === 'meta_api' && !hasMetaApiSessions)"
+                                      class="block text-sm text-amber-600">
+                                    {{ $t('No active sessions available') }}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div v-if="form.errors.preferred_provider" class="mt-1 text-sm text-red-600">{{ form.errors.preferred_provider }}</div>
+                </div>
+
+                <!-- WhatsApp Session Selection -->
+                <FormSelect
+                    v-if="props.whatsappSessions && props.whatsappSessions.length > 0"
+                    v-model="form.whatsapp_session_id"
+                    :options="props.whatsappSessions.map(s => ({
+                        value: s.id,
+                        label: `${s.formatted_phone_number} (${s.provider_type === 'webjs' ? 'WebJS' : 'Meta API'}) - Health: ${s.health_score}%`
+                    }))"
+                    :name="$t('Specific WhatsApp Session (Optional)')"
+                    :class="'sm:col-span-6'"
+                    :placeholder="$t('Auto-select best session')"
+                    :error="form.errors.whatsapp_session_id"
+                />
+
+                <!-- Contact Group Selection -->
+                <FormSelect v-model="form.contacts" :options="contactGroupOptions" :name="$t('Send to')" :required="true" :class="'sm:col-span-3'" :placeholder="$t('Select contacts')" :error="form.errors.contacts"/>
+
+                <!-- Scheduling Options -->
+                <FormInput v-if="!form.skip_schedule" v-model="form.time" :name="$t('Scheduled time')" :type="'datetime-local'" :error="form.errors.time" :required="true" :class="'sm:col-span-2'"/>
+                <div class="relative flex gap-x-3 sm:col-span-6 items-center">
                     <div class="flex h-6 items-center">
                         <input v-model="form.skip_schedule" id="skip-schedule" name="skip-schedule" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
                     </div>
                     <div class="text-sm leading-6">
                         <label for="skip-schedule" class="font-medium text-gray-900">{{ $t('Skip scheduling & send immediately') }}</label>
                     </div>
+                </div>
+            </div>
+
+            <!-- Template-specific Configuration -->
+            <div v-if="isTemplateMode && isCampaignFlow" :class="isCampaignFlow ? '' : 'px-3 md:px-3'">
+                <div class="mb-4">
+                    <FormSelect v-model="form.template" @update:modelValue="loadTemplate" :options="templateOptions" :required="true" :error="form.errors.template" :name="$t('Template')" :placeholder="$t('Select template')"/>
+                </div>
+            </div>
+
+            <!-- Direct Message Configuration -->
+            <div v-if="isDirectMode && isCampaignFlow" class="grid gap-x-6 gap-y-4 mb-6 sm:grid-cols-6 px-3 md:px-3">
+                <!-- Header Section -->
+                <div class="sm:col-span-6">
+                    <label class="block text-sm font-medium leading-6 text-gray-900 mb-2">{{ $t('Message Header') }}</label>
+                    <div class="space-y-3">
+                        <!-- Header Type Selection -->
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center">
+                                <input type="radio" v-model="form.header_type" value="text" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                <span class="ml-2 text-sm text-gray-900">{{ $t('Text Header') }}</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" v-model="form.header_type" value="image" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                <span class="ml-2 text-sm text-gray-900">{{ $t('Image Header') }}</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" v-model="form.header_type" value="document" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                <span class="ml-2 text-sm text-gray-900">{{ $t('Document Header') }}</span>
+                            </label>
+                        </div>
+
+                        <!-- Header Text Input -->
+                        <FormInput v-if="form.header_type === 'text'" v-model="form.header_text" :name="$t('Header Text')" :type="'text'" :error="form.errors.header_text" :class="'sm:col-span-6'"/>
+
+                        <!-- Header Media Upload -->
+                        <div v-if="form.header_type !== 'text'">
+                            <label class="block text-sm font-medium text-gray-900">{{ $t('Upload Media') }}</label>
+                            <input type="file" @change="handleDirectMediaUpload" :accept="form.header_type === 'image' ? 'image/*' : 'application/pdf'" class="mt-1 block w-full text-sm text-gray-900 border-gray-300 rounded-md"/>
+                            <p v-if="form.header_type === 'image'" class="text-xs text-gray-500 mt-1">{{ $t('Supported formats: PNG, JPG, JPEG (Max 5MB)') }}</p>
+                            <p v-if="form.header_type === 'document'" class="text-xs text-gray-500 mt-1">{{ $t('Supported formats: PDF (Max 100MB)') }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Message Body -->
+                <div class="sm:col-span-6">
+                    <label for="body_text" class="block text-sm font-medium leading-6 text-gray-900">{{ $t('Message Body') }} *</label>
+                    <textarea
+                        id="body_text"
+                        v-model="form.body_text"
+                        rows="6"
+                        class="mt-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                        :placeholder="$t('Enter your message content here...')"
+                        required
+                    ></textarea>
+                    <div v-if="form.errors.body_text" class="mt-1 text-sm text-red-600">{{ form.errors.body_text }}</div>
+                    <div class="mt-2 text-xs text-gray-500">
+                        {{ $t('You can use variables like') }}: {{ '{first_name}' }}, {{ '{company}' }}, {{ '{email}' }}
+                    </div>
+                </div>
+
+                <!-- Footer (Optional) -->
+                <div class="sm:col-span-6">
+                    <FormInput v-model="form.footer_text" :name="$t('Footer (Optional)')" :type="'text'" :error="form.errors.footer_text" :class="'sm:col-span-6'" :placeholder="$t('Optional footer text')"/>
+                </div>
+
+                <!-- Buttons Section -->
+                <div class="sm:col-span-6">
+                    <label class="block text-sm font-medium leading-6 text-gray-900 mb-2">{{ $t('Message Buttons (Optional)') }}</label>
+                    <div v-if="form.buttons.length === 0" class="text-sm text-gray-500 mb-2">{{ $t('No buttons added') }}</div>
+                    <div v-for="(button, index) in form.buttons" :key="index" class="mb-3 p-3 border border-gray-200 rounded-md">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium">{{ $t('Button') }} {{ index + 1 }}</span>
+                            <button type="button" @click="removeDirectButton(index)" class="text-red-600 hover:text-red-800 text-sm">{{ $t('Remove') }}</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <FormInput v-model="button.text" :name="$t('Button Text')" :type="'text'" :required="true"/>
+                        </div>
+                    </div>
+                    <button type="button" @click="addDirectButton" class="mt-2 rounded-md bg-indigo-600 px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                        {{ $t('Add Button') }}
+                    </button>
                 </div>
             </div>
             <div :class="isCampaignFlow ? '' : 'px-3 md:px-3'">
@@ -409,7 +700,47 @@
         </form>
         <div class="md:w-[50%] py-20 flex justify-center chat-bg" :class="isCampaignFlow ? 'px-20' : 'px-10'">
             <div>
-                <WhatsappTemplate :parameters="form" :visible="form.template ? true : false"/>
+                <!-- Show template preview for template campaigns -->
+                <WhatsappTemplate v-if="isTemplateMode" :parameters="form" :visible="form.template ? true : false"/>
+
+                <!-- Show direct message preview for direct campaigns -->
+                <div v-else-if="isDirectMode && form.body_text" class="bg-white rounded-lg shadow-lg max-w-sm mx-auto">
+                    <div class="bg-green-500 p-4 rounded-t-lg flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="white" d="M12.043 23c6.623 0 12-5.377 12-12s-5.377-12-12-12s-12 5.377-12 12s5.377 12 12 12M12.043 7a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2m0 12a1.5 1.5 0 1 1 0 3a1.5 1.5 0 0 1 0-3Z"/></svg>
+                        <span class="text-white font-medium">{{ $t('Message Preview') }}</span>
+                    </div>
+                    <div class="p-4">
+                        <!-- Header Preview -->
+                        <div v-if="form.header_text" class="font-semibold text-gray-900 mb-2">{{ form.header_text }}</div>
+                        <div v-if="form.header_type === 'image' && form.header_media" class="mb-2 text-sm text-gray-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1m1 2v8h14V7zm3 2h8v2H8zm0 4h5v2H8z"/></svg>
+                            {{ $t('Image attached') }}
+                        </div>
+                        <div v-if="form.header_type === 'document' && form.header_media" class="mb-2 text-sm text-gray-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6m4 18H6V4h7v5h5v11Z"/></svg>
+                            {{ $t('Document attached') }}
+                        </div>
+
+                        <!-- Body Preview -->
+                        <div class="text-gray-800 mb-3 whitespace-pre-wrap">{{ form.body_text }}</div>
+
+                        <!-- Footer Preview -->
+                        <div v-if="form.footer_text" class="text-xs text-gray-500 mb-3">{{ form.footer_text }}</div>
+
+                        <!-- Buttons Preview -->
+                        <div v-if="form.buttons && form.buttons.length > 0" class="space-y-2">
+                            <div v-for="(button, index) in form.buttons" :key="index" class="bg-gray-100 p-2 rounded text-center text-sm text-blue-600">
+                                {{ button.text }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Show empty state for direct campaigns without content -->
+                <div v-else-if="isDirectMode" class="bg-white rounded-lg shadow-lg max-w-sm mx-auto p-8 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" class="mx-auto text-gray-400 mb-4"><path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                    <p class="text-gray-500 text-sm">{{ $t('Start typing your message to see a preview') }}</p>
+                </div>
             </div>
         </div>
     </div>
