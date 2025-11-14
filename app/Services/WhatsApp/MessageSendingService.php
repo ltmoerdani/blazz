@@ -360,7 +360,7 @@ class MessageSendingService
      * @param array $messageRequest Message content from job
      * @param int|null $userId User ID
      * @param int|null $campaignId Campaign ID
-     * @param WhatsAppSession|null $session WhatsApp session
+     * @param WhatsAppAccount|null $session WhatsApp session
      * @return object Response object
      */
     public function sendDirectMessage($contactUuId, $messageRequest, $userId = null, $campaignId = null, $session = null)

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\User;
 
 use App\Events\WhatsAppQRGeneratedEvent;
-use App\Events\WhatsAppSessionStatusChangedEvent;
+use App\Events\WhatsAppAccountStatusChangedEvent;
 use App\Http\Controllers\Controller;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\ProviderSelector;
 use App\Services\Adapters\WebJSAdapter;
 use Illuminate\Http\Request;
@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
-class WhatsAppSessionManagementController extends Controller
+class WhatsAppAccountManagementController extends Controller
 {
     /**
      * Display WhatsApp sessions for the current workspace
@@ -23,7 +23,7 @@ class WhatsAppSessionManagementController extends Controller
     {
         $workspaceId = session('current_workspace');
 
-        $sessions = WhatsAppSession::forWorkspace($workspaceId)
+        $sessions = WhatsAppAccount::forWorkspace($workspaceId)
             ->orderBy('is_primary', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -48,7 +48,7 @@ class WhatsAppSessionManagementController extends Controller
         $settings = \App\Models\Setting::whereIn('key', ['is_embedded_signup_active', 'whatsapp_client_id', 'whatsapp_config_id'])
             ->pluck('value', 'key');
 
-        return inertia('User/Settings/WhatsAppSessions', [
+        return inertia('User/Settings/WhatsAppAccounts', [
             'sessions' => $sessions,
             'canAddSession' => $this->canAddSession($workspaceId),
             'modules' => \App\Models\Addon::get(),
@@ -88,7 +88,7 @@ class WhatsAppSessionManagementController extends Controller
             ], 403);
         } else {
             try {
-                $session = WhatsAppSession::create([
+                $session = WhatsAppAccount::create([
                     'uuid' => Str::uuid()->toString(),
                     'workspace_id' => $workspaceId,
                     'session_id' => 'webjs_' . $workspaceId . '_' . time() . '_' . Str::random(8),
@@ -106,7 +106,7 @@ class WhatsAppSessionManagementController extends Controller
 
                 // If setting as primary, unset other primary sessions
                 if ($session->is_primary) {
-                    WhatsAppSession::where('workspace_id', $workspaceId)
+                    WhatsAppAccount::where('workspace_id', $workspaceId)
                         ->where('id', '!=', $session->id)
                         ->where('is_primary', true)
                         ->update(['is_primary' => false]);
@@ -141,7 +141,7 @@ class WhatsAppSessionManagementController extends Controller
                 }
 
                 // Fire status changed event
-                event(new WhatsAppSessionStatusChangedEvent(
+                event(new WhatsAppAccountStatusChangedEvent(
                     $session->session_id,
                     $session->status,
                     $workspaceId,
@@ -198,7 +198,7 @@ class WhatsAppSessionManagementController extends Controller
         $workspaceId = session('current_workspace');
 
         try {
-            $session = WhatsAppSession::forWorkspace($workspaceId)
+            $session = WhatsAppAccount::forWorkspace($workspaceId)
                 ->where('uuid', $uuid)
                 ->first();
 
@@ -279,7 +279,7 @@ class WhatsAppSessionManagementController extends Controller
         $workspaceId = session('current_workspace');
 
         try {
-            $session = WhatsAppSession::forWorkspace($workspaceId)
+            $session = WhatsAppAccount::forWorkspace($workspaceId)
                 ->where('uuid', $uuid)
                 ->first();
 
@@ -322,7 +322,7 @@ class WhatsAppSessionManagementController extends Controller
             }
 
             // Fire status changed event before deletion
-            event(new WhatsAppSessionStatusChangedEvent(
+            event(new WhatsAppAccountStatusChangedEvent(
                 $session->session_id,
                 'deleted',
                 $workspaceId,
@@ -367,7 +367,7 @@ class WhatsAppSessionManagementController extends Controller
         }
 
         // Only count connected sessions (not qr_scanning or pending)
-        $currentSessionCount = WhatsAppSession::forWorkspace($workspaceId)
+        $currentSessionCount = WhatsAppAccount::forWorkspace($workspaceId)
             ->where('status', 'connected')
             ->count();
 

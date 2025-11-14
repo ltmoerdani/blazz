@@ -125,7 +125,7 @@ class ThrottleWhatsAppSync
         ];
 
         // Future enhancement: Load workspace-specific or plan-specific limits
-        // $session = WhatsAppSession::find($sessionId);
+        // $session = WhatsAppAccount::find($sessionId);
         // if ($session && $session->workspace) {
         //     return $session->workspace->whatsapp_rate_limits ?? $defaultConfig;
         // }

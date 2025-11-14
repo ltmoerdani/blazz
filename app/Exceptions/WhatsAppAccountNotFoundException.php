@@ -5,12 +5,12 @@ namespace App\Exceptions;
 use Exception;
 use Throwable;
 
-class WhatsAppSessionNotFoundException extends Exception
+class WhatsAppAccountNotFoundException extends Exception
 {
     /**
      * Create a new exception instance.
      */
-    public function __construct(string $message = 'No active WhatsApp sessions available for this workspace', int $code = 0, ?Throwable $previous = null)
+    public function __construct(string $message = 'No active WhatsApp accounts available for this workspace', int $code = 0, ?Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
     }
@@ -21,7 +21,7 @@ class WhatsAppSessionNotFoundException extends Exception
     public function report(): bool
     {
         // Log the exception or send notifications
-        \Illuminate\Support\Facades\Log::warning('WhatsApp session not found', [
+        \Illuminate\Support\Facades\Log::warning('WhatsApp account not found', [
             'message' => $this->getMessage(),
             'workspace_id' => $this->getWorkspaceIdFromContext(),
         ]);
@@ -37,7 +37,7 @@ class WhatsAppSessionNotFoundException extends Exception
         return response()->json([
             'success' => false,
             'message' => $this->getMessage(),
-            'error_type' => 'whatsapp_session_not_found'
+            'error_type' => 'whatsapp_account_not_found'
         ], 404);
     }
 

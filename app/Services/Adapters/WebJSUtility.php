@@ -2,17 +2,17 @@
 
 namespace App\Services\Adapters;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class WebJSUtility
 {
-    private WhatsAppSession $session;
+    private WhatsAppAccount $session;
     private int $workspaceId;
     private string $nodeServiceUrl;
 
-    public function __construct(WhatsAppSession $session, int $workspaceId, string $nodeServiceUrl)
+    public function __construct(WhatsAppAccount $session, int $workspaceId, string $nodeServiceUrl)
     {
         $this->session = $session;
         $this->workspaceId = $workspaceId;

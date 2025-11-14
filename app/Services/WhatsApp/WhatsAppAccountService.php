@@ -3,8 +3,8 @@
 namespace App\Services\WhatsApp;
 
 use App\Events\WhatsAppQRGeneratedEvent;
-use App\Events\WhatsAppSessionStatusChangedEvent;
-use App\Models\WhatsAppSession;
+use App\Events\WhatsAppAccountStatusChangedEvent;
+use App\Models\WhatsAppAccount;
 use App\Services\ProviderSelector;
 use App\Services\Adapters\WebJSAdapter;
 use Illuminate\Http\Request;
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
-class WhatsAppSessionService
+class WhatsAppAccountService
 {
     private $providerSelector;
     private $workspaceId;
@@ -21,31 +21,31 @@ class WhatsAppSessionService
     public function __construct(ProviderSelector $providerSelector, $workspaceId = null)
     {
         $this->providerSelector = $providerSelector;
-        $this->workspaceId = $workspaceId ?: session('current_workspace');
+        $this->workspaceId = $workspaceId ?: account('current_workspace');
     }
 
     /**
-     * Get all WhatsApp sessions for the current workspace
+     * Get all WhatsApp accounts for the current workspace
      */
     public function getWorkspaceSessions()
     {
-        return WhatsAppSession::forWorkspace($this->workspaceId)
+        return WhatsAppAccount::forWorkspace($this->workspaceId)
             ->orderBy('is_primary', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($session) {
-                return $this->formatSessionData($session);
+            ->map(function ($account) {
+                return $this->formatSessionData($account);
             });
     }
 
     /**
-     * Create a new WhatsApp session
+     * Create a new WhatsApp account
      */
     public function createSession(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'phone_number' => 'required|string',
-            'session_name' => 'nullable|string|max:255',
+            'account_name' => 'nullable|string|max:255',
             'provider_type' => 'required|string|in:webjs,meta',
             'is_primary' => 'boolean'
         ]);
@@ -60,8 +60,8 @@ class WhatsAppSessionService
 
         $validated = $validator->validated();
 
-        // Check if session with this phone number already exists
-        $existingSession = WhatsAppSession::where('workspace_id', $this->workspaceId)
+        // Check if account with this phone number already exists
+        $existingSession = WhatsAppAccount::where('workspace_id', $this->workspaceId)
             ->where('phone_number', $validated['phone_number'])
             ->first();
 
@@ -73,10 +73,10 @@ class WhatsAppSessionService
         }
 
         try {
-            $session = WhatsAppSession::create([
+            $account = WhatsAppAccount::create([
                 'uuid' => Str::uuid()->toString(),
                 'workspace_id' => $this->workspaceId,
-                'session_name' => $validated['session_name'] ?? $validated['phone_number'],
+                'account_name' => $validated['account_name'] ?? $validated['phone_number'],
                 'phone_number' => $validated['phone_number'],
                 'provider_type' => $validated['provider_type'],
                 'is_primary' => $validated['is_primary'] ?? false,
@@ -84,10 +84,10 @@ class WhatsAppSessionService
                 'is_active' => false,
             ]);
 
-            // If setting as primary, unset other primary sessions
-            if ($session->is_primary) {
-                WhatsAppSession::where('workspace_id', $this->workspaceId)
-                    ->where('id', '!=', $session->id)
+            // If setting as primary, unset other primary accounts
+            if ($account->is_primary) {
+                WhatsAppAccount::where('workspace_id', $this->workspaceId)
+                    ->where('id', '!=', $account->id)
                     ->where('is_primary', true)
                     ->update(['is_primary' => false]);
             }
@@ -95,11 +95,11 @@ class WhatsAppSessionService
             return (object) [
                 'success' => true,
                 'message' => 'Session created successfully',
-                'data' => $this->formatSessionData($session)
+                'data' => $this->formatSessionData($account)
             ];
 
         } catch (\Exception $e) {
-            Log::error('Failed to create WhatsApp session', [
+            Log::error('Failed to create WhatsApp account', [
                 'error' => $e->getMessage(),
                 'workspace_id' => $this->workspaceId,
                 'phone_number' => $validated['phone_number']
@@ -107,21 +107,21 @@ class WhatsAppSessionService
 
             return (object) [
                 'success' => false,
-                'message' => 'Failed to create session: ' . $e->getMessage()
+                'message' => 'Failed to create account: ' . $e->getMessage()
             ];
         }
     }
 
     /**
-     * Get session details by UUID
+     * Get account details by UUID
      */
     public function getSession(string $uuid)
     {
-        $session = WhatsAppSession::forWorkspace($this->workspaceId)
+        $account = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('uuid', $uuid)
             ->first();
 
-        if (!$session) {
+        if (!$account) {
             return (object) [
                 'success' => false,
                 'message' => 'Session not found'
@@ -130,20 +130,20 @@ class WhatsAppSessionService
 
         return (object) [
             'success' => true,
-            'data' => $this->formatSessionData($session)
+            'data' => $this->formatSessionData($account)
         ];
     }
 
     /**
-     * Set session as primary
+     * Set account as primary
      */
     public function setPrimary(string $uuid)
     {
-        $session = WhatsAppSession::forWorkspace($this->workspaceId)
+        $account = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('uuid', $uuid)
             ->first();
 
-        if (!$session) {
+        if (!$account) {
             return (object) [
                 'success' => false,
                 'message' => 'Session not found'
@@ -151,45 +151,45 @@ class WhatsAppSessionService
         }
 
         try {
-            // Unset other primary sessions
-            WhatsAppSession::where('workspace_id', $this->workspaceId)
-                ->where('id', '!=', $session->id)
+            // Unset other primary accounts
+            WhatsAppAccount::where('workspace_id', $this->workspaceId)
+                ->where('id', '!=', $account->id)
                 ->where('is_primary', true)
                 ->update(['is_primary' => false]);
 
-            // Set this session as primary
-            $session->update(['is_primary' => true]);
+            // Set this account as primary
+            $account->update(['is_primary' => true]);
 
             return (object) [
                 'success' => true,
                 'message' => 'Session set as primary successfully',
-                'data' => $this->formatSessionData($session)
+                'data' => $this->formatSessionData($account)
             ];
 
         } catch (\Exception $e) {
-            Log::error('Failed to set primary session', [
+            Log::error('Failed to set primary account', [
                 'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
+                'account_uuid' => $uuid,
                 'workspace_id' => $this->workspaceId
             ]);
 
             return (object) [
                 'success' => false,
-                'message' => 'Failed to set primary session: ' . $e->getMessage()
+                'message' => 'Failed to set primary account: ' . $e->getMessage()
             ];
         }
     }
 
     /**
-     * Disconnect session
+     * Disconnect account
      */
     public function disconnectSession(string $uuid)
     {
-        $session = WhatsAppSession::forWorkspace($this->workspaceId)
+        $account = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('uuid', $uuid)
             ->first();
 
-        if (!$session) {
+        if (!$account) {
             return (object) [
                 'success' => false,
                 'message' => 'Session not found'
@@ -199,42 +199,42 @@ class WhatsAppSessionService
         try {
             // Get provider adapter
             try {
-                $provider = $this->providerSelector->selectProvider($this->workspaceId, $session->provider_type);
+                $provider = $this->providerSelector->selectProvider($this->workspaceId, $account->provider_type);
             } catch (\Exception $e) {
                 $provider = null;
             }
 
-            if ($provider && $session->provider_type === 'webjs') {
-                // For WebJS adapter, create new instance with session
-                $webjsAdapter = new WebJSAdapter($this->workspaceId, $session);
+            if ($provider && $account->provider_type === 'webjs') {
+                // For WebJS adapter, create new instance with account
+                $webjsAdapter = new WebJSAdapter($this->workspaceId, $account);
                 $result = $webjsAdapter->disconnectSession();
 
                 if (!$result['success']) {
                     Log::warning('Provider disconnection failed', [
-                        'session_uuid' => $uuid,
-                        'provider_type' => $session->provider_type,
+                        'account_uuid' => $uuid,
+                        'provider_type' => $account->provider_type,
                         'error' => $result['error'] ?? 'Unknown error'
                     ]);
                 }
             }
 
-            // Update session status
-            $session->update([
+            // Update account status
+            $account->update([
                 'status' => 'disconnected',
                 'is_active' => false,
-                'session_id' => null,
+                'account_id' => null,
                 'last_activity_at' => now()
             ]);
 
             // Fire status changed event
-            event(new WhatsAppSessionStatusChangedEvent(
-                $session->session_id,
+            event(new WhatsAppAccountStatusChangedEvent(
+                $account->account_id,
                 'disconnected',
                 $this->workspaceId,
-                $session->phone_number,
+                $account->phone_number,
                 [
-                    'action' => 'session_disconnected',
-                    'uuid' => $session->uuid,
+                    'action' => 'account_disconnected',
+                    'uuid' => $account->uuid,
                     'timestamp' => now()->toISOString()
                 ]
             ));
@@ -242,33 +242,33 @@ class WhatsAppSessionService
             return (object) [
                 'success' => true,
                 'message' => 'Session disconnected successfully',
-                'data' => $this->formatSessionData($session)
+                'data' => $this->formatSessionData($account)
             ];
 
         } catch (\Exception $e) {
-            Log::error('Failed to disconnect session', [
+            Log::error('Failed to disconnect account', [
                 'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
+                'account_uuid' => $uuid,
                 'workspace_id' => $this->workspaceId
             ]);
 
             return (object) [
                 'success' => false,
-                'message' => 'Failed to disconnect session: ' . $e->getMessage()
+                'message' => 'Failed to disconnect account: ' . $e->getMessage()
             ];
         }
     }
 
     /**
-     * Delete session
+     * Delete account
      */
     public function deleteSession(string $uuid)
     {
-        $session = WhatsAppSession::forWorkspace($this->workspaceId)
+        $account = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('uuid', $uuid)
             ->first();
 
-        if (!$session) {
+        if (!$account) {
             return (object) [
                 'success' => false,
                 'message' => 'Session not found'
@@ -277,12 +277,12 @@ class WhatsAppSessionService
 
         try {
             // Disconnect from provider first
-            if ($session->session_id) {
+            if ($account->account_id) {
                 $this->disconnectSession($uuid);
             }
 
-            // Delete the session
-            $session->delete();
+            // Delete the account
+            $account->delete();
 
             return (object) [
                 'success' => true,
@@ -290,29 +290,29 @@ class WhatsAppSessionService
             ];
 
         } catch (\Exception $e) {
-            Log::error('Failed to delete session', [
+            Log::error('Failed to delete account', [
                 'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
+                'account_uuid' => $uuid,
                 'workspace_id' => $this->workspaceId
             ]);
 
             return (object) [
                 'success' => false,
-                'message' => 'Failed to delete session: ' . $e->getMessage()
+                'message' => 'Failed to delete account: ' . $e->getMessage()
             ];
         }
     }
 
     /**
-     * Reconnect session
+     * Reconnect account
      */
     public function reconnectSession(string $uuid)
     {
-        $session = WhatsAppSession::forWorkspace($this->workspaceId)
+        $account = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('uuid', $uuid)
             ->first();
 
-        if (!$session) {
+        if (!$account) {
             return (object) [
                 'success' => false,
                 'message' => 'Session not found'
@@ -320,23 +320,23 @@ class WhatsAppSessionService
         }
 
         try {
-            // Reset session status
-            $session->update([
+            // Reset account status
+            $account->update([
                 'status' => 'connecting',
                 'is_active' => false,
-                'session_id' => null,
+                'account_id' => null,
                 'qr_code' => null
             ]);
 
             // Fire status changed event
-            event(new WhatsAppSessionStatusChangedEvent(
-                $session->session_id,
+            event(new WhatsAppAccountStatusChangedEvent(
+                $account->account_id,
                 'connecting',
                 $this->workspaceId,
-                $session->phone_number,
+                $account->phone_number,
                 [
-                    'action' => 'session_reconnecting',
-                    'uuid' => $session->uuid,
+                    'action' => 'account_reconnecting',
+                    'uuid' => $account->uuid,
                     'timestamp' => now()->toISOString()
                 ]
             ));
@@ -344,33 +344,33 @@ class WhatsAppSessionService
             return (object) [
                 'success' => true,
                 'message' => 'Session reconnection initiated',
-                'data' => $this->formatSessionData($session)
+                'data' => $this->formatSessionData($account)
             ];
 
         } catch (\Exception $e) {
-            Log::error('Failed to reconnect session', [
+            Log::error('Failed to reconnect account', [
                 'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
+                'account_uuid' => $uuid,
                 'workspace_id' => $this->workspaceId
             ]);
 
             return (object) [
                 'success' => false,
-                'message' => 'Failed to reconnect session: ' . $e->getMessage()
+                'message' => 'Failed to reconnect account: ' . $e->getMessage()
             ];
         }
     }
 
     /**
-     * Regenerate QR code for session
+     * Regenerate QR code for account
      */
     public function regenerateQR(string $uuid)
     {
-        $session = WhatsAppSession::forWorkspace($this->workspaceId)
+        $account = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('uuid', $uuid)
             ->first();
 
-        if (!$session) {
+        if (!$account) {
             return (object) [
                 'success' => false,
                 'message' => 'Session not found'
@@ -380,14 +380,14 @@ class WhatsAppSessionService
         try {
             // Get provider adapter
             try {
-                $provider = $this->providerSelector->selectProvider($this->workspaceId, $session->provider_type);
+                $provider = $this->providerSelector->selectProvider($this->workspaceId, $account->provider_type);
             } catch (\Exception $e) {
                 $provider = null;
             }
 
-            if (!$provider && $session->provider_type === 'webjs') {
-                // For WebJS adapter, create new instance with session
-                $webjsAdapter = new WebJSAdapter($this->workspaceId, $session);
+            if (!$provider && $account->provider_type === 'webjs') {
+                // For WebJS adapter, create new instance with account
+                $webjsAdapter = new WebJSAdapter($this->workspaceId, $account);
                 $result = $webjsAdapter->regenerateQR();
 
                 if (!$result['success']) {
@@ -397,8 +397,8 @@ class WhatsAppSessionService
                     ];
                 }
 
-                // Update session with new QR code
-                $session->update([
+                // Update account with new QR code
+                $account->update([
                     'qr_code' => $result['qr_code'],
                     'qr_expires_at' => now()->addMinutes(5),
                     'status' => 'qr_generated'
@@ -409,7 +409,7 @@ class WhatsAppSessionService
                     $result['qr_code'],
                     300, // 5 minutes in seconds
                     $this->workspaceId,
-                    $session->session_id
+                    $account->account_id
                 ));
 
                 return (object) [
@@ -417,7 +417,7 @@ class WhatsAppSessionService
                     'message' => 'QR code regenerated successfully',
                     'data' => [
                         'qr_code' => $result['qr_code'],
-                        'qr_expires_at' => $session->qr_expires_at
+                        'qr_expires_at' => $account->qr_expires_at
                     ]
                 ];
             } elseif (!$provider) {
@@ -435,7 +435,7 @@ class WhatsAppSessionService
         } catch (\Exception $e) {
             Log::error('Failed to regenerate QR code', [
                 'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
+                'account_uuid' => $uuid,
                 'workspace_id' => $this->workspaceId
             ]);
 
@@ -447,15 +447,15 @@ class WhatsAppSessionService
     }
 
     /**
-     * Get session statistics
+     * Get account statistics
      */
     public function getSessionStatistics(string $uuid)
     {
-        $session = WhatsAppSession::forWorkspace($this->workspaceId)
+        $account = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('uuid', $uuid)
             ->first();
 
-        if (!$session) {
+        if (!$account) {
             return (object) [
                 'success' => false,
                 'message' => 'Session not found'
@@ -466,22 +466,22 @@ class WhatsAppSessionService
             // Calculate statistics
             $now = now();
             $stats = [
-                'session_id' => $session->id,
-                'uuid' => $session->uuid,
-                'phone_number' => $session->phone_number,
-                'status' => $session->status,
-                'is_active' => $session->is_active,
-                'is_primary' => $session->is_primary,
-                'provider_type' => $session->provider_type,
-                'created_at' => $session->created_at,
-                'last_connected_at' => $session->last_connected_at,
-                'last_activity_at' => $session->last_activity_at,
-                'health_score' => $session->health_score ?? 0,
-                'uptime_percentage' => $this->calculateUptimePercentage($session),
-                'days_active' => $session->created_at->diffInDays($now),
-                'total_messages' => $this->getTotalMessages($session),
-                'last_24h_messages' => $this->getMessagesInPeriod($session, 24),
-                'last_7d_messages' => $this->getMessagesInPeriod($session, 168), // 7 days
+                'account_id' => $account->id,
+                'uuid' => $account->uuid,
+                'phone_number' => $account->phone_number,
+                'status' => $account->status,
+                'is_active' => $account->is_active,
+                'is_primary' => $account->is_primary,
+                'provider_type' => $account->provider_type,
+                'created_at' => $account->created_at,
+                'last_connected_at' => $account->last_connected_at,
+                'last_activity_at' => $account->last_activity_at,
+                'health_score' => $account->health_score ?? 0,
+                'uptime_percentage' => $this->calculateUptimePercentage($account),
+                'days_active' => $account->created_at->diffInDays($now),
+                'total_messages' => $this->getTotalMessages($account),
+                'last_24h_messages' => $this->getMessagesInPeriod($account, 24),
+                'last_7d_messages' => $this->getMessagesInPeriod($account, 168), // 7 days
             ];
 
             return (object) [
@@ -490,9 +490,9 @@ class WhatsAppSessionService
             ];
 
         } catch (\Exception $e) {
-            Log::error('Failed to get session statistics', [
+            Log::error('Failed to get account statistics', [
                 'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
+                'account_uuid' => $uuid,
                 'workspace_id' => $this->workspaceId
             ]);
 
@@ -504,49 +504,49 @@ class WhatsAppSessionService
     }
 
     /**
-     * Format session data for API response
+     * Format account data for API response
      */
-    private function formatSessionData($session)
+    private function formatSessionData($account)
     {
         return [
-            'id' => $session->id,
-            'uuid' => $session->uuid,
-            'session_id' => $session->session_id,
-            'phone_number' => $session->phone_number,
-            'session_name' => $session->session_name,
-            'provider_type' => $session->provider_type,
-            'status' => $session->status,
-            'is_primary' => $session->is_primary,
-            'is_active' => $session->is_active,
-            'qr_code' => $session->qr_code,
-            'qr_expires_at' => $session->qr_expires_at,
-            'last_activity_at' => $session->last_activity_at,
-            'last_connected_at' => $session->last_connected_at,
-            'health_score' => $session->health_score,
-            'formatted_phone_number' => $session->formatted_phone_number,
-            'created_at' => $session->created_at,
+            'id' => $account->id,
+            'uuid' => $account->uuid,
+            'account_id' => $account->account_id,
+            'phone_number' => $account->phone_number,
+            'account_name' => $account->account_name,
+            'provider_type' => $account->provider_type,
+            'status' => $account->status,
+            'is_primary' => $account->is_primary,
+            'is_active' => $account->is_active,
+            'qr_code' => $account->qr_code,
+            'qr_expires_at' => $account->qr_expires_at,
+            'last_activity_at' => $account->last_activity_at,
+            'last_connected_at' => $account->last_connected_at,
+            'health_score' => $account->health_score,
+            'formatted_phone_number' => $account->formatted_phone_number,
+            'created_at' => $account->created_at,
         ];
     }
 
     /**
-     * Calculate session uptime percentage
+     * Calculate account uptime percentage
      */
-    private function calculateUptimePercentage($session)
+    private function calculateUptimePercentage($account)
     {
-        if (!$session->last_connected_at || !$session->created_at) {
+        if (!$account->last_connected_at || !$account->created_at) {
             return 0;
         }
 
-        $totalTime = $session->created_at->diffInSeconds(now());
-        $activeTime = $session->last_connected_at->diffInSeconds(now());
+        $totalTime = $account->created_at->diffInSeconds(now());
+        $activeTime = $account->last_connected_at->diffInSeconds(now());
 
         return $totalTime > 0 ? ($activeTime / $totalTime) * 100 : 0;
     }
 
     /**
-     * Get total message count for session
+     * Get total message count for account
      */
-    private function getTotalMessages($session)
+    private function getTotalMessages($account)
     {
         // This would typically query the messages table
         // Implementation depends on your message storage structure
@@ -556,7 +556,7 @@ class WhatsAppSessionService
     /**
      * Get message count in specific period (hours)
      */
-    private function getMessagesInPeriod($session, $hours)
+    private function getMessagesInPeriod($account, $hours)
     {
         // This would typically query the messages table for the period
         // Implementation depends on your message storage structure

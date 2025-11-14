@@ -2,7 +2,7 @@
 
 namespace App\Services\WhatsApp;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\Campaign;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
@@ -19,7 +19,7 @@ class ProviderSelectionService
      * 4. Recent activity
      * 5. Load balancing (fewer active campaigns)
      */
-    public function selectBestSession(Campaign $campaign): ?WhatsAppSession
+    public function selectBestSession(Campaign $campaign): ?WhatsAppAccount
     {
         $workspaceId = $campaign->workspace_id;
         $preferredProvider = $campaign->preferred_provider ?? 'webjs';
@@ -67,18 +67,18 @@ class ProviderSelectionService
             return null;
         }
 
-        $selectedSession = $bestSessionData['session'];
+        $selectedAccount = $bestSessionData['session'];
 
         Log::info('Selected WhatsApp session for campaign', [
             'campaign_id' => $campaign->id,
-            'session_id' => $selectedSession->id,
-            'provider_type' => $selectedSession->provider_type,
-            'health_score' => $selectedSession->health_score,
+            'session_id' => $selectedAccount->id,
+            'provider_type' => $selectedAccount->provider_type,
+            'health_score' => $selectedAccount->health_score,
             'final_score' => $bestSessionData['score'],
             'preferred_provider' => $preferredProvider
         ]);
 
-        return $selectedSession;
+        return $selectedAccount;
     }
 
     /**
@@ -86,7 +86,7 @@ class ProviderSelectionService
      */
     private function getActiveSessions(int $workspaceId): Collection
     {
-        return WhatsAppSession::forWorkspace($workspaceId)
+        return WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
             ->connected()
             ->withCount(['campaigns' => function ($query) {
@@ -98,7 +98,7 @@ class ProviderSelectionService
     /**
      * Calculate score for a session based on multiple factors
      */
-    private function calculateSessionScore(WhatsAppSession $session, Campaign $campaign): int
+    private function calculateSessionScore(WhatsAppAccount $session, Campaign $campaign): int
     {
         $score = 100;
 
@@ -143,7 +143,7 @@ class ProviderSelectionService
     /**
      * Check if a session is suitable for a specific campaign type
      */
-    public function isSessionCompatible(WhatsAppSession $session, Campaign $campaign): bool
+    public function isSessionCompatible(WhatsAppAccount $session, Campaign $campaign): bool
     {
         // Check basic connectivity
         if ($session->status !== 'connected' || !$session->is_active) {
@@ -166,7 +166,7 @@ class ProviderSelectionService
     /**
      * Check if session can handle template-based campaign
      */
-    private function isTemplateCompatible(WhatsAppSession $session, Campaign $campaign): bool
+    private function isTemplateCompatible(WhatsAppAccount $session, Campaign $campaign): bool
     {
         if (!$campaign->template) {
             return false;
@@ -195,7 +195,7 @@ class ProviderSelectionService
     /**
      * Check if session can handle direct message campaign
      */
-    private function isDirectMessageCompatible(WhatsAppSession $session, Campaign $campaign): bool
+    private function isDirectMessageCompatible(WhatsAppAccount $session, Campaign $campaign): bool
     {
         // WebJS is preferred for direct messages (more flexible)
         if ($session->provider_type === 'webjs') {
@@ -221,7 +221,7 @@ class ProviderSelectionService
     /**
      * Get fallback sessions in order of preference
      */
-    public function getFallbackSessions(Campaign $campaign, WhatsAppSession $primarySession): Collection
+    public function getFallbackSessions(Campaign $campaign, WhatsAppAccount $primarySession): Collection
     {
         $workspaceId = $campaign->workspace_id;
 

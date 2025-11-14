@@ -31,7 +31,7 @@ class Campaign extends Model {
         'footer_text',
         'buttons_data',
         'preferred_provider',
-        'whatsapp_session_id',
+        'whatsapp_account_id',
         'status',
         'scheduled_at',
         'started_at',
@@ -95,8 +95,8 @@ class Campaign extends Model {
         return $this->hasMany(CampaignLog::class, 'campaign_id', 'id');
     }
 
-    public function whatsappSession(){
-        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
+    public function whatsappAccount(){
+        return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id', 'id');
     }
 
     public function creator(){

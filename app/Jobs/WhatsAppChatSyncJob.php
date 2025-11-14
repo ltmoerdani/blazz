@@ -5,7 +5,7 @@ namespace App\Jobs;
 use App\Models\Chat;
 use App\Models\Contact;
 use App\Models\WhatsAppGroup;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Events\NewChatEvent;
 use App\Services\ContactProvisioningService;
 use Illuminate\Bus\Queueable;
@@ -193,7 +193,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
                 'wam_id' => $chatData['chat_id'] ?? null,
             ],
             [
-                'whatsapp_session_id' => $this->sessionId,
+                'whatsapp_account_id' => $this->sessionId,
                 'contact_id' => $contact->id,
                 'group_id' => null,
                 'provider_type' => 'webjs',
@@ -235,7 +235,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
             ],
             [
                 'workspace_id' => $this->workspaceId,
-                'whatsapp_session_id' => $this->sessionId,
+                'whatsapp_account_id' => $this->sessionId,
                 'name' => $chatData['group_name'] ?? 'Unknown Group',
                 'description' => $chatData['group_description'] ?? null,
                 'owner_phone' => $chatData['owner_phone'] ?? null,
@@ -253,7 +253,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
                 'wam_id' => $chatData['chat_id'] ?? null,
             ],
             [
-                'whatsapp_session_id' => $this->sessionId,
+                'whatsapp_account_id' => $this->sessionId,
                 'contact_id' => null, // Group chats don't have contact_id
                 'group_id' => $group->id,
                 'provider_type' => 'webjs',
@@ -288,7 +288,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
     protected function updateSessionMetadata(int $processedCount, int $errorCount)
     {
         try {
-            $session = WhatsAppSession::find($this->sessionId);
+            $session = WhatsAppAccount::find($this->sessionId);
 
             if ($session) {
                 $metadata = $session->metadata ?? [];
@@ -329,7 +329,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
 
         // Update session metadata with failure status
         try {
-            $session = WhatsAppSession::find($this->sessionId);
+            $session = WhatsAppAccount::find($this->sessionId);
 
             if ($session) {
                 $metadata = $session->metadata ?? [];
