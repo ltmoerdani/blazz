@@ -200,8 +200,8 @@ Route::middleware(['auth:user'])->group(function () {
                         Route::get('/', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'index'])->name('index');
                         Route::post('/', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'store'])->name('store');
                         Route::get('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'show'])->name('show');
-                        Route::post('/{uuid}/set-primary', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'setPrimary'])->name('set-primary');
-                        Route::post('/{uuid}/disconnect', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'disconnect'])->name('disconnect');
+                        Route::post('/{uuid}/set-primary', [App\Http\Controllers\User\WhatsAppSessionStatusController::class, 'setPrimary'])->name('set-primary');
+                        Route::post('/{uuid}/disconnect', [App\Http\Controllers\User\WhatsAppSessionStatusController::class, 'disconnect'])->name('disconnect');
                         Route::delete('/{uuid}', [App\Http\Controllers\User\WhatsAppSessionManagementController::class, 'destroy'])->name('destroy');
                         Route::post('/{uuid}/reconnect', [App\Http\Controllers\User\WhatsAppSessionStatusController::class, 'reconnect'])->name('reconnect');
                         Route::post('/{uuid}/regenerate-qr', [App\Http\Controllers\User\WhatsAppSessionStatusController::class, 'regenerateQR'])->name('regenerate-qr');
