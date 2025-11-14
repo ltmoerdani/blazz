@@ -8,3 +8,4 @@ whatsapp-service/logs/
 whatsapp-service/.wwebjs_cache
 logs/
 .claude
+.DS_Store

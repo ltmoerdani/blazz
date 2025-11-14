@@ -422,7 +422,11 @@ class WhatsAppWebhookController extends BaseController
     private function getAutoReplyService($workspaceId)
     {
         if (!$this->autoReplyService) {
-            $this->autoReplyService = new AutoReplyService($workspaceId);
+            $this->autoReplyService = new AutoReplyService(
+                $workspaceId,
+                app('App\Services\WhatsApp\MessageSendingService'),
+                app('App\Services\WhatsApp\MediaProcessingService')
+            );
         }
         return $this->autoReplyService;
     }

@@ -3,7 +3,7 @@
 namespace App\Contracts;
 
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 
 interface WhatsAppAdapterInterface
 {
@@ -50,9 +50,9 @@ interface WhatsAppAdapterInterface
     /**
      * Get the session associated with this adapter
      *
-     * @return WhatsAppSession|null
+     * @return WhatsAppAccount|null
      */
-    public function getSession(): ?WhatsAppSession;
+    public function getSession(): ?WhatsAppAccount;
 
     /**
      * Get provider type (meta, webjs)

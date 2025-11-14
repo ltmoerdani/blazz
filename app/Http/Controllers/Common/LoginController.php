@@ -23,7 +23,7 @@ class LoginController extends BaseController
     protected $userService;
     protected $role;
 
-    public function __construct(UserService $userService = null, $role = 'user')
+    public function __construct(?UserService $userService = null, string $role = 'user')
     {
         // Use appropriate user service based on role
         if ($role === 'admin') {
@@ -130,7 +130,7 @@ class LoginController extends BaseController
     {
         try {
             // Check if user is active
-            if ($user->status !== 'active') {
+            if ($user->status !== 1) {
                 return back()->withErrors([
                     'email' => 'Account is not active. Please contact administrator.',
                 ]);

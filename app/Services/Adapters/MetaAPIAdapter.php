@@ -4,8 +4,10 @@ namespace App\Services\Adapters;
 
 use App\Contracts\WhatsAppAdapterInterface;
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\BusinessProfileService;
+use App\Services\WhatsApp\MessageSendingService;
 use Illuminate\Support\Facades\Log;
 
 class MetaAPIAdapter implements WhatsAppAdapterInterface
@@ -14,15 +16,19 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
     private const SERVICE_NOT_INITIALIZED = 'Meta API service not initialized';
     private const PROVIDER_TYPE = 'meta';
 
-    private ?WhatsAppSession $session;
+    private ?WhatsAppAccount $session;
     private int $workspaceId;
     private ?WhatsappService $whatsappService;
+    private ?BusinessProfileService $businessProfileService;
+    private ?MessageSendingService $messageSendingService;
 
-    public function __construct(int $workspaceId, ?WhatsAppSession $session = null)
+    public function __construct(int $workspaceId, ?WhatsAppAccount $session = null)
     {
         $this->workspaceId = $workspaceId;
         $this->session = $session;
         $this->whatsappService = $this->initializeWhatsappService();
+        $this->businessProfileService = $this->initializeBusinessProfileService();
+        $this->messageSendingService = $this->initializeMessageSendingService();
     }
 
     /**
@@ -55,17 +61,67 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
     }
 
     /**
+     * Initialize BusinessProfileService
+     */
+    private function initializeBusinessProfileService(): ?BusinessProfileService
+    {
+        if (!$this->session || $this->session->provider_type !== 'meta') {
+            return null;
+        }
+
+        $sessionData = $this->session->session_data;
+
+        if (!$sessionData || !isset($sessionData['access_token'])) {
+            return null;
+        }
+
+        return new BusinessProfileService(
+            $sessionData['access_token'],
+            $sessionData['api_version'] ?? 'v18.0',
+            $sessionData['app_id'] ?? null,
+            $sessionData['phone_number_id'] ?? null,
+            $sessionData['waba_id'] ?? null,
+            $this->workspaceId
+        );
+    }
+
+    /**
+     * Initialize MessageSendingService
+     */
+    private function initializeMessageSendingService(): ?MessageSendingService
+    {
+        if (!$this->session || $this->session->provider_type !== 'meta') {
+            return null;
+        }
+
+        $sessionData = $this->session->session_data;
+
+        if (!$sessionData || !isset($sessionData['access_token'])) {
+            return null;
+        }
+
+        return new MessageSendingService(
+            $sessionData['access_token'],
+            $sessionData['api_version'] ?? 'v18.0',
+            $sessionData['app_id'] ?? null,
+            $sessionData['phone_number_id'] ?? null,
+            $sessionData['waba_id'] ?? null,
+            $this->workspaceId
+        );
+    }
+
+    /**
      * Check if Meta API is available and ready
      */
     public function isAvailable(): bool
     {
-        if (!$this->whatsappService) {
+        if (!$this->businessProfileService) {
             return false;
         }
 
         try {
             // Try to get phone number status as a health check
-            $response = $this->whatsappService->getPhoneNumberStatus();
+            $response = $this->businessProfileService->getPhoneNumberStatus();
 
             return $response->success && isset($response->data->status);
         } catch (\Exception $e) {
@@ -82,7 +138,7 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
      */
     public function sendMessage(Contact $contact, string $message, ?int $userId = null): array
     {
-        if (!$this->whatsappService) {
+        if (!$this->messageSendingService) {
             return [
                 'success' => false,
                 'error' => self::SERVICE_NOT_INITIALIZED,
@@ -91,7 +147,7 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
         }
 
         try {
-            $response = $this->whatsappService->sendMessage(
+            $response = $this->messageSendingService->sendMessage(
                 $contact->uuid,
                 $message,
                 $userId
@@ -133,7 +189,7 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
      */
     public function sendMedia(Contact $contact, string $mediaType, string $mediaUrl, string $caption = '', ?int $userId = null): array
     {
-        if (!$this->whatsappService) {
+        if (!$this->messageSendingService) {
             return [
                 'success' => false,
                 'error' => self::SERVICE_NOT_INITIALIZED,
@@ -142,7 +198,7 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
         }
 
         try {
-            $response = $this->whatsappService->sendMedia(
+            $response = $this->messageSendingService->sendMedia(
                 $contact->uuid,
                 $mediaType,
                 basename($mediaUrl), // filename
@@ -187,7 +243,7 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
      */
     public function sendTemplate(Contact $contact, array $templateData, ?int $userId = null, ?int $campaignId = null): array
     {
-        if (!$this->whatsappService) {
+        if (!$this->messageSendingService) {
             return [
                 'success' => false,
                 'error' => self::SERVICE_NOT_INITIALIZED,
@@ -196,7 +252,7 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
         }
 
         try {
-            $response = $this->whatsappService->sendTemplateMessage(
+            $response = $this->messageSendingService->sendTemplateMessage(
                 $contact->uuid,
                 $templateData,
                 $userId,
@@ -237,7 +293,7 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
     /**
      * Get the session associated with this adapter
      */
-    public function getSession(): ?WhatsAppSession
+    public function getSession(): ?WhatsAppAccount
     {
         return $this->session;
     }

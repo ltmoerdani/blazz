@@ -353,6 +353,307 @@ class MessageSendingService
         return $responseObject;
     }
 
+    /**
+     * Send direct message for hybrid campaigns
+     *
+     * @param string $contactUuId Contact UUID
+     * @param array $messageRequest Message content from job
+     * @param int|null $userId User ID
+     * @param int|null $campaignId Campaign ID
+     * @param WhatsAppAccount|null $session WhatsApp session
+     * @return object Response object
+     */
+    public function sendDirectMessage($contactUuId, $messageRequest, $userId = null, $campaignId = null, $session = null)
+    {
+        $contact = Contact::where('uuid', $contactUuId)->first();
+
+        if (!$contact) {
+            throw new \Exception('Contact not found');
+        }
+
+        // Determine API endpoint based on session provider
+        if ($session && $session->provider_type === 'webjs') {
+            return $this->sendWebJSDirectMessage($contact, $messageRequest, $userId, $campaignId, $session);
+        } else {
+            return $this->sendMetaApiDirectMessage($contact, $messageRequest, $userId, $campaignId, $session);
+        }
+    }
+
+    /**
+     * Send direct message via WebJS provider
+     */
+    private function sendWebJSDirectMessage($contact, $messageRequest, $userId = null, $campaignId = null, $session = null)
+    {
+        try {
+            // For WebJS, we use the existing sendMessage method with proper formatting
+            $messageType = 'text';
+            $buttons = [];
+            $header = [];
+            $footer = null;
+
+            // Extract message content
+            $content = $messageRequest['content'] ?? [];
+
+            // Build header if exists
+            if (isset($content['header'])) {
+                $headerComponent = $content['header'];
+
+                if ($headerComponent['type'] === 'text') {
+                    $header['text'] = $headerComponent['text'];
+                } elseif (in_array($headerComponent['type'], ['image', 'document', 'video'])) {
+                    // For WebJS, media messages might need special handling
+                    $messageType = 'media';
+                    return $this->sendMediaMessage($contact, $messageRequest, $userId, $campaignId);
+                }
+            }
+
+            // Build body text
+            $bodyText = $content['body']['text'] ?? '';
+
+            // Build footer
+            if (isset($content['footer'])) {
+                $footer = $content['footer']['text'] ?? null;
+            }
+
+            // Build buttons
+            if (isset($content['buttons']) && !empty($content['buttons'])) {
+                $messageType = self::INTERACTIVE_BUTTONS;
+                foreach ($content['buttons'] as $index => $button) {
+                    $buttons[] = [
+                        'id' => 'btn_' . $index,
+                        'title' => $button['text']
+                    ];
+                }
+            }
+
+            // Send using existing sendMessage method
+            $responseObject = $this->sendMessage(
+                $contact->uuid,
+                $bodyText,
+                $userId,
+                $messageType,
+                $buttons,
+                $header,
+                $footer
+            );
+
+            // Update campaign ID if provided
+            if ($responseObject->success === true && $campaignId) {
+                $chatId = $responseObject->data->chat->id ?? null;
+                if ($chatId) {
+                    Chat::where('id', $chatId)->update(['campaign_id' => $campaignId]);
+                }
+            }
+
+            return $responseObject;
+
+        } catch (\Exception $e) {
+            Log::error('WebJS Direct Message Error: ' . $e->getMessage(), [
+                'contact_uuid' => $contact->uuid,
+                'session_id' => $session->id,
+                'campaign_id' => $campaignId
+            ]);
+
+            $responseObject = new \stdClass();
+            $responseObject->success = false;
+            $responseObject->error = $e->getMessage();
+            return $responseObject;
+        }
+    }
+
+    /**
+     * Send direct message via Meta Business API
+     */
+    private function sendMetaApiDirectMessage($contact, $messageRequest, $userId = null, $campaignId = null, $session = null)
+    {
+        try {
+            $url = "https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/messages";
+            $headers = $this->setHeaders();
+
+            $content = $messageRequest['content'] ?? [];
+
+            // Build base request
+            $requestData = [
+                'messaging_product' => 'whatsapp',
+                'recipient_type' => 'individual',
+                'to' => $contact->phone,
+                'type' => 'template' // Meta API prefers template structure for structured messages
+            ];
+
+            // Build template structure for direct message
+            $templateData = [
+                'name' => 'direct_message_' . uniqid(), // Generate unique template name
+                'language' => [
+                    'code' => 'en_US'
+                ],
+                'components' => []
+            ];
+
+            // Add header component if exists
+            if (isset($content['header'])) {
+                $headerComponent = $content['header'];
+                $templateHeader = [
+                    'type' => 'header',
+                    'parameters' => []
+                ];
+
+                if ($headerComponent['type'] === 'text') {
+                    $templateHeader['parameters'][] = [
+                        'type' => 'text',
+                        'text' => $headerComponent['text']
+                    ];
+                } elseif (in_array($headerComponent['type'], ['image', 'document', 'video'])) {
+                    $templateHeader['parameters'][] = [
+                        'type' => $headerComponent['type'],
+                        'media' => $headerComponent['media'] ?? ''
+                    ];
+                }
+
+                $templateData['components'][] = $templateHeader;
+            }
+
+            // Add body component (required)
+            $templateData['components'][] = [
+                'type' => 'body',
+                'parameters' => [
+                    [
+                        'type' => 'text',
+                        'text' => $content['body']['text'] ?? ''
+                    ]
+                ]
+            ];
+
+            // Add footer component if exists
+            if (isset($content['footer']) && !empty($content['footer']['text'])) {
+                $templateData['components'][] = [
+                    'type' => 'footer',
+                    'text' => $content['footer']['text']
+                ];
+            }
+
+            // Add buttons component if exists
+            if (isset($content['buttons']) && !empty($content['buttons'])) {
+                $buttonComponent = [
+                    'type' => 'buttons',
+                    'buttons' => []
+                ];
+
+                foreach ($content['buttons'] as $button) {
+                    $buttonData = [
+                        'type' => $button['type'],
+                        'text' => $button['text']
+                    ];
+
+                    if ($button['type'] === 'url') {
+                        $buttonData['url'] = $button['url'];
+                    } elseif ($button['type'] === 'phone_number') {
+                        $buttonData['phone_number'] = $button['phone_number'];
+                    }
+
+                    $buttonComponent['buttons'][] = $buttonData;
+                }
+
+                $templateData['components'][] = $buttonComponent;
+            }
+
+            $requestData['template'] = $templateData;
+
+            // Send request
+            $responseObject = $this->sendHttpRequest('POST', $url, $requestData, $headers);
+
+            // Create chat record if successful
+            if ($responseObject->success === true) {
+                $response['direct_message'] = $templateData;
+                $response['type'] = 'direct_message';
+
+                $chat = Chat::create([
+                    'workspace_id' => $contact->workspace_id,
+                    'wam_id' => $responseObject->data->messages[0]->id,
+                    'contact_id' => $contact->id,
+                    'type' => 'outbound',
+                    'user_id' => $userId,
+                    'metadata' => json_encode($response),
+                    'status' => 'delivered',
+                    'campaign_id' => $campaignId,
+                ]);
+
+                $chat = Chat::with('contact', 'media')->where('id', $chat->id)->first();
+                $responseObject->data->chat = $chat;
+
+                // Trigger chat log and events
+                $chatlogId = ChatLog::insertGetId([
+                    'contact_id' => $contact->id,
+                    'entity_type' => 'chat',
+                    'entity_id' => $chat->id,
+                    'created_at' => now()
+                ]);
+
+                $chatLogArray = ChatLog::where('id', $chatlogId)->where('deleted_at', null)->first();
+                $chatArray = [
+                    'type' => 'chat',
+                    'value' => $chatLogArray->relatedEntities
+                ];
+
+                event(new NewChatEvent($chatArray, $contact->workspace_id));
+            }
+
+            // Trigger webhook
+            WebhookHelper::triggerWebhookEvent('message.sent', [
+                'data' => $responseObject,
+            ], $contact->workspace_id);
+
+            return $responseObject;
+
+        } catch (\Exception $e) {
+            Log::error('Meta API Direct Message Error: ' . $e->getMessage(), [
+                'contact_uuid' => $contact->uuid,
+                'session_id' => $session->id,
+                'campaign_id' => $campaignId
+            ]);
+
+            $responseObject = new \stdClass();
+            $responseObject->success = false;
+            $responseObject->error = $e->getMessage();
+            return $responseObject;
+        }
+    }
+
+    /**
+     * Handle media messages for direct campaigns
+     */
+    private function sendMediaMessage($contact, $messageRequest, $userId = null, $campaignId = null)
+    {
+        $content = $messageRequest['content'] ?? [];
+        $header = $content['header'] ?? [];
+
+        if (!isset($header['type']) || !isset($header['media'])) {
+            throw new \Exception('Invalid media message structure');
+        }
+
+        $mediaType = $header['type'];
+        $mediaUrl = $header['media'];
+        $caption = $content['footer']['text'] ?? null;
+
+        $responseObject = $this->sendMedia(
+            $contact->uuid,
+            $mediaType,
+            null, // filename
+            $mediaUrl,
+            null, // location
+            $caption
+        );
+
+        // Update campaign ID if provided
+        if ($responseObject->success === true && $campaignId) {
+            $chatId = $responseObject->data->chat->id ?? null;
+            if ($chatId) {
+                Chat::where('id', $chatId)->update(['campaign_id' => $campaignId]);
+            }
+        }
+
+        return $responseObject;
+    }
+
     private function setHeaders()
     {
         return [

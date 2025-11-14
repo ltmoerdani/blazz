@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\ProviderSelector;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -50,7 +50,7 @@ class MonitorWhatsAppProviders extends Command
      */
     private function monitorAllWorkspaces(bool $shouldFix): void
     {
-        $workspaces = WhatsAppSession::select('workspace_id')
+        $workspaces = WhatsAppAccount::select('workspace_id')
             ->distinct()
             ->pluck('workspace_id');
 
@@ -118,7 +118,7 @@ class MonitorWhatsAppProviders extends Command
         $this->info("  🔧 Attempting recovery for {$providerType}...");
 
         try {
-            $sessions = WhatsAppSession::forWorkspace($workspaceId)
+            $sessions = WhatsAppAccount::forWorkspace($workspaceId)
                 ->byProvider($providerType)
                 ->where('status', '!=', 'connected')
                 ->get();
@@ -149,7 +149,7 @@ class MonitorWhatsAppProviders extends Command
         $this->info("  🔧 Attempting health improvement for {$providerType}...");
 
         try {
-            $sessions = WhatsAppSession::forWorkspace($workspaceId)
+            $sessions = WhatsAppAccount::forWorkspace($workspaceId)
                 ->byProvider($providerType)
                 ->where('status', 'connected')
                 ->get();
@@ -174,7 +174,7 @@ class MonitorWhatsAppProviders extends Command
     /**
      * Attempt to reconnect WebJS session
      */
-    private function attemptWebJSReconnection(WhatsAppSession $session): void
+    private function attemptWebJSReconnection(WhatsAppAccount $session): void
     {
         try {
             // This would call the Node.js service to attempt reconnection
@@ -195,7 +195,7 @@ class MonitorWhatsAppProviders extends Command
     /**
      * Check Meta API credentials validity
      */
-    private function checkMetaAPICredentials(WhatsAppSession $session): void
+    private function checkMetaAPICredentials(WhatsAppAccount $session): void
     {
         try {
             $sessionData = $session->session_data;
@@ -226,7 +226,7 @@ class MonitorWhatsAppProviders extends Command
     private function updateSessionStatistics(int $workspaceId): void
     {
         try {
-            $sessions = WhatsAppSession::forWorkspace($workspaceId)->get();
+            $sessions = WhatsAppAccount::forWorkspace($workspaceId)->get();
 
             foreach ($sessions as $session) {
                 $session->updateStatistics();

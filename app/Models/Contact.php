@@ -120,14 +120,14 @@ class Contact extends Model {
 
                 // Filter by session if specified
                 if ($sessionId) {
-                    $subquery->where('chats.whatsapp_session_id', $sessionId);
+                    $subquery->where('chats.whatsapp_account_id', $sessionId);
                 }
             }, 'last_chat_created_at');
 
         // Filter contacts by session (only show contacts with chats from specific session)
         if ($sessionId) {
             $query->whereHas('chats', function ($q) use ($sessionId) {
-                $q->where('whatsapp_session_id', $sessionId)
+                $q->where('whatsapp_account_id', $sessionId)
                   ->whereNull('deleted_at');
             });
         }
@@ -179,7 +179,7 @@ class Contact extends Model {
         // Filter by session if specified
         if ($sessionId) {
             $query->whereHas('chats', function ($q) use ($sessionId) {
-                $q->where('whatsapp_session_id', $sessionId)
+                $q->where('whatsapp_account_id', $sessionId)
                   ->whereNull('deleted_at');
             });
         }

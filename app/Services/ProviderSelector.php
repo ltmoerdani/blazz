@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Contracts\WhatsAppAdapterInterface;
 use App\Exceptions\WhatsAppProviderNotFoundException;
 use App\Exceptions\WhatsAppSessionNotFoundException;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\Adapters\MetaAPIAdapter;
 use App\Services\Adapters\WebJSAdapter;
 use Illuminate\Support\Facades\Log;
@@ -32,7 +32,7 @@ class ProviderSelector
         }
 
         // Get all available sessions for the workspace
-        $sessions = WhatsAppSession::forWorkspace($workspaceId)
+        $sessions = WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
             ->connected()
             ->orderBy('is_primary', 'desc')
@@ -65,10 +65,10 @@ class ProviderSelector
      *
      * @param string $providerType
      * @param int $workspaceId
-     * @param WhatsAppSession|null $session
+     * @param WhatsAppAccount|null $session
      * @return WhatsAppAdapterInterface|null
      */
-    private function getProviderInstance(string $providerType, int $workspaceId, ?WhatsAppSession $session = null): ?WhatsAppAdapterInterface
+    private function getProviderInstance(string $providerType, int $workspaceId, ?WhatsAppAccount $session = null): ?WhatsAppAdapterInterface
     {
         return match($providerType) {
             'meta' => app(MetaAPIAdapter::class, ['workspaceId' => $workspaceId, 'session' => $session]),
@@ -87,7 +87,7 @@ class ProviderSelector
     public function isProviderAvailable(string $providerType, int $workspaceId): bool
     {
         try {
-            $sessions = WhatsAppSession::forWorkspace($workspaceId)
+            $sessions = WhatsAppAccount::forWorkspace($workspaceId)
                 ->active()
                 ->connected()
                 ->byProvider($providerType)
@@ -134,7 +134,7 @@ class ProviderSelector
     {
         $health = [];
 
-        $sessions = WhatsAppSession::forWorkspace($workspaceId)->active()->get();
+        $sessions = WhatsAppAccount::forWorkspace($workspaceId)->active()->get();
 
         foreach ($sessions as $session) {
             $providerType = $session->provider_type;

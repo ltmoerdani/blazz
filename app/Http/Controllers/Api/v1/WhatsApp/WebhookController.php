@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api\v1\WhatsApp;
 
 use App\Events\WhatsAppQRGeneratedEvent;
-use App\Events\WhatsAppSessionStatusChangedEvent;
+use App\Events\WhatsAppAccountStatusChangedEvent;
 use App\Http\Controllers\Controller;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\ContactProvisioningService;
 use App\Services\MediaService;
 use App\Services\ProviderSelector;
@@ -70,7 +70,7 @@ class WebhookController extends Controller
         $qrCode = $data['qr_code'];
 
         // Update session in database
-        $session = WhatsAppSession::where('session_id', $sessionId)
+        $session = WhatsAppAccount::where('session_id', $sessionId)
             ->where('workspace_id', $workspaceId)
             ->first();
 
@@ -100,7 +100,7 @@ class WebhookController extends Controller
         $workspaceId = $data['workspace_id'];
         $sessionId = $data['session_id'];
 
-        $session = WhatsAppSession::where('session_id', $sessionId)
+        $session = WhatsAppAccount::where('session_id', $sessionId)
             ->where('workspace_id', $workspaceId)
             ->first();
 
@@ -111,7 +111,7 @@ class WebhookController extends Controller
             ]);
 
             // Broadcast status change
-            broadcast(new WhatsAppSessionStatusChangedEvent(
+            broadcast(new WhatsAppAccountStatusChangedEvent(
                 $sessionId,
                 'authenticated',
                 $workspaceId,
@@ -133,7 +133,7 @@ class WebhookController extends Controller
         $sessionId = $data['session_id'];
         $phoneNumber = $data['phone_number'] ?? null;
 
-        $session = WhatsAppSession::where('session_id', $sessionId)
+        $session = WhatsAppAccount::where('session_id', $sessionId)
             ->where('workspace_id', $workspaceId)
             ->first();
 
@@ -146,7 +146,7 @@ class WebhookController extends Controller
             ]);
 
             // Broadcast status change
-            broadcast(new WhatsAppSessionStatusChangedEvent(
+            broadcast(new WhatsAppAccountStatusChangedEvent(
                 $sessionId,
                 'connected',
                 $workspaceId,
@@ -168,7 +168,7 @@ class WebhookController extends Controller
         $sessionId = $data['session_id'];
         $reason = $data['reason'] ?? 'unknown';
 
-        $session = WhatsAppSession::where('session_id', $sessionId)
+        $session = WhatsAppAccount::where('session_id', $sessionId)
             ->where('workspace_id', $workspaceId)
             ->first();
 
@@ -183,7 +183,7 @@ class WebhookController extends Controller
             ]);
 
             // Broadcast status change
-            broadcast(new WhatsAppSessionStatusChangedEvent(
+            broadcast(new WhatsAppAccountStatusChangedEvent(
                 $sessionId,
                 'disconnected',
                 $workspaceId,
@@ -222,7 +222,7 @@ class WebhookController extends Controller
             }
 
             // Get session from database
-            $session = WhatsAppSession::where('session_id', $sessionId)
+            $session = WhatsAppAccount::where('session_id', $sessionId)
                 ->where('workspace_id', $workspaceId)
                 ->first();
 
