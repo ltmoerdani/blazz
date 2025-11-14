@@ -52,6 +52,30 @@ class WebhookController extends Controller
                 $this->handleMessageReceived($data);
                 break;
 
+            case 'message_sent':
+                $this->handleMessageSent($data);
+                break;
+
+            case 'message_status_updated':
+                $this->handleMessageStatusUpdated($data);
+                break;
+
+            case 'message_delivered':
+                $this->handleMessageDelivered($data);
+                break;
+
+            case 'message_read':
+                $this->handleMessageRead($data);
+                break;
+
+            case 'typing_indicator':
+                $this->handleTypingIndicator($data);
+                break;
+
+            case 'chat_state_updated':
+                $this->handleChatStateUpdated($data);
+                break;
+
             default:
                 Log::warning('Unknown WhatsApp WebJS event', ['event' => $event]);
                 break;
@@ -319,6 +343,289 @@ class WebhookController extends Controller
             Log::error('Error handling WhatsApp message', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+                'data_keys' => array_keys($data)
+            ]);
+        }
+    }
+
+    /**
+     * Handle message sent event (for real-time UI updates)
+     */
+    private function handleMessageSent(array $data): void
+    {
+        try {
+            $workspaceId = $data['workspace_id'];
+            $sessionId = $data['session_id'];
+            $messageData = $data['message'];
+
+            Log::info('Message sent via WebJS', [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'message_id' => $messageData['id'] ?? null,
+                'to' => $messageData['to'] ?? null,
+            ]);
+
+            // Find or create the chat entry in database with WhatsApp message ID
+            $session = WhatsAppAccount::where('session_id', $sessionId)
+                ->where('workspace_id', $workspaceId)
+                ->first();
+
+            if (!$session) {
+                Log::error('Session not found for message sent', [
+                    'session_id' => $sessionId,
+                    'workspace_id' => $workspaceId
+                ]);
+                return;
+            }
+
+            // Extract phone number and find/create contact
+            $to = $messageData['to'];
+            $phoneNumber = str_replace(['@c.us', '@g.us'], '', $to);
+
+            $provisioningService = new ContactProvisioningService();
+            $contact = $provisioningService->getOrCreateContact(
+                $phoneNumber,
+                $phoneNumber, // Use phone number as name for sent messages
+                $workspaceId,
+                'webjs',
+                $session->id
+            );
+
+            if ($contact) {
+                // Create chat record with real-time messaging fields
+                \App\Models\Chat::create([
+                    'workspace_id' => $workspaceId,
+                    'contact_id' => $contact->id,
+                    'whatsapp_account_id' => $session->id,
+                    'whatsapp_message_id' => $messageData['id'],
+                    'wam_id' => $messageData['id'], // Keep for compatibility
+                    'type' => 'outbound',
+                    'status' => 'sent',
+                    'message_status' => 'pending', // Real-time status
+                    'ack_level' => 1, // Pending status
+                    'metadata' => json_encode([
+                        'body' => $messageData['body'] ?? '',
+                        'type' => $messageData['type'] ?? 'text',
+                        'has_media' => $messageData['has_media'] ?? false,
+                        'from_me' => true,
+                    ]),
+                    'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
+                ]);
+
+                Log::info('Chat record created for sent message', [
+                    'contact_id' => $contact->id,
+                    'message_id' => $messageData['id'],
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error handling message sent', [
+                'error' => $e->getMessage(),
+                'data_keys' => array_keys($data)
+            ]);
+        }
+    }
+
+    /**
+     * Handle message status updated event (for ✓ ✓✓ ✓✓✓ tracking)
+     */
+    private function handleMessageStatusUpdated(array $data): void
+    {
+        try {
+            $workspaceId = $data['workspace_id'];
+            $sessionId = $data['session_id'];
+            $messageId = $data['message_id'];
+            $status = $data['status'];
+            $ackLevel = $data['ack_level'] ?? null;
+
+            Log::info('Message status updated via WebJS', [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'message_id' => $messageId,
+                'status' => $status,
+                'ack_level' => $ackLevel,
+            ]);
+
+            // Dispatch job for fast database update and real-time broadcasting
+            dispatch(new \App\Jobs\UpdateMessageStatusJob(
+                messageId: $messageId,
+                status: $status,
+                recipientId: null, // Will be determined from chat
+                ackLevel: $ackLevel,
+                eventType: 'message_status_updated'
+            ));
+
+        } catch (\Exception $e) {
+            Log::error('Error handling message status updated', [
+                'error' => $e->getMessage(),
+                'data_keys' => array_keys($data)
+            ]);
+        }
+    }
+
+    /**
+     * Handle message delivered event
+     */
+    private function handleMessageDelivered(array $data): void
+    {
+        try {
+            $workspaceId = $data['workspace_id'];
+            $sessionId = $data['session_id'];
+            $messageId = $data['message_id'];
+
+            Log::info('Message delivered via WebJS', [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'message_id' => $messageId,
+            ]);
+
+            // Dispatch job with specific event type
+            dispatch(new \App\Jobs\UpdateMessageStatusJob(
+                messageId: $messageId,
+                status: 'delivered',
+                recipientId: null, // Will be determined from chat
+                ackLevel: 3,
+                eventType: 'message_delivered'
+            ));
+
+        } catch (\Exception $e) {
+            Log::error('Error handling message delivered', [
+                'error' => $e->getMessage(),
+                'data_keys' => array_keys($data)
+            ]);
+        }
+    }
+
+    /**
+     * Handle message read event
+     */
+    private function handleMessageRead(array $data): void
+    {
+        try {
+            $workspaceId = $data['workspace_id'];
+            $sessionId = $data['session_id'];
+            $messageId = $data['message_id'];
+
+            Log::info('Message read via WebJS', [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'message_id' => $messageId,
+            ]);
+
+            // Dispatch job with specific event type
+            dispatch(new \App\Jobs\UpdateMessageStatusJob(
+                messageId: $messageId,
+                status: 'read',
+                recipientId: null, // Will be determined from chat
+                ackLevel: 4,
+                eventType: 'message_read'
+            ));
+
+        } catch (\Exception $e) {
+            Log::error('Error handling message read', [
+                'error' => $e->getMessage(),
+                'data_keys' => array_keys($data)
+            ]);
+        }
+    }
+
+    /**
+     * Handle typing indicator event
+     */
+    private function handleTypingIndicator(array $data): void
+    {
+        try {
+            $workspaceId = $data['workspace_id'];
+            $sessionId = $data['session_id'];
+            $contactId = $data['contact_id'];
+            $contactName = $data['contact_name'] ?? '';
+            $isTyping = $data['is_typing'];
+
+            Log::info('Typing indicator via WebJS', [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'contact_id' => $contactId,
+                'is_typing' => $isTyping,
+            ]);
+
+            // Find contact in database
+            $contact = \App\Models\Contact::where('phone', $contactId)
+                ->where('workspace_id', $workspaceId)
+                ->first();
+
+            if ($contact) {
+                // Update contact typing status
+                $contact->update([
+                    'typing_status' => $isTyping ? 'typing' : 'idle',
+                    'last_activity' => now(),
+                ]);
+
+                // Broadcast typing indicator event to frontend
+                \App\Events\TypingIndicator::dispatch(
+                    $contact,
+                    \Illuminate\Support\Facades\Auth::id() ?? 1, // Fallback user ID
+                    $isTyping,
+                    null
+                );
+
+                Log::info('Typing indicator broadcasted', [
+                    'contact_id' => $contact->id,
+                    'is_typing' => $isTyping,
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error handling typing indicator', [
+                'error' => $e->getMessage(),
+                'data_keys' => array_keys($data)
+            ]);
+        }
+    }
+
+    /**
+     * Handle chat state updated event (presence changes)
+     */
+    private function handleChatStateUpdated(array $data): void
+    {
+        try {
+            $workspaceId = $data['workspace_id'];
+            $sessionId = $data['session_id'];
+            $chatId = $data['chat_id'];
+            $chatState = $data['chat_state'];
+            $lastSeen = $data['last_seen'] ?? null;
+
+            Log::info('Chat state updated via WebJS', [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'chat_id' => $chatId,
+                'chat_state' => $chatState,
+                'last_seen' => $lastSeen,
+            ]);
+
+            // Extract phone number from chat ID
+            $phoneNumber = str_replace(['@c.us', '@g.us'], '', $chatId);
+
+            // Find contact and update online status
+            $contact = \App\Models\Contact::where('phone', $phoneNumber)
+                ->where('workspace_id', $workspaceId)
+                ->first();
+
+            if ($contact) {
+                $contact->update([
+                    'is_online' => $chatState === 'online' || $chatState === 'composing',
+                    'last_activity' => $lastSeen ? now()->setTimestamp($lastSeen / 1000) : now(),
+                ]);
+
+                Log::info('Contact presence updated', [
+                    'contact_id' => $contact->id,
+                    'is_online' => $contact->is_online,
+                    'chat_state' => $chatState,
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error handling chat state updated', [
+                'error' => $e->getMessage(),
                 'data_keys' => array_keys($data)
             ]);
         }
