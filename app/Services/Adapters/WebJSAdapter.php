@@ -4,7 +4,7 @@ namespace App\Services\Adapters;
 
 use App\Contracts\WhatsAppAdapterInterface;
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -14,14 +14,14 @@ class WebJSAdapter implements WhatsAppAdapterInterface
     private const SESSION_NOT_AVAILABLE = 'WebJS session not available';
     private const PROVIDER_TYPE = 'webjs';
 
-    private ?WhatsAppSession $session;
+    private ?WhatsAppAccount $session;
     private int $workspaceId;
     private string $nodeServiceUrl;
     private WebJSMessageSender $messageSender;
     private WebJSHealthChecker $healthChecker;
     private WebJSUtility $utility;
 
-    public function __construct(int $workspaceId, ?WhatsAppSession $session = null)
+    public function __construct(int $workspaceId, ?WhatsAppAccount $session = null)
     {
         $this->workspaceId = $workspaceId;
         $this->session = $session;
@@ -94,7 +94,7 @@ class WebJSAdapter implements WhatsAppAdapterInterface
     /**
      * Get the session associated with this adapter
      */
-    public function getSession(): ?WhatsAppSession
+    public function getSession(): ?WhatsAppAccount
     {
         return $this->session;
     }

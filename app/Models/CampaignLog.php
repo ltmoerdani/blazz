@@ -52,7 +52,7 @@ class CampaignLog extends Model {
         return $this->hasMany(CampaignLogRetry::class);
     }
 
-    public function whatsappSession(){
-        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
+    public function whatsappAccount(){
+        return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id', 'id');
     }
 }

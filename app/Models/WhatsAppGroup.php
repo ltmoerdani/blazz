@@ -15,7 +15,7 @@ class WhatsAppGroup extends Model
     protected $fillable = [
         'uuid',
         'workspace_id',
-        'whatsapp_session_id',
+        'whatsapp_account_id',
         'group_jid',
         'name',
         'description',
@@ -64,13 +64,13 @@ class WhatsAppGroup extends Model
     }
 
     /**
-     * Relationship: WhatsApp Session
+     * Relationship: WhatsApp Account
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function session()
+    public function account()
     {
-        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id');
+        return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id');
     }
 
     /**
@@ -126,15 +126,15 @@ class WhatsAppGroup extends Model
     }
 
     /**
-     * Scope: Filter by session
+     * Scope: Filter by account
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $sessionId
+     * @param int $accountId
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeForSession($query, $sessionId)
+    public function scopeForAccount($query, $accountId)
     {
-        return $query->where('whatsapp_session_id', $sessionId);
+        return $query->where('whatsapp_account_id', $accountId);
     }
 
     /**

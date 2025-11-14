@@ -4,7 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\WhatsAppChatSyncJob;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -96,7 +96,7 @@ class WhatsAppSyncController extends Controller
         $validated = $validator->validated();
 
         // Verify session belongs to workspace
-        $session = WhatsAppSession::where('id', $validated['session_id'])
+        $session = WhatsAppAccount::where('id', $validated['session_id'])
             ->where('workspace_id', $validated['workspace_id'])
             ->first();
 
@@ -184,7 +184,7 @@ class WhatsAppSyncController extends Controller
      */
     public function getSyncStatus(Request $request, int $sessionId)
     {
-        $session = WhatsAppSession::find($sessionId);
+        $session = WhatsAppAccount::find($sessionId);
 
         if (!$session) {
             return response()->json([
