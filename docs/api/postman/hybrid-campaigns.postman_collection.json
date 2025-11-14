@@ -1,0 +1,657 @@
+{
+	"info": {
+		"_postman_id": "hybrid-campaigns-v1",
+		"name": "Hybrid Campaign API",
+		"description": "Complete API collection for Hybrid Campaign System including template-based and direct message campaigns",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "hybrid-campaigns",
+		"_collection_link": ""
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"your-email@example.com\",\n  \"password\": \"your-password\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"login"
+							]
+						},
+						"description": "Login to get authentication token for API requests"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for API access"
+		},
+		{
+			"name": "Campaign Management",
+			"item": [
+				{
+					"name": "Create Template Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Welcome Template Campaign\",\n  \"campaign_type\": \"template\",\n  \"template\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"contacts\": \"660e8400-e29b-41d4-a716-446655440001\",\n  \"preferred_provider\": \"webjs\",\n  \"skip_schedule\": true,\n  \"header\": {\n    \"format\": \"TEXT\",\n    \"text\": \"Welcome!\",\n    \"parameters\": []\n  },\n  \"body\": {\n    \"parameters\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Hello {{first_name}}, welcome to our service!\"\n      }\n    ]\n  },\n  \"footer\": {\n    \"text\": \"Best regards, Team\"\n  },\n  \"buttons\": [\n    {\n      \"type\": \"reply\",\n      \"text\": \"Get Started\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/hybrid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"hybrid"
+							]
+						},
+						"description": "Create a new campaign using existing WhatsApp template"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Direct Message Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Special Offer Campaign\",\n  \"campaign_type\": \"direct\",\n  \"contacts\": \"660e8400-e29b-41d4-a716-446655440001\",\n  \"preferred_provider\": \"meta_api\",\n  \"skip_schedule\": true,\n  \"header_type\": \"text\",\n  \"header_text\": \"🎉 Special Offer\",\n  \"body_text\": \"Hello {{first_name}},\\n\\nWe have an exclusive offer just for you! Get 20% off on all products this weekend.\\n\\nDon't miss out!\",\n  \"footer_text\": \"Reply STOP to unsubscribe\",\n  \"buttons\": [\n    {\n      \"type\": \"url\",\n      \"text\": \"Shop Now\",\n      \"url\": \"https://example.com/offers\"\n    },\n    {\n      \"type\": \"reply\",\n      \"text\": \"Not Interested\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/hybrid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"hybrid"
+							]
+						},
+						"description": "Create a new campaign with direct message input without templates"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Scheduled Reminder\",\n  \"campaign_type\": \"direct\",\n  \"contacts\": \"660e8400-e29b-41d4-a716-446655440001\",\n  \"preferred_provider\": \"webjs\",\n  \"skip_schedule\": false,\n  \"scheduled_at\": \"2025-11-15T09:00:00Z\",\n  \"header_type\": \"text\",\n  \"body_text\": \"Don't forget about your appointment tomorrow!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/hybrid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"hybrid"
+							]
+						},
+						"description": "Create a campaign scheduled for future delivery"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Campaign List",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns?campaign_type=direct&status=pending",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns"
+							],
+							"query": [
+								{
+									"key": "campaign_type",
+									"value": "direct"
+								},
+								{
+									"key": "status",
+									"value": "pending"
+								}
+							]
+						},
+						"description": "List campaigns with optional filtering by type and status"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Campaign Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/statistics/{{campaignUuid}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"statistics",
+								"{{campaignUuid}}"
+							]
+						},
+						"description": "Get detailed statistics for a specific campaign"
+					},
+					"response": []
+				}
+			],
+			"description": "Campaign creation and management endpoints"
+		},
+		{
+			"name": "Campaign Support",
+			"item": [
+				{
+					"name": "Get Available WhatsApp Sessions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/available-sessions",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"available-sessions"
+							]
+						},
+						"description": "Get list of active WhatsApp sessions available for campaign sending"
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Template Provider Compatibility",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"template_uuid\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"provider\": \"webjs\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/validate-template-provider",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"validate-template-provider"
+							]
+						},
+						"description": "Validate if a template is compatible with selected WhatsApp provider"
+					},
+					"response": []
+				},
+				{
+					"name": "Preview Template Campaign Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"campaign_type\": \"template\",\n  \"template_uuid\": \"550e8400-e29b-41d4-a716-446655440000\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/preview-message",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"preview-message"
+							]
+						},
+						"description": "Generate message preview for template-based campaign"
+					},
+					"response": []
+				},
+				{
+					"name": "Preview Direct Campaign Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"campaign_type\": \"direct\",\n  \"header_type\": \"text\",\n  \"header_text\": \"Preview Header\",\n  \"body_text\": \"This is a preview message {{first_name}}\",\n  \"footer_text\": \"Preview footer\",\n  \"buttons\": [\n    {\n      \"type\": \"reply\",\n      \"text\": \"Option 1\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/preview-message",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"preview-message"
+							]
+						},
+						"description": "Generate message preview for direct message campaign"
+					},
+					"response": []
+				}
+			],
+			"description": "Support endpoints for campaign creation and validation"
+		},
+		{
+			"name": "Test Scenarios",
+			"item": [
+				{
+					"name": "Invalid Campaign Type - Should Fail",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Invalid Campaign\",\n  \"campaign_type\": \"invalid_type\",\n  \"skip_schedule\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/hybrid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"hybrid"
+							]
+						},
+						"description": "Test validation with invalid campaign type - should return 422"
+					},
+					"response": []
+				},
+				{
+					"name": "Missing Required Fields - Should Fail",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Incomplete Campaign\",\n  \"campaign_type\": \"direct\"\n  // Missing required fields: contacts, body_text\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/hybrid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"hybrid"
+							]
+						},
+						"description": "Test validation with missing required fields - should return 422"
+					},
+					"response": []
+				},
+				{
+					"name": "Oversized Media File Upload - Should Fail",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Campaign with Oversized Media"
+								},
+								{
+									"key": "campaign_type",
+									"value": "direct"
+								},
+								{
+									"key": "contacts",
+									"value": "660e8400-e29b-41d4-a716-446655440001"
+								},
+								{
+									"key": "preferred_provider",
+									"value": "webjs"
+								},
+								{
+									"key": "skip_schedule",
+									"value": "true"
+								},
+								{
+									"key": "header_type",
+									"value": "image"
+								},
+								{
+									"key": "header_media",
+									"type": "file",
+									"src": "test-large-video.mp4"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/hybrid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"hybrid"
+							]
+						},
+						"description": "Test media file size validation - should reject files exceeding size limits"
+					},
+					"response": []
+				},
+				{
+					"name": "Too Many Buttons - Should Fail",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Campaign with Too Many Buttons\",\n  \"campaign_type\": \"direct\",\n  \"contacts\": \"660e8400-e29b-41d4-a716-446655440001\",\n  \"preferred_provider\": \"webjs\",\n  \"skip_schedule\": true,\n  \"body_text\": \"Test message with too many buttons\",\n  \"buttons\": [\n    {\"type\": \"reply\", \"text\": \"Option 1\"},\n    {\"type\": \"reply\", \"text\": \"Option 2\"},\n    {\"type\": \"reply\", \"text\": \"Option 3\"},\n    {\"type\": \"reply\", \"text\": \"Option 4\"}\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/hybrid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"campaigns",
+								"hybrid"
+							]
+						},
+						"description": "Test button count validation - should reject campaigns with too many reply buttons"
+					},
+					"response": []
+				}
+			],
+			"description": "Test scenarios to validate error handling and edge cases"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-refresh authentication token if expired",
+					"if (pm.collectionVariables.get('authToken') && pm.collectionVariables.get('tokenExpiry')) {",
+					"    const now = new Date();",
+					"    const expiry = new Date(pm.collectionVariables.get('tokenExpiry'));",
+					"    ",
+					"    if (now >= expiry) {",
+					"        // Token expired, refresh",
+					"        console.log('Token expired, refreshing...');",
+					"        // Implement refresh logic here if needed",
+					"    }",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Common test assertions",
+					"if (pm.response.code >= 200 && pm.response.code < 300) {",
+					"    pm.test(\"Request successful\", function () {",
+					"        pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+					"    });",
+					"}",
+					"",
+					"// Store authentication token from login response",
+					"if (pm.request.url.path.includes('/login') && pm.response.code === 200) {",
+					"    const response = pm.response.json();",
+					"    if (response.access_token) {",
+					"        pm.collectionVariables.set('authToken', response.access_token);",
+					"        // Set token expiry (typically 1 hour from now)",
+					"        const expiry = new Date();",
+					"        expiry.setHours(expiry.getHours() + 1);",
+					"        pm.collectionVariables.set('tokenExpiry', expiry.toISOString());",
+					"    }",
+					"}",
+					"",
+					"// Store workspace ID if present in response",
+					"if (pm.response.json().workspace_id) {",
+					"    pm.collectionVariables.set('workspaceId', pm.response.json().workspace_id);",
+					"}",
+					"",
+					"// Store campaign UUID for use in other requests",
+					"if (pm.request.url.path.includes('/campaigns/hybrid') && pm.response.code === 200) {",
+					"    const response = pm.response.json();",
+					"    if (response.campaign && response.campaign.uuid) {",
+					"        pm.collectionVariables.set('campaignUuid', response.campaign.uuid);",
+					"    }",
+					"}",
+					"",
+					"// Validation tests for error responses",
+					"if (pm.response.code >= 400) {",
+					"    pm.test(\"Error response format\", function () {",
+					"        const response = pm.response.json();",
+					"        pm.expect(response).to.have.property('success', false);",
+					"        pm.expect(response).to.have.property('message');",
+					"        ",
+					"        if (pm.response.code === 422) {",
+					"            pm.expect(response).to.have.property('errors');",
+					"        }",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://your-domain.com",
+			"description": "Base URL for API endpoints"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"description": "Authentication token obtained from login"
+		},
+		{
+			"key": "workspaceId",
+			"value": "",
+			"description": "Current workspace ID"
+		},
+		{
+			"key": "campaignUuid",
+			"value": "",
+			"description": "UUID of created campaign for testing"
+		},
+		{
+			"key": "tokenExpiry",
+			"value": "",
+			"description": "Token expiry timestamp for auto-refresh"
+		}
+	]
+}
