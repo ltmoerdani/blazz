@@ -210,4 +210,146 @@ class WhatsAppGroup extends Model
 
         return $this->save();
     }
+
+    // Business Methods
+    /**
+     * Add participant to group
+     */
+    public function addParticipant(array $participant): self
+    {
+        $participants = $this->participants ?? [];
+        $participants[] = $participant;
+
+        $this->participants = $participants;
+        $this->save();
+
+        return $this;
+    }
+
+    /**
+     * Remove participant from group
+     */
+    public function removeParticipant(string $phone): self
+    {
+        if (empty($this->participants)) {
+            return $this;
+        }
+
+        $participants = collect($this->participants)
+            ->filter(fn($p) => $p['phone'] !== $phone)
+            ->values()
+            ->all();
+
+        $this->participants = $participants;
+        $this->save();
+
+        return $this;
+    }
+
+    /**
+     * Update participant role
+     */
+    public function updateParticipantRole(string $phone, bool $isAdmin): self
+    {
+        $participants = collect($this->participants ?? [])
+            ->map(function ($participant) use ($phone, $isAdmin) {
+                if ($participant['phone'] === $phone) {
+                    $participant['isAdmin'] = $isAdmin;
+                }
+                return $participant;
+            })
+            ->all();
+
+        $this->participants = $participants;
+        $this->save();
+
+        return $this;
+    }
+
+    /**
+     * Sync group with WhatsApp data
+     */
+    public function syncWithWhatsApp(array $whatsappData): self
+    {
+        $this->update([
+            'name' => $whatsappData['name'] ?? $this->name,
+            'description' => $whatsappData['desc'] ?? $this->description,
+            'participants' => $whatsappData['participants'] ?? $this->participants,
+            'invite_code' => $whatsappData['inviteCode'] ?? $this->invite_code,
+            'group_created_at' => isset($whatsappData['creationTime'])
+                ? now()->setTimestamp($whatsappData['creationTime'])
+                : $this->group_created_at,
+        ]);
+
+        return $this;
+    }
+
+    // Standardized Workspace Scopes
+    /**
+     * Scope query to only include groups in specific workspace
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
+
+    /**
+     * Scope query to include workspace relationship
+     */
+    public function scopeWithWorkspace($query)
+    {
+        return $query->with('workspace');
+    }
+
+    /**
+     * Get groups for specific workspace with optional filters
+     */
+    public static function getForWorkspace(int $workspaceId, array $filters = [])
+    {
+        $query = static::inWorkspace($workspaceId);
+
+        if (!empty($filters['whatsapp_account_id'])) {
+            $query->where('whatsapp_account_id', $filters['whatsapp_account_id']);
+        }
+
+        if (!empty($filters['active'])) {
+            $query->active($filters['active_days'] ?? 30);
+        }
+
+        if (!empty($filters['has_participant'])) {
+            $phone = $filters['has_participant'];
+            $query->whereJsonContains('participants', [['phone' => $phone]]);
+        }
+
+        if (!empty($filters['min_participants'])) {
+            $query->whereRaw("JSON_LENGTH(participants) >= ?", [$filters['min_participants']]);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhereJsonContains('participants', [['name' => $search]]);
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Get workspace group statistics
+     */
+    public static function getWorkspaceStats(int $workspaceId): array
+    {
+        $query = static::inWorkspace($workspaceId);
+
+        return [
+            'total_groups' => $query->count(),
+            'active_groups' => $query->active(30)->count(),
+            'total_participants' => $query->get()->sum('participants_count'),
+            'average_participants' => $query->avg('participants_count'),
+            'groups_with_admins' => $query->get()->filter(fn($group) => $group->admin_count > 0)->count(),
+        ];
+    }
 }
