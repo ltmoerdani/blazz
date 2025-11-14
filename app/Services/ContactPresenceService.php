@@ -6,6 +6,7 @@ use App\Models\Contact;
 use App\Events\ContactPresenceUpdated;
 use App\Events\TypingIndicator;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
@@ -17,28 +18,30 @@ class ContactPresenceService
     public function updateOnlineStatus(int $contactId, bool $isOnline, ?int $userId = null): void
     {
         try {
-            $contact = Contact::find($contactId);
-            if (!$contact) {
-                Log::warning('Contact not found for presence update', ['contact_id' => $contactId]);
-                return;
-            }
+            DB::transaction(function () use ($contactId, $isOnline, $userId) {
+                $contact = Contact::find($contactId);
+                if (!$contact) {
+                    Log::warning('Contact not found for presence update', ['contact_id' => $contactId]);
+                    return;
+                }
 
-            $contact->update([
-                'is_online' => $isOnline,
-                'last_activity' => now(),
-            ]);
+                $contact->update([
+                    'is_online' => $isOnline,
+                    'last_activity' => now(),
+                ]);
 
-            // Update cache for quick presence checks
-            $this->updatePresenceCache($contactId, $isOnline);
+                // Update cache for quick presence checks
+                $this->updatePresenceCache($contactId, $isOnline);
 
-            // Broadcast presence update to all users in workspace
-            broadcast(new ContactPresenceUpdated($contact, $isOnline, $userId));
+                // Broadcast presence update to all users in workspace
+                broadcast(new ContactPresenceUpdated($contact, $isOnline, $userId));
 
-            Log::debug('Contact presence updated', [
-                'contact_id' => $contactId,
-                'is_online' => $isOnline,
-                'workspace_id' => $contact->workspace_id
-            ]);
+                Log::debug('Contact presence updated', [
+                    'contact_id' => $contactId,
+                    'is_online' => $isOnline,
+                    'workspace_id' => $contact->workspace_id
+                ]);
+            });
 
         } catch (\Exception $e) {
             Log::error('Error updating contact presence', [
@@ -55,28 +58,30 @@ class ContactPresenceService
     public function updateTypingStatus(int $contactId, string $typingStatus, ?int $userId = null): void
     {
         try {
-            $contact = Contact::find($contactId);
-            if (!$contact) {
-                Log::warning('Contact not found for typing update', ['contact_id' => $contactId]);
-                return;
-            }
+            DB::transaction(function () use ($contactId, $typingStatus, $userId) {
+                $contact = Contact::find($contactId);
+                if (!$contact) {
+                    Log::warning('Contact not found for typing update', ['contact_id' => $contactId]);
+                    return;
+                }
 
-            $contact->update([
-                'typing_status' => $typingStatus,
-                'last_activity' => now(),
-            ]);
+                $contact->update([
+                    'typing_status' => $typingStatus,
+                    'last_activity' => now(),
+                ]);
 
-            // Broadcast typing indicator
-            broadcast(new TypingIndicator($contact, $userId ?? \Illuminate\Support\Facades\Auth::id(), $typingStatus === 'typing'));
+                // Broadcast typing indicator
+                broadcast(new TypingIndicator($contact, $userId ?? \Illuminate\Support\Facades\Auth::id(), $typingStatus === 'typing'));
 
-            Log::debug('Contact typing status updated', [
-                'contact_id' => $contactId,
-                'typing_status' => $typingStatus,
-                'workspace_id' => $contact->workspace_id
-            ]);
+                Log::debug('Contact typing status updated', [
+                    'contact_id' => $contactId,
+                    'typing_status' => $typingStatus,
+                    'workspace_id' => $contact->workspace_id
+                ]);
 
-            // Auto-set to idle after 5 seconds of no typing activity
-            $this->scheduleTypingReset($contactId);
+                // Auto-set to idle after 5 seconds of no typing activity
+                $this->scheduleTypingReset($contactId);
+            });
 
         } catch (\Exception $e) {
             Log::error('Error updating contact typing status', [
@@ -93,24 +98,26 @@ class ContactPresenceService
     public function updateLastMessageTime(int $contactId, ?string $messageId = null): void
     {
         try {
-            $contact = Contact::find($contactId);
-            if (!$contact) {
-                return;
-            }
+            DB::transaction(function () use ($contactId, $messageId) {
+                $contact = Contact::find($contactId);
+                if (!$contact) {
+                    return;
+                }
 
-            $contact->update([
-                'last_message_at' => now(),
-                'last_activity' => now(),
-            ]);
+                $contact->update([
+                    'last_message_at' => now(),
+                    'last_activity' => now(),
+                ]);
 
-            // Update cache for sorting
-            Cache::put("contact.last_message.{$contactId}", now(), now()->addMinutes(30));
+                // Update cache for sorting
+                Cache::put("contact.last_message.{$contactId}", now(), now()->addMinutes(30));
 
-            Log::debug('Contact last message time updated', [
-                'contact_id' => $contactId,
-                'message_id' => $messageId,
-                'workspace_id' => $contact->workspace_id
-            ]);
+                Log::debug('Contact last message time updated', [
+                    'contact_id' => $contactId,
+                    'message_id' => $messageId,
+                    'workspace_id' => $contact->workspace_id
+                ]);
+            });
 
         } catch (\Exception $e) {
             Log::error('Error updating last message time', [
@@ -204,20 +211,22 @@ class ContactPresenceService
     public function cleanupOfflineContacts(): int
     {
         try {
-            $cutoffTime = now()->subMinutes(5); // Mark as offline after 5 minutes
+            return DB::transaction(function () {
+                $cutoffTime = now()->subMinutes(5); // Mark as offline after 5 minutes
 
-            $updated = Contact::where('is_online', true)
-                ->where('last_activity', '<', $cutoffTime)
-                ->update([
-                    'is_online' => false,
-                    'typing_status' => 'idle'
-                ]);
+                $updated = Contact::where('is_online', true)
+                    ->where('last_activity', '<', $cutoffTime)
+                    ->update([
+                        'is_online' => false,
+                        'typing_status' => 'idle'
+                    ]);
 
-            if ($updated > 0) {
-                Log::info('Cleaned up offline contacts', ['count' => $updated]);
-            }
+                if ($updated > 0) {
+                    Log::info('Cleaned up offline contacts', ['count' => $updated]);
+                }
 
-            return $updated;
+                return $updated;
+            });
 
         } catch (\Exception $e) {
             Log::error('Error cleaning up offline contacts', ['error' => $e->getMessage()]);
@@ -231,18 +240,20 @@ class ContactPresenceService
     public function bulkUpdatePresence(array $contactIds, array $presenceData): void
     {
         try {
-            foreach ($contactIds as $contactId) {
-                $data = array_intersect_key($presenceData, [
-                    'is_online' => true,
-                    'typing_status' => true,
-                    'last_activity' => true,
-                    'last_message_at' => true
-                ]);
+            DB::transaction(function () use ($contactIds, $presenceData) {
+                foreach ($contactIds as $contactId) {
+                    $data = array_intersect_key($presenceData, [
+                        'is_online' => true,
+                        'typing_status' => true,
+                        'last_activity' => true,
+                        'last_message_at' => true
+                    ]);
 
-                if (!empty($data)) {
-                    Contact::where('id', $contactId)->update($data);
+                    if (!empty($data)) {
+                        Contact::where('id', $contactId)->update($data);
+                    }
                 }
-            }
+            });
 
             Log::debug('Bulk presence updated', [
                 'contact_count' => count($contactIds),
