@@ -44,7 +44,7 @@
         },
         sendText: {
             type: String,
-            default: 'Save'
+            default: 'Send'
         }
     });
     const isLoading = ref(false);
