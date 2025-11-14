@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\User;
 
 use App\Events\WhatsAppQRGeneratedEvent;
-use App\Events\WhatsAppSessionStatusChangedEvent;
+use App\Events\WhatsAppAccountStatusChangedEvent;
 use App\Http\Controllers\Controller;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\ProviderSelector;
 use App\Services\Adapters\WebJSAdapter;
 use Illuminate\Http\Request;
@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
-class WhatsAppSessionStatusController extends Controller
+class WhatsAppAccountStatusController extends Controller
 {
     /**
      * Set a session as primary
@@ -23,12 +23,12 @@ class WhatsAppSessionStatusController extends Controller
     {
         $workspaceId = session('current_workspace');
 
-        $session = WhatsAppSession::where('uuid', $uuid)
+        $session = WhatsAppAccount::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
         // Remove primary flag from all other sessions in workspace
-        WhatsAppSession::forWorkspace($workspaceId)
+        WhatsAppAccount::forWorkspace($workspaceId)
             ->where('id', '!=', $session->id)
             ->update(['is_primary' => false]);
 
@@ -36,7 +36,7 @@ class WhatsAppSessionStatusController extends Controller
         $session->update(['is_primary' => true]);
 
         // Broadcast status change
-        broadcast(new WhatsAppSessionStatusChangedEvent(
+        broadcast(new WhatsAppAccountStatusChangedEvent(
             $session->session_id,
             $session->status,
             $workspaceId,
@@ -60,7 +60,7 @@ class WhatsAppSessionStatusController extends Controller
     {
         $workspaceId = session('current_workspace');
 
-        $session = WhatsAppSession::where('uuid', $uuid)
+        $session = WhatsAppAccount::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
@@ -76,7 +76,7 @@ class WhatsAppSessionStatusController extends Controller
                 ]);
 
                 // Fire status changed event
-                event(new WhatsAppSessionStatusChangedEvent(
+                event(new WhatsAppAccountStatusChangedEvent(
                     $session->session_id,
                     'disconnected',
                     $workspaceId,
@@ -138,7 +138,7 @@ class WhatsAppSessionStatusController extends Controller
             ]);
 
             // Fire status changed event
-            event(new WhatsAppSessionStatusChangedEvent(
+            event(new WhatsAppAccountStatusChangedEvent(
                 $session->session_id,
                 'disconnected',
                 $workspaceId,
@@ -177,7 +177,7 @@ class WhatsAppSessionStatusController extends Controller
         $workspaceId = session('current_workspace');
         $response = null;
 
-        $session = WhatsAppSession::where('uuid', $uuid)
+        $session = WhatsAppAccount::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
@@ -227,7 +227,7 @@ class WhatsAppSessionStatusController extends Controller
     {
         $workspaceId = session('current_workspace');
 
-        $session = WhatsAppSession::where('uuid', $uuid)
+        $session = WhatsAppAccount::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
@@ -315,7 +315,7 @@ class WhatsAppSessionStatusController extends Controller
         $workspaceId = session('current_workspace');
 
         try {
-            $session = WhatsAppSession::where('uuid', $uuid)
+            $session = WhatsAppAccount::where('uuid', $uuid)
                 ->where('workspace_id', $workspaceId)
                 ->firstOrFail();
 

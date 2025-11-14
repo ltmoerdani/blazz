@@ -6,7 +6,7 @@ use App\Events\NewChatEvent;
 use App\Http\Resources\TemplateResource;
 use App\Models\workspace;
 use App\Models\Template;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\WhatsappService;
 use App\Services\WhatsApp\TemplateManagementService;
 use App\Services\WhatsApp\MessageSendingService;
@@ -116,7 +116,7 @@ class TemplateService
             $data['settings'] = workspace::where('id', $this->workspaceId)->first();
 
             // Get WhatsApp sessions for WebJS compatibility check
-            $data['whatsappSessions'] = WhatsAppSession::forWorkspace($this->workspaceId)
+            $data['whatsappAccounts'] = WhatsAppAccount::forWorkspace($this->workspaceId)
                 ->where('status', 'connected')
                 ->get()
                 ->map(function ($session) {

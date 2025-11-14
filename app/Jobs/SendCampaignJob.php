@@ -7,7 +7,7 @@ use App\Models\Campaign;
 use App\Models\CampaignLog;
 use App\Models\CampaignLogRetry;
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\Workspace;
 use App\Models\Setting;
 use App\Services\WhatsApp\MessageSendingService;
@@ -29,7 +29,7 @@ class SendCampaignJob implements ShouldQueue
     private $workspaceId;
     private MessageSendingService $messageService;
     private ProviderSelectionService $providerService;
-    private ?WhatsAppSession $selectedSession = null;
+    private ?WhatsAppAccount $selectedAccount = null;
 
     /**
      * Create a new job instance.
@@ -138,9 +138,9 @@ class SendCampaignJob implements ShouldQueue
     {
         try {
             // Select the best WhatsApp session for this campaign
-            $this->selectedSession = $this->providerService->selectBestSession($campaign);
+            $this->selectedAccount = $this->providerService->selectBestSession($campaign);
 
-            if (!$this->selectedSession) {
+            if (!$this->selectedAccount) {
                 Log::error('No suitable WhatsApp session found for campaign', [
                     'campaign_id' => $campaign->id,
                     'campaign_type' => $campaign->campaign_type,
@@ -153,7 +153,7 @@ class SendCampaignJob implements ShouldQueue
 
             // Update campaign with selected session
             $campaign->update([
-                'whatsapp_session_id' => $this->selectedSession->id
+                'whatsapp_account_id' => $this->selectedAccount->id
             ]);
 
             if ($campaign->status === 'scheduled') {
@@ -165,7 +165,7 @@ class SendCampaignJob implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('Failed to process campaign: ' . $e->getMessage(), [
                 'campaign_id' => $campaign->id,
-                'session_id' => $this->selectedSession?->id,
+                'session_id' => $this->selectedAccount?->id,
                 'trace' => $e->getTraceAsString()
             ]);
 
@@ -370,7 +370,7 @@ class SendCampaignJob implements ShouldQueue
                         $messageRequest,
                         $campaign_user_id,
                         $campaignLog->campaign_id,
-                        $this->selectedSession
+                        $this->selectedAccount
                     );
                 } else {
                     // Direct message campaign
@@ -380,7 +380,7 @@ class SendCampaignJob implements ShouldQueue
                         $messageRequest,
                         $campaign_user_id,
                         $campaignLog->campaign_id,
-                        $this->selectedSession
+                        $this->selectedAccount
                     );
                 }
 
@@ -391,28 +391,28 @@ class SendCampaignJob implements ShouldQueue
                     'campaign_log_id' => $campaignLog->id,
                     'campaign_id' => $campaign->id,
                     'contact_id' => $campaignLog->contact->id,
-                    'session_id' => $this->selectedSession?->id,
+                    'session_id' => $this->selectedAccount?->id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()
                 ]);
 
                 // Try fallback session if available
-                if ($this->selectedSession) {
-                    $fallbackSessions = $this->providerService->getFallbackSessions($campaign, $this->selectedSession);
+                if ($this->selectedAccount) {
+                    $fallbackSessions = $this->providerService->getFallbackSessions($campaign, $this->selectedAccount);
 
                     foreach ($fallbackSessions as $fallbackSession) {
-                        /** @var WhatsAppSession $fallbackSession */
+                        /** @var WhatsAppAccount $fallbackSession */
                         try {
                             Log::info('Attempting fallback session', [
                                 'campaign_id' => $campaign->id,
-                                'primary_session_id' => $this->selectedSession->id,
+                                'primary_session_id' => $this->selectedAccount->id,
                                 'fallback_session_id' => $fallbackSession->id,
                                 'provider_type' => $fallbackSession->provider_type
                             ]);
 
                             // Update session and retry
-                            $this->selectedSession = $fallbackSession;
-                            $campaign->update(['whatsapp_session_id' => $fallbackSession->id]);
+                            $this->selectedAccount = $fallbackSession;
+                            $campaign->update(['whatsapp_account_id' => $fallbackSession->id]);
 
                             if ($campaign->isTemplateBased()) {
                                 $messageRequest = $this->buildTemplateMessageRequest($campaign, $campaignLog->contact);
@@ -421,7 +421,7 @@ class SendCampaignJob implements ShouldQueue
                                     $messageRequest,
                                     $campaign_user_id,
                                     $campaignLog->campaign_id,
-                                    $this->selectedSession
+                                    $this->selectedAccount
                                 );
                             } else {
                                 $messageRequest = $this->buildDirectMessageRequest($campaign, $campaignLog->contact);
@@ -430,7 +430,7 @@ class SendCampaignJob implements ShouldQueue
                                     $messageRequest,
                                     $campaign_user_id,
                                     $campaignLog->campaign_id,
-                                    $this->selectedSession
+                                    $this->selectedAccount
                                 );
                             }
 

@@ -30,7 +30,7 @@ class HybridCampaignRequest extends FormRequest
             'campaign_type' => ['required', 'string', 'in:template,direct'],
             'contacts' => ['required', 'string'],
             'preferred_provider' => ['nullable', 'string', 'in:webjs,meta_api'],
-            'whatsapp_session_id' => ['nullable', 'integer', 'exists:whatsapp_sessions,id'],
+            'whatsapp_account_id' => ['nullable', 'integer', 'exists:whatsapp_accounts,id'],
             'scheduled_at' => ['nullable', 'date'],
             'skip_schedule' => ['nullable', 'boolean'],
         ], $this->getTemplateValidationRules($campaignType), $this->getDirectMessageValidationRules($campaignType));
@@ -112,7 +112,7 @@ class HybridCampaignRequest extends FormRequest
             'campaign_type.in' => 'Invalid campaign type selected',
             'contacts.required' => 'Please select contacts or contact group',
             'preferred_provider.in' => 'Invalid provider selected',
-            'whatsapp_session_id.exists' => 'Selected WhatsApp session not found',
+            'whatsapp_account_id.exists' => 'Selected WhatsApp account not found',
 
             // Template validation messages
             'template.required' => 'Please select a template for template-based campaign',
@@ -161,7 +161,7 @@ class HybridCampaignRequest extends FormRequest
             'template' => 'template',
             'contacts' => 'contacts',
             'preferred_provider' => 'preferred provider',
-            'whatsapp_session_id' => 'WhatsApp session',
+            'whatsapp_account_id' => 'WhatsApp account',
             'scheduled_at' => 'scheduled time',
             'header.format' => 'header format',
             'header.text' => 'header text',
@@ -202,16 +202,16 @@ class HybridCampaignRequest extends FormRequest
             }
         }
 
-        // Validate provider session compatibility
-        $sessionId = $this->input('whatsapp_session_id');
+        // Validate provider account compatibility
+        $accountId = $this->input('whatsapp_account_id');
         $provider = $this->input('preferred_provider', 'webjs');
 
-        if ($sessionId) {
-            $session = \App\Models\WhatsAppSession::find($sessionId);
-            if (!$session || $session->workspace_id !== session()->get('current_workspace')) {
-                $validator->errors()->add('whatsapp_session_id', 'Invalid WhatsApp session selected');
-            } elseif ($session->provider_type !== $provider) {
-                $validator->errors()->add('preferred_provider', 'Selected provider does not match the WhatsApp session type');
+        if ($accountId) {
+            $account = \App\Models\WhatsAppAccount::find($accountId);
+            if (!$account || $account->workspace_id !== session()->get('current_workspace')) {
+                $validator->errors()->add('whatsapp_account_id', 'Invalid WhatsApp account selected');
+            } elseif ($account->provider_type !== $provider) {
+                $validator->errors()->add('preferred_provider', 'Selected provider does not match the WhatsApp account type');
             }
         }
     }
