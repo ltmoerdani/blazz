@@ -395,6 +395,151 @@ class WhatsAppSessionManager {
                         metadata.lastActivity = new Date();
                         this.metadata.set(sessionId, metadata);
                     }
+
+                    // Broadcast message sent event for real-time UI updates
+                    await this.sendToLaravel('message_sent', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        message: {
+                            id: message.id._serialized,
+                            to: message.to,
+                            body: message.body,
+                            timestamp: message.timestamp,
+                            type: message.type,
+                            has_media: message.hasMedia,
+                            status: 'pending'
+                        }
+                    });
+                }
+            });
+
+            // Message ACK Event (for delivery and read status)
+            client.on('message_ack', async (message, ack) => {
+                try {
+                    logger.debug('Message ACK received', {
+                        sessionId,
+                        workspaceId,
+                        messageId: message.id._serialized,
+                        ack: ack
+                    });
+
+                    // Convert WhatsApp ACK to our status format
+                    let status;
+                    switch (ack) {
+                        case 1:
+                            status = 'pending'; // Message sent to WhatsApp server
+                            break;
+                        case 2:
+                            status = 'sent'; // Message delivered to recipient's phone
+                            break;
+                        case 3:
+                            status = 'delivered'; // Message delivered to recipient
+                            break;
+                        case 4:
+                            status = 'read'; // Message read by recipient
+                            break;
+                        default:
+                            status = 'pending';
+                    }
+
+                    // Broadcast status update to Laravel
+                    await this.sendToLaravel('message_status_updated', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        message_id: message.id._serialized,
+                        status: status,
+                        ack_level: ack,
+                        timestamp: message.timestamp
+                    });
+
+                    // Send specific events for delivery and read
+                    if (ack === 3) {
+                        await this.sendToLaravel('message_delivered', {
+                            workspace_id: workspaceId,
+                            session_id: sessionId,
+                            message_id: message.id._serialized,
+                            recipient: message.to,
+                            timestamp: message.timestamp
+                        });
+                    } else if (ack === 4) {
+                        await this.sendToLaravel('message_read', {
+                            workspace_id: workspaceId,
+                            session_id: sessionId,
+                            message_id: message.id._serialized,
+                            recipient: message.to,
+                            timestamp: message.timestamp
+                        });
+                    }
+
+                } catch (error) {
+                    logger.error('Error in message_ack event handler', {
+                        sessionId,
+                        workspaceId,
+                        messageId: message.id._serialized,
+                        ack: ack,
+                        error: error.message
+                    });
+                }
+            });
+
+            // Typing Event (when contact starts/stop typing)
+            client.on('typing', async (contact, isTyping, chatId) => {
+                try {
+                    logger.debug('Typing indicator', {
+                        sessionId,
+                        workspaceId,
+                        contact: contact.id._serialized,
+                        isTyping: isTyping,
+                        chatId: chatId
+                    });
+
+                    await this.sendToLaravel('typing_indicator', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        contact_id: contact.id._serialized,
+                        contact_name: contact.pushname || contact.name || contact.id.user,
+                        is_typing: isTyping,
+                        chat_id: chatId,
+                        timestamp: Date.now()
+                    });
+
+                } catch (error) {
+                    logger.error('Error in typing event handler', {
+                        sessionId,
+                        workspaceId,
+                        contactId: contact.id._serialized,
+                        error: error.message
+                    });
+                }
+            });
+
+            // Chat State Event (presence changes)
+            client.on('chat_state', async (chatState, chat) => {
+                try {
+                    logger.debug('Chat state changed', {
+                        sessionId,
+                        workspaceId,
+                        chatId: chat.id._serialized,
+                        chatState: chatState.chatState,
+                        lastSeen: chatState.lastPresence?.timestamp
+                    });
+
+                    await this.sendToLaravel('chat_state_updated', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        chat_id: chat.id._serialized,
+                        chat_state: chatState.chatState,
+                        last_seen: chatState.lastPresence?.timestamp,
+                        timestamp: Date.now()
+                    });
+
+                } catch (error) {
+                    logger.error('Error in chat_state event handler', {
+                        sessionId,
+                        workspaceId,
+                        chatId: chat.id._serialized,
+                        error: error.message
+                    });
                 }
             });
 
