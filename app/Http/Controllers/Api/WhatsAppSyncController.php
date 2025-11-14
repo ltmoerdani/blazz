@@ -69,7 +69,7 @@ class WhatsAppSyncController extends Controller
     {
         // Validate request
         $validator = Validator::make($request->all(), [
-            'session_id' => 'required|integer|exists:whatsapp_sessions,id',
+            'session_id' => 'required|integer|exists:whatsapp_accounts,id',
             'workspace_id' => 'required|integer|exists:workspaces,id',
             'chats' => 'required|array|min:1|max:50',
             'chats.*.chat_type' => 'required|in:private,group',

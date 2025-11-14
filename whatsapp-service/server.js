@@ -10,12 +10,12 @@ const qrcode = require('qrcode');
 dotenv.config();
 
 // Import mitigation services
-const SessionHealthMonitor = require('./src/services/SessionHealthMonitor');
-const SessionStorageOptimizer = require('./src/services/SessionStorageOptimizer');
+const AccountHealthMonitor = require('./src/services/AccountHealthMonitor');
+const AccountStorageOptimizer = require('./src/services/AccountStorageOptimizer');
 const WhatsAppRateLimiter = require('./src/services/WhatsAppRateLimiter');
 const MemoryManager = require('./src/services/MemoryManager');
 const ProfileLockCleaner = require('./src/services/ProfileLockCleaner');
-const SessionPool = require('./src/services/SessionPool');
+const AccountPool = require('./src/services/AccountPool');
 const QRRateLimiter = require('./src/services/QRRateLimiter');
 const TimeoutHandler = require('./src/middleware/TimeoutHandler');
 
@@ -24,7 +24,7 @@ const ChatSyncHandler = require('./src/handlers/chatSyncHandler');
 const WebhookNotifier = require('./utils/webhookNotifier');
 
 // Import session restoration and auto-reconnect services
-const SessionRestoration = require('./src/services/SessionRestoration');
+const AccountRestoration = require('./src/services/AccountRestoration');
 const AutoReconnect = require('./src/services/AutoReconnect');
 
 const app = express();
@@ -67,7 +67,7 @@ class WhatsAppSessionManager {
         this.chatSyncHandler = new ChatSyncHandler(logger, this.webhookNotifier);
 
         // Initialize session restoration and auto-reconnect services
-        this.sessionRestoration = new SessionRestoration(this, logger);
+        this.accountRestoration = new AccountRestoration(this, logger);
         this.autoReconnect = new AutoReconnect(this, logger);
     }
 
@@ -839,17 +839,17 @@ class WhatsAppSessionManager {
 const sessionManager = new WhatsAppSessionManager();
 
 // Initialize mitigation services
-const sessionHealthMonitor = new SessionHealthMonitor(sessionManager);
-const sessionStorageOptimizer = new SessionStorageOptimizer(sessionManager);
+const accountHealthMonitor = new AccountHealthMonitor(sessionManager);
+const accountStorageOptimizer = new AccountStorageOptimizer(sessionManager);
 const whatsAppRateLimiter = new WhatsAppRateLimiter();
 const memoryManager = new MemoryManager(sessionManager);
 const profileLockCleaner = new ProfileLockCleaner(sessionManager);
-const sessionPool = new SessionPool(sessionManager);
+const accountPool = new AccountPool(sessionManager);
 const qrRateLimiter = new QRRateLimiter();
 const timeoutHandler = new TimeoutHandler();
 
 // Enhance session manager with pool functionality
-sessionPool.enhanceSessionManager();
+accountPool.enhanceSessionManager();
 
 // Apply timeout middleware
 app.use(timeoutHandler.middleware());
@@ -1060,7 +1060,7 @@ app.listen(PORT, async () => {
     // Restore all active sessions from database on startup
     logger.info('🔄 Initiating session restoration...');
     try {
-        const result = await sessionManager.sessionRestoration.restoreAllSessions();
+        const result = await sessionManager.accountRestoration.restoreAllSessions();
 
         if (result.success) {
             logger.info(`✅ Session restoration completed: ${result.restored} restored, ${result.failed} failed, ${result.total || 0} total`);
