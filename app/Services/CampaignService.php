@@ -12,7 +12,7 @@ use App\Models\ContactGroup;
 use App\Models\Workspace;
 use App\Models\Setting;
 use App\Models\Template;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\WhatsappService;
 use App\Traits\TemplateTrait;
 use Illuminate\Support\Facades\DB;
@@ -187,7 +187,7 @@ class CampaignService
             'campaign_type' => $campaignType,
             'contact_group_id' => $request->contacts === 'all' ? 0 : ($contactGroup?->id ?? 0),
             'preferred_provider' => $request->preferred_provider ?? 'webjs',
-            'whatsapp_session_id' => $this->getSelectedWhatsAppSession($request->whatsapp_session_id, $workspaceId),
+            'whatsapp_account_id' => $this->getSelectedWhatsAppAccount($request->whatsapp_account_id, $workspaceId),
             'status' => 'scheduled',
             'scheduled_at' => $this->parseScheduledTime($request),
             'created_by' => Auth::user()->id,
@@ -396,17 +396,17 @@ class CampaignService
     /**
      * Get selected WhatsApp session ID
      */
-    private function getSelectedWhatsAppSession(?int $sessionId, int $workspaceId): ?int
+    private function getSelectedWhatsAppAccount(?int $sessionId, int $workspaceId): ?int
     {
         if ($sessionId) {
             return $sessionId;
         }
 
         // Auto-select primary session or first active session
-        $session = WhatsAppSession::forWorkspace($workspaceId)
+        $session = WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
             ->primary()
-            ->first() ?? WhatsAppSession::forWorkspace($workspaceId)
+            ->first() ?? WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
             ->first();
 

@@ -14,7 +14,7 @@ use App\Models\ContactGroup;
 use App\Models\Workspace;
 use App\Models\Template;
 use App\Services\CampaignService;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +41,7 @@ class CampaignController extends BaseController
 
             $settings = Workspace::where('id', $workspaceId)->first();
 
-            $campaignsQuery = Campaign::with(['template', 'contactGroup', 'whatsappSession', 'campaignLogs'])
+            $campaignsQuery = Campaign::with(['template', 'contactGroup', 'whatsappAccount', 'campaignLogs'])
                 ->where('workspace_id', $workspaceId)
                 ->whereNull('deleted_at');
 
@@ -109,7 +109,7 @@ class CampaignController extends BaseController
                 ->get();
 
             // Get WhatsApp sessions for provider selection
-            $data['whatsappSessions'] = WhatsAppSession::forWorkspace($workspaceId)
+            $data['whatsappAccounts'] = WhatsAppAccount::forWorkspace($workspaceId)
                 ->active()
                 ->get()
                 ->map(function ($session) {
@@ -160,7 +160,7 @@ class CampaignController extends BaseController
 
             return Inertia::render('User/Campaign/Create', $data);
         } else {
-            $data['campaign'] = Campaign::with(['contactGroup', 'template', 'whatsappSession', 'campaignLogs' => function($query) {
+            $data['campaign'] = Campaign::with(['contactGroup', 'template', 'whatsappAccount', 'campaignLogs' => function($query) {
                 $query->with('contact', 'chat')->latest();
             }])->where('uuid', $uuid)->first();
 
@@ -177,12 +177,12 @@ class CampaignController extends BaseController
                 $data['campaign']['provider_label'] = $data['campaign']->preferred_provider === 'webjs' ? 'WhatsApp Web JS' : 'Meta Business API';
 
                 // WhatsApp session info
-                if ($data['campaign']->whatsappSession) {
+                if ($data['campaign']->whatsappAccount) {
                     $data['campaign']['session_info'] = [
-                        'phone_number' => $data['campaign']->whatsappSession->formatted_phone_number,
-                        'provider_type' => $data['campaign']->whatsappSession->provider_type,
-                        'health_score' => $data['campaign']->whatsappSession->health_score,
-                        'is_healthy' => $data['campaign']->whatsappSession->isHealthy(),
+                        'phone_number' => $data['campaign']->whatsappAccount->formatted_phone_number,
+                        'provider_type' => $data['campaign']->whatsappAccount->provider_type,
+                        'health_score' => $data['campaign']->whatsappAccount->health_score,
+                        'is_healthy' => $data['campaign']->whatsappAccount->isHealthy(),
                     ];
                 }
             }
@@ -277,7 +277,7 @@ class CampaignController extends BaseController
     {
         $workspaceId = session()->get('current_workspace');
 
-        $sessions = WhatsAppSession::forWorkspace($workspaceId)
+        $sessions = WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
             ->get()
             ->map(function ($session) {

@@ -18,7 +18,7 @@ use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\Template;
-use App\Models\WhatsAppSession; // NEW: For session filter dropdown
+use App\Models\WhatsAppAccount; // NEW: For session filter dropdown
 use App\Services\SubscriptionService;
 use App\Services\WhatsappService;
 use App\Services\WhatsApp\MessageSendingService;
@@ -179,7 +179,7 @@ class ChatService
                     ->count();
 
                 // NEW: Get WhatsApp sessions for filter dropdown (TASK-FE-1)
-                $sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
+                $sessions = WhatsAppAccount::where('workspace_id', $this->workspaceId)
                     ->where('status', 'connected')
                     ->select('id', 'phone_number', 'provider_type')
                     ->withCount(['chats as unread_count' => function ($query) {
@@ -227,7 +227,7 @@ class ChatService
             $settings = $config && $config->metadata ? json_decode($config->metadata) : null;
 
             // NEW: Get WhatsApp sessions for filter dropdown (TASK-FE-1)
-            $sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
+            $sessions = WhatsAppAccount::where('workspace_id', $this->workspaceId)
                 ->where('status', 'connected')
                 ->select('id', 'phone_number', 'provider_type')
                 ->withCount(['chats as unread_count' => function ($query) {

@@ -554,9 +554,9 @@ const addSession = async () => {
         qrCode.value = null
         countdown.value = 300
         
-        console.log('🔄 Creating new WhatsApp session...')
+        console.log('🔄 Creating new WhatsApp account...')
         
-        const response = await axios.post('/settings/whatsapp-sessions', {
+        const response = await axios.post('/settings/whatsapp-accounts', {
             provider_type: 'webjs'
         }, {
             headers: {
@@ -604,7 +604,7 @@ const setPrimary = async (uuid) => {
     try {
         console.log('⭐ Setting primary session:', uuid)
 
-        await axios.post(`/settings/whatsapp-sessions/${uuid}/set-primary`, {}, {
+        await axios.post(`/settings/whatsapp-accounts/${uuid}/set-primary`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
@@ -629,7 +629,7 @@ const disconnect = async (uuid) => {
         try {
             console.log('🔌 Disconnecting session with UUID:', uuid)
 
-            const response = await axios.post(`/settings/whatsapp-sessions/${uuid}/disconnect`, {}, {
+            const response = await axios.post(`/settings/whatsapp-accounts/${uuid}/disconnect`, {}, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
@@ -669,7 +669,7 @@ const deleteSession = async (uuid) => {
         try {
             console.log('🗑️ Deleting session:', uuid)
 
-            const response = await axios.delete(`/settings/whatsapp-sessions/${uuid}`, {
+            const response = await axios.delete(`/settings/whatsapp-accounts/${uuid}`, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
@@ -707,7 +707,7 @@ const reconnect = async (uuid) => {
 
     try {
         console.log('🔄 Reconnecting session:', uuid)
-        const response = await axios.post(`/settings/whatsapp-sessions/${uuid}/reconnect`, {}, {
+        const response = await axios.post(`/settings/whatsapp-accounts/${uuid}/reconnect`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
@@ -727,7 +727,7 @@ const reconnect = async (uuid) => {
 
 const regenerateQR = async () => {
     try {
-        const response = await axios.post(`/settings/whatsapp-sessions/${currentSessionId.value}/regenerate-qr`, {}, {
+        const response = await axios.post(`/settings/whatsapp-accounts/${currentSessionId.value}/regenerate-qr`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'

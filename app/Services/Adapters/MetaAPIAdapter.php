@@ -4,7 +4,7 @@ namespace App\Services\Adapters;
 
 use App\Contracts\WhatsAppAdapterInterface;
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\WhatsappService;
 use Illuminate\Support\Facades\Log;
 
@@ -14,11 +14,11 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
     private const SERVICE_NOT_INITIALIZED = 'Meta API service not initialized';
     private const PROVIDER_TYPE = 'meta';
 
-    private ?WhatsAppSession $session;
+    private ?WhatsAppAccount $session;
     private int $workspaceId;
     private ?WhatsappService $whatsappService;
 
-    public function __construct(int $workspaceId, ?WhatsAppSession $session = null)
+    public function __construct(int $workspaceId, ?WhatsAppAccount $session = null)
     {
         $this->workspaceId = $workspaceId;
         $this->session = $session;
@@ -237,7 +237,7 @@ class MetaAPIAdapter implements WhatsAppAdapterInterface
     /**
      * Get the session associated with this adapter
      */
-    public function getSession(): ?WhatsAppSession
+    public function getSession(): ?WhatsAppAccount
     {
         return $this->session;
     }
