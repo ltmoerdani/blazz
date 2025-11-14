@@ -9,19 +9,44 @@ use App\Models\Contact;
 use App\Models\workspace;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
+use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MediaProcessingService;
+use App\Services\WhatsApp\TemplateManagementService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
 class ChatController extends BaseController
 {
+    private ?ChatService $chatService;
+    
     public function __construct(
-        private ChatService $chatService
-    ) {}
+        private MessageSendingService $messageService,
+        private MediaProcessingService $mediaService,
+        private TemplateManagementService $templateService
+    ) {
+        // Initialize services with workspace ID when needed
+        $this->chatService = null;
+    }
+    
+    private function getChatService($workspaceId)
+    {
+        if (!$this->chatService) {
+            $this->chatService = new ChatService(
+                $workspaceId,
+                $this->messageService,
+                $this->mediaService,
+                $this->templateService
+            );
+        }
+        return $this->chatService;
+    }
 
     public function index(Request $request, $uuid = null)
     {
-        return $this->chatService->getChatList($request, $uuid, $request->query('search'));
+        $workspaceId = Auth::user()->current_workspace_id;
+        return $this->getChatService($workspaceId)->getChatListWithFilters($request, $uuid, $request->query('search'));
     }
 
     public function updateChatSortDirection(Request $request)
@@ -33,12 +58,14 @@ class ChatController extends BaseController
 
     public function sendMessage(Request $request)
     {
-        return $this->chatService->sendMessage($request);
+        $workspaceId = Auth::user()->current_workspace_id;
+        return $this->getChatService($workspaceId)->sendMessage($request);
     }
 
     public function sendTemplateMessage(Request $request, $uuid)
     {
-        $res = $this->chatService->sendTemplateMessage($request, $uuid);
+        $workspaceId = Auth::user()->current_workspace_id;
+        $res = $this->getChatService($workspaceId)->sendTemplateMessage($request, $uuid);
 
         return Redirect::back()->with(
             'status', [
@@ -51,7 +78,8 @@ class ChatController extends BaseController
 
     public function deleteChats($uuid)
     {
-        $this->chatService->clearContactChat($uuid);
+        $workspaceId = Auth::user()->current_workspace_id;
+        $this->getChatService($workspaceId)->clearContactChat($uuid);
 
         return Redirect::back()->with(
             'status', [
@@ -64,7 +92,8 @@ class ChatController extends BaseController
     public function loadMoreMessages(Request $request, $contactId)
     {
         $page = $request->query('page', 1);
-        $messages = $this->chatService->getChatMessages($contactId, $page);
+        $workspaceId = Auth::user()->current_workspace_id;
+        $messages = $this->getChatService($workspaceId)->getChatMessages($contactId, $page);
         
         return response()->json($messages);
     }

@@ -92,6 +92,9 @@ class ChatService
     }
     */
 
+    /**
+     * @deprecated Use getChatListWithFilters instead
+     */
     public function getChatList($request, $uuid = null, $searchTerm = null, $sessionId = null)
     {
         $role = Auth::user()->teams[0]->role;
@@ -264,6 +267,17 @@ class ChatService
                 'locationSettings' => $this->getLocationSettings(),
             ]);
         }
+    }
+
+    /**
+     * New method to replace deprecated getChatList
+     * Retrieves chat list with filters and pagination
+     */
+    public function getChatListWithFilters($request, $uuid = null, $searchTerm = null, $sessionId = null)
+    {
+        // @deprecated Use getChatList method directly
+        /** @noinspection PhpDeprecationInspection */
+        return $this->getChatList($request, $uuid, $searchTerm, $sessionId);
     }
 
     public function handleTicketAssignment($contactId){
