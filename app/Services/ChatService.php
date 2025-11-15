@@ -160,12 +160,8 @@ class ChatService
 
             $initialMessages = $this->getChatMessages($contact->id);
 
-            // Mark messages as read
-            Chat::where('contact_id', $contact->id)
-                ->where('type', 'inbound')
-                ->whereNull('deleted_at')
-                ->where('is_read', 0)
-                ->update(['is_read' => 1]);
+            // Mark messages as read and update contact unread counter
+            $this->markContactMessagesAsRead($contact->id);
 
             if (request()->expectsJson()) {
                 return response()->json([
@@ -867,5 +863,92 @@ class ChatService
 
         // Handle ticket assignment if enabled
         $this->handleTicketAssignment($contact->id);
+    }
+    
+    /**
+     * Mark all inbound messages as read for a contact
+     * This triggers Chat model observer to auto-decrement unread_messages counter
+     * 
+     * @param int $contactId
+     * @return int Number of messages marked as read
+     */
+    public function markContactMessagesAsRead($contactId)
+    {
+        try {
+            // Get all unread messages for this contact
+            $unreadMessages = Chat::where('contact_id', $contactId)
+                ->where('type', 'inbound')
+                ->whereNull('deleted_at')
+                ->where('is_read', 0)
+                ->get();
+            
+            $unreadCount = $unreadMessages->count();
+            
+            // CRITICAL: Recalculate and sync unread_messages counter
+            // This fixes data inconsistency issues
+            $contact = Contact::find($contactId);
+            if ($contact) {
+                $actualUnreadCount = Chat::where('contact_id', $contactId)
+                    ->where('type', 'inbound')
+                    ->whereNull('deleted_at')
+                    ->where('is_read', 0)
+                    ->count();
+                
+                // Force sync counter with actual data
+                if ($contact->unread_messages != $actualUnreadCount) {
+                    Log::warning('Unread counter mismatch - fixing', [
+                        'contact_id' => $contactId,
+                        'stored_count' => $contact->unread_messages,
+                        'actual_count' => $actualUnreadCount
+                    ]);
+                    
+                    $contact->unread_messages = $actualUnreadCount;
+                    $contact->save();
+                }
+            }
+            
+            if ($unreadCount === 0) {
+                Log::debug('No unread messages to mark', [
+                    'contact_id' => $contactId,
+                    'counter_synced' => true
+                ]);
+                return 0;
+            }
+            
+            // CRITICAL: Update each message individually to trigger observer
+            // Observer in Chat model will auto-decrement contact's unread_messages
+            foreach ($unreadMessages as $message) {
+                $message->is_read = 1;
+                $message->save(); // This triggers updating() observer
+            }
+            
+            // Force final sync to ensure counter is 0
+            if ($contact) {
+                $contact->refresh();
+                if ($contact->unread_messages > 0) {
+                    Log::warning('Counter still > 0 after mark as read - forcing to 0', [
+                        'contact_id' => $contactId,
+                        'remaining' => $contact->unread_messages
+                    ]);
+                    $contact->unread_messages = 0;
+                    $contact->save();
+                }
+            }
+            
+            Log::info('Messages marked as read', [
+                'contact_id' => $contactId,
+                'marked_count' => $unreadCount,
+                'observer_triggered' => true,
+                'final_counter' => 0
+            ]);
+            
+            return $unreadCount;
+        } catch (\Exception $e) {
+            Log::error('Failed to mark messages as read', [
+                'contact_id' => $contactId,
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
     }
 }
