@@ -330,13 +330,48 @@ class WebhookController extends Controller
                 return;
             }
 
+            // Create chat record for received message
+            \App\Models\Chat::create([
+                'workspace_id' => $workspaceId,
+                'contact_id' => $contact->id,
+                'whatsapp_account_id' => $session->id,
+                'whatsapp_message_id' => $message['id'] ?? null,
+                'wam_id' => $message['id'] ?? null,
+                'type' => 'inbound',
+                'status' => 'received',
+                'message_status' => 'delivered',
+                'ack_level' => 2, // Delivered
+                'provider_type' => 'webjs',
+                'chat_type' => $isGroup ? 'group' : 'private',
+                'is_read' => false,
+                'created_at' => now(),
+                'delivered_at' => now(),
+                'metadata' => json_encode([
+                    'body' => $message['body'] ?? '',
+                    'type' => $message['type'] ?? 'text',
+                    'has_media' => isset($message['has_media']) ? $message['has_media'] : false,
+                    'media_type' => $message['type'] ?? 'text',
+                    'from' => $message['from'] ?? null,
+                    'to' => $message['to'] ?? null,
+                    'timestamp' => $message['timestamp'] ?? null,
+                ]),
+            ]);
+
+            // Update contact's latest_chat_created_at and last_message_at for frontend chat list
+            $contact->update([
+                'latest_chat_created_at' => now(),
+                'last_message_at' => now(),
+                'last_activity' => now(),
+            ]);
+
             // Log message received successfully
             Log::info('WhatsApp message processed successfully', [
                 'contact_id' => $contact->id,
                 'message_id' => $message['id'] ?? null,
                 'message_type' => $message['type'] ?? 'unknown',
                 'workspace_id' => $workspaceId,
-                'session_id' => $sessionId
+                'session_id' => $sessionId,
+                'chat_saved' => true
             ]);
 
         } catch (\Exception $e) {

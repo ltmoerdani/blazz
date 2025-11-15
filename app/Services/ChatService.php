@@ -194,7 +194,17 @@ class ChatService
 
                 return Inertia::render('User/Chat/Index', [
                     'title' => 'Chats',
-                    'rows' => ContactResource::collection($contacts),
+                    'rows' => (object)[
+                        'data' => ContactResource::collection($contacts)->toArray(request()),
+                        'meta' => [
+                            'current_page' => $contacts->currentPage(),
+                            'from' => $contacts->firstItem(),
+                            'last_page' => $contacts->lastPage(),
+                            'per_page' => $contacts->perPage(),
+                            'to' => $contacts->lastItem(),
+                            'total' => $contacts->total(),
+                        ]
+                    ],
                     'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty(optional($settings)->ai->ai_chat_form_active),
                     'rowCount' => $rowCount,
                     'filters' => request()->all(),
@@ -242,7 +252,17 @@ class ChatService
 
             return Inertia::render('User/Chat/Index', [
                 'title' => 'Chats',
-                'rows' => ContactResource::collection($contacts),
+                'rows' => (object)[
+                    'data' => ContactResource::collection($contacts)->toArray(request()),
+                    'meta' => [
+                        'current_page' => $contacts->currentPage(),
+                        'from' => $contacts->firstItem(),
+                        'last_page' => $contacts->lastPage(),
+                        'per_page' => $contacts->perPage(),
+                        'to' => $contacts->lastItem(),
+                        'total' => $contacts->total(),
+                    ]
+                ],
                 'simpleForm' => !CustomHelper::isModuleEnabled(self::AI_ASSISTANT_MODULE) || empty(optional($settings)->ai->ai_chat_form_active),
                 'rowCount' => $rowCount,
                 'filters' => request()->all(),
