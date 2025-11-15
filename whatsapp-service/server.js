@@ -9,14 +9,8 @@ dotenv.config();
 const SessionManager = require('./src/managers/SessionManager');
 const createRoutes = require('./src/routes');
 
-// Import mitigation services
-const AccountHealthMonitor = require('./src/services/AccountHealthMonitor');
-const AccountStorageOptimizer = require('./src/services/AccountStorageOptimizer');
+// Import essential services only
 const WhatsAppRateLimiter = require('./src/services/WhatsAppRateLimiter');
-const MemoryManager = require('./src/services/MemoryManager');
-const ProfileLockCleaner = require('./src/services/ProfileLockCleaner');
-const AccountPool = require('./src/services/AccountPool');
-const QRRateLimiter = require('./src/services/QRRateLimiter');
 const TimeoutHandler = require('./src/middleware/TimeoutHandler');
 
 // Import session restoration and auto-reconnect services
@@ -54,18 +48,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Initialize session manager (TASK-ARCH-1: Extracted from server.js)
 const sessionManager = new SessionManager(logger);
 
-// Initialize mitigation services
-const accountHealthMonitor = new AccountHealthMonitor(sessionManager);
-const accountStorageOptimizer = new AccountStorageOptimizer(sessionManager);
+// Initialize essential services only
 const whatsAppRateLimiter = new WhatsAppRateLimiter();
-const memoryManager = new MemoryManager(sessionManager);
-const profileLockCleaner = new ProfileLockCleaner(sessionManager);
-const accountPool = new AccountPool(sessionManager);
-const qrRateLimiter = new QRRateLimiter();
 const timeoutHandler = new TimeoutHandler();
-
-// Enhance session manager with pool functionality
-accountPool.enhanceSessionManager();
 
 // Apply timeout middleware
 app.use(timeoutHandler.middleware());
