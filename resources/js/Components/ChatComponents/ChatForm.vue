@@ -175,18 +175,6 @@
         }
     };
 
-    const isInboundChatWithin24Hours = computed(() => {
-        if (props.contact.last_inbound_chat) {
-            const lastInboundChatTime = new Date(props.contact.last_inbound_chat.created_at);
-            const currentTime = new Date();
-            const timeDifference = currentTime - lastInboundChatTime;
-
-            return timeDifference < 24 * 60 * 60 * 1000;
-        }
-
-        return false;
-    });
-
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
         const reader = new FileReader();
@@ -402,21 +390,7 @@
             </div>
         </div>
     </div>
-    <div v-if="!isInboundChatWithin24Hours && !props.chatLimitReached" class="flex justify-center items-center w-full px-6 md:px-4">
-        <div class="flex items-center justify-between space-x-4 bg-orange-100 rounded-lg p-2 mb-2 px-4">
-            <div class="flex items-start justify-between space-x-4">
-                <span class="text-red-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 36 36"><path fill="currentColor" d="M18 21.32a1.3 1.3 0 0 0 1.3-1.3V14a1.3 1.3 0 1 0-2.6 0v6a1.3 1.3 0 0 0 1.3 1.32Z" class="clr-i-outline clr-i-outline-path-1"/><circle cx="17.95" cy="24.27" r="1.5" fill="currentColor" class="clr-i-outline clr-i-outline-path-2"/><path fill="currentColor" d="M30.33 25.54L20.59 7.6a3 3 0 0 0-5.27 0L5.57 25.54A3 3 0 0 0 8.21 30h19.48a3 3 0 0 0 2.64-4.43Zm-1.78 1.94a1 1 0 0 1-.86.49H8.21a1 1 0 0 1-.88-1.48l9.74-17.94a1 1 0 0 1 1.76 0l9.74 17.94a1 1 0 0 1-.02.99Z" class="clr-i-outline clr-i-outline-path-3"/><path fill="none" d="M0 0h36v36H0z"/></svg>
-                </span>
-                <div>
-                    <div class="text-sm">{{ $t('24 hour limit') }}</div>
-                    <div class="text-sm">{{ $t('Whatsapp does not allow sending messages 24 hours after they last messaged you. However, you can send them a template message') }}</div>
-                </div>
-            </div>
-            <button @click="viewTemplate()" class="rounded-md bg-primary px-3 py-1 text-sm text-white shadow-sm w-[25%]">Send Template</button>
-        </div>
-    </div>
-    <form v-if="simpleForm && isInboundChatWithin24Hours && !props.chatLimitReached" @submit.prevent="sendMessage()" class="flex items-center px-2 md:px-10 space-x-2">
+    <form v-if="simpleForm && !props.chatLimitReached" @submit.prevent="sendMessage()" class="flex items-center px-2 md:px-10 space-x-2">
         <div class="flex items-center w-full rounded-lg py-4 md:py-2 pl-2 pr-2" :class="processingForm ? 'bg-gray-200' : 'bg-white'">
             <div class="absolute">
                 <button type="button" @click="toggleEmojiPicker">😀</button>
@@ -465,7 +439,7 @@
             </button>
         </div>
     </form>
-    <form v-if="!simpleForm && isInboundChatWithin24Hours && !props.chatLimitReached" @submit.prevent="sendMessage()" class="flex items-center px-2 md:px-10 space-x-2">
+    <form v-if="!simpleForm && !props.chatLimitReached" @submit.prevent="sendMessage()" class="flex items-center px-2 md:px-10 space-x-2">
         <div class="bg-white rounded-md w-full p-4">
             <div>
                 <textarea 
