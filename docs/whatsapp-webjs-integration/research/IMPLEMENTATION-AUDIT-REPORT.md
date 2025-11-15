@@ -77,7 +77,7 @@ Setelah melakukan audit menyeluruh terhadap codebase, saya verifikasi bahwa:
 **Expected Components:**
 - [x] BroadcastConfigServiceProvider for dynamic driver loading
 - [x] WhatsAppQRGeneratedEvent created
-- [x] WhatsAppSessionStatusChangedEvent created
+- [x] WhatsAppAccountStatusChangedEvent created
 - [x] Events broadcaster-agnostic (support Reverb + Pusher)
 
 **Verification Evidence:**
@@ -99,8 +99,8 @@ class WhatsAppQRGeneratedEvent implements ShouldBroadcast
     }
 }
 
-// app/Events/WhatsAppSessionStatusChangedEvent.php ✅
-class WhatsAppSessionStatusChangedEvent implements ShouldBroadcast
+// app/Events/WhatsAppAccountStatusChangedEvent.php ✅
+class WhatsAppAccountStatusChangedEvent implements ShouldBroadcast
 {
     public string $sessionId;
     public string $status;
@@ -132,7 +132,7 @@ interface WhatsAppAdapterInterface {
     public function sendMessage(Contact $contact, string $message, ?int $userId = null): array;
     public function sendMedia(...): array;
     public function sendTemplate(...): array;
-    public function getSession(): ?WhatsAppSession;
+    public function getSession(): ?WhatsAppAccount;
 }
 
 // app/Services/ProviderSelector.php ✅
@@ -161,10 +161,10 @@ class ProviderSelector {
 
 #### TASK-DB: Database Schema Migration ✅ **COMPLETE** (P0 BLOCKING)
 **Expected Components:**
-- [x] `whatsapp_sessions` table created
+- [x] `whatsapp_accounts` table created
 - [x] `contact_sessions` junction table created
-- [x] `chats.whatsapp_session_id` foreign key added
-- [x] `campaign_logs.whatsapp_session_id` foreign key added
+- [x] `chats.whatsapp_account_id` foreign key added
+- [x] `campaign_logs.whatsapp_account_id` foreign key added
 - [x] Data migration for existing Meta API credentials
 - [x] Database indexes for performance
 - [x] Migrations executed
@@ -172,22 +172,22 @@ class ProviderSelector {
 **Verification Evidence:**
 ```bash
 # php artisan migrate:status | grep whatsapp
-2025_10_13_000000_create_whatsapp_sessions_table ............ [5] Ran ✅
+2025_10_13_000000_create_whatsapp_accounts_table ............ [5] Ran ✅
 2025_10_13_000001_migrate_existing_whatsapp_credentials ..... [6] Ran ✅
 # Note: 2025_10_13_000002_add_session_foreign_keys not shown but exists
 ```
 
 **Migration Files Found:**
 ```
-✅ database/migrations/2025_10_13_000000_create_whatsapp_sessions_table.php
+✅ database/migrations/2025_10_13_000000_create_whatsapp_accounts_table.php
 ✅ database/migrations/2025_10_13_000001_migrate_existing_whatsapp_credentials.php
 ✅ database/migrations/2025_10_13_000002_add_session_foreign_keys.php
 ```
 
 **Models Created:**
 ```php
-// app/Models/WhatsAppSession.php ✅
-class WhatsAppSession extends Model {
+// app/Models/WhatsAppAccount.php ✅
+class WhatsAppAccount extends Model {
     protected $fillable = [
         'uuid', 'workspace_id', 'session_id', 'phone_number',
         'provider_type', 'status', 'qr_code', 'session_data',
@@ -205,18 +205,18 @@ class WhatsAppSession extends Model {
 // app/Models/ContactSession.php ✅
 class ContactSession extends Model {
     // Junction table N:M relationship
-    public function whatsappSession(): BelongsTo
+    public function whatsappAccount(): BelongsTo
     public function contact(): BelongsTo
 }
 
 // app/Models/Chat.php - Updated ✅
-public function whatsappSession() {
-    return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
+public function whatsappAccount() {
+    return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id', 'id');
 }
 
 // app/Models/CampaignLog.php - Updated ✅
-public function whatsappSession() {
-    return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
+public function whatsappAccount() {
+    return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id', 'id');
 }
 ```
 
@@ -244,8 +244,8 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const winston = require('winston'); // ✅ Logging configured
 
-// WhatsAppSessionManager class ✅
-class WhatsAppSessionManager {
+// WhatsAppAccountManager class ✅
+class WhatsAppAccountManager {
     constructor() {
         this.sessions = new Map();
         this.metadata = new Map();
@@ -327,7 +327,7 @@ Based on design.md requirements, these mitigation services should exist:
 #### TASK-6: Webhook Security & Processing ✅ **90% COMPLETE**
 **Expected Components:**
 - [x] WhatsAppWebJSController for event processing
-- [x] WhatsAppSessionController for frontend API
+- [x] WhatsAppAccountController for frontend API
 - [x] Webhook routes with HMAC validation
 - [x] Database index for message deduplication
 - ⚠️ **PARTIAL:** VerifyWhatsAppHmacSignature middleware
@@ -404,7 +404,7 @@ export function getEchoInstance(broadcasterConfig = null) {
 ```
 
 ```vue
-<!-- resources/js/Pages/User/Settings/WhatsappSessions.vue ✅ -->
+<!-- resources/js/Pages/User/Settings/WhatsappAccounts.vue ✅ -->
 <template>
   <div class="max-w-7xl mx-auto py-6">
     <!-- Header with Add Button ✅ -->
@@ -435,13 +435,13 @@ export function getEchoInstance(broadcasterConfig = null) {
 ```php
 // routes/web.php ✅
 Route::prefix('settings/whatsapp/sessions')->group(function () {
-    Route::get('/', [WhatsAppSessionController::class, 'index'])->name('index');
-    Route::post('/', [WhatsAppSessionController::class, 'store'])->name('store');
-    Route::post('/{uuid}/set-primary', [WhatsAppSessionController::class, 'setPrimary']);
-    Route::post('/{uuid}/disconnect', [WhatsAppSessionController::class, 'disconnect']);
-    Route::post('/{uuid}/reconnect', [WhatsAppSessionController::class, 'reconnect']); // ✅ GAP #1 fix
-    Route::post('/{uuid}/regenerate-qr', [WhatsAppSessionController::class, 'regenerateQR']); // ✅ GAP #1 fix
-    Route::delete('/{uuid}', [WhatsAppSessionController::class, 'destroy']);
+    Route::get('/', [WhatsAppAccountController::class, 'index'])->name('index');
+    Route::post('/', [WhatsAppAccountController::class, 'store'])->name('store');
+    Route::post('/{uuid}/set-primary', [WhatsAppAccountController::class, 'setPrimary']);
+    Route::post('/{uuid}/disconnect', [WhatsAppAccountController::class, 'disconnect']);
+    Route::post('/{uuid}/reconnect', [WhatsAppAccountController::class, 'reconnect']); // ✅ GAP #1 fix
+    Route::post('/{uuid}/regenerate-qr', [WhatsAppAccountController::class, 'regenerateQR']); // ✅ GAP #1 fix
+    Route::delete('/{uuid}', [WhatsAppAccountController::class, 'destroy']);
 });
 ```
 
@@ -501,7 +501,7 @@ tests/
 
 **Recommended Test Coverage:**
 ```php
-// ❌ MISSING: tests/Feature/WhatsAppSessionTest.php
+// ❌ MISSING: tests/Feature/WhatsAppAccountTest.php
 // Expected: Test QR setup, session connection, disconnection, reconnection
 
 // ❌ MISSING: tests/Unit/ProviderSelectorTest.php
@@ -624,8 +624,8 @@ php artisan list | grep whatsapp
 | **Real-time Broadcasting** | ✅ 100% | Reverb/Pusher support, QR + status events |
 | **Webhook Processing** | ✅ 90% | Event handlers complete, HMAC partial |
 | **Session Lifecycle** | ✅ 95% | Create, connect, disconnect, reconnect, regenerate QR |
-| **Frontend UI** | ✅ 95% | WhatsappSessions.vue with full QR workflow |
-| **GitHub Issue Mitigations** | ❌ 15% | Only basic session management, no dedicated services |
+| **Frontend UI** | ✅ 95% | WhatsappAccounts.vue with full QR workflow |
+| **GitHub Issue Mitigations** | ❌ 15% | Only basic account management, no dedicated services |
 | **Automated Testing** | ❌ 10% | No test files found |
 | **Production Monitoring** | 🟡 60% | PM2 config ready, monitoring incomplete |
 
@@ -715,7 +715,7 @@ Implement test suite covering:
 ```php
 // Minimum Required Test Coverage:
 tests/Feature/
-  ├── WhatsAppSessionTest.php (E2E QR workflow)
+  ├── WhatsAppAccountTest.php (E2E QR workflow)
   ├── WhatsAppMessageTest.php (Send/receive messages)
   ├── WhatsAppCampaignTest.php (Campaign distribution)
   └── WhatsAppProviderFailoverTest.php (Failover scenarios)
@@ -724,7 +724,7 @@ tests/Unit/
   ├── ProviderSelectorTest.php (Selection logic)
   ├── MetaAPIAdapterTest.php (Meta API calls)
   ├── WebJSAdapterTest.php (WebJS adapter)
-  └── WhatsAppSessionModelTest.php (Model logic)
+  └── WhatsAppAccountModelTest.php (Model logic)
 
 tests/Load/
   └── WhatsAppPerformanceTest.php (50 sessions, 1000 msg/min)
@@ -873,10 +873,10 @@ www-data hard nofile 65536
 ### Code Files Created/Modified
 
 **Laravel (Backend):**
-- 🆕 **3** Migration files (whatsapp_sessions, credentials, foreign keys)
-- 🆕 **4** Models (WhatsAppSession, ContactSession, + updates to Chat, CampaignLog)
-- 🆕 **2** Events (WhatsAppQRGeneratedEvent, WhatsAppSessionStatusChangedEvent)
-- 🆕 **2** Controllers (WhatsAppSessionController, WhatsAppWebJSController)
+- 🆕 **3** Migration files (whatsapp_accounts, credentials, foreign keys)
+- 🆕 **4** Models (WhatsAppAccount, ContactSession, + updates to Chat, CampaignLog)
+- 🆕 **2** Events (WhatsAppQRGeneratedEvent, WhatsAppAccountStatusChangedEvent)
+- 🆕 **2** Controllers (WhatsAppAccountController, WhatsAppWebJSController)
 - 🆕 **3** Services (ProviderSelector, MetaAPIAdapter, WebJSAdapter)
 - 🆕 **1** Contract (WhatsAppAdapterInterface)
 - ✅ **10+** Routes added (sessions CRUD, reconnect, regenerate-qr, webhook)
@@ -888,7 +888,7 @@ www-data hard nofile 65536
 - 🆕 **1** README for service documentation
 
 **Frontend (Vue.js):**
-- 🆕 **1** Main component (WhatsappSessions.vue - 340 lines)
+- 🆕 **1** Main component (WhatsappAccounts.vue - 340 lines)
 - 🆕 **1** Echo configuration (echo.js with dual driver support)
 - ✅ Real-time event listeners implemented
 
@@ -905,13 +905,13 @@ www-data hard nofile 65536
 
 | Requirement ID | Description | Status | Evidence |
 |----------------|-------------|--------|----------|
-| **FR-1.1** | QR Setup via Web.js | ✅ 100% | WhatsappSessions.vue + server.js QR generation |
-| **FR-1.2** | Number List Display | ✅ 100% | WhatsappSessions.vue sessions list with badges |
+| **FR-1.1** | QR Setup via Web.js | ✅ 100% | WhatsappAccounts.vue + server.js QR generation |
+| **FR-1.2** | Number List Display | ✅ 100% | WhatsappAccounts.vue sessions list with badges |
 | **FR-1.3** | Plan-Based Limits | ✅ 100% | subscription_plans.metadata.max_whatsapp_numbers |
 | **FR-1.4** | Session Actions (reconnect, regenerate QR) | ✅ 100% | Routes + controller methods implemented |
-| **FR-2.1** | Chat Management | ✅ 100% | Chat model with whatsapp_session_id FK |
-| **FR-2.2** | Reply from Same Number | ✅ 100% | Chat.whatsappSession() relationship |
-| **FR-3.1** | Campaign Distribution | ✅ 90% | CampaignLog.whatsapp_session_id FK (rate limiter missing) |
+| **FR-2.1** | Chat Management | ✅ 100% | Chat model with whatsapp_account_id FK |
+| **FR-2.2** | Reply from Same Number | ✅ 100% | Chat.whatsappAccount() relationship |
+| **FR-3.1** | Campaign Distribution | ✅ 90% | CampaignLog.whatsapp_account_id FK (rate limiter missing) |
 | **FR-4.1** | Provider Abstraction | ✅ 100% | ProviderSelector with MetaAPI + WebJS adapters |
 | **FR-4.2** | Contact Session Tracking | ✅ 100% | ContactSession junction table |
 | **FR-5.1** | Real-time Broadcasting | ✅ 100% | QR + Session Status events via Reverb/Pusher |
@@ -944,7 +944,7 @@ www-data hard nofile 65536
 
 **CAN GO TO PRODUCTION IF:**
 - ✅ Core multi-number functionality working
-- ✅ QR setup and session management operational
+- ✅ QR setup and account management operational
 - ✅ Database schema complete
 - ✅ Provider failover logic implemented
 - 🟡 Accept risk of missing GitHub issue mitigations (production hardening)
@@ -1016,7 +1016,7 @@ www-data hard nofile 65536
 
 ```bash
 # Day 6-8: Automated Testing
-✅ Feature tests: WhatsAppSessionTest, WhatsAppMessageTest, WhatsAppCampaignTest
+✅ Feature tests: WhatsAppAccountTest, WhatsAppMessageTest, WhatsAppCampaignTest
 ✅ Unit tests: ProviderSelectorTest, Adapter tests, Model tests
 ✅ Security tests: HMAC validation, encryption verification
 

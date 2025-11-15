@@ -4,7 +4,7 @@ namespace Tests\Performance;
 
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\WhatsAppGroup;
 use App\Models\Workspace;
 use App\Services\ChatService;
@@ -37,7 +37,7 @@ class ChatQueryTest extends TestCase
         parent::setUp();
 
         $this->workspace = Workspace::factory()->create();
-        $this->session = WhatsAppSession::factory()->create([
+        $this->account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -63,7 +63,7 @@ class ChatQueryTest extends TestCase
             Chat::factory()->create([
                 'contact_id' => $contact->id,
                 'workspace_id' => $this->workspace->id,
-                'whatsapp_session_id' => $this->session->id,
+                'whatsapp_account_id' => $this->account->id,
                 'provider_type' => 'webjs',
                 'chat_type' => 'private',
                 'created_at' => Carbon::now()->subMinutes(rand(1, 1000)),
@@ -110,7 +110,7 @@ class ChatQueryTest extends TestCase
                 Chat::factory()->create([
                     'contact_id' => $contact->id,
                     'workspace_id' => $this->workspace->id,
-                    'whatsapp_session_id' => $this->session->id,
+                    'whatsapp_account_id' => $this->account->id,
                 ]);
             });
 
@@ -169,7 +169,7 @@ class ChatQueryTest extends TestCase
                 $chats[] = [
                     'contact_id' => $contact->id,
                     'workspace_id' => $this->workspace->id,
-                    'whatsapp_session_id' => $this->session->id,
+                    'whatsapp_account_id' => $this->account->id,
                     'provider_type' => 'webjs',
                     'chat_type' => 'private',
                     'type' => 'inbound',
@@ -220,7 +220,7 @@ class ChatQueryTest extends TestCase
     public function test_session_filter_performance()
     {
         // Create multiple sessions
-        $session2 = WhatsAppSession::factory()->create([
+        $account2 = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'meta',
             'status' => 'connected',
@@ -234,7 +234,7 @@ class ChatQueryTest extends TestCase
             Chat::factory()->create([
                 'contact_id' => $contact1->id,
                 'workspace_id' => $this->workspace->id,
-                'whatsapp_session_id' => $this->session->id,
+                'whatsapp_account_id' => $this->account->id,
             ]);
 
             $contact2 = Contact::factory()->create([
@@ -243,7 +243,7 @@ class ChatQueryTest extends TestCase
             Chat::factory()->create([
                 'contact_id' => $contact2->id,
                 'workspace_id' => $this->workspace->id,
-                'whatsapp_session_id' => $session2->id,
+                'whatsapp_account_id' => $account2->id,
             ]);
         }
 
@@ -254,7 +254,7 @@ class ChatQueryTest extends TestCase
             request(),
             null,
             null,
-            $this->session->id // Filter by session
+            $this->account->id // Filter by session
         );
 
         $endTime = microtime(true);
@@ -269,7 +269,7 @@ class ChatQueryTest extends TestCase
 
         // Verify only correct session chats returned
         foreach ($result as $chat) {
-            $this->assertEquals($this->session->id, $chat->whatsapp_session_id);
+            $this->assertEquals($this->account->id, $chat->whatsapp_account_id);
         }
     }
 
@@ -290,20 +290,20 @@ class ChatQueryTest extends TestCase
             Chat::factory()->create([
                 'contact_id' => $contact->id,
                 'workspace_id' => $this->workspace->id,
-                'whatsapp_session_id' => $this->session->id,
+                'whatsapp_account_id' => $this->account->id,
                 'chat_type' => 'private',
             ]);
 
             // Group chat
             $group = WhatsAppGroup::factory()->create([
                 'workspace_id' => $this->workspace->id,
-                'session_id' => $this->session->id,
+                'session_id' => $this->account->id,
             ]);
             Chat::factory()->create([
                 'contact_id' => null,
                 'group_id' => $group->id,
                 'workspace_id' => $this->workspace->id,
-                'whatsapp_session_id' => $this->session->id,
+                'whatsapp_account_id' => $this->account->id,
                 'chat_type' => 'group',
             ]);
         }
@@ -350,7 +350,7 @@ class ChatQueryTest extends TestCase
             Chat::factory()->create([
                 'contact_id' => $contact->id,
                 'workspace_id' => $this->workspace->id,
-                'whatsapp_session_id' => $this->session->id,
+                'whatsapp_account_id' => $this->account->id,
             ]);
         }
 
@@ -394,7 +394,7 @@ class ChatQueryTest extends TestCase
                 Chat::factory()->create([
                     'contact_id' => $contact->id,
                     'workspace_id' => $this->workspace->id,
-                    'whatsapp_session_id' => $this->session->id,
+                    'whatsapp_account_id' => $this->account->id,
                 ]);
             });
 
@@ -442,7 +442,7 @@ class ChatQueryTest extends TestCase
                 Chat::factory()->create([
                     'contact_id' => $contact->id,
                     'workspace_id' => $this->workspace->id,
-                    'whatsapp_session_id' => $this->session->id,
+                    'whatsapp_account_id' => $this->account->id,
                     'created_at' => Carbon::now()->subMinutes($index),
                 ]);
             });
@@ -497,7 +497,7 @@ class ChatQueryTest extends TestCase
                 Chat::factory()->create([
                     'contact_id' => $contact->id,
                     'workspace_id' => $this->workspace->id,
-                    'whatsapp_session_id' => $this->session->id,
+                    'whatsapp_account_id' => $this->account->id,
                 ]);
             });
 

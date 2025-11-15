@@ -29,15 +29,15 @@
 - uuid (unique identifier)
 - workspace_id (foreign key)
 - contact_id (foreign key)
-- whatsapp_session_id (foreign key) ✅ SUDAH ADA
+- whatsapp_account_id (foreign key) ✅ SUDAH ADA
 - type (inbound/outbound)
 - metadata (JSON)
 - status (delivered/read/failed)
 - provider_type (meta/webjs) ✅ FIELD BARU DIBUTUHKAN
 - created_at, updated_at, deleted_at
 
--- Tabel: whatsapp_sessions ✅ SUDAH ADA
--- Migration: 2025_10_13_000000_create_whatsapp_sessions_table.php
+-- Tabel: whatsapp_accounts ✅ SUDAH ADA
+-- Migration: 2025_10_13_000000_create_whatsapp_accounts_table.php
 - id, uuid, workspace_id, session_id, phone_number
 - provider_type, status, qr_code, session_data
 - is_primary, is_active
@@ -61,9 +61,9 @@
 - **ChatTable Component** - Display contact list dengan filter
 
 **5. WhatsApp Web JS Integration Status:**
-- **Model:** `WhatsAppSession` ✅ SUDAH ADA
-- **Migrations:** Table `whatsapp_sessions` ✅ SUDAH ADA
-- **Foreign Keys:** `chats.whatsapp_session_id` ✅ SUDAH ADA
+- **Model:** `WhatsAppAccount` ✅ SUDAH ADA
+- **Migrations:** Table `whatsapp_accounts` ✅ SUDAH ADA
+- **Foreign Keys:** `chats.whatsapp_account_id` ✅ SUDAH ADA
 - **Provider Abstraction:** ⚠️ BELUM ADA (needs implementation)
 - **Chat Sync Service:** ❌ BELUM ADA (critical gap)
 
@@ -94,7 +94,7 @@
 - **Evidence Level:** OBSERVED (user request: "existing biarkan tetap ada")
 - **Verification Required:**
   - Cek apakah field `chats.provider_type` sudah ada
-  - Cek apakah `whatsapp_sessions.provider_type` sudah ada
+  - Cek apakah `whatsapp_accounts.provider_type` sudah ada
   - Verify routing logic untuk select provider
 - **Risk Level:** MEDIUM
 - **Impact if Wrong:** Breaking changes untuk existing Meta API users
@@ -104,12 +104,12 @@
 -- Verify provider_type di chats table
 SHOW COLUMNS FROM chats LIKE 'provider_type';
 
--- Verify provider_type di whatsapp_sessions table
-SHOW COLUMNS FROM whatsapp_sessions LIKE 'provider_type';
+-- Verify provider_type di whatsapp_accounts table
+SHOW COLUMNS FROM whatsapp_accounts LIKE 'provider_type';
 ```
 
 **Expected Evidence:**
-- `whatsapp_sessions.provider_type` = 'meta' | 'webjs' ✅ CONFIRMED (from model)
+- `whatsapp_accounts.provider_type` = 'meta' | 'webjs' ✅ CONFIRMED (from model)
 - `chats.provider_type` = NULL ⚠️ NEEDS VERIFICATION
 
 ---
@@ -134,7 +134,7 @@ public function getChatMessages($contactId, $page = 1, $perPage = 10)
 
 **Proposed Changes:**
 - Add optional parameter: `$sessionId = null` untuk filter by WhatsApp number
-- Modify query builder untuk include `whatsapp_session_id` join
+- Modify query builder untuk include `whatsapp_account_id` join
 - Add provider selection logic di sendMessage()
 
 ---
@@ -236,7 +236,7 @@ curl http://localhost:3000/api/sessions/{sessionId}/chats
 
 ### ASM-7: Database Migration Status
 - **Assumption:** Migration untuk add `chats.provider_type` column sudah exists atau perlu dibuat
-- **Evidence Level:** PARTIAL (whatsapp_sessions table exists, chats FK exists)
+- **Evidence Level:** PARTIAL (whatsapp_accounts table exists, chats FK exists)
 - **Verification Required:**
   - Check existing migrations untuk `chats` table modifications
   - Verify `chats.provider_type` column existence
@@ -430,7 +430,7 @@ Schema::create('whatsapp_groups', function (Blueprint $table) {
     $table->id();
     $table->uuid('uuid')->unique();
     $table->unsignedBigInteger('workspace_id');
-    $table->unsignedBigInteger('whatsapp_session_id');
+    $table->unsignedBigInteger('whatsapp_account_id');
     $table->string('group_jid')->unique();  // WhatsApp group identifier
     $table->string('name');
     $table->text('description')->nullable();
@@ -496,7 +496,7 @@ Schema::create('whatsapp_groups', function (Blueprint $table) {
 - **Evidence:**
   ```json
   // VERIFIED chats table columns:
-  ["id","uuid","workspace_id","whatsapp_session_id","wam_id","contact_id",
+  ["id","uuid","workspace_id","whatsapp_account_id","wam_id","contact_id",
    "user_id","type","metadata","media_id","status","is_read","deleted_by",
    "deleted_at","created_at"]
   
@@ -845,7 +845,7 @@ const messages = await chat.fetchMessages({ limit: 50 });
   });
   
   // Can easily add:
-  // sessions: Array, // List of WhatsApp sessions for filter
+  // sessions: Array, // List of WhatsApp accounts for filter
   ```
 - **Implementation Complexity:** **LOW**
   - Component structure: ✅ Already supports filters
@@ -890,8 +890,8 @@ const messages = await chat.fetchMessages({ limit: 50 });
    # Check chats table columns
    Schema::getColumnListing('chats');
    
-   # Check whatsapp_sessions table columns
-   Schema::getColumnListing('whatsapp_sessions');
+   # Check whatsapp_accounts table columns
+   Schema::getColumnListing('whatsapp_accounts');
    
    # Check foreign keys
    DB::select("SHOW CREATE TABLE chats");
@@ -967,8 +967,8 @@ const messages = await chat.fetchMessages({ limit: 50 });
 ### Phase 0 (COMPLETED ✅):
 - [x] ASM-INITIAL: Basic forensic scan completed
 - [x] Identified existing chat system architecture
-- [x] Verified WhatsAppSession model exists
-- [x] Confirmed foreign key `chats.whatsapp_session_id` exists
+- [x] Verified WhatsAppAccount model exists
+- [x] Confirmed foreign key `chats.whatsapp_account_id` exists
 
 ### Phase 1 (COMPLETED ✅):
 - [x] ✅ **ASM-1:** Chat sync behavior → VERIFIED via WhatsApp Web.js GitHub docs
@@ -1077,7 +1077,7 @@ const messages = await chat.fetchMessages({ limit: 50 });
 - **Evidence:**
   ```json
   // Actual columns (15 total):
-  ["id","uuid","workspace_id","whatsapp_session_id","wam_id","contact_id",
+  ["id","uuid","workspace_id","whatsapp_account_id","wam_id","contact_id",
    "user_id","type","metadata","media_id","status","is_read","deleted_by",
    "deleted_at","created_at"]
   
@@ -1354,12 +1354,12 @@ $ curl http://localhost:3000/health
 - `app/Http/Controllers/User/ChatController.php` (lines 1-68)
 - `app/Services/ChatService.php` (lines 1-630)
 - `app/Models/Chat.php` (lines 1-50)
-- `app/Models/WhatsAppSession.php` (lines 1-220)
+- `app/Models/WhatsAppAccount.php` (lines 1-220)
 - `resources/js/Pages/User/Chat/Index.vue` (lines 1-195)
 - `routes/web.php` (lines 128-136)
 
 **Database Schema:**
-- Migration: `2025_10_13_000000_create_whatsapp_sessions_table.php`
+- Migration: `2025_10_13_000000_create_whatsapp_accounts_table.php`
 - Migration: `2025_10_13_000002_add_session_foreign_keys.php`
 
 ---

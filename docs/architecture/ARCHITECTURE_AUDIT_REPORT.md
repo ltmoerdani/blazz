@@ -92,10 +92,10 @@ Berdasarkan audit menyeluruh terhadap codebase Blazz WhatsApp Business Platform 
 - `RetryCampaignLogJob.php`
 - Beberapa jobs lainnya
 
-### **4. Missing WhatsApp Session Service**
-**Spesifikasi menyebutkan `WhatsAppSessionService.php` tapi tidak ditemukan:**
-- Session management masih terintegrasi di services lain
-- Tidak ada service khusus untuk session management
+### **4. Missing WhatsApp account Service**
+**Spesifikasi menyebutkan `WhatsAppAccountService.php` tapi tidak ditemukan:**
+- Account management masih terintegrasi di services lain
+- Tidak ada service khusus untuk account management
 
 ### **5. Controller Splitting Tidak Lengkap**
 **Controllers yang masih terlalu besar:**

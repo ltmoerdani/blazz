@@ -39,7 +39,7 @@ contacts table:
 #### WhatsApp Web.js Service ✅
 - **Location:** `whatsapp-service/server.js`
 - **Lines:** 1,079 lines of comprehensive code
-- **Features:** Session management, QR code handling, message sending
+- **Features:** Account management, QR code handling, message sending
 - **Status:** Working perfectly for sending/receiving messages
 
 #### Laravel Backend ✅

@@ -215,18 +215,18 @@ class CampaignServiceTest extends TestCase
     /**
      * Test campaign with WhatsApp session assignment
      */
-    public function test_campaign_with_whatsapp_session_assignment(): void
+    public function test_campaign_with_whatsapp_account_assignment(): void
     {
         $workspace = $this->createWorkspace();
         $contactGroup = $this->createContactGroup($workspace);
-        $whatsappSession = $this->createWhatsAppSession($workspace);
+        $whatsappAccount = $this->createWhatsAppAccount($workspace);
 
         $requestData = [
             'name' => 'Test Campaign with Session',
             'campaign_type' => 'direct',
             'contacts' => $contactGroup->uuid,
             'preferred_provider' => 'webjs',
-            'whatsapp_session_id' => $whatsappSession->id,
+            'whatsapp_account_id' => $whatsappAccount->id,
             'skip_schedule' => true,
             'header_type' => 'text',
             'body_text' => 'Test message body content'
@@ -239,7 +239,7 @@ class CampaignServiceTest extends TestCase
 
         $campaign = $this->campaignService->createHybridCampaign($request);
 
-        $this->assertEquals($whatsappSession->id, $campaign->whatsapp_session_id);
+        $this->assertEquals($whatsappAccount->id, $campaign->whatsapp_account_id);
     }
 
     /**
@@ -375,9 +375,9 @@ class CampaignServiceTest extends TestCase
         ]);
     }
 
-    private function createWhatsAppSession($workspace)
+    private function createWhatsAppAccount($workspace)
     {
-        return \App\Models\WhatsAppSession::factory()->create([
+        return \App\Models\WhatsAppAccount::factory()->create([
             'workspace_id' => $workspace->id,
             'provider_type' => 'webjs'
         ]);

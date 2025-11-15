@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# WhatsApp Sessions Cleanup Script
+# WhatsApp accounts Cleanup Script
 # Date: 2025-10-13
-# Purpose: Clean up stuck WhatsApp sessions before testing
+# Purpose: Clean up stuck WhatsApp accounts before testing
 
 echo "=========================================="
-echo "WhatsApp Sessions Cleanup"
+echo "WhatsApp accounts Cleanup"
 echo "=========================================="
 echo ""
 
@@ -18,9 +18,9 @@ NC='\033[0m' # No Color
 cd /Applications/MAMP/htdocs/blazz
 
 # Step 1: Show current sessions
-echo -e "${YELLOW}[1/5] Current WhatsApp sessions in database:${NC}"
+echo -e "${YELLOW}[1/5] Current WhatsApp accounts in database:${NC}"
 php artisan tinker --execute="
-\$sessions = DB::table('whatsapp_sessions')->get();
+\$sessions = DB::table('whatsapp_accounts')->get();
 foreach(\$sessions as \$s) {
     echo '  ID: ' . \$s->id . ' | ' . \$s->session_id . ' | Status: ' . \$s->status . PHP_EOL;
 }
@@ -54,8 +54,8 @@ fi
 echo ""
 echo -e "${YELLOW}[4/5] Cleaning database sessions...${NC}"
 DB_RESULT=$(php artisan tinker --execute="
-\$count = DB::table('whatsapp_sessions')->count();
-DB::table('whatsapp_sessions')->delete();
+\$count = DB::table('whatsapp_accounts')->count();
+DB::table('whatsapp_accounts')->delete();
 echo \$count;
 " 2>/dev/null)
 echo -e "${GREEN}✅ Deleted $DB_RESULT database records${NC}"
@@ -65,7 +65,7 @@ echo ""
 echo -e "${YELLOW}[5/5] Verifying cleanup...${NC}"
 
 # Check database
-DB_COUNT=$(php artisan tinker --execute="echo DB::table('whatsapp_sessions')->count();" 2>/dev/null)
+DB_COUNT=$(php artisan tinker --execute="echo DB::table('whatsapp_accounts')->count();" 2>/dev/null)
 if [ "$DB_COUNT" = "0" ]; then
     echo -e "${GREEN}✅ Database: 0 sessions${NC}"
 else

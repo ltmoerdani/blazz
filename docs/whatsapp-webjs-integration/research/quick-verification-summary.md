@@ -37,7 +37,7 @@
 
 **TASK-3: Broadcasting Infrastructure**
 - ✅ `WhatsAppQRGeneratedEvent.php` (59 lines)
-- ✅ `WhatsAppSessionStatusChangedEvent.php` (64 lines)
+- ✅ `WhatsAppAccountStatusChangedEvent.php` (64 lines)
 - ✅ Broadcasting dengan Reverb & Pusher support
 
 **Evidence:** All Phase 1 verified via grep search, file inspection, terminal history
@@ -52,20 +52,20 @@
 - ✅ Failover logic implemented
 
 **TASK-DB: Database Migration (P0 CRITICAL)**
-- ✅ `create_whatsapp_sessions_table` - MIGRATED
+- ✅ `create_whatsapp_accounts_table` - MIGRATED
 - ✅ `migrate_existing_whatsapp_credentials` - MIGRATED
 - ✅ `add_session_foreign_keys` - IMPLEMENTED
-- ✅ Models: WhatsAppSession, ContactSession, Chat, CampaignLog updated
+- ✅ Models: WhatsAppAccount, ContactSession, Chat, CampaignLog updated
 - ✅ All 4 critical gaps FIXED:
-  - ✅ whatsapp_sessions table
-  - ✅ chats.whatsapp_session_id FK
-  - ✅ campaign_logs.whatsapp_session_id FK
+  - ✅ whatsapp_accounts table
+  - ✅ chats.whatsapp_account_id FK
+  - ✅ campaign_logs.whatsapp_account_id FK
   - ✅ contact_sessions junction table
 
 **Evidence:** 
 ```bash
 php artisan migrate:status | grep whatsapp
-✅ 2025_10_13_000000_create_whatsapp_sessions_table [5] Ran
+✅ 2025_10_13_000000_create_whatsapp_accounts_table [5] Ran
 ✅ 2025_10_13_000001_migrate_existing_whatsapp_credentials [6] Ran
 ```
 
@@ -77,7 +77,7 @@ php artisan migrate:status | grep whatsapp
 ✅ **IMPLEMENTED:**
 - ✅ Node.js project initialized (`whatsapp-service/`)
 - ✅ `server.js` main file (573 lines)
-- ✅ WhatsAppSessionManager class
+- ✅ WhatsAppAccountManager class
 - ✅ QR code generation via `qrcode` library
 - ✅ LocalAuth session persistence
 - ✅ Winston logging configured
@@ -109,7 +109,7 @@ php artisan migrate:status | grep whatsapp
 
 ### Phase 4: User Interface - 95% ✅
 **TASK-7: Frontend QR Component - 100% COMPLETE**
-- ✅ `WhatsappSessions.vue` (340 lines)
+- ✅ `WhatsappAccounts.vue` (340 lines)
 - ✅ QR display, session list, status badges
 - ✅ Real-time updates via Echo.js
 - ✅ `echo.js` enhanced (Reverb/Pusher support)
@@ -188,7 +188,7 @@ find tests -name "*WhatsApp*" -o -name "*whatsapp*"
 **Location:** `tests/` directory empty for WhatsApp features
 
 **Missing Test Files:**
-- ❌ tests/Feature/WhatsAppSessionTest.php
+- ❌ tests/Feature/WhatsAppAccountTest.php
 - ❌ tests/Feature/WhatsAppMessageTest.php
 - ❌ tests/Feature/WhatsAppCampaignTest.php
 - ❌ tests/Unit/ProviderSelectorTest.php
@@ -331,7 +331,7 @@ find tests -name "*WhatsApp*" -o -name "*whatsapp*"
 **Focus:** Automated Testing + Monitoring
 
 **Day 6-8:**
-- [ ] Feature tests (WhatsAppSessionTest, MessageTest, CampaignTest)
+- [ ] Feature tests (WhatsAppAccountTest, MessageTest, CampaignTest)
 - [ ] Unit tests (ProviderSelectorTest, AdapterTests)
 - [ ] Security tests (HMAC validation)
 
@@ -388,7 +388,7 @@ find tests -name "*WhatsApp*" -o -name "*whatsapp*"
 | TASK-4 | WhatsAppAdapterInterface | ✅ |
 | TASK-4 | MetaAPIAdapter | ✅ |
 | TASK-4 | WebJSAdapter | ✅ |
-| TASK-DB | whatsapp_sessions table | ✅ |
+| TASK-DB | whatsapp_accounts table | ✅ |
 | TASK-DB | contact_sessions table | ✅ |
 | TASK-DB | chats FK | ✅ |
 | TASK-DB | campaign_logs FK | ✅ |
@@ -449,13 +449,13 @@ Based on `requirements.md` FR-1 to FR-8:
 
 | FR-ID | Requirement | Implementation | Status |
 |-------|-------------|----------------|--------|
-| FR-1.1 | QR Setup via WebJS | WhatsappSessions.vue + server.js | ✅ 100% |
-| FR-1.2 | Number List Display | WhatsappSessions.vue sessions list | ✅ 100% |
+| FR-1.1 | QR Setup via WebJS | WhatsappAccounts.vue + server.js | ✅ 100% |
+| FR-1.2 | Number List Display | WhatsappAccounts.vue sessions list | ✅ 100% |
 | FR-1.3 | Plan-Based Limits | subscription_plans.metadata check | ✅ 100% |
 | FR-1.4 | Session Actions (reconnect) | Controller methods implemented | ✅ 100% |
-| FR-2.1 | Chat Management | Chat model + whatsapp_session_id | ✅ 100% |
-| FR-2.2 | Reply Same Number | Chat.whatsappSession() relation | ✅ 100% |
-| FR-3.1 | Campaign Distribution | CampaignLog.whatsapp_session_id | 🟡 90% |
+| FR-2.1 | Chat Management | Chat model + whatsapp_account_id | ✅ 100% |
+| FR-2.2 | Reply Same Number | Chat.whatsappAccount() relation | ✅ 100% |
+| FR-3.1 | Campaign Distribution | CampaignLog.whatsapp_account_id | 🟡 90% |
 | FR-4.1 | Provider Abstraction | ProviderSelector + Adapters | ✅ 100% |
 | FR-4.2 | Contact Session Tracking | ContactSession junction table | ✅ 100% |
 | FR-5.1 | Real-time Broadcasting | QR + Status events via Reverb | ✅ 100% |

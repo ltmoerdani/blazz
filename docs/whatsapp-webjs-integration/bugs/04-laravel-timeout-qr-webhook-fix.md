@@ -10,7 +10,7 @@
 
 ### Error Message
 ```
-Failed to create WhatsApp session: Failed to initialize session: 
+Failed to create WhatsApp account: Failed to initialize session: 
 cURL error 28: Operation timed out after 30005 milliseconds with 0 bytes received 
 for http://127.0.0.1:3001/api/sessions
 ```
@@ -174,7 +174,7 @@ public function initializeSession(): array
 
 ### Fix 2: Update Controller Response
 
-**File:** `app/Http/Controllers/User/WhatsAppSessionController.php`  
+**File:** `app/Http/Controllers/User/WhatsAppAccountController.php`  
 **Lines:** 110-129
 
 **BEFORE:**
@@ -192,7 +192,7 @@ if (!$result['success']) {
 } else {
     $response = response()->json([
         'success' => true,
-        'message' => 'WhatsApp session created successfully',
+        'message' => 'WhatsApp account created successfully',
         'session' => $session,
         'qr_code' => $result['qr_code'] ?? null, // ❌ Always null
     ]);
@@ -214,7 +214,7 @@ if (!$result['success']) {
 } else {
     $response = response()->json([
         'success' => true,
-        'message' => 'WhatsApp session created successfully. QR code will be sent via websocket.',
+        'message' => 'WhatsApp account created successfully. QR code will be sent via websocket.',
         'session' => $session,
         // ✅ QR code will be sent via webhook/websocket event
         'qr_code' => null,
@@ -295,7 +295,7 @@ if (!$result['success']) {
 
 ### Test 1: Via Browser (Recommended)
 
-1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-sessions`
+1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-accounts`
 2. Open DevTools Console (F12)
 3. Click "Add WhatsApp Number"
 
@@ -303,7 +303,7 @@ if (!$result['success']) {
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ✅ Session created: {success: true, session: {...}, qr_code: null}
 ⏳ Waiting for QR code via websocket...
 📨 QR Code Generated Event received: {qr_code: "data:image/png;base64,...", expires_in: 300}
@@ -322,7 +322,7 @@ if (!$result['success']) {
 In DevTools Network tab:
 
 ```
-POST /settings/whatsapp-sessions
+POST /settings/whatsapp-accounts
   Status: 200 OK
   Time: ~7 seconds
   Response: {"success":true,"session":{...},"qr_code":null}
@@ -362,7 +362,7 @@ tail -f whatsapp-service/logs/whatsapp-service.log
 
 **Expected logs:**
 ```json
-{"level":"info","message":"Creating WhatsApp session","sessionId":"...","workspaceId":1}
+{"level":"info","message":"Creating WhatsApp account","sessionId":"...","workspaceId":1}
 {"level":"info","message":"QR code generated","sessionId":"...","workspaceId":1}
 {"level":"info","message":"Webhook sent successfully","event":"qr_code_generated","endpoint":"/api/whatsapp/webhooks/webjs"}
 ```
@@ -373,7 +373,7 @@ tail -f whatsapp-service/logs/whatsapp-service.log
 
 ### Files Modified
 1. `app/Services/Adapters/WebJSAdapter.php` - Increased timeout, clarified QR flow
-2. `app/Http/Controllers/User/WhatsAppSessionController.php` - Updated response message
+2. `app/Http/Controllers/User/WhatsAppAccountController.php` - Updated response message
 
 ### Breaking Changes
 - **None** - This is a clarification fix
@@ -406,7 +406,7 @@ After applying fixes:
 ### This Fix Resolves:
 - ❌ `cURL error 28: Operation timed out after 30005 milliseconds`
 - ❌ HTTP 500 Internal Server Error from Laravel
-- ❌ Alert: "Failed to create WhatsApp session: Failed to initialize session"
+- ❌ Alert: "Failed to create WhatsApp account: Failed to initialize session"
 
 ### This Fix Enables:
 - ✅ Faster response to frontend

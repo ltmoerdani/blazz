@@ -56,7 +56,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Session Manager
-class WhatsAppSessionManager {
+class WhatsAppAccountManager {
     constructor() {
         this.sessions = new Map();
         this.metadata = new Map();
@@ -835,8 +835,8 @@ class WhatsAppSessionManager {
     }
 }
 
-// Initialize session manager
-const sessionManager = new WhatsAppSessionManager();
+// Initialize account manager
+const sessionManager = new WhatsAppAccountManager();
 
 // Initialize mitigation services
 const accountHealthMonitor = new AccountHealthMonitor(sessionManager);
@@ -848,7 +848,7 @@ const accountPool = new AccountPool(sessionManager);
 const qrRateLimiter = new QRRateLimiter();
 const timeoutHandler = new TimeoutHandler();
 
-// Enhance session manager with pool functionality
+// Enhance account manager with pool functionality
 accountPool.enhanceSessionManager();
 
 // Apply timeout middleware

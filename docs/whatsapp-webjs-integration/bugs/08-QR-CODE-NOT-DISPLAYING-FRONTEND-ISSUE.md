@@ -96,7 +96,7 @@ Klik "Add WhatsApp Number"
 
 ### 4. Frontend Implementation Analysis
 
-**File:** `resources/js/Pages/User/Settings/WhatsAppSessions.vue`
+**File:** `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`
 
 **Echo Subscription (Line 235-258):**
 ```javascript
@@ -186,7 +186,7 @@ Either:
 ```php
 public function disconnect(string $uuid)
 {
-    $session = WhatsAppSession::where('uuid', $uuid)
+    $session = WhatsAppAccount::where('uuid', $uuid)
         ->where('workspace_id', $workspaceId)
         ->firstOrFail();
     
@@ -246,7 +246,7 @@ This ensures the event is broadcast with name `qr-code-generated` instead of ful
 
 ### Fix 2: Update Session Status Change Event
 
-**File:** `app/Events/WhatsAppSessionStatusChangedEvent.php`
+**File:** `app/Events/WhatsAppAccountStatusChangedEvent.php`
 
 **Add method:**
 ```php
@@ -258,7 +258,7 @@ public function broadcastAs(): string
 
 ### Fix 3: Handle `qr_scanning` Sessions in Delete Logic
 
-**File:** `app/Http/Controllers/User/WhatsAppSessionController.php`
+**File:** `app/Http/Controllers/User/WhatsAppAccountController.php`
 
 **Update destroy method (Line 270-290):**
 ```php
@@ -266,7 +266,7 @@ public function destroy(string $uuid)
 {
     $workspaceId = session('current_workspace');
 
-    $session = WhatsAppSession::where('uuid', $uuid)
+    $session = WhatsAppAccount::where('uuid', $uuid)
         ->where('workspace_id', $workspaceId)
         ->firstOrFail();
 
@@ -296,7 +296,7 @@ public function destroy(string $uuid)
         ]);
 
     } catch (\Exception $e) {
-        Log::error('Failed to delete WhatsApp session', [
+        Log::error('Failed to delete WhatsApp account', [
             'workspace_id' => $workspaceId,
             'session_id' => $session->session_id,
             'error' => $e->getMessage(),
@@ -312,7 +312,7 @@ public function destroy(string $uuid)
 
 ### Fix 4: Handle `qr_scanning` Sessions in Disconnect Logic
 
-**File:** `app/Http/Controllers/User/WhatsAppSessionController.php`
+**File:** `app/Http/Controllers/User/WhatsAppAccountController.php`
 
 **Update disconnect method (Line 230-265):**
 ```php
@@ -320,7 +320,7 @@ public function disconnect(string $uuid)
 {
     $workspaceId = session('current_workspace');
 
-    $session = WhatsAppSession::where('uuid', $uuid)
+    $session = WhatsAppAccount::where('uuid', $uuid)
         ->where('workspace_id', $workspaceId)
         ->firstOrFail();
 
@@ -372,7 +372,7 @@ public function disconnect(string $uuid)
         }
 
     } catch (\Exception $e) {
-        Log::error('Failed to disconnect WhatsApp session', [
+        Log::error('Failed to disconnect WhatsApp account', [
             'workspace_id' => $workspaceId,
             'session_id' => $session->session_id,
             'error' => $e->getMessage(),
@@ -425,7 +425,7 @@ grep -n "broadcastAs" app/Events/WhatsAppQRGeneratedEvent.php
 ### Step 4: After Fixing - Cleanup Stuck Sessions
 
 ```bash
-./cleanup-whatsapp-sessions.sh
+./cleanup-whatsapp-accounts.sh
 ```
 
 This will:
@@ -451,12 +451,12 @@ This will:
 1. **`app/Events/WhatsAppQRGeneratedEvent.php`**
    - Add `broadcastAs()` method returning `'qr-code-generated'`
 
-2. **`app/Events/WhatsAppSessionStatusChangedEvent.php`**
+2. **`app/Events/WhatsAppAccountStatusChangedEvent.php`**
    - Add `broadcastAs()` method returning `'session-status-changed'`
 
 ### Priority 2: Fix Disconnect/Delete for qr_scanning Sessions
 
-3. **`app/Http/Controllers/User/WhatsAppSessionController.php`**
+3. **`app/Http/Controllers/User/WhatsAppAccountController.php`**
    - Update `disconnect()` method (line ~230-265)
    - Update `destroy()` method (line ~270-290)
 

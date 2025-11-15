@@ -234,7 +234,7 @@ find database/migrations -name "*.php" | wc -l
 // VERIFIED: Current implementation - app/Http/Middleware/SetOrganizationFromSession.php
 // Business Critical: workspace context must be preserved across upgrade
 // Laravel 12 Impact: No breaking changes expected
-// Validation Required: Session management compatibility testing
+// Validation Required: Account management compatibility testing
 ```
 
 **2. WhatsApp API Integration**
@@ -373,7 +373,7 @@ class SetOrganizationFromSession {
 // MITIGATION STRATEGY: Authentication compatibility testing
 // 1. Preserve existing guard configuration
 // 2. Test user/admin authentication flows
-// 3. Validate session management
+// 3. Validate account management
 // 4. Verify workspace context preservation
 
 // CONTINGENCY PLAN: Session migration strategy

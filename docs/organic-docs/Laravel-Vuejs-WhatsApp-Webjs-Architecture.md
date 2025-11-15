@@ -536,7 +536,7 @@ class WhatsAppServiceManager {
     }
 
     setupRoutes() {
-        // Session management
+        // Account management
         this.app.post('/session/init', this.initializeSession.bind(this));
         this.app.get('/session/:sessionId/qr', this.getQRCode.bind(this));
         this.app.get('/session/:sessionId/status', this.getSessionStatus.bind(this));
@@ -631,7 +631,7 @@ class WhatsAppServiceManager {
             if (!client) {
                 return res.status(400).json({
                     success: false,
-                    error: 'WhatsApp session not initialized'
+                    error: 'WhatsApp account not initialized'
                 });
             }
 

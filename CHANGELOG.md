@@ -32,7 +32,7 @@ campaigns table fields added:
 - campaign_type (enum: template/direct)
 - message_content, header_type, header_text, header_media
 - body_text, footer_text, buttons_data (JSON)
-- preferred_provider, whatsapp_session_id
+- preferred_provider, whatsapp_account_id
 - Performance counters: messages_sent, messages_delivered, messages_read, messages_failed
 - Processing timestamps: started_at, completed_at, error_message
 ```
@@ -112,7 +112,7 @@ ADD COLUMN body_text TEXT NULL,
 ADD COLUMN footer_text VARCHAR(1024) NULL,
 ADD COLUMN buttons_data JSON NULL,
 ADD COLUMN preferred_provider VARCHAR(50) DEFAULT 'meta_api',
-ADD COLUMN whatsapp_session_id CHAR(36) NULL,
+ADD COLUMN whatsapp_account_id CHAR(36) NULL,
 ADD COLUMN messages_sent INT DEFAULT 0,
 ADD COLUMN messages_delivered INT DEFAULT 0,
 ADD COLUMN messages_read INT DEFAULT 0,
@@ -330,8 +330,8 @@ class WorkspaceHelper {
   - AdminWhatsAppSettingsController - WhatsApp configuration
 - **User Controllers** (User-facing):
   - UserSettingsController - User settings management
-  - WhatsAppSessionManagementController - Session management UI
-  - WhatsAppSessionStatusController - Session status handling
+  - WhatsAppAccountManagementController - Session management UI
+  - WhatsAppAccountStatusController - Session status handling
   - WhatsAppUserSettingsController - WhatsApp user settings
 - **Common Controllers** (Shared):
   - LoginController - Authentication logic
@@ -650,16 +650,16 @@ Platform Blazz telah mengintegrasikan WhatsApp Web.js (whatsapp-web.js) sebagai 
   - WebJSUtility - Status tracking dan read receipts
 - **Broadcasting Events**:
   - WhatsAppQRGeneratedEvent - Real-time QR code delivery via Laravel Reverb/Pusher
-  - WhatsAppSessionStatusChangedEvent - Session lifecycle state broadcasting
-- **Controllers**: WhatsAppSessionController (User), WhatsAppWebJSController (API)
+  - WhatsAppAccountStatusChangedEvent - Session lifecycle state broadcasting
+- **Controllers**: WhatsAppAccountController (User), WhatsAppWebJSController (API)
 - **Middleware**: VerifyWhatsAppHmac untuk webhook authentication dengan HMAC SHA-256
 
 **Database Schema:**
-- **whatsapp_sessions table**: Primary session management dengan fields:
+- **whatsapp_accounts table**: Primary session management dengan fields:
   - session_id, workspace_id, phone_number, status (enum), provider (meta_api/webjs)
   - qr_code (base64), auth_data (JSON), health_status, last_activity_at
 - **contact_sessions table**: Contact-session relationship tracking untuk multi-number support
-- **Foreign Keys Added**: chats.whatsapp_session_id, campaign_logs.whatsapp_session_id
+- **Foreign Keys Added**: chats.whatsapp_account_id, campaign_logs.whatsapp_account_id
 - **Migration Scripts**: 3 migrations untuk session tables, credentials migration, dan FK relationships
 
 **WhatsApp Service (Node.js):**
@@ -679,7 +679,7 @@ Platform Blazz telah mengintegrasikan WhatsApp Web.js (whatsapp-web.js) sebagai 
 - **Production Support**: PM2 ecosystem config, monitoring setup (Prometheus/Grafana), startup scripts
 
 **Frontend Implementation:**
-- **WhatsAppSessions.vue**: Vue 3 component dengan real-time features:
+- **WhatsAppAccounts.vue**: Vue 3 component dengan real-time features:
   - QR code modal dengan 5-minute countdown timer
   - Real-time session status updates via Echo/Pusher
   - Session list management (connected/disconnected states only)
@@ -711,7 +711,7 @@ Platform Blazz telah mengintegrasikan WhatsApp Web.js (whatsapp-web.js) sebagai 
 **Phase 3: Event Broadcasting (Bug #07)**
 - ❌ **Bug**: Echo listeners missing dot prefix causing event reception failures
 - ✅ **Fix**: Updated event names to use dot prefix (.qr-code-generated, .session-status-changed)
-- **Files**: resources/js/Pages/User/Settings/WhatsAppSessions.vue, app/Events/*.php
+- **Files**: resources/js/Pages/User/Settings/WhatsAppAccounts.vue, app/Events/*.php
 - **Impact**: Real-time events now received consistently
 
 **Phase 4: Puppeteer Configuration (Bug #08)**
@@ -729,7 +729,7 @@ Platform Blazz telah mengintegrasikan WhatsApp Web.js (whatsapp-web.js) sebagai 
 - ✅ **Fix**: Updated status enum values to match actual states
 - **Implementation**:
   ```php
-  // WhatsAppSessionController::disconnect()
+  // WhatsAppAccountController::disconnect()
   if ($session->status === 'qr_scanning') {
       try {
           $adapter->disconnectSession();
@@ -739,7 +739,7 @@ Platform Blazz telah mengintegrasikan WhatsApp Web.js (whatsapp-web.js) sebagai 
       $session->update(['status' => 'disconnected']);
   }
   ```
-- **Files**: app/Http/Controllers/User/WhatsAppSessionController.php
+- **Files**: app/Http/Controllers/User/WhatsAppAccountController.php
 - **Impact**: Users dapat manage stuck sessions tanpa manual database cleanup
 
 **Phase 6: Frontend QR Display (Multiple Bugs)**
@@ -749,7 +749,7 @@ Platform Blazz telah mengintegrasikan WhatsApp Web.js (whatsapp-web.js) sebagai 
 - ✅ **Fix**: Implemented reactive sessionsList dengan computed properties
 - ❌ **Bug**: New sessions showing in list sebelum QR scan selesai
 - ✅ **Fix**: Filter sessions untuk exclude qr_scanning/pending states dari display
-- **Files**: resources/js/Pages/User/Settings/WhatsAppSessions.vue
+- **Files**: resources/js/Pages/User/Settings/WhatsAppAccounts.vue
 - **Impact**: Seamless UX dengan real-time updates tanpa page refresh
 
 **Testing & Quality Assurance:**
@@ -759,7 +759,7 @@ Platform Blazz telah mengintegrasikan WhatsApp Web.js (whatsapp-web.js) sebagai 
   - Browser DevTools integration testing checklist
   - WebSocket traffic verification procedures
 - ✅ **Diagnostic Scripts**:
-  - cleanup-whatsapp-sessions.sh - Cleanup stuck sessions (database + Node.js)
+  - cleanup-whatsapp-accounts.sh - Cleanup stuck accounts (database + Node.js)
   - restart-whatsapp-services.sh - Graceful service restart dengan verification
   - test-whatsapp-qr-fix.sh - Comprehensive fix validation
   - diagnose-qr-frontend-issue.sh - Frontend diagnostics dan troubleshooting
@@ -789,7 +789,7 @@ Platform Blazz telah mengintegrasikan WhatsApp Web.js (whatsapp-web.js) sebagai 
 **API Endpoints:**
 ```php
 // Web Routes (User Interface)
-GET  /settings/whatsapp-sessions - Session management page
+GET  /settings/whatsapp-accounts - Session management page
 POST /settings/whatsapp/sessions - Create new session
 POST /settings/whatsapp/sessions/{uuid}/disconnect - Disconnect session
 POST /settings/whatsapp/sessions/{uuid}/reconnect - Reconnect session
@@ -832,8 +832,8 @@ workspace.{workspaceId}
 - Audit logging untuk session lifecycle events
 
 **Breaking Changes:**
-- ⚠️ New database tables: whatsapp_sessions, contact_sessions
-- ⚠️ Foreign keys added: chats.whatsapp_session_id, campaign_logs.whatsapp_session_id
+- ⚠️ New database tables: whatsapp_accounts, contact_sessions
+- ⚠️ Foreign keys added: chats.whatsapp_account_id, campaign_logs.whatsapp_account_id
 - ⚠️ Environment variables required: WHATSAPP_NODE_API_SECRET, REVERB_APP_ID, REVERB_APP_KEY
 - ⚠️ Node.js service required: whatsapp-service running on port 3001
 - ⚠️ Laravel Reverb or Pusher required untuk WebSocket broadcasting

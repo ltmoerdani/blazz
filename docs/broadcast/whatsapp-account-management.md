@@ -1,4 +1,4 @@
-# 🔐 WhatsApp Session Management Guide
+# 🔐 WhatsApp account Management Guide
 
 **Version:** 1.0.0
 **Last Updated:** November 14, 2025
@@ -7,7 +7,7 @@
 
 ## 📋 Overview
 
-WhatsApp Session Management handles the lifecycle of WhatsApp connections, including WebJS sessions and Meta API configurations. This guide covers session creation, health monitoring, failover logic, and optimization strategies.
+WhatsApp account Management handles the lifecycle of WhatsApp connections, including WebJS sessions and Meta API configurations. This guide covers session creation, health monitoring, failover logic, and optimization strategies.
 
 ---
 
@@ -33,7 +33,7 @@ WhatsApp Session Management handles the lifecycle of WhatsApp connections, inclu
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    WhatsApp Session Lifecycle                        │
+│                    WhatsApp account Lifecycle                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  1. Creation                                                     │
@@ -81,11 +81,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class WhatsAppSession extends Model
+class WhatsAppAccount extends Model
 {
     use HasFactory, HasUuid, SoftDeletes;
 
-    protected $table = 'whatsapp_sessions';
+    protected $table = 'whatsapp_accounts';
 
     protected $fillable = [
         'workspace_id',
@@ -130,12 +130,12 @@ class WhatsAppSession extends Model
 
     public function chats(): HasMany
     {
-        return $this->hasMany(Chat::class, 'whatsapp_session_id');
+        return $this->hasMany(Chat::class, 'whatsapp_account_id');
     }
 
     public function campaignLogs(): HasMany
     {
-        return $this->hasMany(CampaignLog::class, 'whatsapp_session_id');
+        return $this->hasMany(CampaignLog::class, 'whatsapp_account_id');
     }
 
     // Scopes
@@ -275,7 +275,7 @@ class WhatsAppSession extends Model
 
 namespace App\Services;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\workspace;
 use App\Models\User;
 use App\Jobs\GenerateQRCodeJob;
@@ -284,7 +284,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
-class WhatsAppSessionService
+class WhatsAppAccountService
 {
     protected $workspaceId;
 
@@ -298,7 +298,7 @@ class WhatsAppSessionService
         try {
             DB::beginTransaction();
 
-            $session = WhatsAppSession::create([
+            $session = WhatsAppAccount::create([
                 'workspace_id' => $this->workspaceId,
                 'session_id' => 'webjs_' . uniqid(),
                 'phone_number' => $data['phone_number'] ?? null,
@@ -317,7 +317,7 @@ class WhatsAppSessionService
 
             // Generate QR code for WebJS connection
             GenerateQRCodeJob::dispatch($session->id)
-                ->onQueue('whatsapp-sessions');
+                ->onQueue('whatsapp-accounts');
 
             DB::commit();
 
@@ -330,7 +330,7 @@ class WhatsAppSessionService
             return (object) [
                 'success' => true,
                 'data' => $session,
-                'message' => 'WhatsApp session created successfully'
+                'message' => 'WhatsApp account created successfully'
             ];
 
         } catch (\Exception $e) {
@@ -351,7 +351,7 @@ class WhatsAppSessionService
 
     public function connectWebJSSession(string $sessionId, array $sessionData)
     {
-        $session = WhatsAppSession::where('workspace_id', $this->workspaceId)
+        $session = WhatsAppAccount::where('workspace_id', $this->workspaceId)
             ->where('uuid', $sessionId)
             ->firstOrFail();
 
@@ -368,7 +368,7 @@ class WhatsAppSessionService
             ]);
 
             // Set as primary if no primary exists
-            $primaryExists = WhatsAppSession::where('workspace_id', $this->workspaceId)
+            $primaryExists = WhatsAppAccount::where('workspace_id', $this->workspaceId)
                 ->where('provider_type', 'webjs')
                 ->where('is_primary', true)
                 ->exists();
@@ -389,7 +389,7 @@ class WhatsAppSessionService
             return (object) [
                 'success' => true,
                 'data' => $session->fresh(),
-                'message' => 'WhatsApp session connected successfully'
+                'message' => 'WhatsApp account connected successfully'
             ];
 
         } catch (\Exception $e) {
@@ -408,7 +408,7 @@ class WhatsAppSessionService
 
     public function disconnectSession(string $sessionId)
     {
-        $session = WhatsAppSession::where('workspace_id', $this->workspaceId)
+        $session = WhatsAppAccount::where('workspace_id', $this->workspaceId)
             ->where('uuid', $sessionId)
             ->firstOrFail();
 
@@ -427,7 +427,7 @@ class WhatsAppSessionService
                 $this->promoteNewPrimarySession();
             }
 
-            Log::info('WhatsApp session disconnected', [
+            Log::info('WhatsApp account disconnected', [
                 'workspace_id' => $this->workspaceId,
                 'session_id' => $session->id,
                 'provider_type' => $session->provider_type,
@@ -456,12 +456,12 @@ class WhatsAppSessionService
     {
         DB::transaction(function () use ($sessionId) {
             // Remove primary status from all sessions
-            WhatsAppSession::where('workspace_id', $this->workspaceId)
+            WhatsAppAccount::where('workspace_id', $this->workspaceId)
                 ->where('provider_type', 'webjs')
                 ->update(['is_primary' => false]);
 
             // Set new primary session
-            $session = WhatsAppSession::where('workspace_id', $this->workspaceId)
+            $session = WhatsAppAccount::where('workspace_id', $this->workspaceId)
                 ->where('uuid', $sessionId)
                 ->firstOrFail();
 
@@ -477,7 +477,7 @@ class WhatsAppSessionService
 
     protected function promoteNewPrimarySession(): void
     {
-        $newPrimary = WhatsAppSession::forWorkspace($this->workspaceId)
+        $newPrimary = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('provider_type', 'webjs')
             ->where('status', 'connected')
             ->where('is_active', true)
@@ -491,7 +491,7 @@ class WhatsAppSessionService
 
     protected function shouldBePrimary(): bool
     {
-        return !WhatsAppSession::forWorkspace($this->workspaceId)
+        return !WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('provider_type', 'webjs')
             ->exists();
     }
@@ -505,7 +505,7 @@ class WhatsAppSessionService
 
 namespace App\Services;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -520,7 +520,7 @@ class SessionHealthCalculator
         'uptime' => 0.10                  // 10%
     ];
 
-    public function calculateSessionHealth(WhatsAppSession $session): int
+    public function calculateSessionHealth(WhatsAppAccount $session): int
     {
         $metrics = $this->collectMetrics($session);
 
@@ -537,7 +537,7 @@ class SessionHealthCalculator
         return max(0, min(100, round($healthScore)));
     }
 
-    private function collectMetrics(WhatsAppSession $session): array
+    private function collectMetrics(WhatsAppAccount $session): array
     {
         return [
             'connection_stability' => $this->getConnectionStability($session),
@@ -549,7 +549,7 @@ class SessionHealthCalculator
         ];
     }
 
-    private function getConnectionStability(WhatsAppSession $session): int
+    private function getConnectionStability(WhatsAppAccount $session): int
     {
         switch ($session->status) {
             case 'connected':
@@ -565,12 +565,12 @@ class SessionHealthCalculator
         }
     }
 
-    private function getMessageSuccessRate(WhatsAppSession $session): int
+    private function getMessageSuccessRate(WhatsAppAccount $session): int
     {
         $oneHourAgo = now()->subHour();
 
         $totalMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('created_at', '>=', $oneHourAgo)
             ->count();
@@ -580,7 +580,7 @@ class SessionHealthCalculator
         }
 
         $successfulMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->whereIn('status', ['sent', 'delivered', 'read'])
             ->where('created_at', '>=', $oneHourAgo)
@@ -596,7 +596,7 @@ class SessionHealthCalculator
         return min(100, max(0, $successRate));
     }
 
-    private function getRecentActivityScore(WhatsAppSession $session): int
+    private function getRecentActivityScore(WhatsAppAccount $session): int
     {
         $lastActivity = $session->last_activity_at;
 
@@ -619,12 +619,12 @@ class SessionHealthCalculator
         }
     }
 
-    private function getErrorRate(WhatsAppSession $session): int
+    private function getErrorRate(WhatsAppAccount $session): int
     {
         $oneHourAgo = now()->subHour();
 
         $totalMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('created_at', '>=', $oneHourAgo)
             ->count();
@@ -634,7 +634,7 @@ class SessionHealthCalculator
         }
 
         $failedMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('status', 'failed')
             ->where('created_at', '>=', $oneHourAgo)
@@ -643,12 +643,12 @@ class SessionHealthCalculator
         return ($failedMessages / $totalMessages) * 100;
     }
 
-    private function getResponseTimeScore(WhatsAppSession $session): int
+    private function getResponseTimeScore(WhatsAppAccount $session): int
     {
         $oneHourAgo = now()->subHour();
 
         $avgResponseTime = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('created_at', '>=', $oneHourAgo)
             ->whereNotNull('metadata->response_time_ms')
@@ -665,7 +665,7 @@ class SessionHealthCalculator
         return max(0, $score);
     }
 
-    private function getUptimeScore(WhatsAppSession $session): int
+    private function getUptimeScore(WhatsAppAccount $session): int
     {
         $created = $session->created_at;
         $now = now();
@@ -703,7 +703,7 @@ class SessionHealthCalculator
 
 namespace App\Services;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\workspace;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -719,7 +719,7 @@ class SessionMonitoringService
 
     public function monitorAllSessions(): array
     {
-        $sessions = WhatsAppSession::forWorkspace($this->workspaceId)
+        $sessions = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->with(['workspace'])
             ->get();
 
@@ -732,7 +732,7 @@ class SessionMonitoringService
         return $results;
     }
 
-    public function monitorSession(WhatsAppSession $session): array
+    public function monitorSession(WhatsAppAccount $session): array
     {
         $now = now();
 
@@ -768,7 +768,7 @@ class SessionMonitoringService
         return $monitoring;
     }
 
-    public function detectSessionIssues(WhatsAppSession $session): array
+    public function detectSessionIssues(WhatsAppAccount $session): array
     {
         $issues = [];
 
@@ -821,7 +821,7 @@ class SessionMonitoringService
         return $issues;
     }
 
-    public function generateRecommendations(WhatsAppSession $session): array
+    public function generateRecommendations(WhatsAppAccount $session): array
     {
         $recommendations = [];
 
@@ -855,11 +855,11 @@ class SessionMonitoringService
         return $recommendations;
     }
 
-    protected function handleUnhealthySession(WhatsAppSession $session): void
+    protected function handleUnhealthySession(WhatsAppAccount $session): void
     {
         $severity = $this->determineIssueSeverity($session);
 
-        Log::warning('Unhealthy WhatsApp session detected', [
+        Log::warning('Unhealthy WhatsApp account detected', [
             'workspace_id' => $this->workspaceId,
             'session_id' => $session->id,
             'phone_number' => $session->phone_number,
@@ -878,13 +878,13 @@ class SessionMonitoringService
         $this->attemptAutomaticRecovery($session);
     }
 
-    protected function attemptAutomaticRecovery(WhatsAppSession $session): void
+    protected function attemptAutomaticRecovery(WhatsAppAccount $session): void
     {
         try {
             // Reconnect WebJS sessions
             if ($session->provider_type === 'webjs' && $session->status === 'disconnected') {
                 ReconnectSessionJob::dispatch($session->id)
-                    ->onQueue('whatsapp-sessions')
+                    ->onQueue('whatsapp-accounts')
                     ->delay(now()->addMinutes(1));
 
                 Log::info('Automatic reconnection queued', [
@@ -901,11 +901,11 @@ class SessionMonitoringService
         }
     }
 
-    protected function hasHighErrorRate(WhatsAppSession $session): bool
+    protected function hasHighErrorRate(WhatsAppAccount $session): bool
     {
         $oneHourAgo = now()->subHour();
         $totalMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('created_at', '>=', $oneHourAgo)
             ->count();
@@ -915,7 +915,7 @@ class SessionMonitoringService
         }
 
         $failedMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('status', 'failed')
             ->where('created_at', '>=', $oneHourAgo)
@@ -926,23 +926,23 @@ class SessionMonitoringService
         return $errorRate > 15; // 15% error rate threshold
     }
 
-    protected function hasSlowResponseTime(WhatsAppSession $session): bool
+    protected function hasSlowResponseTime(WhatsAppAccount $session): bool
     {
         $avgResponseTime = $this->getAverageResponseTime($session);
 
         return $avgResponseTime > 5000; // 5 seconds threshold
     }
 
-    protected function getAverageResponseTime(WhatsAppSession $session): float
+    protected function getAverageResponseTime(WhatsAppAccount $session): float
     {
         return DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->whereNotNull('metadata->response_time_ms')
             ->avg('metadata->response_time_ms') ?? 0;
     }
 
-    protected function determineIssueSeverity(WhatsAppSession $session): string
+    protected function determineIssueSeverity(WhatsAppAccount $session): string
     {
         if ($session->status === 'error' || $session->health_score < 20) {
             return 'critical';
@@ -959,20 +959,20 @@ class SessionMonitoringService
         return 'low';
     }
 
-    protected function sendCriticalAlert(WhatsAppSession $session): void
+    protected function sendCriticalAlert(WhatsAppAccount $session): void
     {
         // Implement critical alert notification
         // This could send email, Slack notification, etc.
     }
 
-    protected function sendHighAlert(WhatsAppSession $session): void
+    protected function sendHighAlert(WhatsAppAccount $session): void
     {
         // Implement high priority alert notification
     }
 
     private function hasBetterHealthCandidate(): bool
     {
-        return WhatsAppSession::forWorkspace($this->workspaceId)
+        return WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('provider_type', 'webjs')
             ->where('status', 'connected')
             ->where('health_score', '>', 70)
@@ -982,7 +982,7 @@ class SessionMonitoringService
 
     private function shouldOptimizeLoadBalancing(): bool
     {
-        $activeSessions = WhatsAppSession::forWorkspace($this->workspaceId)
+        $activeSessions = WhatsAppAccount::forWorkspace($this->workspaceId)
             ->where('is_active', true)
             ->count();
 
@@ -1001,7 +1001,7 @@ class SessionMonitoringService
 // Controller method
 public function createSession(Request $request)
 {
-    $service = new WhatsAppSessionService(session()->get('current_workspace'));
+    $service = new WhatsAppAccountService(session()->get('current_workspace'));
 
     $result = $service->createWebJSSession([
         'phone_number' => $request->phone_number,
@@ -1020,7 +1020,7 @@ public function createSession(Request $request)
 ```php
 public function listSessions(Request $request)
 {
-    $sessions = WhatsAppSession::forWorkspace($this->workspaceId)
+    $sessions = WhatsAppAccount::forWorkspace($this->workspaceId)
         ->with(['workspace'])
         ->withCount(['chats' => function ($query) {
             $query->where('type', 'outbound')->where('created_at', '>=', now()->subDay());
@@ -1051,7 +1051,7 @@ public function listSessions(Request $request)
 ```php
 public function checkSessionHealth(string $sessionId)
 {
-    $session = WhatsAppSession::where('uuid', $sessionId)
+    $session = WhatsAppAccount::where('uuid', $sessionId)
         ->where('workspace_id', $this->workspaceId)
         ->firstOrFail();
 
@@ -1067,12 +1067,12 @@ public function checkSessionHealth(string $sessionId)
 ```php
 public function performSessionAction(Request $request, string $sessionId)
 {
-    $session = WhatsAppSession::where('uuid', $sessionId)
+    $session = WhatsAppAccount::where('uuid', $sessionId)
         ->where('workspace_id', $this->workspaceId)
         ->firstOrFail();
 
     $action = $request->action;
-    $service = new WhatsAppSessionService($this->workspaceId);
+    $service = new WhatsAppAccountService($this->workspaceId);
 
     switch ($action) {
         case 'reconnect':
@@ -1113,7 +1113,7 @@ public function performSessionAction(Request $request, string $sessionId)
 
 namespace App\Jobs;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -1133,12 +1133,12 @@ class GenerateQRCodeJob implements ShouldQueue
 
     public function __construct(private int $sessionId)
     {
-        $this->onQueue('whatsapp-sessions');
+        $this->onQueue('whatsapp-accounts');
     }
 
     public function handle()
     {
-        $session = WhatsAppSession::findOrFail($this->sessionId);
+        $session = WhatsAppAccount::findOrFail($this->sessionId);
 
         try {
             // Generate QR code for WebJS connection
@@ -1171,7 +1171,7 @@ class GenerateQRCodeJob implements ShouldQueue
         }
     }
 
-    protected function generateQRCode(WhatsAppSession $session): string
+    protected function generateQRCode(WhatsAppAccount $session): string
     {
         // Generate session connection URL
         $connectionUrl = route('whatsapp.web.connect', ['session_id' => $session->uuid]);
@@ -1190,7 +1190,7 @@ class GenerateQRCodeJob implements ShouldQueue
 
     public function failed(\Throwable $exception)
     {
-        $session = WhatsAppSession::find($this->sessionId);
+        $session = WhatsAppAccount::find($this->sessionId);
         if ($session) {
             $session->update(['status' => 'error']);
         }
@@ -1438,4 +1438,4 @@ onUnmounted(() => {
 
 ---
 
-This comprehensive guide provides a complete reference for WhatsApp session management, covering creation, monitoring, maintenance, and optimization of both WebJS and Meta API sessions.
+This comprehensive guide provides a complete reference for WhatsApp account management, covering creation, monitoring, maintenance, and optimization of both WebJS and Meta API sessions.

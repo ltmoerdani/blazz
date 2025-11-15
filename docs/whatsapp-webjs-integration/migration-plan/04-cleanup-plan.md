@@ -9,7 +9,7 @@
 
 ## 📋 Executive Summary
 
-Setelah migrasi database dari `whatsapp_sessions` → `whatsapp_accounts` selesai, ditemukan **legacy code** yang masih menggunakan terminologi "session" di berbagai layer aplikasi. Dokumen ini berisi **comprehensive cleanup plan** untuk menyelesaikan migrasi secara menyeluruh.
+Setelah migrasi database dari `whatsapp_accounts` → `whatsapp_accounts` selesai, ditemukan **legacy code** yang masih menggunakan terminologi "session" di berbagai layer aplikasi. Dokumen ini berisi **comprehensive cleanup plan** untuk menyelesaikan migrasi secara menyeluruh.
 
 **Target:** Mencapai **100% consistency** dalam naming convention dan menghilangkan semua legacy references.
 
@@ -56,14 +56,14 @@ Setelah migrasi database dari `whatsapp_sessions` → `whatsapp_accounts` selesa
 ```javascript
 // ❌ LEGACY CODE
 props: {
-    whatsappSessions: Array  // Should be whatsappAccounts
+    whatsappAccounts: Array  // Should be whatsappAccounts
 }
 
 const hasWebJsSessions = computed(...)  // Should be hasWebJsAccounts
 const hasMetaApiSessions = computed(...)  // Should be hasMetaApiAccounts
 
 form: {
-    whatsapp_session_id: null  // Should be whatsapp_account_id
+    whatsapp_account_id: null  // Should be whatsapp_account_id
 }
 ```
 
@@ -71,7 +71,7 @@ form: {
 ```javascript
 // ✅ UPDATED CODE
 props: {
-    whatsappAccounts: Array  // Changed from whatsappSessions
+    whatsappAccounts: Array  // Changed from whatsappAccounts
 }
 
 const hasWebJsAccounts = computed(() => 
@@ -83,16 +83,16 @@ const hasMetaApiAccounts = computed(() =>
 )
 
 form: {
-    whatsapp_account_id: null  // Changed from whatsapp_session_id
+    whatsapp_account_id: null  // Changed from whatsapp_account_id
 }
 ```
 
 **UI Text Updates:**
 ```vue
 <!-- ❌ OLD -->
-<span>{{ $t('Manage WhatsApp Sessions') }}</span>
+<span>{{ $t('Manage WhatsApp accounts') }}</span>
 <span>{{ $t('WhatsApp Web JS sessions found') }}</span>
-<span>{{ $t('Specific WhatsApp Session (Optional)') }}</span>
+<span>{{ $t('Specific WhatsApp account (Optional)') }}</span>
 <span>{{ $t('Auto-select best session') }}</span>
 <span>{{ $t(' - No active sessions available') }}</span>
 
@@ -182,11 +182,11 @@ const filterByAccount = () => {
 ```vue
 <!-- ❌ OLD -->
 <CampaignForm
-    :whatsappSessions="whatsappSessions"
+    :whatsappAccounts="whatsappAccounts"
 />
 
 <script setup>
-const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappSessions']);
+const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappAccounts']);
 </script>
 
 <!-- ✅ NEW -->
@@ -206,11 +206,11 @@ const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappAc
 **Changes:**
 ```vue
 <!-- ❌ OLD -->
-<div v-if="!settings?.whatsapp && (!whatsappSessions || whatsappSessions.length === 0)">
+<div v-if="!settings?.whatsapp && (!whatsappAccounts || whatsappAccounts.length === 0)">
 <Link href="/settings/whatsapp/sessions">
 
-const props = defineProps(['languages', 'settings', 'whatsappSessions']);
-const hasWebJsSessions = props.whatsappSessions && props.whatsappSessions.length > 0;
+const props = defineProps(['languages', 'settings', 'whatsappAccounts']);
+const hasWebJsSessions = props.whatsappAccounts && props.whatsappAccounts.length > 0;
 
 <!-- ✅ NEW -->
 <div v-if="!settings?.whatsapp && (!whatsappAccounts || whatsappAccounts.length === 0)">
@@ -288,7 +288,7 @@ const addAccount = () => {
 $sessions = $this->getActiveSessions($workspaceId);
 
 if ($sessions->isEmpty()) {
-    Log::warning('No active WhatsApp sessions found for workspace', [
+    Log::warning('No active WhatsApp accounts found for workspace', [
         'workspace_id' => $workspaceId
     ]);
     return null;
@@ -358,7 +358,7 @@ public function getFallbackAccounts(Campaign $campaign, WhatsAppAccount $primary
 **Log Context Updates:**
 ```php
 // ❌ OLD LOG MESSAGES
-'No active WhatsApp sessions found'
+'No active WhatsApp accounts found'
 'sessions with preferred provider'
 'Multiple healthy sessions available'
 'Session availability analysis'
@@ -493,7 +493,7 @@ public function broadcastWith(): array
 public string $sessionId;  // Keep variable name but update comments
 
 /**
- * @param string $sessionId WhatsApp session ID
+ * @param string $sessionId WhatsApp account ID
  */
 
 // ✅ NEW
@@ -587,12 +587,12 @@ Log::error('Chat sync failed', [
 ```php
 // ❌ OLD
 /**
- * @var int WhatsApp session ID
+ * @var int WhatsApp account ID
  */
 protected $sessionId;
 
 /**
- * @param int $sessionId WhatsApp session ID
+ * @param int $sessionId WhatsApp account ID
  */
 public function __construct(int $sessionId, int $workspaceId, array $chats)
 
@@ -663,12 +663,12 @@ foreach ($fallbackAccounts as $fallbackAccount) {
 **Config Key Updates:**
 ```php
 // ❌ OLD (Lines 382-383)
-if ($decodedMetadata && isset($decodedMetadata['limits']['whatsapp_sessions'])) {
-    $maxSessions = (int) $decodedMetadata['limits']['whatsapp_sessions'];
+if ($decodedMetadata && isset($decodedMetadata['limits']['whatsapp_accounts'])) {
+    $maxSessions = (int) $decodedMetadata['limits']['whatsapp_accounts'];
 }
 
 // Line 402
-$maxSessions = $decodedMetadata['default_whatsapp_sessions_limit'] ?? 1;
+$maxSessions = $decodedMetadata['default_whatsapp_accounts_limit'] ?? 1;
 
 // ✅ NEW
 if ($decodedMetadata && isset($decodedMetadata['limits']['whatsapp_accounts'])) {
@@ -715,7 +715,7 @@ if ($currentAccounts >= $maxAccounts) {
 ```php
 // ❌ OLD (Line 243)
 $metadata = [
-    'default_whatsapp_sessions_limit' => 1,
+    'default_whatsapp_accounts_limit' => 1,
     // ... other settings
 ];
 
@@ -752,9 +752,9 @@ Route::get('/settings/whatsapp/accounts', ...);  // ✅ NEW
 **Mass Replace Operations:**
 ```bash
 # Find & Replace patterns (50+ occurrences)
-WhatsAppSession → WhatsAppAccount (class references)
+WhatsAppAccount → WhatsAppAccount (class references)
 $session → $account (variable names)
-whatsapp_session_id → whatsapp_account_id (database columns)
+whatsapp_account_id → whatsapp_account_id (database columns)
 'session' → 'account' (in method names and strings)
 sessions → accounts (plural forms)
 ```
@@ -762,11 +762,11 @@ sessions → accounts (plural forms)
 **Example Changes:**
 ```php
 // ❌ OLD
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 
-private function selectPrimaryWebJSSession(Campaign $campaign): ?WhatsAppSession
+private function selectPrimaryWebJSSession(Campaign $campaign): ?WhatsAppAccount
 {
-    return WhatsAppSession::forWorkspace($campaign->workspace_id)
+    return WhatsAppAccount::forWorkspace($campaign->workspace_id)
         ->where('provider_type', 'webjs')
         ->where('status', 'connected')
         ->orderBy('health_score', 'desc')
@@ -793,8 +793,8 @@ private function selectPrimaryWebJSAccount(Campaign $campaign): ?WhatsAppAccount
 **Schema Documentation Updates:**
 ```markdown
 <!-- ❌ OLD -->
-#### **whatsapp_sessions**
-CREATE TABLE whatsapp_sessions (
+#### **whatsapp_accounts**
+CREATE TABLE whatsapp_accounts (
     id BIGINT UNSIGNED PRIMARY KEY,
     ...
 );
@@ -810,7 +810,7 @@ CREATE TABLE whatsapp_accounts (
 **Foreign Key References:**
 ```markdown
 <!-- ❌ OLD -->
-FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id)
+FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id)
 
 <!-- ✅ NEW -->
 FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id)
@@ -819,7 +819,7 @@ FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id)
 **Code Examples:**
 ```markdown
 <!-- ❌ OLD -->
-$optimalSession = WhatsAppSession::forWorkspace($workspaceId)
+$optimalSession = WhatsAppAccount::forWorkspace($workspaceId)
     ->orderBy('health_score', 'desc')
     ->first();
 
@@ -905,13 +905,13 @@ echo -e "${GREEN}=== Phase 1: Frontend Components ===${NC}"
 
 # CampaignForm.vue
 CAMPAIGN_FORM="resources/js/Components/CampaignForm.vue"
-replace_in_file "$CAMPAIGN_FORM" "whatsappSessions" "whatsappAccounts"
+replace_in_file "$CAMPAIGN_FORM" "whatsappAccounts" "whatsappAccounts"
 replace_in_file "$CAMPAIGN_FORM" "hasWebJsSessions" "hasWebJsAccounts"
 replace_in_file "$CAMPAIGN_FORM" "hasMetaApiSessions" "hasMetaApiAccounts"
-replace_in_file "$CAMPAIGN_FORM" "whatsapp_session_id" "whatsapp_account_id"
-replace_in_file "$CAMPAIGN_FORM" "Manage WhatsApp Sessions" "Manage WhatsApp Accounts"
+replace_in_file "$CAMPAIGN_FORM" "whatsapp_account_id" "whatsapp_account_id"
+replace_in_file "$CAMPAIGN_FORM" "Manage WhatsApp accounts" "Manage WhatsApp Accounts"
 replace_in_file "$CAMPAIGN_FORM" "WhatsApp Web JS sessions" "WhatsApp Web JS accounts"
-replace_in_file "$CAMPAIGN_FORM" "Specific WhatsApp Session" "Specific WhatsApp Account"
+replace_in_file "$CAMPAIGN_FORM" "Specific WhatsApp account" "Specific WhatsApp Account"
 replace_in_file "$CAMPAIGN_FORM" "Auto-select best session" "Auto-select best account"
 replace_in_file "$CAMPAIGN_FORM" "No active sessions" "No active accounts"
 
@@ -945,7 +945,7 @@ replace_in_file "$PROVIDER_SERVICE" 'webjsSessions' 'webjsAccounts'
 replace_in_file "$PROVIDER_SERVICE" 'metaApiSessions' 'metaApiAccounts'
 replace_in_file "$PROVIDER_SERVICE" 'healthySessions' 'healthyAccounts'
 replace_in_file "$PROVIDER_SERVICE" 'inactiveSessions' 'inactiveAccounts'
-replace_in_file "$PROVIDER_SERVICE" 'WhatsApp sessions' 'WhatsApp accounts'
+replace_in_file "$PROVIDER_SERVICE" 'WhatsApp accounts' 'WhatsApp accounts'
 replace_in_file "$PROVIDER_SERVICE" 'session available' 'account available'
 replace_in_file "$PROVIDER_SERVICE" "'session'" "'account'"
 
@@ -966,7 +966,7 @@ replace_in_file "$STATUS_EVENT" "'session_id' => " "'account_id' => "
 # WhatsAppChatSyncJob
 SYNC_JOB="app/Jobs/WhatsAppChatSyncJob.php"
 replace_in_file "$SYNC_JOB" "'session_id' => " "'account_id' => "
-replace_in_file "$SYNC_JOB" "WhatsApp session ID" "WhatsApp account ID"
+replace_in_file "$SYNC_JOB" "WhatsApp account ID" "WhatsApp account ID"
 
 # SendCampaignJob
 CAMPAIGN_JOB="app/Jobs/SendCampaignJob.php"
@@ -982,18 +982,18 @@ echo ""
 echo -e "${GREEN}=== Phase 4: Controllers ===${NC}"
 
 ACCOUNT_MGMT="app/Http/Controllers/User/WhatsAppAccountManagementController.php"
-replace_in_file "$ACCOUNT_MGMT" "whatsapp_sessions" "whatsapp_accounts"
-replace_in_file "$ACCOUNT_MGMT" "default_whatsapp_sessions_limit" "default_whatsapp_accounts_limit"
+replace_in_file "$ACCOUNT_MGMT" "whatsapp_accounts" "whatsapp_accounts"
+replace_in_file "$ACCOUNT_MGMT" "default_whatsapp_accounts_limit" "default_whatsapp_accounts_limit"
 replace_in_file "$ACCOUNT_MGMT" '\$maxSessions' '\$maxAccounts'
 replace_in_file "$ACCOUNT_MGMT" '\$currentSessions' '\$currentAccounts'
 replace_in_file "$ACCOUNT_MGMT" "Maximum sessions limit" "Maximum accounts limit"
 
 ACCOUNT_CTRL="app/Http/Controllers/User/WhatsAppAccountController.php"
-replace_in_file "$ACCOUNT_CTRL" "whatsapp_sessions" "whatsapp_accounts"
-replace_in_file "$ACCOUNT_CTRL" "default_whatsapp_sessions_limit" "default_whatsapp_accounts_limit"
+replace_in_file "$ACCOUNT_CTRL" "whatsapp_accounts" "whatsapp_accounts"
+replace_in_file "$ACCOUNT_CTRL" "default_whatsapp_accounts_limit" "default_whatsapp_accounts_limit"
 
 REG_CTRL="app/Http/Controllers/Common/RegistrationController.php"
-replace_in_file "$REG_CTRL" "default_whatsapp_sessions_limit" "default_whatsapp_accounts_limit"
+replace_in_file "$REG_CTRL" "default_whatsapp_accounts_limit" "default_whatsapp_accounts_limit"
 
 echo ""
 echo -e "${GREEN}=== Cleanup Complete ===${NC}"
@@ -1041,14 +1041,14 @@ After automated cleanup, manually review:
 After cleanup, verify each layer:
 
 ### **Database Layer**
-- [ ] No table named `whatsapp_sessions` exists
+- [ ] No table named `whatsapp_accounts` exists
 - [ ] All foreign keys reference `whatsapp_accounts`
-- [ ] No column named `whatsapp_session_id` exists
+- [ ] No column named `whatsapp_account_id` exists
 - [ ] Migration history preserved
 
 ### **Backend Layer**
 - [ ] All models use `whatsappAccount()` relationship
-- [ ] No references to `WhatsAppSession` class
+- [ ] No references to `WhatsAppAccount` class
 - [ ] All services use "account" terminology
 - [ ] All controllers use "account" terminology
 - [ ] All jobs use "account_id" in logs

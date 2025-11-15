@@ -10,7 +10,7 @@
 ### 1. **Auto-Reconnect Architecture** ✅
 - [x] SessionRestoration service (restore on startup)
 - [x] AutoReconnect service (retry on disconnect)
-- [x] Laravel API endpoints untuk session management
+- [x] Laravel API endpoints untuk account management
 - [x] Documentation lengkap di `docs/chat-whatsappwebjs-integration/AUTO-RECONNECT-ARCHITECTURE.md`
 
 **File Created:**
@@ -29,7 +29,7 @@
 - [x] Documentation: `docs/chat-whatsappwebjs-integration/BUGFIX-METHOD-SIGNATURE.md`
 
 ### 3. **Session Connection** ✅
-- [x] WhatsApp session CONNECTED: `webjs_1_1761188765_pZTeaGqs`
+- [x] WhatsApp account CONNECTED: `webjs_1_1761188765_pZTeaGqs`
 - [x] Phone number: 62811801641
 - [x] Status: connected
 - [x] QR code system working

@@ -97,8 +97,8 @@ class WhatsAppServiceProvider extends ServiceProvider
         });
 
         // WhatsApp Session Service
-        $this->app->singleton(\App\Services\WhatsApp\WhatsAppSessionService::class, function ($app) {
-            return new \App\Services\WhatsApp\WhatsAppSessionService(
+        $this->app->singleton(\App\Services\WhatsApp\WhatsAppAccountService::class, function ($app) {
+            return new \App\Services\WhatsApp\WhatsAppAccountService(
                 $app->make(\App\Services\ProviderSelector::class)
             );
         });
