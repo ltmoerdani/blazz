@@ -27,7 +27,9 @@ class WorkspaceController extends BaseController
     }
 
     public function selectWorkspace(Request $request){
-        $workspace = Workspace::where('uuid', $request->uuid)->first();
+        $workspace = Workspace::where('uuid', $request->uuid)
+            ->select(['id', 'uuid', 'name']) // Only select needed columns
+            ->first();
 
         if($workspace){
             session()->put('current_workspace', $workspace->id);

@@ -6,6 +6,7 @@ use App\Models\WhatsAppAccount;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -112,6 +113,9 @@ class AccountService
 
             DB::commit();
 
+            // Clear account cache after successful creation
+            $this->clearAccountCache();
+
             $this->logger->info('WhatsApp account created', [
                 'workspace_id' => $this->workspaceId,
                 'account_id' => $account->id,
@@ -183,6 +187,9 @@ class AccountService
             $account->update($updateData);
 
             DB::commit();
+
+            // Clear account cache after successful update
+            $this->clearAccountCache();
 
             $this->logger->info('WhatsApp account updated', [
                 'workspace_id' => $this->workspaceId,
@@ -315,36 +322,44 @@ class AccountService
     }
 
     /**
-     * Get primary account for workspace
+     * Get primary account for workspace (cached)
      *
      * @return WhatsAppAccount|null
      */
     public function getPrimary()
     {
-        return WhatsAppAccount::where('workspace_id', $this->workspaceId)
-            ->where('is_primary', true)
-            ->with(['workspace:id,name'])
-            ->first();
+        $cacheKey = "workspace:{$this->workspaceId}:primary_account";
+
+        return Cache::remember($cacheKey, 600, function () {
+            return WhatsAppAccount::where('workspace_id', $this->workspaceId)
+                ->where('is_primary', true)
+                ->with(['workspace:id,name'])
+                ->first();
+        });
     }
 
     /**
-     * Get active accounts
+     * Get active accounts (cached)
      *
      * @param int $limit
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getActive($limit = null)
     {
-        $query = WhatsAppAccount::where('workspace_id', $this->workspaceId)
-            ->whereIn('status', ['connected', 'ready'])
-            ->with(['workspace:id,name'])
-            ->orderBy('last_activity_at', 'desc');
+        $cacheKey = "workspace:{$this->workspaceId}:active_accounts:" . ($limit ?? 'all');
 
-        if ($limit) {
-            $query->limit($limit);
-        }
+        return Cache::remember($cacheKey, 300, function () use ($limit) {
+            $query = WhatsAppAccount::where('workspace_id', $this->workspaceId)
+                ->whereIn('status', ['connected', 'ready'])
+                ->with(['workspace:id,name'])
+                ->orderBy('last_activity_at', 'desc');
 
-        return $query->get();
+            if ($limit) {
+                $query->limit($limit);
+            }
+
+            return $query->get();
+        });
     }
 
     /**
@@ -674,5 +689,54 @@ class AccountService
             })
             ->orderBy('last_activity_at', 'asc')
             ->get();
+    }
+
+    /**
+     * Clear workspace account caches
+     *
+     * @return void
+     */
+    protected function clearAccountCache(): void
+    {
+        $patterns = [
+            "workspace:{$this->workspaceId}:active_accounts:*",
+            "workspace:{$this->workspaceId}:primary_account",
+            "workspace:{$this->workspaceId}:account_statistics",
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (str_contains($pattern, '*')) {
+                // Handle wildcard cache clearing
+                $keys = Cache::getStore()->getPrefix() . $pattern;
+                foreach (Cache::getRedis()->keys($keys) as $key) {
+                    Cache::forget(str_replace(Cache::getStore()->getPrefix(), '', $key));
+                }
+            } else {
+                Cache::forget($pattern);
+            }
+        }
+    }
+
+    /**
+     * Get workspace account statistics (cached)
+     *
+     * @return array
+     */
+    public function getAccountStatistics()
+    {
+        $cacheKey = "workspace:{$this->workspaceId}:account_statistics";
+
+        return Cache::remember($cacheKey, 120, function () {
+            $accounts = WhatsAppAccount::where('workspace_id', $this->workspaceId)->get();
+
+            return [
+                'total' => $accounts->count(),
+                'connected' => $accounts->where('status', 'connected')->count(),
+                'disconnected' => $accounts->where('status', 'disconnected')->count(),
+                'qr_scanning' => $accounts->where('status', 'qr_scanning')->count(),
+                'primary_set' => $accounts->where('is_primary', true)->count(),
+                'last_updated' => now()->toISOString(),
+            ];
+        });
     }
 }
