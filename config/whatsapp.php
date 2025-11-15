@@ -22,7 +22,7 @@ return [
     */
     'node_service_url' => env('WHATSAPP_NODE_SERVICE_URL', 'http://localhost:3001'),
     'node_api_key' => env('WHATSAPP_NODE_API_KEY', 'your-node-api-key'),
-    'node_api_secret' => env('WHATSAPP_NODE_API_SECRET', 'your-node-api-secret'),
+    'node_api_secret' => env('HMAC_SECRET', env('WHATSAPP_NODE_API_SECRET', 'your-node-api-secret')),
 
     /*
     |--------------------------------------------------------------------------
