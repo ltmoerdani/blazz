@@ -238,6 +238,9 @@
                 // IMPORTANT: Create new array reference for shallowRef to detect change
                 chatThread.value = [...(response.data.chatThread || [])];
                 
+                // CRITICAL: Update rows to reflect zero unread count for this contact
+                updateContactInSidebar(response.data.contact);
+                
                 // Store in cache for future instant access
                 chatCache.set(cacheKey, {
                     chatThread: response.data.chatThread || [],
@@ -336,6 +339,23 @@
         if (!wamIdExists && chat[0].value.deleted_at == null) {
             chatThread.value.push(chat);
             setTimeout(scrollToBottom, 100);
+        }
+    }
+    
+    // Update contact in sidebar (reset unread count)
+    const updateContactInSidebar = (updatedContact) => {
+        if (!rows.value?.data) return;
+        
+        const index = rows.value.data.findIndex(c => c.id === updatedContact.id);
+        if (index !== -1) {
+            // Update the contact with fresh data (including unread_messages = 0)
+            rows.value.data[index] = {
+                ...rows.value.data[index],
+                ...updatedContact,
+                unread_messages: 0 // Force zero unread
+            };
+            
+            console.log('📭 Sidebar updated: unread reset for', updatedContact.full_name || updatedContact.phone);
         }
     }
     

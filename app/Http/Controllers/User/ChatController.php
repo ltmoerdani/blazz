@@ -114,8 +114,20 @@ class ChatController extends BaseController
             return response()->json(['error' => 'Contact not found'], 404);
         }
         
+        // CRITICAL: Mark messages as read when opening chat (SPA navigation)
+        $this->getChatService($workspaceId)->markContactMessagesAsRead($contact->id);
+        
         // Get chat messages
         $messages = $this->getChatService($workspaceId)->getChatMessages($contact->id, 1);
+        
+        // Refresh contact to get updated unread_messages count
+        $contact->refresh();
+        
+        Log::info('AJAX: Contact chat loaded', [
+            'contact_id' => $contact->id,
+            'unread_before_refresh' => $contact->unread_messages,
+            'messages_count' => count($messages['messages'])
+        ]);
         
         return response()->json([
             'contact' => $contact,
