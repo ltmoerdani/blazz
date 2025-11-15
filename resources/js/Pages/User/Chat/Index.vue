@@ -2,7 +2,15 @@
     <AppLayout v-slot:default="slotProps">
         <div class="md:flex md:flex-grow md:overflow-hidden">
             <div class="md:w-[30%] md:flex flex-col h-full bg-white border-r border-l" :class="contact ? 'hidden' : ''">
-                <ChatTable :rows="rows" :filters="props.filters" :rowCount="props.rowCount" :ticketingIsEnabled="ticketingIsEnabled" :status="props?.status" :chatSortDirection="props.chat_sort_direction"/>
+                <ChatTable 
+                    :rows="rows" 
+                    :filters="props.filters" 
+                    :rowCount="props.rowCount" 
+                    :ticketingIsEnabled="ticketingIsEnabled" 
+                    :status="props?.status" 
+                    :chatSortDirection="props.chat_sort_direction"
+                    @contact-selected="selectContact"
+                />
             </div>
             <div class="min-w-0 bg-cover flex flex-col chat-bg" :class="contact ? 'h-screen md:w-[70%]' : 'md:h-screen md:w-[70%]'">
                 <ChatHeader 
@@ -19,10 +27,14 @@
                 <div v-if="contact && !displayTemplate" class="flex-1 overflow-y-auto" ref="scrollContainer2">
                     <ChatThread 
                         v-if="!displayContactInfo && !loadingThread && !displayTemplate"
+                        ref="chatThreadRef"
                         :contactId="contact.id"
+                        :workspaceId="props.workspaceId"
                         :initialMessages="chatThread"
                         :hasMoreMessages="hasMoreMessages"
                         :initialNextPage="nextPage"
+                        @message-sent="handleMessageSent"
+                        @retry-message="handleRetryMessage"
                     />
                     <Contact 
                         v-if="displayContactInfo && !displayTemplate" 
@@ -38,6 +50,8 @@
                         :simpleForm="simpleForm" 
                         :chatLimitReached="isChatLimitReached" 
                         @viewTemplate="displayTemplate = true;" 
+                        @optimisticMessageSent="handleOptimisticMessage"
+                        @messageSent="handleMessageSent"
                     />
                 </div>
                 <div v-if="displayTemplate" class="flex-1 overflow-y-hidden">
@@ -117,9 +131,23 @@
     const ticketingIsEnabled = ref(settings.value?.tickets?.active ?? false);
     const chatThread = ref(props.chatThread);
     const contact = ref(props.contact);
+    const chatThreadRef = ref(null);
 
     watch(() => props.rows, (newRows) => {
         rows.value = newRows;
+    });
+    
+    watch(() => props.contact, (newContact) => {
+        if (newContact) {
+            contact.value = newContact;
+            chatThread.value = props.chatThread || [];
+        }
+    });
+
+    watch(() => props.chatThread, (newThread) => {
+        if (newThread) {
+            chatThread.value = newThread;
+        }
     });
 
     const toggleDropdown = () => {
@@ -150,6 +178,43 @@
         await axios.delete('/chats/' + contact.value.uuid);
     }
 
+    // Handle contact selection without page reload (SPA behavior like WhatsApp Web)
+    const selectContact = async (selectedContact) => {
+        loadingThread.value = true;
+        
+        // Update URL without reload using History API
+        const newUrl = `/chats/${selectedContact.uuid}`;
+        window.history.pushState({ contactId: selectedContact.id }, '', newUrl);
+        
+        try {
+            // Fetch chat thread for selected contact
+            const response = await axios.get(`/chats/${selectedContact.uuid}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.data) {
+                // Update contact and chat thread without page reload
+                contact.value = response.data.contact || selectedContact;
+                chatThread.value = response.data.chatThread || [];
+                
+                // Close mobile sidebar if open
+                if (window.innerWidth < 768) {
+                    toggleNavbarBtn.value?.click();
+                }
+                
+                // Scroll to bottom after content loads
+                setTimeout(scrollToBottom, 100);
+            }
+        } catch (error) {
+            console.error('Error loading chat:', error);
+        } finally {
+            loadingThread.value = false;
+        }
+    }
+
     const updateChatThread = (chat) => {
         const wamId = chat[0].value.wam_id;
         const wamIdExists = chatThread.value.some(existingChat => existingChat[0].value.wam_id === wamId);
@@ -159,10 +224,39 @@
             setTimeout(scrollToBottom, 100);
         }
     }
+    
+    // Handle optimistic message updates from ChatForm
+    const handleOptimisticMessage = (optimisticMessage) => {
+        console.log('📤 Optimistic message received in Index:', optimisticMessage);
+        
+        // Pass to ChatThread component for instant display
+        if (chatThreadRef.value) {
+            chatThreadRef.value.handleOptimisticMessageSent(optimisticMessage);
+        }
+    }
+    
+    // Handle message send confirmation
+    const handleMessageSent = (message) => {
+        console.log('✅ Message confirmed sent:', message);
+        
+        // Update chat list to show latest message
+        refreshSidePanel();
+    }
+    
+    // Handle retry failed message
+    const handleRetryMessage = (failedMessage) => {
+        console.log('🔄 Retrying message:', failedMessage);
+        // Will be handled by ChatForm
+    }
 
     const updateSidePanel = async(chat) => {
         if(contact.value && contact.value.id == chat[0].value.contact_id){
             updateChatThread(chat);
+            
+            // ENHANCED: Pass new message to ChatThread for real-time display
+            if (chatThreadRef.value && chatThreadRef.value.addNewMessage) {
+                chatThreadRef.value.addNewMessage(chat[0].value);
+            }
         }
 
         try {

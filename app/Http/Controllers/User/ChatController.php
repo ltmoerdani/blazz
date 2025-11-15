@@ -48,11 +48,28 @@ class ChatController extends BaseController
     {
         $workspaceId = session()->get('current_workspace');
 
+        // Support AJAX requests untuk SPA navigation (no page reload)
+        // Only return JSON if it's explicitly an AJAX call (not Inertia)
+        if ($request->ajax() && $request->header('X-Requested-With') === 'XMLHttpRequest' && !$request->header('X-Inertia')) {
+            Log::info('ChatController::index - AJAX request', [
+                'workspace_id' => $workspaceId,
+                'uuid' => $uuid
+            ]);
+            
+            // Return JSON response untuk AJAX
+            return $this->getContactChatData($workspaceId, $uuid);
+        }
+
         // DEBUG: Add logging for troubleshooting
         Log::info('ChatController::index called', [
             'workspace_id' => $workspaceId,
             'uuid' => $uuid,
             'search' => $request->query('search'),
+            'headers' => [
+                'X-Inertia' => $request->header('X-Inertia'),
+                'X-Requested-With' => $request->header('X-Requested-With'),
+                'Accept' => $request->header('Accept')
+            ]
         ]);
 
         // Check data counts for debugging
@@ -73,6 +90,39 @@ class ChatController extends BaseController
         ]);
 
         return $this->getChatService($workspaceId)->getChatListWithFilters($request, $uuid, $request->query('search'));
+    }
+    
+    /**
+     * Get contact chat data for AJAX requests (SPA navigation)
+     */
+    private function getContactChatData($workspaceId, $uuid)
+    {
+        if (!$uuid) {
+            return response()->json([
+                'contact' => null,
+                'chatThread' => [],
+                'hasMoreMessages' => false,
+                'nextPage' => 1
+            ]);
+        }
+        
+        $contact = Contact::where('uuid', $uuid)
+            ->where('workspace_id', $workspaceId)
+            ->first();
+            
+        if (!$contact) {
+            return response()->json(['error' => 'Contact not found'], 404);
+        }
+        
+        // Get chat messages
+        $messages = $this->getChatService($workspaceId)->getChatMessages($contact->id, 1);
+        
+        return response()->json([
+            'contact' => $contact,
+            'chatThread' => $messages['messages'],
+            'hasMoreMessages' => $messages['hasMoreMessages'],
+            'nextPage' => $messages['nextPage']
+        ]);
     }
 
     public function updateChatSortDirection(Request $request)

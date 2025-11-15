@@ -55,30 +55,37 @@
             // Generate unique ID for optimistic message
             const optimisticId = 'optimistic-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-            // Prepare optimistic message data
-            const optimisticMessage = {
-                id: optimisticId,
+            // Prepare optimistic message data in same format as ChatThread expects
+            const optimisticMessage = [{
+                type: 'chat',
                 isOptimistic: true,
-                type: 'outbound',
                 value: {
                     id: optimisticId,
                     whatsapp_message_id: optimisticId,
+                    wam_id: optimisticId,
+                    message: form.value.message,
                     body: form.value.message,
-                    type: form.value.type || 'text',
-                    message_status: 'pending',
-                    ack_level: 1,
+                    type: 'outbound',
+                    message_status: 'sending',
+                    ack_level: 0,
                     created_at: new Date().toISOString(),
                     is_outbound: true,
                     from_me: true,
                     has_media: !!form.value.file,
-                    metadata: {
-                        body: form.value.message,
-                        type: form.value.type || 'text',
+                    metadata: JSON.stringify({
+                        text: {
+                            body: form.value.message
+                        },
+                        type: 'text',
                         from_me: true,
                         optimistic: true
-                    }
+                    }),
+                    deleted_at: null,
+                    contact_id: props.contact.id
                 }
-            };
+            }];
+
+            console.log('🚀 Sending optimistic message:', optimisticMessage);
 
             // Emit optimistic message instantly for immediate UI update
             emit('optimisticMessageSent', optimisticMessage);
@@ -93,9 +100,10 @@
 
             // Send actual message in background (non-blocking)
             sendActualMessage(originalMessage, originalFile, optimisticId)
-                .then(() => {
-                    // Success - optimistic message will be replaced by real message
-                    console.log('✅ Message sent successfully');
+                .then((response) => {
+                    // Success - emit messageSent event
+                    console.log('✅ Message sent successfully', response);
+                    emit('messageSent', response);
                 })
                 .catch((error) => {
                     // Handle error - update optimistic message to failed status

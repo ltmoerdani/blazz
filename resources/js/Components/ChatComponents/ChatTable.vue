@@ -37,11 +37,18 @@
 
     const isSearching = ref(false);
     const selectedContact = ref(null);
-    const emit = defineEmits(['view']);
+    const emit = defineEmits(['view', 'contact-selected']);
 
     function viewChat(contact) {
         selectedContact.value = contact;
         emit('view', contact);
+    }
+    
+    // NEW: Handle contact selection without page reload (SPA behavior)
+    function selectContact(contact, event) {
+        event.preventDefault(); // Prevent default link behavior
+        selectedContact.value = contact;
+        emit('contact-selected', contact);
     }
 
     const contentType = (metadata) => {
@@ -226,8 +233,14 @@
         </div>
     </div>
     <div class="flex-grow overflow-y-auto h-[65vh]" ref="scrollContainer">
-        <Link :href="'/chats/' + contact.uuid + '?page=' + props.rows.meta.current_page" class="block border-b group-hover:pr-0" :class="contact.unread_messages > 0 ? 'bg-green-50' : ''" v-for="(contact, index) in rows.data" :key="index">
-            <div class="flex space-x-2 hover:bg-gray-50 cursor-pointer py-3 px-4">
+        <!-- Changed from Link to div for SPA navigation -->
+        <div 
+            @click="selectContact(contact, $event)" 
+            class="block border-b group-hover:pr-0 cursor-pointer" 
+            :class="[contact.unread_messages > 0 ? 'bg-green-50' : '', selectedContact?.id === contact.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : '']" 
+            v-for="(contact, index) in rows.data" 
+            :key="contact.id || index">
+            <div class="flex space-x-2 hover:bg-gray-50 py-3 px-4">
                 <!-- NEW: Chat Type Icon (TASK-FE-2) -->
                 <div class="w-[15%] relative">
                     <!-- Group Chat Icon -->
@@ -323,7 +336,7 @@
                     </div>
                 </div>
             </div>
-        </Link>
+        </div>
     </div>
     <div class="px-4 pb-4">
         <Pagination class="mt-3" :pagination="rows.meta"/>
