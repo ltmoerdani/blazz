@@ -219,7 +219,7 @@ class ChatSyncHandler {
         try {
             const isGroup = chat.isGroup;
             const chatId = chat.id._serialized;
-            const now = new Date();
+            const now = new Date().toISOString(); // Use ISO string for Laravel compatibility
 
             // Base chat data - using fields that already exist in database
             const chatData = {
@@ -231,9 +231,9 @@ class ChatSyncHandler {
                 timestamp: chat.timestamp,
                 unread_count: chat.unreadCount || 0,
                 message_status: 'delivered',          // ENUM (already exists in DB)
-                sent_at: now,                         // TIMESTAMP (already exists in DB)
-                delivered_at: now,                    // TIMESTAMP (already exists in DB)
-                read_at: null,                         // TIMESTAMP (already exists in DB)
+                sent_at: now,                         // ISO string for Laravel TIMESTAMP
+                delivered_at: now,                    // ISO string for Laravel TIMESTAMP
+                read_at: null,                         // NULL for Laravel TIMESTAMP
                 is_group: isGroup                     // Keep for backward compatibility
             };
 
@@ -242,6 +242,7 @@ class ChatSyncHandler {
                 const groupData = await this.extractGroupData(chat);
                 return {
                     ...chatData,
+                    group_jid: chatId,                 // Required by Laravel validator (line 78)
                     group_name: groupData.name,
                     group_description: groupData.description,
                     group_participants: groupData.participants,
