@@ -27,7 +27,7 @@ class WhatsAppAccountStatusController extends Controller
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
-        // Remove primary flag from all other sessions in workspace
+        // Remove primary flag from all other accounts in workspace
         WhatsAppAccount::forWorkspace($workspaceId)
             ->where('id', '!=', $session->id)
             ->update(['is_primary' => false]);

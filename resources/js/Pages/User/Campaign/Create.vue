@@ -17,7 +17,7 @@
                 :templates="templates"
                 :contactGroups="contactGroups"
                 :settings="settings"
-                :whatsappSessions="whatsappSessions"
+                :whatsappAccounts="whatsappAccounts"
                 :campaignTypes="campaignTypes"
                 :providerOptions="providerOptions"
             />
@@ -34,5 +34,5 @@
     import 'vue3-toastify/dist/index.css';
     import { trans } from 'laravel-vue-i18n';
 
-    const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappSessions', 'campaignTypes', 'providerOptions']);
+    const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappAccounts', 'campaignTypes', 'providerOptions']);
 </script>

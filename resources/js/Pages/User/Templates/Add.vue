@@ -29,17 +29,17 @@
 
                             <!-- Show connection status details -->
                             <div class="text-center mb-4 text-sm text-gray-600">
-                                <div v-if="!settings?.whatsapp && (!whatsappSessions || whatsappSessions.length === 0)" class="mb-2">
+                                <div v-if="!settings?.whatsapp && (!whatsappAccounts || whatsappAccounts.length === 0)" class="mb-2">
                                     <p class="mb-2">{{ $t('No WhatsApp connection found. You can connect via:') }}</p>
                                     <div class="space-y-1">
                                         <p>• {{ $t('Meta API (Business API)') }}</p>
                                         <p>• {{ $t('WhatsApp Web JS (Direct connection)') }}</p>
                                     </div>
                                 </div>
-                                <div v-if="!settings?.whatsapp && whatsappSessions && whatsappSessions.length > 0" class="mb-2">
-                                    <p class="text-green-600">{{ $t('WhatsApp Web JS sessions found, but none are connected.') }}</p>
+                                <div v-if="!settings?.whatsapp && whatsappAccounts && whatsappAccounts.length > 0" class="mb-2">
+                                    <p class="text-green-600">{{ $t('WhatsApp Web JS accounts found, but none are connected.') }}</p>
                                 </div>
-                                <div v-if="settings?.whatsapp && (!whatsappSessions || whatsappSessions.length === 0)" class="mb-2">
+                                <div v-if="settings?.whatsapp && (!whatsappAccounts || whatsappAccounts.length === 0)" class="mb-2">
                                     <p class="text-green-600">{{ $t('Meta API is configured.') }}</p>
                                 </div>
                             </div>
@@ -48,8 +48,8 @@
                                 <Link href="/settings/whatsapp" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 bg-primary" :disabled="isLoading">
                                     <span v-if="!isLoading">{{ $t('Connect Meta API') }}</span>
                                 </Link>
-                                <Link href="/settings/whatsapp/sessions" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 bg-green-600" :disabled="isLoading">
-                                    <span v-if="!isLoading">{{ $t('Manage WhatsApp Sessions') }}</span>
+                                <Link href="/settings/whatsapp/accounts" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 bg-green-600" :disabled="isLoading">
+                                    <span v-if="!isLoading">{{ $t('Manage WhatsApp Accounts') }}</span>
                                 </Link>
                             </div>
                         </div>
@@ -452,7 +452,7 @@
     import 'vue3-toastify/dist/index.css';
     import { router } from '@inertiajs/vue3';
 
-    const props = defineProps(['languages', 'settings', 'whatsappSessions']);
+    const props = defineProps(['languages', 'settings', 'whatsappAccounts']);
     const headerCharacterLimit = ref('60');
     const headerCharacterCount = ref('0');
     const bodyCharacterLimit = ref('1098');
@@ -511,9 +511,9 @@
         const hasMetaApi = settings.value?.whatsapp;
 
         // Check for WhatsApp Web JS sessions
-        const hasWebJsSessions = props.whatsappSessions && props.whatsappSessions.length > 0;
+        const hasWebJsAccounts = props.whatsappAccounts && props.whatsappAccounts.length > 0;
 
-        return hasMetaApi || hasWebJsSessions;
+        return hasMetaApi || hasWebJsAccounts;
     });
 
     const formattedMessage = ref('');

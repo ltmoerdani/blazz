@@ -138,7 +138,7 @@ class SendCampaignJob implements ShouldQueue
     {
         try {
             // Select the best WhatsApp session for this campaign
-            $this->selectedAccount = $this->providerService->selectBestSession($campaign);
+            $this->selectedAccount = $this->providerService->selectBestAccount($campaign);
 
             if (!$this->selectedAccount) {
                 Log::error('No suitable WhatsApp session found for campaign', [
@@ -396,23 +396,23 @@ class SendCampaignJob implements ShouldQueue
                     'trace' => $e->getTraceAsString()
                 ]);
 
-                // Try fallback session if available
+                // Try fallback account if available
                 if ($this->selectedAccount) {
-                    $fallbackSessions = $this->providerService->getFallbackSessions($campaign, $this->selectedAccount);
+                    $fallbackAccounts = $this->providerService->getFallbackAccounts($campaign, $this->selectedAccount);
 
-                    foreach ($fallbackSessions as $fallbackSession) {
-                        /** @var WhatsAppAccount $fallbackSession */
+                    foreach ($fallbackAccounts as $fallbackAccount) {
+                        /** @var WhatsAppAccount $fallbackAccount */
                         try {
-                            Log::info('Attempting fallback session', [
+                            Log::info('Attempting fallback account', [
                                 'campaign_id' => $campaign->id,
-                                'primary_session_id' => $this->selectedAccount->id,
-                                'fallback_session_id' => $fallbackSession->id,
-                                'provider_type' => $fallbackSession->provider_type
+                                'primary_account_id' => $this->selectedAccount->id,
+                                'fallback_account_id' => $fallbackAccount->id,
+                                'provider_type' => $fallbackAccount->provider_type
                             ]);
 
                             // Update session and retry
-                            $this->selectedAccount = $fallbackSession;
-                            $campaign->update(['whatsapp_account_id' => $fallbackSession->id]);
+                            $this->selectedAccount = $fallbackAccount;
+                            $campaign->update(['whatsapp_account_id' => $fallbackAccount->id]);
 
                             if ($campaign->isTemplateBased()) {
                                 $messageRequest = $this->buildTemplateMessageRequest($campaign, $campaignLog->contact);
@@ -438,9 +438,9 @@ class SendCampaignJob implements ShouldQueue
                             return; // Success with fallback
 
                         } catch (\Exception $fallbackException) {
-                            Log::warning('Fallback session also failed', [
+                            Log::warning('Fallback account also failed', [
                                 'campaign_id' => $campaign->id,
-                                'fallback_session_id' => $fallbackSession->id,
+                                'fallback_account_id' => $fallbackAccount->id,
                                 'error' => $fallbackException->getMessage()
                             ]);
                             continue; // Try next fallback

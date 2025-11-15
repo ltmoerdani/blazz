@@ -240,7 +240,7 @@ class RegistrationController extends BaseController
             'metadata' => [
                 'trial_expires_at' => now()->addDays($trialPeriod)->toISOString(),
                 'registration_source' => 'web',
-                'default_whatsapp_sessions_limit' => 1,
+                'default_whatsapp_accounts_limit' => 1,
             ]
         ]);
 

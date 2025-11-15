@@ -17,13 +17,13 @@ use Illuminate\Support\Str;
 class WhatsAppAccountController extends Controller
 {
     /**
-     * Display WhatsApp sessions for the current workspace
+     * Display WhatsApp accounts for the current workspace
      */
     public function index()
     {
         $workspaceId = session('current_workspace');
 
-        $sessions = WhatsAppAccount::forWorkspace($workspaceId)
+        $accounts = WhatsAppAccount::forWorkspace($workspaceId)
             ->orderBy('is_primary', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -49,7 +49,7 @@ class WhatsAppAccountController extends Controller
             ->pluck('value', 'key');
 
         return inertia('User/Settings/WhatsAppAccounts', [
-            'sessions' => $sessions,
+            'accounts' => $accounts,
             'canAddSession' => $this->canAddSession($workspaceId),
             'modules' => \App\Models\Addon::get(),
             'embeddedSignupActive' => \App\Helpers\CustomHelper::isModuleEnabled('Embedded Signup'),
@@ -84,7 +84,7 @@ class WhatsAppAccountController extends Controller
         } elseif (!$this->canAddSession($workspaceId)) {
             $response = response()->json([
                 'success' => false,
-                'message' => 'You have reached the maximum number of WhatsApp sessions for your plan.'
+                'message' => 'You have reached the maximum number of WhatsApp accounts for your plan.'
             ], 403);
         } else {
             try {
@@ -201,7 +201,7 @@ class WhatsAppAccountController extends Controller
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
-        // Remove primary flag from all other sessions in workspace
+        // Remove primary flag from all other accounts in workspace
         WhatsAppAccount::forWorkspace($workspaceId)
             ->where('id', '!=', $session->id)
             ->update(['is_primary' => false]);
@@ -278,7 +278,7 @@ class WhatsAppAccountController extends Controller
                 ]);
             }
 
-            // Normal disconnect flow for connected sessions
+            // Normal disconnect flow for connected accounts
             // Try to disconnect from Node.js service
             try {
                 $adapter = new WebJSAdapter($workspaceId, $session);
@@ -557,29 +557,29 @@ class WhatsAppAccountController extends Controller
      */
     private function canAddSession(int $workspaceId): bool
     {
-        // Only count connected sessions (not qr_scanning or pending)
+        // Only count connected accounts (not qr_scanning or pending)
         $currentCount = WhatsAppAccount::forWorkspace($workspaceId)
             ->where('status', 'connected')
             ->count();
 
         // Get plan limits from subscription metadata or workspace settings
         $workspace = \App\Models\Workspace::find($workspaceId);
-        $maxSessions = 10; // Default fallback
+        $maxAccounts = 10; // Default fallback
 
         if ($workspace && $workspace->subscription && $workspace->subscription->plan) {
             // Try to get from plan metadata first
             $metadata = $workspace->subscription->plan->metadata;
             if ($metadata && is_string($metadata)) {
                 $decodedMetadata = json_decode($metadata, true);
-                if ($decodedMetadata && isset($decodedMetadata['limits']['whatsapp_sessions'])) {
-                    $maxSessions = (int) $decodedMetadata['limits']['whatsapp_sessions'];
+                if ($decodedMetadata && isset($decodedMetadata['limits']['whatsapp_accounts'])) {
+                    $maxAccounts = (int) $decodedMetadata['limits']['whatsapp_accounts'];
                 } elseif (isset($decodedMetadata['features'])) {
                     // Fallback: parse from features text (e.g., "1 WhatsApp Session")
                     foreach ($decodedMetadata['features'] as $feature) {
                         if (str_contains(strtolower($feature), 'whatsapp session')) {
                             preg_match('/(\d+)/', $feature, $matches);
                             if (isset($matches[1])) {
-                                $maxSessions = (int) $matches[1];
+                                $maxAccounts = (int) $matches[1];
                                 break;
                             }
                         }
@@ -591,13 +591,13 @@ class WhatsAppAccountController extends Controller
             $metadata = $workspace->metadata;
             if ($metadata && is_string($metadata)) {
                 $decodedMetadata = json_decode($metadata, true);
-                $maxSessions = $decodedMetadata['default_whatsapp_sessions_limit'] ?? 10;
+                $maxAccounts = $decodedMetadata['default_whatsapp_accounts_limit'] ?? 10;
             } else {
-                $maxSessions = 10; // Default fallback
+                $maxAccounts = 10; // Default fallback
             }
         }
 
-        return $currentCount < $maxSessions;
+        return $currentCount < $maxAccounts;
     }
 
     /**
