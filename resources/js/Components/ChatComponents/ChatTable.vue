@@ -28,8 +28,8 @@
         chatSortDirection: {
             type: String
         },
-        // NEW: WhatsApp sessions for filter dropdown (TASK-FE-1)
-        sessions: {
+        // NEW: WhatsApp accounts for filter dropdown (TASK-FE-1)
+        accounts: {
             type: Array,
             default: () => []
         }
@@ -138,11 +138,11 @@
 
     const params = ref({
         search: props.filters.search,
-        session_id: props.filters?.session_id || '', // NEW: Track session filter
+        account_id: props.filters?.account_id || '', // NEW: Track account filter
     });
 
-    // NEW: Session filter state (TASK-FE-1)
-    const selectedSessionId = ref(props.filters?.session_id || '');
+    // NEW: Account filter state (TASK-FE-1)
+    const selectedAccountId = ref(props.filters?.account_id || '');
 
     const search = debounce(() => {
         isSearching.value = true;
@@ -163,9 +163,9 @@
         runSearch();
     }
 
-    // NEW: Filter by WhatsApp session (TASK-FE-1)
-    const filterBySession = () => {
-        params.value.session_id = selectedSessionId.value;
+    // NEW: Filter by WhatsApp account (TASK-FE-1)
+    const filterByAccount = () => {
+        params.value.account_id = selectedAccountId.value;
         runSearch();
     }
 
@@ -197,21 +197,21 @@
             </span>
         </div>
 
-        <!-- NEW: Session Filter Dropdown (TASK-FE-1) -->
-        <div v-if="sessions && sessions.length > 0" class="mt-3">
+        <!-- NEW: Account Filter Dropdown (TASK-FE-1) -->
+        <div v-if="accounts && accounts.length > 0" class="mt-3">
             <label class="block text-sm font-medium text-gray-700 mb-2">
                 {{ $t('Filter by WhatsApp Number') }}
             </label>
             <select
-                v-model="selectedSessionId"
-                @change="filterBySession"
+                v-model="selectedAccountId"
+                @change="filterByAccount"
                 class="w-full rounded-md border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             >
                 <option value="">{{ $t('All Conversations') }}</option>
-                <option v-for="session in sessions" :key="session.id" :value="session.id">
-                    {{ formatPhone(session.phone_number) }}
-                    <template v-if="session.provider_type === 'webjs'"> (WhatsApp Web.js)</template>
-                    <template v-if="session.unread_count > 0"> ({{ session.unread_count }} unread)</template>
+                <option v-for="account in accounts" :key="account.id" :value="account.id">
+                    {{ formatPhone(account.phone_number) }}
+                    <template v-if="account.provider_type === 'webjs'"> (WhatsApp Web.js)</template>
+                    <template v-if="account.unread_count > 0"> ({{ account.unread_count }} unread)</template>
                 </option>
             </select>
         </div>
