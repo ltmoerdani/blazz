@@ -24,7 +24,8 @@ const props = defineProps({
     },
     initialNextPage: {
         type: Number,
-        required: true
+        required: false,
+        default: 1
     }
 });
 
