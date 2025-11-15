@@ -10,6 +10,7 @@ use App\Services\ContactProvisioningService;
 use App\Services\MediaService;
 use App\Services\ProviderSelector;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
@@ -331,7 +332,7 @@ class WebhookController extends Controller
             }
 
             // Create chat record for received message
-            \App\Models\Chat::create([
+            $chat = \App\Models\Chat::create([
                 'workspace_id' => $workspaceId,
                 'contact_id' => $contact->id,
                 'whatsapp_account_id' => $session->id,
@@ -357,11 +358,21 @@ class WebhookController extends Controller
                 ]),
             ]);
 
+            // Create ChatLog entry for UI display
+            \App\Models\ChatLog::create([
+                'contact_id' => $contact->id,
+                'entity_type' => 'chat',
+                'entity_id' => $chat->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             // Update contact's latest_chat_created_at and last_message_at for frontend chat list
             $contact->update([
                 'latest_chat_created_at' => now(),
                 'last_message_at' => now(),
                 'last_activity' => now(),
+                'unread_messages' => DB::raw('unread_messages + 1'),
             ]);
 
             // Log message received successfully
@@ -428,7 +439,7 @@ class WebhookController extends Controller
 
             if ($contact) {
                 // Create chat record with real-time messaging fields
-                \App\Models\Chat::create([
+                $chat = \App\Models\Chat::create([
                     'workspace_id' => $workspaceId,
                     'contact_id' => $contact->id,
                     'whatsapp_account_id' => $session->id,
@@ -445,6 +456,15 @@ class WebhookController extends Controller
                         'from_me' => true,
                     ]),
                     'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
+                ]);
+
+                // Create ChatLog entry for UI display
+                \App\Models\ChatLog::create([
+                    'contact_id' => $contact->id,
+                    'entity_type' => 'chat',
+                    'entity_id' => $chat->id,
+                    'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
+                    'updated_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
                 ]);
 
                 Log::info('Chat record created for sent message', [
