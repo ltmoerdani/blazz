@@ -266,22 +266,34 @@ const optimisticMessages = ref(new Map()); // Track optimistic messages by ID
 const handleOptimisticMessageSent = (optimisticMessage) => {
     console.log('🚀 Optimistic message received:', optimisticMessage);
 
-    // Add optimistic message to the UI immediately
-    const messageArray = [{
-        type: 'chat',
-        value: optimisticMessage.value,
-        isOptimistic: true
-    }];
+    // Check if optimisticMessage is already in array format
+    if (Array.isArray(optimisticMessage)) {
+        // Already in correct format - just add it
+        messages.value.push(optimisticMessage);
+        
+        // Store for tracking
+        const messageId = optimisticMessage[0]?.value?.id;
+        if (messageId) {
+            optimisticMessages.set(messageId, optimisticMessage);
+        }
+    } else {
+        // Convert to array format
+        const messageArray = [{
+            type: 'chat',
+            value: optimisticMessage.value,
+            isOptimistic: true
+        }];
 
-    messages.value.push(messageArray);
+        messages.value.push(messageArray);
 
-    // Store optimistic message for later replacement
-    optimisticMessages.set(optimisticMessage.id, optimisticMessage);
+        // Store optimistic message for later replacement
+        optimisticMessages.set(optimisticMessage.id, optimisticMessage);
+    }
 
     // Auto-scroll to bottom to show new message
     autoScrollToBottom();
 
-    console.log(`✅ Optimistic message added: ${optimisticMessage.id}`);
+    console.log(`✅ Optimistic message added to chat thread`);
 };
 
 // Handle optimistic message failed event
