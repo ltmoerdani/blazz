@@ -46,6 +46,31 @@ class ChatController extends BaseController
     public function index(Request $request, $uuid = null)
     {
         $workspaceId = Auth::user()->current_workspace_id;
+
+        // DEBUG: Add logging for troubleshooting
+        \Log::info('ChatController::index called', [
+            'workspace_id' => $workspaceId,
+            'uuid' => $uuid,
+            'search' => $request->query('search'),
+        ]);
+
+        // Check data counts for debugging
+        $chatCount = Chat::where('workspace_id', $workspaceId)->count();
+        $contactsWithChatsCount = Contact::where('workspace_id', $workspaceId)
+            ->whereHas('chats', function($q) use ($workspaceId) {
+                $q->where('workspace_id', $workspaceId)
+                  ->whereNull('deleted_at');
+            })
+            ->count();
+
+        \Log::info('Chat list data counts', [
+            'total_chats' => $chatCount,
+            'contacts_with_chats' => $contactsWithChatsCount,
+            'contacts_with_latest_chat' => Contact::where('workspace_id', $workspaceId)
+                ->whereNotNull('latest_chat_created_at')
+                ->count(),
+        ]);
+
         return $this->getChatService($workspaceId)->getChatListWithFilters($request, $uuid, $request->query('search'));
     }
 

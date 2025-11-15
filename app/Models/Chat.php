@@ -21,8 +21,19 @@ class Chat extends Model {
         static::created(function ($chat) {
             $contact = $chat->contact;
             if ($contact) {
-                $contact->latest_chat_created_at = $chat->created_at;
-                $contact->save();
+                // Update contact's latest chat timestamps
+                $contact->update([
+                    'latest_chat_created_at' => $chat->created_at,
+                    'last_message_at' => $chat->created_at,
+                    'last_activity' => $chat->created_at,
+                ]);
+
+                \Log::info('Chat created - Contact updated', [
+                    'chat_id' => $chat->id,
+                    'contact_id' => $contact->id,
+                    'contact_name' => $contact->first_name,
+                    'latest_chat_created_at' => $chat->created_at,
+                ]);
             }
         });
 

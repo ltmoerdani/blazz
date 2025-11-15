@@ -107,7 +107,15 @@ class Contact extends Model {
     {
         $query = $this->newQuery()
             ->where('contacts.Workspace_id', $workspaceId)
-            ->whereNotNull('contacts.latest_chat_created_at')
+            ->whereHas('chats', function ($q) use ($workspaceId, $sessionId) {
+                $q->where('chats.workspace_id', $workspaceId)
+                  ->whereNull('chats.deleted_at');
+
+                // Filter by session if specified
+                if ($sessionId) {
+                    $q->where('chats.whatsapp_account_id', $sessionId);
+                }
+            })
             ->with(['lastChat', 'lastInboundChat'])
             ->whereNull('contacts.deleted_at')
             ->select('contacts.*')
@@ -116,21 +124,14 @@ class Contact extends Model {
                     ->selectRaw('MAX(created_at)')
                     ->whereColumn('chats.contact_id', 'contacts.id')
                     ->whereNull('chats.deleted_at')
-                    ->where('chats.Workspace_id', $workspaceId);
+                    ->where('chats.workspace_id', $workspaceId);
 
                 // Filter by session if specified
                 if ($sessionId) {
                     $subquery->where('chats.whatsapp_account_id', $sessionId);
                 }
-            }, 'last_chat_created_at');
-
-        // Filter contacts by session (only show contacts with chats from specific session)
-        if ($sessionId) {
-            $query->whereHas('chats', function ($q) use ($sessionId) {
-                $q->where('whatsapp_account_id', $sessionId)
-                  ->whereNull('deleted_at');
-            });
-        }
+            }, 'last_chat_created_at')
+            ->orderBy('last_chat_created_at', $sortDirection === 'desc' ? 'desc' : 'asc');
 
         // Apply ticketing conditions if active
         if ($ticketingActive) {
@@ -170,19 +171,18 @@ class Contact extends Model {
     {
         $query = $this->newQuery()
             ->where('contacts.Workspace_id', $workspaceId)
-            ->whereNotNull('contacts.latest_chat_created_at')
+            ->whereHas('chats', function ($q) use ($workspaceId, $sessionId) {
+                $q->where('chats.workspace_id', $workspaceId)
+                  ->whereNull('chats.deleted_at');
+
+                // Filter by session if specified
+                if ($sessionId) {
+                    $q->where('chats.whatsapp_account_id', $sessionId);
+                }
+            })
             ->whereNull('contacts.deleted_at')
             ->with(['lastChat', 'lastInboundChat'])
-            ->select('contacts.*')
-            ->orderBy('contacts.latest_chat_created_at', $sortDirection);
-
-        // Filter by session if specified
-        if ($sessionId) {
-            $query->whereHas('chats', function ($q) use ($sessionId) {
-                $q->where('whatsapp_account_id', $sessionId)
-                  ->whereNull('deleted_at');
-            });
-        }
+            ->select('contacts.*');
 
         if($ticketingActive){
             // Conditional join with chat_tickets table and comparison with ticketState
