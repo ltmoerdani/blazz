@@ -19,9 +19,9 @@
         @endif
 
         <!-- Preload Critical Fonts -->
-        <link rel="preload" href="/resources/fonts/outfit/Outfit-Regular.ttf" as="font" type="font/ttf" crossorigin>
-        <link rel="preload" href="/resources/fonts/outfit/Outfit-Medium.ttf" as="font" type="font/ttf" crossorigin>
-        <link rel="preload" href="/resources/fonts/outfit/Outfit-SemiBold.ttf" as="font" type="font/ttf" crossorigin>
+        <link rel="preload" href="/fonts/Outfit/Outfit-Regular.ttf" as="font" type="font/ttf" crossorigin>
+        <link rel="preload" href="/fonts/Outfit/Outfit-Medium.ttf" as="font" type="font/ttf" crossorigin>
+        <link rel="preload" href="/fonts/Outfit/Outfit-SemiBold.ttf" as="font" type="font/ttf" crossorigin>
 
         @vite(['resources/js/app.js', 'resources/css/app.css'])
         @inertiaHead

@@ -16,9 +16,23 @@ class Contact extends Model {
     use SoftDeletes;
 
     protected $guarded = [];
-    protected $appends = ['full_name', 'formatted_phone_number'];
+    protected $appends = ['formatted_phone_number'];
     protected $dates = ['deleted_at'];
-    public $timestamps = false;
+    public $timestamps = true;
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-populate full_name when creating or updating
+        static::saving(function ($contact) {
+            if ($contact->isDirty(['first_name', 'last_name'])) {
+                $firstName = trim($contact->first_name ?? '');
+                $lastName = trim($contact->last_name ?? '');
+                $contact->full_name = trim("$firstName $lastName");
+            }
+        });
+    }
 
     public function getCreatedAtAttribute($value)
     {
@@ -267,11 +281,17 @@ class Contact extends Model {
     public function getFormattedPhoneNumberAttribute($value)
     {
         // Use the phone() helper function to format the phone number to international format
+        if (!$this->phone) {
+            return '';
+        }
         return phone($this->phone)->formatInternational();
     }
 
     protected function decodeUnicodeBytes($value)
     {
+        if (!$value) {
+            return '';
+        }
         return preg_replace_callback('/\\\\x([0-9A-F]{2})/i', function ($matches) {
             return chr(hexdec($matches[1]));
         }, $value);

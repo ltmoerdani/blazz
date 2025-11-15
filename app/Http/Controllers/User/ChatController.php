@@ -14,6 +14,7 @@ use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
@@ -45,10 +46,10 @@ class ChatController extends BaseController
 
     public function index(Request $request, $uuid = null)
     {
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
 
         // DEBUG: Add logging for troubleshooting
-        \Log::info('ChatController::index called', [
+        Log::info('ChatController::index called', [
             'workspace_id' => $workspaceId,
             'uuid' => $uuid,
             'search' => $request->query('search'),
@@ -63,7 +64,7 @@ class ChatController extends BaseController
             })
             ->count();
 
-        \Log::info('Chat list data counts', [
+        Log::info('Chat list data counts', [
             'total_chats' => $chatCount,
             'contacts_with_chats' => $contactsWithChatsCount,
             'contacts_with_latest_chat' => Contact::where('workspace_id', $workspaceId)
@@ -83,13 +84,13 @@ class ChatController extends BaseController
 
     public function sendMessage(Request $request)
     {
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
         return $this->getChatService($workspaceId)->sendMessage($request);
     }
 
     public function sendTemplateMessage(Request $request, $uuid)
     {
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
         $res = $this->getChatService($workspaceId)->sendTemplateMessage($request, $uuid);
 
         return Redirect::back()->with(
@@ -103,7 +104,7 @@ class ChatController extends BaseController
 
     public function deleteChats($uuid)
     {
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
         $this->getChatService($workspaceId)->clearContactChat($uuid);
 
         return Redirect::back()->with(
@@ -117,7 +118,7 @@ class ChatController extends BaseController
     public function loadMoreMessages(Request $request, $contactId)
     {
         $page = $request->query('page', 1);
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
         $messages = $this->getChatService($workspaceId)->getChatMessages($contactId, $page);
         
         return response()->json($messages);

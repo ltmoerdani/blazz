@@ -6,13 +6,24 @@ use App\Helpers\DateTimeHelper;
 use App\Http\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Chat extends Model {
     use HasFactory;
     use HasUuid;
 
     protected $guarded = [];
-    public $timestamps = false;
+    public $timestamps = true;
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'sent_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'read_at' => 'datetime',
+        'is_read' => 'boolean',
+        'retry_count' => 'integer',
+    ];
 
     protected static function boot()
     {
@@ -22,21 +33,37 @@ class Chat extends Model {
             $contact = $chat->contact;
             if ($contact) {
                 // Update contact's latest chat timestamps
-                $contact->update([
-                    'latest_chat_created_at' => $chat->created_at,
-                    'last_message_at' => $chat->created_at,
-                    'last_activity' => $chat->created_at,
-                ]);
+                $contact->latest_chat_created_at = $chat->created_at;
+                $contact->last_message_at = $chat->created_at;
+                $contact->last_activity = $chat->created_at;
+                
+                // Increment unread counter for incoming messages
+                if ($chat->type === 'inbound' && !$chat->is_read) {
+                    $contact->increment('unread_messages');
+                }
+                
+                $contact->save();
 
-                \Log::info('Chat created - Contact updated', [
+                Log::info('Chat created - Contact updated', [
                     'chat_id' => $chat->id,
                     'contact_id' => $contact->id,
                     'contact_name' => $contact->first_name,
                     'latest_chat_created_at' => $chat->created_at,
+                    'unread_messages' => $contact->unread_messages,
                 ]);
             }
         });
 
+        // When message is marked as read, decrement unread counter
+        static::updating(function ($chat) {
+            if ($chat->isDirty('is_read') && $chat->is_read && $chat->type === 'inbound') {
+                $contact = $chat->contact;
+                if ($contact && $contact->unread_messages > 0) {
+                    $contact->decrement('unread_messages');
+                    $contact->save();
+                }
+            }
+        });
     }
     
     public function getCreatedAtAttribute($value)
