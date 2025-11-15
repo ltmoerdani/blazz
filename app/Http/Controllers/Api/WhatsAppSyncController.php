@@ -69,22 +69,28 @@ class WhatsAppSyncController extends Controller
     {
         // Validate request
         $validator = Validator::make($request->all(), [
-            'session_id' => 'required|integer|exists:whatsapp_accounts,id',
+            'whatsapp_account_id' => 'required|integer|exists:whatsapp_accounts,id',
             'workspace_id' => 'required|integer|exists:workspaces,id',
             'chats' => 'required|array|min:1|max:50',
             'chats.*.chat_type' => 'required|in:private,group',
+            'chats.*.provider_type' => 'required|in:webjs,meta',
+            'chats.*.whatsapp_account_id' => 'required|integer|exists:whatsapp_accounts,id',
             'chats.*.contact_phone' => 'required_if:chats.*.chat_type,private|nullable|string',
             'chats.*.contact_name' => 'nullable|string|max:255',
             'chats.*.group_jid' => 'required_if:chats.*.chat_type,group|nullable|string',
             'chats.*.group_name' => 'required_if:chats.*.chat_type,group|nullable|string',
             'chats.*.message_body' => 'nullable|string|max:65536',
             'chats.*.timestamp' => 'nullable|integer',
+            'chats.*.message_status' => 'required|in:pending,sent,delivered,read,failed',
+            'chats.*.sent_at' => 'nullable|date',
+            'chats.*.delivered_at' => 'nullable|date',
+            'chats.*.read_at' => 'nullable|date',
         ]);
 
         if ($validator->fails()) {
             Log::channel('whatsapp')->warning('Sync batch validation failed', [
                 'errors' => $validator->errors()->toArray(),
-                'request_data' => $request->only(['session_id', 'workspace_id']),
+                'request_data' => $request->only(['whatsapp_account_id', 'workspace_id']),
             ]);
 
             return response()->json([
@@ -95,45 +101,45 @@ class WhatsAppSyncController extends Controller
 
         $validated = $validator->validated();
 
-        // Verify session belongs to workspace
-        $session = WhatsAppAccount::where('id', $validated['session_id'])
+        // Verify account belongs to workspace
+        $account = WhatsAppAccount::where('id', $validated['whatsapp_account_id'])
             ->where('workspace_id', $validated['workspace_id'])
             ->first();
 
-        if (!$session) {
-            Log::channel('whatsapp')->warning('Session ownership validation failed', [
-                'session_id' => $validated['session_id'],
+        if (!$account) {
+            Log::channel('whatsapp')->warning('Account ownership validation failed', [
+                'whatsapp_account_id' => $validated['whatsapp_account_id'],
                 'workspace_id' => $validated['workspace_id'],
             ]);
 
             return response()->json([
-                'message' => 'Session not found or access denied',
+                'message' => 'WhatsApp account not found or access denied',
             ], 404);
         }
 
-        // Check session status
-        if ($session->status !== 'connected' && $session->status !== 'authenticated') {
-            Log::channel('whatsapp')->warning('Sync rejected - session not connected', [
-                'session_id' => $session->id,
-                'status' => $session->status,
+        // Check account status
+        if ($account->status !== 'connected' && $account->status !== 'authenticated') {
+            Log::channel('whatsapp')->warning('Sync rejected - account not connected', [
+                'whatsapp_account_id' => $account->id,
+                'status' => $account->status,
             ]);
 
             return response()->json([
-                'message' => 'Session is not active',
-                'status' => $session->status,
+                'message' => 'WhatsApp account is not active',
+                'status' => $account->status,
             ], 400);
         }
 
         // Dispatch to queue
         try {
             WhatsAppChatSyncJob::dispatch(
-                $validated['session_id'],
+                $validated['whatsapp_account_id'],
                 $validated['workspace_id'],
                 $validated['chats']
             );
 
             Log::channel('whatsapp')->info('Sync batch queued', [
-                'session_id' => $validated['session_id'],
+                'whatsapp_account_id' => $validated['whatsapp_account_id'],
                 'workspace_id' => $validated['workspace_id'],
                 'batch_size' => count($validated['chats']),
             ]);
@@ -142,12 +148,12 @@ class WhatsAppSyncController extends Controller
                 'message' => 'Batch queued for processing',
                 'status' => 'queued',
                 'batch_size' => count($validated['chats']),
-                'session_id' => $validated['session_id'],
+                'whatsapp_account_id' => $validated['whatsapp_account_id'],
             ], 202);
 
         } catch (\Exception $e) {
             Log::channel('whatsapp')->error('Failed to queue sync batch', [
-                'session_id' => $validated['session_id'],
+                'whatsapp_account_id' => $validated['whatsapp_account_id'],
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
