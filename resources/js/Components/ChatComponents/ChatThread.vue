@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { default as axios } from 'axios';
 import ChatBubble from '@/Components/ChatComponents/ChatBubble.vue';
 import MessageStatus from '@/Components/ChatComponents/MessageStatus.vue';
@@ -35,6 +35,22 @@ const hasMore = ref(props.hasMoreMessages);
 const echo = ref(null);
 const isTyping = ref(false);
 const typingUser = ref(null);
+
+// CRITICAL: Watch for prop changes when switching contacts
+watch(() => props.initialMessages, (newMessages) => {
+    console.log('🔄 ChatThread: Messages updated from parent', newMessages.length);
+    messages.value = newMessages;
+}, { immediate: true, deep: false });
+
+watch(() => props.contactId, (newContactId, oldContactId) => {
+    if (newContactId !== oldContactId) {
+        console.log('👤 ChatThread: Contact changed from', oldContactId, 'to', newContactId);
+        // Reset state when contact changes
+        messages.value = props.initialMessages;
+        nextPage.value = props.initialNextPage;
+        hasMore.value = props.hasMoreMessages;
+    }
+});
 
 const loadMoreMessages = async () => {
     if (loading.value || !hasMore.value) return;
