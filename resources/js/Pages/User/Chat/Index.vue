@@ -25,6 +25,16 @@
                     @closeThread="closeThread"
                 />
                 <div v-if="contact && !displayTemplate" class="flex-1 overflow-y-auto" ref="scrollContainer2">
+                    <!-- Loading Skeleton for instant feedback -->
+                    <div v-if="loadingThread && !displayContactInfo" class="p-4 space-y-3 animate-pulse">
+                        <div v-for="n in 5" :key="n" class="flex" :class="n % 2 === 0 ? 'justify-end' : 'justify-start'">
+                            <div :class="n % 2 === 0 ? 'bg-green-100' : 'bg-gray-100'" class="rounded-lg p-3 max-w-xs">
+                                <div class="h-4 bg-gray-300 rounded w-48 mb-2"></div>
+                                <div class="h-3 bg-gray-300 rounded w-32"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <ChatThread 
                         v-if="!displayContactInfo && !loadingThread && !displayTemplate"
                         ref="chatThreadRef"
@@ -82,7 +92,7 @@
     import AppLayout from "./../Layout/App.vue";
     import { default as axios } from 'axios';
     import { router, useForm } from '@inertiajs/vue3';
-    import { defineEmits, ref, onMounted, watch } from 'vue';
+    import { defineEmits, ref, shallowRef, onMounted, watch } from 'vue';
     import CampaignForm from '@/Components/CampaignForm.vue';
     import ChatForm from '@/Components/ChatComponents/ChatForm.vue';
     import ChatHeader from '@/Components/ChatComponents/ChatHeader.vue';
@@ -129,9 +139,14 @@
     const config = ref(props.settings?.metadata ?? null);
     const settings = ref(config.value ? JSON.parse(config.value) : null);
     const ticketingIsEnabled = ref(settings.value?.tickets?.active ?? false);
-    const chatThread = ref(props.chatThread);
+    const chatThread = shallowRef(props.chatThread); // Optimized: shallow reactivity for large arrays
     const contact = ref(props.contact);
     const chatThreadRef = ref(null);
+    
+    // Cache untuk menyimpan data chat yang sudah di-load
+    const chatCache = new Map();
+    let lastFetchTime = 0;
+    const DEBOUNCE_DELAY = 150; // ms
 
     watch(() => props.rows, (newRows) => {
         rows.value = newRows;
@@ -180,14 +195,35 @@
 
     // Handle contact selection without page reload (SPA behavior like WhatsApp Web)
     const selectContact = async (selectedContact) => {
+        // Debounce: Prevent rapid consecutive requests
+        const now = Date.now();
+        if (now - lastFetchTime < DEBOUNCE_DELAY) {
+            console.log('⏱️ Request debounced');
+            return;
+        }
+        lastFetchTime = now;
+        
+        // INSTANT FEEDBACK: Update contact immediately (optimistic)
+        contact.value = selectedContact;
         loadingThread.value = true;
         
-        // Update URL without reload using History API
-        const newUrl = `/chats/${selectedContact.uuid}`;
-        window.history.pushState({ contactId: selectedContact.id }, '', newUrl);
+        // Check cache first for instant load
+        const cacheKey = `chat_${selectedContact.uuid}`;
+        if (chatCache.has(cacheKey)) {
+            console.log('💾 Loading from cache:', selectedContact.name);
+            const cachedData = chatCache.get(cacheKey);
+            
+            // IMPORTANT: Create new array reference for shallowRef to detect change
+            chatThread.value = [...cachedData.chatThread];
+            loadingThread.value = false;
+            
+            // Fetch fresh data in background to update cache
+            fetchChatDataInBackground(selectedContact.uuid, cacheKey);
+            return;
+        }
         
         try {
-            // Fetch chat thread for selected contact
+            // Fetch chat thread for selected contact (tanpa update URL)
             const response = await axios.get(`/chats/${selectedContact.uuid}`, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -198,7 +234,23 @@
             if (response.data) {
                 // Update contact and chat thread without page reload
                 contact.value = response.data.contact || selectedContact;
-                chatThread.value = response.data.chatThread || [];
+                
+                // IMPORTANT: Create new array reference for shallowRef to detect change
+                chatThread.value = [...(response.data.chatThread || [])];
+                
+                // Store in cache for future instant access
+                chatCache.set(cacheKey, {
+                    chatThread: response.data.chatThread || [],
+                    timestamp: Date.now()
+                });
+                
+                // Limit cache size to prevent memory bloat (keep last 20 chats)
+                if (chatCache.size > 20) {
+                    const firstKey = chatCache.keys().next().value;
+                    chatCache.delete(firstKey);
+                }
+                
+                console.log('✅ Contact switched & cached:', selectedContact.name);
                 
                 // Close mobile sidebar if open
                 if (window.innerWidth < 768) {
@@ -210,8 +262,70 @@
             }
         } catch (error) {
             console.error('Error loading chat:', error);
+            // Revert optimistic update on error
+            contact.value = props.contact;
         } finally {
             loadingThread.value = false;
+        }
+    }
+    
+    // Background fetch untuk update cache tanpa blocking UI
+    const fetchChatDataInBackground = async (uuid, cacheKey) => {
+        try {
+            const response = await axios.get(`/chats/${uuid}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.data && response.data.chatThread) {
+                // Update cache silently
+                chatCache.set(cacheKey, {
+                    chatThread: response.data.chatThread,
+                    timestamp: Date.now()
+                });
+                
+                // If user still viewing this contact, update the UI too
+                if (contact.value && contact.value.uuid === uuid) {
+                    chatThread.value = [...response.data.chatThread];
+                    console.log('🔄 Cache & UI refreshed in background');
+                } else {
+                    console.log('🔄 Cache refreshed in background');
+                }
+            }
+        } catch (error) {
+            console.error('Background fetch error:', error);
+        }
+    }
+    
+    // Prefetch contact data untuk instant loading
+    const prefetchContactData = async (uuid) => {
+        const cacheKey = `chat_${uuid}`;
+        
+        // Skip if already cached
+        if (chatCache.has(cacheKey)) {
+            return;
+        }
+        
+        try {
+            const response = await axios.get(`/chats/${uuid}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.data && response.data.chatThread) {
+                chatCache.set(cacheKey, {
+                    chatThread: response.data.chatThread,
+                    timestamp: Date.now()
+                });
+                console.log('🚀 Prefetched contact:', uuid);
+            }
+        } catch (error) {
+            // Silent fail for prefetch
+            console.debug('Prefetch skipped:', uuid);
         }
     }
 
@@ -305,6 +419,18 @@
             });
 
         scrollToBottom();
+        
+        // PREFETCH: Load first 3 contacts in background for instant switching
+        if (props.rows?.data && Array.isArray(props.rows.data)) {
+            setTimeout(() => {
+                const topContacts = props.rows.data.slice(0, 3);
+                topContacts.forEach((contact, index) => {
+                    setTimeout(() => {
+                        prefetchContactData(contact.uuid);
+                    }, index * 300); // Stagger requests to avoid overwhelming server
+                });
+            }, 1000); // Wait 1s after page load to avoid blocking initial render
+        }
     });
 
     // NEW: Refresh side panel (for group chats support)
