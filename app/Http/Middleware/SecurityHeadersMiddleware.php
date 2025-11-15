@@ -79,10 +79,16 @@ class SecurityHeadersMiddleware
         $baseUrl = $request->getSchemeAndHttpHost();
         $isProduction = app()->environment('production');
         
+        // Vite dev server URLs (removed IPv6 format yang tidak valid di CSP)
+        $viteUrls = '';
+        if (!$isProduction) {
+            $viteUrls = ' http://localhost:5173 http://127.0.0.1:5173';
+        }
+        
         $csp = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net unpkg.com",
-            "style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.bunny.net cdn.jsdelivr.net",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net unpkg.com{$viteUrls}",
+            "style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.bunny.net cdn.jsdelivr.net{$viteUrls}",
             "font-src 'self' fonts.gstatic.com fonts.bunny.net data:",
             "img-src 'self' data: blob: *", // Allow images from any source untuk user uploads
             "media-src 'self' blob:",
@@ -95,12 +101,12 @@ class SecurityHeadersMiddleware
             "base-uri 'self'",
         ];
         
-        // Add connect-src untuk API endpoints
+        // Add connect-src untuk API endpoints dan Vite HMR (removed IPv6)
         $connectSrc = "'self' " . $baseUrl;
         
-        // Allow external APIs dalam development
+        // Allow external APIs dan Vite HMR dalam development
         if (!$isProduction) {
-            $connectSrc .= " ws: wss: http: https:";
+            $connectSrc .= " ws://localhost:5173 ws://127.0.0.1:5173 http://localhost:5173 http://127.0.0.1:5173 ws: wss: http: https:";
         }
         
         $csp[] = "connect-src {$connectSrc}";
