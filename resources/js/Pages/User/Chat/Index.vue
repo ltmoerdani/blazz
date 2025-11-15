@@ -116,7 +116,7 @@
         chatThread: Array,
         hasMoreMessages: Boolean,
         nextPage: Number,
-        addon: Object,
+        addon: [Boolean, Object], // Accept Boolean from isModuleEnabled() or Object
         contact: Object,
         ticket: Object,
         chat_sort_direction: String,

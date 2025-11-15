@@ -324,7 +324,7 @@
         </div>
     </div>
 
-    <Modal :label="$t('Message status: ') + chatStatus(content.logs)" :isOpen=isModalOpen :closeBtn="true" @close="isModalOpen = false">
+    <Modal :label="$t('Message status') + ': ' + chatStatus(content.logs)" :isOpen=isModalOpen :closeBtn="true" @close="isModalOpen = false">
         <div>
             <div v-if="errors.length" class="bg-red-100 rounded-md p-3 text-sm mt-4">
                 <div v-for="(error, index) in errors" :key="index">

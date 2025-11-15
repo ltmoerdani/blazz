@@ -28,6 +28,7 @@
     src: local('Outfit'), url("../fonts/Outfit/Outfit-Regular.ttf") format("truetype");
     font-weight: normal;
     font-style: normal;
+    font-display: swap;
 }
 
 @font-face {
@@ -35,6 +36,7 @@
     src: local('Outfit'), url("../fonts/Outfit/Outfit-Medium.ttf") format("truetype");
     font-weight: 500;
     font-style: normal;
+    font-display: swap;
 }
 
 @font-face {
@@ -42,6 +44,7 @@
     src: local('Outfit'), url("../fonts/Outfit/Outfit-SemiBold.ttf") format("truetype");
     font-weight: 600;
     font-style: normal;
+    font-display: swap;
 }
 
 @font-face {
