@@ -74,8 +74,6 @@ class ContactProvisioningService
                 'email' => null,
                 'phone' => $formattedPhone,
                 'workspace_id' => $workspaceId,
-                'source_session_id' => $sessionId,
-                'source_type' => $sourceType,
                 'created_by' => 0, // System-created
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -87,7 +85,6 @@ class ContactProvisioningService
                 'contact_id' => $contact->id,
                 'phone' => $formattedPhone,
                 'name' => $name,
-                'source' => $sourceType,
                 'workspace_id' => $workspaceId,
             ]);
         }
