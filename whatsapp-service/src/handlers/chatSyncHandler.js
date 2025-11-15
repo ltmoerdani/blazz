@@ -41,17 +41,17 @@ class ChatSyncHandler {
      * Synchronize all chats for a session
      *
      * @param {Object} client - WhatsApp Web.js client instance
-     * @param {string} sessionId - WhatsApp session ID
+     * @param {number} accountId - WhatsApp Account ID (INTEGER from database)
      * @param {number} workspaceId - Workspace ID
      * @param {Object} options - Sync options
      * @returns {Promise<Object>} Sync results
      */
-    async syncAllChats(client, sessionId, workspaceId, options = {}) {
+    async syncAllChats(client, accountId, workspaceId, options = {}) {
         const startTime = Date.now();
         const syncType = options.syncType || 'initial'; // 'initial' or 'incremental'
 
         this.logger.info('Starting chat sync', {
-            session_id: sessionId,
+            account_id: accountId,
             workspace_id: workspaceId,
             sync_type: syncType,
             config: this.config
@@ -62,7 +62,7 @@ class ChatSyncHandler {
             const chats = await this.fetchChats(client, options);
 
             this.logger.info('Fetched chats from WhatsApp', {
-                session_id: sessionId,
+                account_id: accountId,
                 total_chats: chats.length,
                 sync_type: syncType
             });
@@ -71,29 +71,29 @@ class ChatSyncHandler {
             const chatsToSync = this.applyLimits(chats);
 
             this.logger.info('Applying sync limits', {
-                session_id: sessionId,
+                account_id: accountId,
                 original_count: chats.length,
                 limited_count: chatsToSync.length,
                 max_chats: this.config.maxChatsPerSync
             });
 
             // Transform and batch chats
-            const chatBatches = await this.prepareChatBatches(chatsToSync, client, sessionId, workspaceId);
+            const chatBatches = await this.prepareChatBatches(chatsToSync, client, accountId, workspaceId);
 
             this.logger.info('Prepared chat batches', {
-                session_id: sessionId,
+                account_id: accountId,
                 total_batches: chatBatches.length,
                 batch_size: this.config.batchSize
             });
 
             // Send batches with rate limiting
-            const results = await this.sendBatches(chatBatches, sessionId);
+            const results = await this.sendBatches(chatBatches, accountId, workspaceId);
 
             const duration = Date.now() - startTime;
 
             const summary = {
                 success: true,
-                session_id: sessionId,
+                account_id: accountId,
                 workspace_id: workspaceId,
                 sync_type: syncType,
                 total_chats: chats.length,
@@ -113,7 +113,7 @@ class ChatSyncHandler {
             const duration = Date.now() - startTime;
 
             this.logger.error('Chat sync failed', {
-                session_id: sessionId,
+                account_id: accountId,
                 workspace_id: workspaceId,
                 sync_type: syncType,
                 error: error.message,
@@ -123,7 +123,7 @@ class ChatSyncHandler {
 
             return {
                 success: false,
-                session_id: sessionId,
+                account_id: accountId,
                 workspace_id: workspaceId,
                 error: error.message,
                 duration_ms: duration
@@ -184,14 +184,14 @@ class ChatSyncHandler {
      *
      * @param {Array} chats - Array of WhatsApp chat objects
      * @param {Object} client - WhatsApp client instance
-     * @param {string} sessionId - Session ID
+     * @param {number} accountId - WhatsApp Account ID (INTEGER from database)
      * @param {number} workspaceId - Workspace ID
      * @returns {Promise<Array>} Array of chat batches
      */
-    async prepareChatBatches(chats, client, sessionId, workspaceId) {
+    async prepareChatBatches(chats, client, accountId, workspaceId) {
         // Transform chats to sync format
         const transformedChats = await Promise.all(
-            chats.map(chat => this.transformChat(chat, client, sessionId, workspaceId))
+            chats.map(chat => this.transformChat(chat, client, accountId, workspaceId))
         );
 
         // Remove any failed transformations
@@ -211,23 +211,30 @@ class ChatSyncHandler {
      *
      * @param {Object} chat - WhatsApp chat object
      * @param {Object} client - WhatsApp client instance
-     * @param {string} sessionId - Session ID
+     * @param {number} accountId - WhatsApp Account ID (INTEGER from database)
      * @param {number} workspaceId - Workspace ID
      * @returns {Promise<Object|null>} Transformed chat object or null if failed
      */
-    async transformChat(chat, client, sessionId, workspaceId) {
+    async transformChat(chat, client, accountId, workspaceId) {
         try {
             const isGroup = chat.isGroup;
             const chatId = chat.id._serialized;
+            const now = new Date().toISOString(); // Use ISO string for Laravel compatibility
 
-            // Base chat data
+            // Base chat data - using fields that already exist in database
             const chatData = {
-                session_id: sessionId,
                 workspace_id: workspaceId,
+                whatsapp_account_id: accountId,        // INTEGER (already exists in DB)
+                chat_type: isGroup ? 'group' : 'private', // ENUM (already exists in DB)
+                provider_type: 'webjs',               // VARCHAR (already exists in DB)
                 chat_id: chatId,
                 timestamp: chat.timestamp,
                 unread_count: chat.unreadCount || 0,
-                is_group: isGroup
+                message_status: 'delivered',          // ENUM (already exists in DB)
+                sent_at: now,                         // ISO string for Laravel TIMESTAMP
+                delivered_at: now,                    // ISO string for Laravel TIMESTAMP
+                read_at: null,                         // NULL for Laravel TIMESTAMP
+                is_group: isGroup                     // Keep for backward compatibility
             };
 
             if (isGroup) {
@@ -235,7 +242,7 @@ class ChatSyncHandler {
                 const groupData = await this.extractGroupData(chat);
                 return {
                     ...chatData,
-                    type: 'group',
+                    group_jid: chatId,                 // Required by Laravel validator (line 78)
                     group_name: groupData.name,
                     group_description: groupData.description,
                     group_participants: groupData.participants,
@@ -246,7 +253,6 @@ class ChatSyncHandler {
                 const contact = await chat.getContact();
                 return {
                     ...chatData,
-                    type: 'private',
                     contact_phone: this.normalizePhone(contact.id.user),
                     contact_name: contact.pushname || contact.name || contact.id.user,
                     last_message: await this.getLastMessage(chat)
@@ -255,6 +261,8 @@ class ChatSyncHandler {
         } catch (error) {
             this.logger.error('Failed to transform chat', {
                 chat_id: chat.id._serialized,
+                account_id: accountId,
+                workspace_id: workspaceId,
                 error: error.message,
                 stack: error.stack
             });
@@ -326,24 +334,25 @@ class ChatSyncHandler {
      * Send chat batches to Laravel with rate limiting
      *
      * @param {Array} batches - Array of chat batches
-     * @param {string} sessionId - Session ID
+     * @param {number} accountId - WhatsApp Account ID (INTEGER from database)
+     * @param {number} workspaceId - Workspace ID
      * @returns {Promise<Array>} Array of results
      */
-    async sendBatches(batches, sessionId) {
+    async sendBatches(batches, accountId, workspaceId) {
         const results = [];
 
         // Use p-limit to control concurrency
         const promises = batches.map((batch, index) =>
             this.limit(async () => {
                 this.logger.debug('Sending batch', {
-                    session_id: sessionId,
+                    account_id: accountId,
                     batch_index: index + 1,
                     total_batches: batches.length,
                     batch_size: batch.length
                 });
 
                 try {
-                    const result = await this.sendBatchWithRetry(batch, sessionId);
+                    const result = await this.sendBatchWithRetry(batch, accountId, workspaceId);
                     results.push({
                         success: true,
                         batch_index: index,
@@ -353,7 +362,7 @@ class ChatSyncHandler {
                     return result;
                 } catch (error) {
                     this.logger.error('Batch sync failed', {
-                        session_id: sessionId,
+                        account_id: accountId,
                         batch_index: index + 1,
                         error: error.message
                     });
@@ -378,18 +387,19 @@ class ChatSyncHandler {
      * Send batch with retry logic
      *
      * @param {Array} batch - Chat batch
-     * @param {string} sessionId - Session ID
+     * @param {number} accountId - WhatsApp Account ID (INTEGER from database)
+     * @param {number} workspaceId - Workspace ID
      * @returns {Promise<Object>} Response from Laravel
      */
-    async sendBatchWithRetry(batch, sessionId) {
+    async sendBatchWithRetry(batch, accountId, workspaceId) {
         let lastError;
 
         for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
             try {
-                const response = await this.webhookNotifier.syncChatBatch(batch);
+                const response = await this.webhookNotifier.syncChatBatch(accountId, workspaceId, batch);
 
                 this.logger.debug('Batch sent successfully', {
-                    session_id: sessionId,
+                    account_id: accountId,
                     attempt: attempt,
                     batch_size: batch.length,
                     response_status: response.status
@@ -400,7 +410,7 @@ class ChatSyncHandler {
                 lastError = error;
 
                 this.logger.warn('Batch send attempt failed', {
-                    session_id: sessionId,
+                    account_id: accountId,
                     attempt: attempt,
                     max_attempts: this.config.retryAttempts,
                     error: error.message

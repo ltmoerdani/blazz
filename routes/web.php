@@ -299,3 +299,53 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::get('/user-logs/notifications', [App\Http\Controllers\Admin\NotificationController::class, 'index']);
     Route::get('/user-logs/emails', [App\Http\Controllers\Admin\EmailLogController::class, 'index']);
 });
+
+// Database Performance Test Route (Development Only)
+Route::get('/test-db-performance', function () {
+    if (!app()->environment('local')) {
+        return abort(403, 'Performance testing only available in local environment');
+    }
+
+    $start = microtime(true);
+    $connectionCount = 0;
+
+    // Test multiple DB connections
+    for ($i = 0; $i < 50; $i++) {
+        \Illuminate\Support\Facades\DB::select('SELECT 1 as test');
+        $connectionCount++;
+    }
+
+    // Test complex query with indexes
+    $complexStart = microtime(true);
+    $accounts = \App\Models\WhatsAppAccount::with(['workspace:id,name'])
+        ->where('workspace_id', 1)
+        ->whereIn('status', ['connected', 'ready'])
+        ->orderBy('last_activity_at', 'desc')
+        ->limit(10)
+        ->get();
+    $complexTime = microtime(true) - $complexStart;
+
+    $totalTime = microtime(true) - $start;
+    $avgTimePerQuery = ($totalTime / $connectionCount) * 1000; // Convert to ms
+
+    return response()->json([
+        'performance_results' => [
+            'total_queries' => $connectionCount,
+            'total_time_seconds' => round($totalTime, 4),
+            'avg_time_per_query_ms' => round($avgTimePerQuery, 2),
+            'queries_per_second' => round($connectionCount / $totalTime, 0),
+            'complex_query_time_ms' => round($complexTime * 1000, 2),
+            'accounts_fetched' => $accounts->count(),
+        ],
+        'database_config' => [
+            'driver' => config('database.default'),
+            'host' => config('database.connections.mysql.host'),
+            'max_connections' => config('database.connections.mysql.pool.max_connections'),
+            'persistent_connections' => true,
+        ],
+        'cache_status' => [
+            'driver' => config('cache.default'),
+            'connection' => config('cache.stores.redis.connection') ?? 'default',
+        ]
+    ]);
+});

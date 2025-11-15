@@ -22,8 +22,8 @@ Broadcast::channel('chats', function ($user) {
 });
 
 Broadcast::channel('workspace.{workspaceId}', function ($user, $workspaceId) {
-    // Check if user belongs to the workspace
-    return $user->workspaces()->where('id', $workspaceId)->exists();
+    // Check if user belongs to the workspace via teams
+    return $user->teams()->where('workspace_id', $workspaceId)->exists();
 });
 
 /*
@@ -43,7 +43,8 @@ Broadcast::channel('chat.{contactId}', function ($user, $contactId) {
         return false;
     }
 
-    return $user->workspaces()->where('workspace_id', $contact->workspace_id)->exists();
+    // Check if user has access to the contact's workspace via teams
+    return $user->teams()->where('workspace_id', $contact->workspace_id)->exists();
 });
 
 // User presence channels
@@ -53,7 +54,7 @@ Broadcast::channel('user.{userId}', function ($user, $userId) {
 
 // Workspace presence for typing indicators
 Broadcast::channel('workspace.{workspaceId}.presence', function ($user, $workspaceId) {
-    return $user->workspaces()->where('workspace_id', $workspaceId)->exists();
+    return $user->teams()->where('workspace_id', $workspaceId)->exists();
 });
 
 // Message status updates
@@ -64,7 +65,8 @@ Broadcast::channel('message.{messageId}.status', function ($user, $messageId) {
         return false;
     }
 
-    return $user->workspaces()->where('workspace_id', $chat->workspace_id)->exists();
+    // Check if user has access to the chat's workspace via teams
+    return $user->teams()->where('workspace_id', $chat->workspace_id)->exists();
 });
 
 // Contact presence channels (for individual contact updates)
@@ -75,5 +77,6 @@ Broadcast::channel('contact.{contactId}.presence', function ($user, $contactId) 
         return false;
     }
 
-    return $user->workspaces()->where('workspace_id', $contact->workspace_id)->exists();
+    // Check if user has access to the contact's workspace via teams
+    return $user->teams()->where('workspace_id', $contact->workspace_id)->exists();
 });
