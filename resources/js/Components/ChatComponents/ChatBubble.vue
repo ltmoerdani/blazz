@@ -128,8 +128,8 @@
         :class="props.type === 'outbound' ? 'ml-auto rounded-tr-none bg-[#d8fad4] speech-bubble-right' : 'mr-auto rounded-tl-none bg-white speech-bubble-left'">
         <div>
             <!--Text message formatting-->
-            <div v-if="JSON.parse(content.metadata).type === 'text'" class="max-w-[300px]">
-                <p class="normal-case whitespace-pre-wrap">{{ JSON.parse(content.metadata).text?.body }}</p>
+            <div v-if="JSON.parse(content.metadata).type === 'text' || JSON.parse(content.metadata).type === 'chat'" class="max-w-[300px]">
+                <p class="normal-case whitespace-pre-wrap">{{ content.body || JSON.parse(content.metadata).text?.body || JSON.parse(content.metadata).body }}</p>
                 <div v-if="JSON.parse(content.metadata)?.buttons" class="mr-auto text-sm text-[#00a5f4] flex flex-col relative max-w-[25em]">
                     <div v-for="(item, index) in JSON.parse(content.metadata)?.buttons" :key="index" class="flex justify-center items-center space-x-2 rounded-lg bg-white h-10 my-[0.1em]">
                         <span>

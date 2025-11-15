@@ -14,6 +14,8 @@ class Chat extends Model {
 
     protected $guarded = [];
     public $timestamps = true;
+    
+    protected $appends = ['body', 'contact_name'];
 
     protected $casts = [
         'created_at' => 'datetime',
