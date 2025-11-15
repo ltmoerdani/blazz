@@ -104,7 +104,7 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
     // Webhook for Node.js service callbacks (HMAC secured)
     Route::post('/webhooks/webjs', [WhatsAppWebJSController::class, 'webhook']);
 
-    // Session management for Node.js service (HMAC secured)
+    // Account management for Node.js service (HMAC secured)
     Route::get('/sessions/{sessionId}/status', [WhatsAppWebJSController::class, 'getSessionStatus']);
 
     // Broadcasting events (for testing) - requires HMAC
@@ -218,7 +218,7 @@ tail -f whatsapp-service/logs/whatsapp-service.log | grep -i "qr\|webhook"
 
 ### Test 3: Browser Test (End-to-End)
 
-1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-sessions`
+1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-accounts`
 2. Open DevTools Console (F12)
 3. Click "Add WhatsApp Number"
 
@@ -229,7 +229,7 @@ tail -f whatsapp-service/logs/whatsapp-service.log | grep -i "qr\|webhook"
 
 **Expected console logs:**
 ```javascript
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ✅ Session created: {success: true, qr_code: null}
 ⏳ Waiting for QR code via websocket...
 📨 QR Code Generated Event received: {qr_code: "data:image/png;base64,..."}

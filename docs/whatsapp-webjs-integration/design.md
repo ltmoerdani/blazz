@@ -22,7 +22,7 @@
 ### ARCH-2: Service Architecture (UPDATED WITH CRITICAL GAPS)
 **Decision:** Dedicated Node.js service for WhatsApp Web JS, Laravel for business logic
 - **Rationale:** WhatsApp Web JS requires Puppeteer (Chromium) instances
-- **Critical Gap:** Database schema `whatsapp_sessions` table MISSING - P0 BLOCKING
+- **Critical Gap:** Database schema `whatsapp_accounts` table MISSING - P0 BLOCKING
 - **Architecture:** Microservice pattern with clear separation of concerns
 - **Communication:** REST API + HMAC authentication + Webhook callbacks
 - **Deployment:** Independent scaling and deployment cycles
@@ -30,7 +30,7 @@
 ### ARCH-3: Provider Abstraction (ENHANCED)
 **Decision:** Strategy pattern with automatic provider selection and failover
 - **Rationale:** Support both Meta API and WhatsApp Web JS simultaneously
-- **Critical Gap:** Missing `whatsapp_session_id` foreign keys in `chats` and `campaign_logs`
+- **Critical Gap:** Missing `whatsapp_account_id` foreign keys in `chats` and `campaign_logs`
 - **Architecture:** ProviderSelector service with health monitoring
 - **Failover:** Automatic fallback with manual override capability
 - **Benefits:** Zero-downtime provider switching, improved reliability
@@ -120,7 +120,7 @@ $result = $adapter->sendMessage($contact, $message);
 const echo = getEchoInstance(broadcasterConfig);
 echo.channel(`workspace.${workspaceId}`)
     .listen('WhatsAppQRGenerated', handleQR)
-    .listen('WhatsAppSessionStatusChanged', handleStatus);
+    .listen('WhatsAppAccountStatusChanged', handleStatus);
 ```
 
 ### Pattern 3: Session Lifecycle Management
@@ -286,11 +286,11 @@ Notification → Admin Dashboard → Manual Intervention → Issue Resolution
 ## 🚨 CRITICAL GAPS MITIGATION ARCHITECTURE
 
 ### Database Schema Gap Resolution (P0 BLOCKING)
-**Problem:** `whatsapp_sessions` table MISSING dari existing schema
+**Problem:** `whatsapp_accounts` table MISSING dari existing schema
 **Solution Architecture:**
-- **Migration Strategy:** Create dedicated migration untuk `whatsapp_sessions` table
+- **Migration Strategy:** Create dedicated migration untuk `whatsapp_accounts` table
 - **Data Migration:** Migrate existing Meta API credentials dari `workspaces.metadata`
-- **Foreign Keys:** Add `whatsapp_session_id` ke `chats` dan `campaign_logs` tables
+- **Foreign Keys:** Add `whatsapp_account_id` ke `chats` dan `campaign_logs` tables
 - **Junction Table:** Create `contact_sessions` untuk multi-number contact tracking
 
 ### WhatsApp Web.js Issues Mitigation (8 Critical Issues)
@@ -425,7 +425,7 @@ Notification → Admin Dashboard → Manual Intervention → Issue Resolution
 ```
 Database Migration → Schema Updates → Data Migration → Basic Testing
      ↓                    ↓              ↓              ↓
-whatsapp_sessions    chats FK       existing      provider
+whatsapp_accounts    chats FK       existing      provider
 table creation    campaign_logs FK  credentials   selection
 ```
 

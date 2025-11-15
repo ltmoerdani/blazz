@@ -208,7 +208,7 @@ whatsapp_groups:  // NEW TABLE
 - id
 - uuid
 - workspace_id
-- whatsapp_session_id
+- whatsapp_account_id
 - group_jid        // WhatsApp group identifier
 - name             // Group name
 - description

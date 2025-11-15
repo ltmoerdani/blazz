@@ -80,7 +80,7 @@ private function handleMessageReceived(array $data): void
         }
 
         // 3. Get session from database
-        $session = WhatsAppSession::where('session_id', $sessionId)->first();
+        $session = WhatsAppAccount::where('session_id', $sessionId)->first();
 
         // 4. Extract phone number and determine chat type
         $phoneNumber = str_replace(['@c.us', '@g.us'], '', $message['from']);
@@ -170,7 +170,7 @@ private function handleMessageReceived(array $data): void
 
 1. **ContactProvisioningService**
    - Creates contact if not exists
-   - Links contact to WhatsApp session
+   - Links contact to WhatsApp account
    - Creates `contact_sessions` entry with `provider_type='webjs'`
 
 2. **ProviderSelector**

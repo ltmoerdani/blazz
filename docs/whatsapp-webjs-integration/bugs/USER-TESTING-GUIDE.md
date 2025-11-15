@@ -55,7 +55,7 @@
 
 ## 🛠️ Fixes yang Sudah Diterapkan
 
-### File 1: `app/Http/Controllers/User/WhatsAppSessionController.php`
+### File 1: `app/Http/Controllers/User/WhatsAppAccountController.php`
 
 **Method `disconnect()` - Line 215-282:**
 ```php
@@ -97,7 +97,7 @@ $session->delete();
 
 **WAJIB dijalankan dulu:**
 ```bash
-./cleanup-whatsapp-sessions.sh
+./cleanup-whatsapp-accounts.sh
 ```
 
 Script ini akan:
@@ -110,7 +110,7 @@ Script ini akan:
 ### Step 2: Test QR Code Display (Primary Issue)
 
 **Via Browser:**
-1. Buka: http://127.0.0.1:8000/settings/whatsapp-sessions
+1. Buka: http://127.0.0.1:8000/settings/whatsapp-accounts
 2. **Buka DevTools Console (F12) - PENTING!**
 3. Klik "Add WhatsApp Number"
 4. Tunggu 7-15 detik
@@ -119,7 +119,7 @@ Script ini akan:
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ✅ Session created successfully
 📨 QR Code Generated Event received: {qr_code_base64: "...", expires_in_seconds: 300}
 ```
@@ -240,7 +240,7 @@ tail -f whatsapp-service/logs/whatsapp-service.log | grep -i "qr\|session"
 **Check current sessions:**
 ```bash
 php artisan tinker --execute="
-DB::table('whatsapp_sessions')
+DB::table('whatsapp_accounts')
   ->select('id', 'session_id', 'status')
   ->get()
   ->each(fn(\$s) => echo \$s->id . ' | ' . \$s->session_id . ' | ' . \$s->status . PHP_EOL);
@@ -286,7 +286,7 @@ DB::table('whatsapp_sessions')
    - Output dari: `tail -100 storage/logs/laravel.log | grep -i "broadcast\|qr"`
 
 5. **Network Tab:**
-   - Screenshot dari POST request ke `/settings/whatsapp-sessions`
+   - Screenshot dari POST request ke `/settings/whatsapp-accounts`
    - Show response body
 
 **Jika QR Code Muncul (SUCCESS!):**
@@ -317,7 +317,7 @@ DB::table('whatsapp_sessions')
    - ID: 9  (created 2025-10-13 05:09:45)
    - ID: 10 (created 2025-10-13 05:43:54)
 
-ACTION: Run ./cleanup-whatsapp-sessions.sh
+ACTION: Run ./cleanup-whatsapp-accounts.sh
 ```
 
 **Fixes Status:**
@@ -335,7 +335,7 @@ ACTION: Run ./cleanup-whatsapp-sessions.sh
 
 1. **FIRST:** Run cleanup script
    ```bash
-   ./cleanup-whatsapp-sessions.sh
+   ./cleanup-whatsapp-accounts.sh
    ```
 
 2. **THEN:** Test via browser with DevTools open

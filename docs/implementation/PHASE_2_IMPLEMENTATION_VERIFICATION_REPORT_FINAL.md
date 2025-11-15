@@ -22,7 +22,7 @@ Berikut adalah laporan verifikasi final implementasi Phase 2: Backend Implementa
 - ✅ `footer_text` (text, nullable) - Untuk direct messages
 - ✅ `buttons_data` (json, nullable) - Untuk direct messages
 - ✅ `preferred_provider` (enum: 'webjs', 'meta_api') - Default: 'webjs'
-- ✅ `whatsapp_session_id` (integer, nullable)
+- ✅ `whatsapp_account_id` (integer, nullable)
 - ✅ Performance counters: `messages_sent`, `messages_delivered`, `messages_read`, `messages_failed`
 - ✅ Processing fields: `started_at`, `completed_at`, `error_message`
 - ✅ Indexes untuk performance optimization
@@ -49,7 +49,7 @@ Berikut adalah laporan verifikasi final implementasi Phase 2: Backend Implementa
 - ✅ `canBeProcessed()`, `isActive()` - Status checks
 - ✅ Scopes: `byType()`, `byProvider()`, `active()`, `completed()`
 
-**Relationships**: ✅ `whatsappSession()` relationship sudah ditambahkan
+**Relationships**: ✅ `whatsappAccount()` relationship sudah ditambahkan
 
 ---
 
@@ -69,7 +69,7 @@ Berikut adalah laporan verifikasi final implementasi Phase 2: Backend Implementa
 - ✅ `handleTemplateMediaUpload()` - Media upload for templates
 - ✅ `handleDirectMediaUpload()` - Media upload for direct campaigns
 - ✅ `parseButtonsData()` - Parse buttons data for direct campaigns
-- ✅ `getSelectedWhatsAppSession()` - Auto-select WhatsApp session
+- ✅ `getSelectedWhatsAppAccount()` - Auto-select WhatsApp account
 - ✅ `parseScheduledTime()` - Handle scheduled time with timezone
 - ✅ `updateCampaignMessageContent()` - Update campaign with processed content
 
@@ -83,7 +83,7 @@ Berikut adalah laporan verifikasi final implementasi Phase 2: Backend Implementa
 
 **Hybrid Campaign Methods**:
 - ✅ `storeHybrid()` - Store hybrid campaign dengan HybridCampaignRequest
-- ✅ `availableSessions()` - Get available WhatsApp sessions
+- ✅ `availableSessions()` - Get available WhatsApp accounts
 - ✅ `validateTemplateProvider()` - Validate template compatibility
 - ✅ `previewMessage()` - Preview message untuk kedua tipe
 - ✅ `statistics()` - Get campaign statistics

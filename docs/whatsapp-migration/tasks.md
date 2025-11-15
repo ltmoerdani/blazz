@@ -479,7 +479,7 @@
 
 ---
 
-## TASK-7: Implement session management
+## TASK-7: Implement account management
 - **Referencing:** docs/whatsapp-migration/requirements.md (REQ-7), docs/whatsapp-migration/design.md (DES-7)
 - **Scope:** Auto-recovery, health checks, and conflict handling
 
@@ -487,7 +487,7 @@
 **Source Implementation:**
 - **File:** app/Services/WhatsappService.php lines 200-300
 - **Method to Duplicate:** Error handling and retry logic
-- **Adaptations Required:** Browser session management instead of API retries
+- **Adaptations Required:** Browser account management instead of API retries
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
 1) **Add session recovery to WhatsappWebService:**
@@ -518,7 +518,7 @@
    ```php
    $this->client->on('change_state', function($state) {
        if ($state === 'CONFLICT') {
-           Log::warning('WhatsApp session conflict detected');
+           Log::warning('WhatsApp account conflict detected');
            $this->handleSessionConflict();
        }
    });
@@ -995,7 +995,7 @@
 **Source Implementation:**
 - **File:** `app/Http/Controllers/User/InstanceController.php` - Basic instance management
 - **Method to Duplicate:** workspace-based data isolation
-- **Adaptations Required:** WhatsApp session isolation per account
+- **Adaptations Required:** WhatsApp account isolation per account
 
 ## IMPLEMENTATION STEPS (EVIDENCE-BASED)
 1) **Create MultiAgentService:**
@@ -1036,8 +1036,8 @@
 
 2) **Create database table for sessions:**
    ```php
-   // database/migrations/create_whatsapp_sessions_table.php
-   Schema::create('whatsapp_sessions', function (Blueprint $table) {
+   // database/migrations/create_whatsapp_accounts_table.php
+   Schema::create('whatsapp_accounts', function (Blueprint $table) {
        $table->id();
        $table->unsignedBigInteger('organization_id');
        $table->string('phone_number');
@@ -1081,13 +1081,13 @@
 
 ## ARTIFACTS/FILES (relative paths):**
 - `app/Services/MultiAgentService.php` (new - 150 lines)
-- `database/migrations/create_whatsapp_sessions_table.php` (new)
+- `database/migrations/create_whatsapp_accounts_table.php` (new)
 - `app/Http/Controllers/User/InstanceController.php` (updated)
 
 ## IMPLEMENTATION EVIDENCE (POST-COMPLETION)
 **Files Modified/Created:**
 - `app/Services/MultiAgentService.php` (150 lines)
-- `database/migrations/create_whatsapp_sessions_table.php` created
+- `database/migrations/create_whatsapp_accounts_table.php` created
 
 **Testing Evidence:**
 - Multi-instance test: Multiple accounts created successfully

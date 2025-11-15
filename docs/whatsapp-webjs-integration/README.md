@@ -1,9 +1,9 @@
-# WhatsApp Sessions → Accounts Renaming Guide
+# WhatsApp accounts → Accounts Renaming Guide
 
 ## 🎯 **Simple Renaming Task with Big Business Impact**
 
 ### Objective:
-Rename all "WhatsApp Sessions" terminology to "WhatsApp Accounts/Numbers" for better business context and user experience.
+Rename all "WhatsApp accounts" terminology to "WhatsApp Accounts/Numbers" for better business context and user experience.
 
 ### 🚀 **Why This Matters:**
 - **Business Clarity**: "WhatsApp Account/Number" is clearer than technical "Session"
@@ -53,11 +53,11 @@ Use commands from [`02-commands.md`](./migration-plan/02-commands.md).
 
 ## 📊 **Scope (Based on Actual Codebase Scanning)**
 
-### Total Files Found: **161 files** containing "whatsapp session"
+### Total Files Found: **161 files** containing "whatsapp account"
 
 #### Files to ACTUALLY Rename: **20 files** ⚠️
 - **10 Backend PHP files** (models, services, controllers, requests)
-- **1 Frontend Vue file** (WhatsAppSessions.vue)
+- **1 Frontend Vue file** (WhatsAppAccounts.vue)
 - **4 Node.js service files** (Session*.js files)
 - **2 Shell scripts** (maintenance & setup)
 - **3 Additional critical files** (found during risk assessment)
@@ -85,7 +85,7 @@ Use commands from [`02-commands.md`](./migration-plan/02-commands.md).
 
 ### **Before → After Examples:**
 ```
-"Add WhatsApp Session" → "Add WhatsApp Number"
+"Add WhatsApp account" → "Add WhatsApp Number"
 "Session Status" → "Connection Status"
 "Primary Session" → "Primary Number"
 ```
@@ -102,7 +102,7 @@ Use commands from [`02-commands.md`](./migration-plan/02-commands.md).
 ### Quick Commands:
 ```bash
 # Create feature branch
-git checkout -b feature/whatsapp-sessions-to-accounts
+git checkout -b feature/whatsapp-accounts-to-accounts
 
 # Run migration (when ready)
 php artisan migrate

@@ -10,7 +10,7 @@
 
 ### Error Message
 ```
-Failed to create WhatsApp session: Node.js service returned error: 
+Failed to create WhatsApp account: Node.js service returned error: 
 {"error":"Timed out after 30000 ms while trying to connect to the browser! 
 Only Chrome at revision r1045629 is guaranteed to work."}
 ```
@@ -21,14 +21,14 @@ Browser console shows:
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
-POST http://127.0.0.1:8000/settings/whatsapp-sessions 500 (Internal Server Error)
+🔄 Creating new WhatsApp account...
+POST http://127.0.0.1:8000/settings/whatsapp-accounts 500 (Internal Server Error)
 ❌ Failed to create session: Request failed with status code 500
 ```
 
 Popup alert:
 ```
-Failed to create WhatsApp session: Node.js service returned error: 
+Failed to create WhatsApp account: Node.js service returned error: 
 {"error":"Timed out after 30000 ms while trying to connect to the browser!"}
 ```
 
@@ -188,7 +188,7 @@ node    xxxxx ltmoerdani   17u  IPv6  ...      0t0  TCP *:redwood-broker (LISTEN
 ### Step 2: Test via Browser
 
 1. **Hard refresh browser** (`Cmd+Shift+R` or `Ctrl+Shift+R`)
-2. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-sessions`
+2. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-accounts`
 3. Open DevTools Console (`F12`)
 4. Click **"Add WhatsApp Number"**
 5. **WAIT 30-60 seconds** (first launch will be slow!)
@@ -199,7 +199,7 @@ node    xxxxx ltmoerdani   17u  IPv6  ...      0t0  TCP *:redwood-broker (LISTEN
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 // ⏳ WAIT ~30-60 seconds for first launch...
 ✅ Session created: {success: true, message: '...', session: {...}, qr_code: null}
 // ⏳ WAIT ~7-15 seconds more...
@@ -216,7 +216,7 @@ node    xxxxx ltmoerdani   17u  IPv6  ...      0t0  TCP *:redwood-broker (LISTEN
 
 **Network tab:**
 ```
-POST /settings/whatsapp-sessions
+POST /settings/whatsapp-accounts
 Status: 200 OK (after ~60 seconds)
 Response: {"success":true,"session":{"uuid":"..."},"qr_code":null}
 ```
@@ -231,7 +231,7 @@ tail -f /Applications/MAMP/htdocs/blazz/whatsapp-service.out.log
 **Expected logs:**
 ```
 WhatsApp Service started on port 3001
-[timestamp] Creating WhatsApp session {sessionId: "...", workspaceId: 1}
+[timestamp] Creating WhatsApp account {sessionId: "...", workspaceId: 1}
 [timestamp] Puppeteer launching browser... (this takes time!)
 [timestamp] Browser launched successfully
 [timestamp] QR code generated {sessionId: "..."}
@@ -324,7 +324,7 @@ After applying fix:
 ### This Fix Resolves:
 - ❌ `Timed out after 30000 ms while trying to connect to the browser`
 - ❌ HTTP 500 Internal Server Error
-- ❌ Popup: "Failed to create WhatsApp session"
+- ❌ Popup: "Failed to create WhatsApp account"
 - ❌ First session creation fails
 
 ### This Fix Enables:

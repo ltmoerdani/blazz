@@ -57,7 +57,7 @@ client.on('disconnected', async (reason) => { /* ✅ Working */ });
 
 #### **✅ What's Working (Already Implemented)**
 - **Database Schema**: Complete with all real-time fields (`message_status`, `ack_level`, `sent_at`, `delivered_at`, `read_at`)
-- **WhatsApp Web.js Service**: 1,079 lines with comprehensive session management
+- **WhatsApp Web.js Service**: 1,079 lines with comprehensive account management
 - **Laravel Backend**: Service layer solid with dependency injection
 - **Vue.js Frontend**: Modern components with WebSocket infrastructure
 - **Event System**: `TypingIndicator`, `MessageStatusUpdated` events defined
@@ -1312,7 +1312,7 @@ php artisan queue:work --queue=chat-campaign --timeout=120 --sleep=10 --tries=5
 
 #### **Backend Infrastructure - DONE**
 - [x] **Database Schema**: All real-time fields migrated (Nov 15, 2025)
-- [x] **WhatsApp Web.js Service**: 1,079 lines with session management
+- [x] **WhatsApp Web.js Service**: 1,079 lines with account management
 - [x] **Laravel Events**: TypingIndicator, MessageStatusUpdated defined
 - [x] **Queue System**: Ready for background processing
 - [x] **Database Indexes**: Optimized for real-time queries
@@ -2027,7 +2027,7 @@ Broadcast::channel('chats.ch{workspaceId}', function ($user, $workspaceId) {
     return $user->workspace_id === $workspaceId;
 });
 
-// WhatsApp session channel - for QR codes and session status
+// WhatsApp account channel - for QR codes and session status
 Broadcast::channel('whatsapp.session.{sessionId}', function ($user, $sessionId) {
     return $user->workspace_id === $sessionId; // Simplified for demo
 });

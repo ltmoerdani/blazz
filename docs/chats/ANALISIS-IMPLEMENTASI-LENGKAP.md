@@ -383,7 +383,7 @@ echo.channel('chats.ch' + props.workspaceId)
 
 ```javascript
 ✅ Comprehensive WhatsApp Web.js implementation
-✅ Session management dengan SessionPool
+✅ Account management dengan SessionPool
 ✅ QR code generation & rate limiting
 ✅ Chat sync handler (TASK-NODE-2) ⭐
 ✅ Webhook notifier untuk Laravel integration

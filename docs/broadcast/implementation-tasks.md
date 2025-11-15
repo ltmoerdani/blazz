@@ -36,7 +36,7 @@ Dengan WhatsApp Web JS sebagai provider utama dan Meta API sebagai fallback.
   - `docs/broadcast/README.md` - System overview
   - `docs/broadcast/hybrid-campaign-guide.md` - Hybrid campaign guide
   - `docs/broadcast/provider-selection-algorithm.md` - Provider selection logic
-  - `docs/broadcast/whatsapp-session-management.md` - Session management
+  - `docs/broadcast/whatsapp-account-management.md` - Account management
 
 ---
 

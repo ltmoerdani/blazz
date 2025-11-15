@@ -78,7 +78,7 @@
 ### UR-4: Admin Control
 **As a super admin, I want to control the system so I can:**
 - Set WhatsApp number limits per subscription plan
-- Monitor all WhatsApp sessions across workspaces
+- Monitor all WhatsApp accounts across workspaces
 - Configure broadcast drivers (Reverb/Pusher)
 - View system health and performance metrics
 - Manage user access and permissions
@@ -126,13 +126,13 @@
 - **Dashboard Loading:** < 2 seconds
 
 ### PR-2: Scalability
-- **Concurrent Sessions:** Support 50+ WhatsApp sessions per server
+- **Concurrent Sessions:** Support 50+ WhatsApp accounts per server
 - **Message Throughput:** Handle 1000+ messages per minute
 - **User Load:** Support 100+ simultaneous users
 - **Data Volume:** Handle 1M+ chats and 100K+ contacts
 
 ### PR-3: Reliability
-- **Session Uptime:** 99%+ for connected WhatsApp sessions
+- **Session Uptime:** 99%+ for connected WhatsApp accounts
 - **Message Delivery:** 95%+ success rate
 - **System Availability:** 99.5% uptime (excluding maintenance)
 - **Auto-Recovery:** Sessions reconnect within 2 minutes of disconnection
@@ -164,7 +164,7 @@
 - **Zero Downtime:** Deploy updates without service interruption
 
 ### OR-2: Monitoring & Alerting
-- **Session Health:** Monitor all WhatsApp session status
+- **Session Health:** Monitor all WhatsApp account status
 - **Performance Metrics:** Track message delivery and response times
 - **Error Tracking:** Comprehensive error logging and alerting
 - **Resource Usage:** Monitor CPU, memory, and disk usage
@@ -250,7 +250,7 @@
 ### Could Have (Enhancement)
 - [ ] Advanced campaign analytics per number
 - [ ] Session health scoring and recommendations
-- [ ] Bulk session management operations
+- [ ] Bulk account management operations
 - [ ] Advanced filtering and search capabilities
 
 ---
@@ -439,7 +439,7 @@ function startCountdown() {
 
 **Database Impact:**
 ```sql
-INSERT INTO whatsapp_sessions (
+INSERT INTO whatsapp_accounts (
     workspace_id, session_id, phone_number, 
     status, qr_code, session_data, is_primary, is_active
 ) VALUES (?, ?, ?, 'connected', NULL, ?, true, true);
@@ -524,7 +524,7 @@ INSERT INTO whatsapp_sessions (
 
 #### FR-1.4: Session Actions & Management ⚠️ **GAP #1 - P0 CRITICAL**
 **Priority:** P0 CRITICAL  
-**User Story:** Sebagai workspace user, saya ingin melakukan reconnect WhatsApp session yang disconnected dan regenerate QR code jika expired tanpa menghapus session.
+**User Story:** Sebagai workspace user, saya ingin melakukan reconnect WhatsApp account yang disconnected dan regenerate QR code jika expired tanpa menghapus session.
 
 **Referencing:** 
 - CRITICAL-GAPS-AUDIT-REPORT.md (GAP #1)
@@ -536,7 +536,7 @@ INSERT INTO whatsapp_sessions (
 
 **Current State - BROKEN:**
 ```php
-// File: app/Http/Controllers/User/WhatsAppSessionController.php
+// File: app/Http/Controllers/User/WhatsAppAccountController.php
 // ❌ MISSING: reconnect() method
 // ❌ MISSING: regenerateQR() method
 
@@ -617,10 +617,10 @@ Success: Session connected
 
 **1. Controller Methods:**
 ```php
-// app/Http/Controllers/User/WhatsAppSessionController.php
+// app/Http/Controllers/User/WhatsAppAccountController.php
 
 /**
- * Reconnect a disconnected WhatsApp session
+ * Reconnect a disconnected WhatsApp account
  * 
  * @param string $uuid Session UUID
  * @return \Illuminate\Http\RedirectResponse
@@ -628,7 +628,7 @@ Success: Session connected
 public function reconnect($uuid)
 {
     try {
-        $session = WhatsAppSession::where('uuid', $uuid)
+        $session = WhatsAppAccount::where('uuid', $uuid)
             ->where('workspace_id', session('current_workspace'))
             ->firstOrFail();
         
@@ -678,7 +678,7 @@ public function reconnect($uuid)
 public function regenerateQR($uuid)
 {
     try {
-        $session = WhatsAppSession::where('uuid', $uuid)
+        $session = WhatsAppAccount::where('uuid', $uuid)
             ->where('workspace_id', session('current_workspace'))
             ->firstOrFail();
         
@@ -725,12 +725,12 @@ public function regenerateQR($uuid)
 // app/Services/WhatsAppWebJSProvider.php
 
 /**
- * Reconnect a disconnected WhatsApp session
+ * Reconnect a disconnected WhatsApp account
  * 
- * @param WhatsAppSession $session
+ * @param WhatsAppAccount $session
  * @return object {success: bool, message: string}
  */
-public function reconnectSession(WhatsAppSession $session)
+public function reconnectSession(WhatsAppAccount $session)
 {
     try {
         // Call Node.js service
@@ -781,10 +781,10 @@ public function reconnectSession(WhatsAppSession $session)
 /**
  * Regenerate QR code for a session
  * 
- * @param WhatsAppSession $session
+ * @param WhatsAppAccount $session
  * @return object {success: bool, message: string}
  */
-public function regenerateQR(WhatsAppSession $session)
+public function regenerateQR(WhatsAppAccount $session)
 {
     try {
         // Call Node.js service
@@ -830,10 +830,10 @@ public function regenerateQR(WhatsAppSession $session)
 **3. Routes:**
 ```php
 // routes/web.php
-Route::post('/settings/whatsapp/sessions/{uuid}/reconnect', [WhatsAppSessionController::class, 'reconnect'])
+Route::post('/settings/whatsapp/sessions/{uuid}/reconnect', [WhatsAppAccountController::class, 'reconnect'])
     ->name('whatsapp.sessions.reconnect');
 
-Route::post('/settings/whatsapp/sessions/{uuid}/regenerate-qr', [WhatsAppSessionController::class, 'regenerateQR'])
+Route::post('/settings/whatsapp/sessions/{uuid}/regenerate-qr', [WhatsAppAccountController::class, 'regenerateQR'])
     ->name('whatsapp.sessions.regenerate-qr');
 ```
 
@@ -938,10 +938,10 @@ app.post('/api/sessions/:sessionId/regenerate-qr', async (req, res) => {
 > **Catatan:** Ini berbeda dengan Meta API yang hanya receive new incoming messages setelah webhook configured.
 
 **Acceptance Criteria:**
-- [ ] **Initial Sync Window:** Saat WhatsApp session connected, sistem wajib men-sinkronisasi chat selama **30 hari terakhir atau maksimal 500 chat** (mana yang lebih dulu tercapai). Nilai default disimpan di `config/whatsapp.php['sync']['initial_window']` dan dapat dioverride per workspace.
+- [ ] **Initial Sync Window:** Saat WhatsApp account connected, sistem wajib men-sinkronisasi chat selama **30 hari terakhir atau maksimal 500 chat** (mana yang lebih dulu tercapai). Nilai default disimpan di `config/whatsapp.php['sync']['initial_window']` dan dapat dioverride per workspace.
 - [ ] **Incremental Pagination:** Sinkronisasi berjalan dalam batch 20 chat per request untuk menghindari timeout, melanjutkan pagination hingga batas window terpenuhi.
-- [ ] **Contact Auto-Provisioning:** Kontak baru dibuat otomatis saat chat belum pernah tercatat, lengkap dengan relasi ke `whatsapp_session_id` terkait.
-- [ ] **Progress Reporting:** UI menampilkan status real-time `Syncing chats... 45/120` beserta persentase dan estimasi waktu selesai (diambil dari `whatsapp_sessions.chat_sync_progress`).
+- [ ] **Contact Auto-Provisioning:** Kontak baru dibuat otomatis saat chat belum pernah tercatat, lengkap dengan relasi ke `whatsapp_account_id` terkait.
+- [ ] **Progress Reporting:** UI menampilkan status real-time `Syncing chats... 45/120` beserta persentase dan estimasi waktu selesai (diambil dari `whatsapp_accounts.chat_sync_progress`).
 - [ ] Sidebar chat inbox memiliki dropdown filter:
   - "All Conversations" (default - dari semua numbers)
   - "By WhatsApp Number" → Show number list dengan unread count
@@ -955,10 +955,10 @@ app.post('/api/sessions/:sessionId/regenerate-qr', async (req, res) => {
 **Technical Implementation:**
 ```php
 // ChatController@index with session filter
-$query = Chat::with(['contact', 'whatsappSession'])
+$query = Chat::with(['contact', 'whatsappAccount'])
     ->where('workspace_id', $workspaceId)
     ->when($sessionId, function ($q) use ($sessionId) {
-        $q->where('whatsapp_session_id', $sessionId);
+        $q->where('whatsapp_account_id', $sessionId);
     })
     ->orderBy('created_at', 'desc')
     ->paginate(50);
@@ -968,7 +968,7 @@ $query = Chat::with(['contact', 'whatsappSession'])
 ```javascript
 // Node.js - Chat Sync on Session Connected
 client.on('ready', async () => {
-    console.log('WhatsApp session ready, starting chat sync...');
+    console.log('WhatsApp account ready, starting chat sync...');
     
     // Get all chats from WhatsApp
     const chats = await client.getChats();
@@ -1004,7 +1004,7 @@ client.on('ready', async () => {
 // Laravel - Process Chat Sync
 // app/Http/Controllers/Api/WhatsAppSyncController.php
 public function syncChat(Request $request) {
-    $session = WhatsAppSession::where('session_id', $request->session_id)->first();
+    $session = WhatsAppAccount::where('session_id', $request->session_id)->first();
     
     // Create or update contact
     $contact = Contact::firstOrCreate(
@@ -1026,7 +1026,7 @@ public function syncChat(Request $request) {
             ['wam_id' => $message['id']],
             [
                 'workspace_id' => $request->workspace_id,
-                'whatsapp_session_id' => $session->id,
+                'whatsapp_account_id' => $session->id,
                 'contact_id' => $contact->id,
                 'type' => $message['from_me'] ? 'outbound' : 'inbound',
                 'metadata' => json_encode($message),
@@ -1043,9 +1043,9 @@ public function syncChat(Request $request) {
 
 **Business Rules - Chat Sync:**
 - Initial sync otomatis dipicu saat event `client.on('ready')` dan berhenti ketika limit 30 hari/500 chat tercapai.
-- Workspace dapat mengubah window (min 7 hari, max 180 hari) melalui konfigurasi yang disimpan di `whatsapp_sessions.sync_policy`.
+- Workspace dapat mengubah window (min 7 hari, max 180 hari) melalui konfigurasi yang disimpan di `whatsapp_accounts.sync_policy`.
 - Media tidak diambil pada initial sync (hanya metadata); download media dilakukan saat dibutuhkan pengguna.
-- Progress disimpan di `whatsapp_sessions.chat_sync_status` (`pending|syncing|completed|failed`) dan `chat_sync_progress` (0-100).
+- Progress disimpan di `whatsapp_accounts.chat_sync_status` (`pending|syncing|completed|failed`) dan `chat_sync_progress` (0-100).
 - Pengguna dapat men-trigger ulang sinkronisasi manual melalui tombol "Sync Chat History" tanpa melanggar window konfigurasi.
 - Sinkronisasi incremental berjalan otomatis setiap 6 jam (konfigurable) untuk menarik chat baru.
 
@@ -1062,8 +1062,8 @@ public function syncChat(Request $request) {
 **User Story:** Sebagai agent, ketika saya reply chat, pesan harus dikirim dari WhatsApp number yang sama dengan penerima pesan awal.
 
 **Acceptance Criteria:**
-- [ ] System auto-detect WhatsApp session dari chat
-- [ ] Reply message menggunakan `chat.whatsapp_session_id`
+- [ ] System auto-detect WhatsApp account dari chat
+- [ ] Reply message menggunakan `chat.whatsapp_account_id`
 - [ ] Jika session disconnected, show warning: "WhatsApp number tidak aktif, hubungkan kembali"
 - [ ] Fallback to primary number jika original session tidak tersedia
 - [ ] Chat metadata menyimpan session_id yang digunakan
@@ -1083,9 +1083,9 @@ public function syncChat(Request $request) {
 
 **Acceptance Criteria:**
 - [ ] Campaign creation flow tetap sama; distribusi nomor berjalan otomatis tanpa mengubah UI existing.
-- [ ] Sistem mendistribusikan penerima menggunakan algoritma **weighted round-robin** berdasarkan `whatsapp_sessions.message_quota_per_minute` (fallback ke round-robin biasa jika quota tidak tersedia).
+- [ ] Sistem mendistribusikan penerima menggunakan algoritma **weighted round-robin** berdasarkan `whatsapp_accounts.message_quota_per_minute` (fallback ke round-robin biasa jika quota tidak tersedia).
 - [ ] Penjadwalan pesan menambahkan delay dinamis 3–5 detik dan jitter tambahan ketika sesi mendekati limit harian (`sessions.daily_limit_soft_cap`).
-- [ ] `campaign_logs.whatsapp_session_id` terisi dan summary distribusi ditampilkan sebelum kampanye dikirim:
+- [ ] `campaign_logs.whatsapp_account_id` terisi dan summary distribusi ditampilkan sebelum kampanye dikirim:
     ```
     Total Recipients: 1000
     Available Numbers: 3
@@ -1103,7 +1103,7 @@ public function syncChat(Request $request) {
 // app/Services/Campaign/MultiNumberCampaignService.php
 public function distributeCampaign(Campaign $campaign)
 {
-    $sessions = $campaign->workspace->whatsappSessions()
+    $sessions = $campaign->workspace->whatsappAccounts()
         ->select(['id', 'message_quota_per_minute', 'daily_limit_soft_cap'])
         ->where('status', 'connected')
         ->where('is_active', true)
@@ -1123,7 +1123,7 @@ public function distributeCampaign(Campaign $campaign)
 
         $distribution[] = [
             'campaign_log_id' => $recipient->id,
-            'whatsapp_session_id' => $session->id,
+            'whatsapp_account_id' => $session->id,
             'scheduled_at' => now()->addSeconds($delay),
         ];
     }
@@ -1131,7 +1131,7 @@ public function distributeCampaign(Campaign $campaign)
     DB::table('campaign_logs')->upsert(
         $distribution,
         ['campaign_log_id'],
-        ['whatsapp_session_id', 'scheduled_at']
+        ['whatsapp_account_id', 'scheduled_at']
     );
 }
 ```
@@ -1201,7 +1201,7 @@ Contact Information:
 **Database Updates:**
 ```sql
 -- On new inbound message
-INSERT INTO contact_sessions (contact_id, whatsapp_session_id, last_interaction_at)
+INSERT INTO contact_sessions (contact_id, whatsapp_account_id, last_interaction_at)
 VALUES (?, ?, NOW())
 ON DUPLICATE KEY UPDATE last_interaction_at = NOW();
 ```
@@ -1275,14 +1275,14 @@ ALTER TABLE templates ADD COLUMN capabilities JSON; -- Store supported features
 ```php
 // app/Services/Automation/MultiSessionAutomationService.php
 public function processAutomation(Chat $chat) {
-    $session = $chat->whatsappSession;
+    $session = $chat->whatsappAccount;
     $workspace = $session->workspace;
     
     $rules = $workspace->automationRules()
         ->where('is_active', true)
         ->where(function ($query) use ($session) {
-            $query->whereNull('whatsapp_session_id') // Global rules
-                  ->orWhere('whatsapp_session_id', $session->id); // Session-specific
+            $query->whereNull('whatsapp_account_id') // Global rules
+                  ->orWhere('whatsapp_account_id', $session->id); // Session-specific
         })
         ->orderBy('priority', 'desc')
         ->get();
@@ -1524,7 +1524,7 @@ FR-7.1 hanya cover high-level architecture. **Missing:** Detailed implementation
 **2. API Endpoints Specification:**
 
 ```javascript
-// POST /api/sessions - Create new WhatsApp session
+// POST /api/sessions - Create new WhatsApp account
 {
   "workspaceId": 123,
   "sessionId": "uuid-v4",
@@ -1583,7 +1583,7 @@ class SessionManager {
     }
 
     /**
-     * Create new WhatsApp session with QR generation
+     * Create new WhatsApp account with QR generation
      */
     async createSession(sessionId, workspaceId, options) {
         const { Client, LocalAuth } = require('whatsapp-web.js');
@@ -1904,7 +1904,7 @@ class SessionManager {
 
 #### FR-8.2: Health Monitoring & Alerts
 **Priority:** HIGH  
-**User Story:** Sebagai sysadmin, saya ingin monitor health status dari all WhatsApp sessions dan services.
+**User Story:** Sebagai sysadmin, saya ingin monitor health status dari all WhatsApp accounts dan services.
 
 **Acceptance Criteria:**
 - [ ] Health dashboard di `/admin/health`
@@ -1953,7 +1953,7 @@ public function calculateHealthScore($session) {
 
 #### FR-8.3: Session Auto-Recovery
 **Priority:** MEDIUM  
-**User Story:** System harus auto-reconnect WhatsApp sessions yang disconnected.
+**User Story:** System harus auto-reconnect WhatsApp accounts yang disconnected.
 
 **Acceptance Criteria:**
 - [ ] Monitor session status setiap 30 seconds
@@ -2013,14 +2013,14 @@ class SessionMonitor {
   - Rotatable tanpa data loss (migration utility)
   - Separate key untuk dev/staging/production
 - [ ] Encrypted fields:
-  - `whatsapp_sessions.session_data` (5-10MB data)
-  - `whatsapp_sessions.auth_credentials`
+  - `whatsapp_accounts.session_data` (5-10MB data)
+  - `whatsapp_accounts.auth_credentials`
   - Sensitive metadata fields
 - [ ] Decryption performance < 100ms per record
 
 **Technical Implementation:**
 ```php
-// app/Models/WhatsAppSession.php
+// app/Models/WhatsAppAccount.php
 protected $casts = [
     'session_data' => 'encrypted:json',
     'auth_credentials' => 'encrypted:array',
@@ -2177,7 +2177,7 @@ class SessionValidator
 {
     public static function validateSessionAccess($sessionId, $workspaceId)
     {
-        $session = WhatsAppSession::where('session_id', $sessionId)
+        $session = WhatsAppAccount::where('session_id', $sessionId)
             ->where('workspace_id', $workspaceId)
             ->first();
         
@@ -2235,7 +2235,7 @@ fi
 **Database Schema:**
 ```sql
 -- Audit trail table
-CREATE TABLE whatsapp_session_access_logs (
+CREATE TABLE whatsapp_account_access_logs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     session_id BIGINT UNSIGNED NOT NULL,
     workspace_id BIGINT UNSIGNED NOT NULL,
@@ -2660,10 +2660,10 @@ public function down()
 
 #### FR-10.4: Workspace Session Management
 **Priority:** MEDIUM  
-**User Story:** Sebagai super admin, saya ingin manage WhatsApp sessions dari all workspaces.
+**User Story:** Sebagai super admin, saya ingin manage WhatsApp accounts dari all workspaces.
 
 **Acceptance Criteria:**
-- [ ] Admin Panel → WhatsApp Sessions
+- [ ] Admin Panel → WhatsApp accounts
 - [ ] Table columns:
   - Workspace Name
   - Phone Number
@@ -2695,12 +2695,12 @@ public function down()
 
 ---
 
-#### FR-10.6: Navigation Menu - WhatsApp Sessions Discovery ⚠️ **GAP #2 - P0 CRITICAL**
+#### FR-10.6: Navigation Menu - WhatsApp accounts Discovery ⚠️ **GAP #2 - P0 CRITICAL**
 **Priority:** P0 CRITICAL  
-**User Story:** Sebagai workspace user, saya ingin menemukan fitur WhatsApp Sessions dengan mudah melalui navigation menu di Settings page.
+**User Story:** Sebagai workspace user, saya ingin menemukan fitur WhatsApp accounts dengan mudah melalui navigation menu di Settings page.
 
 **Current State - BROKEN UX:**
-- ✅ WhatsApp Sessions page exists at `/settings/whatsapp/sessions`
+- ✅ WhatsApp accounts page exists at `/settings/whatsapp/sessions`
 - ✅ Page fully functional (list sessions, add number, QR modal, real-time updates)
 - ❌ **CRITICAL GAP:** No navigation menu link in `/settings` sidebar
 - ❌ Users CANNOT discover feature without manually typing URL
@@ -2819,7 +2819,7 @@ public function down()
 - **Priority:** P0 CRITICAL (Feature undiscoverable)
 
 **Dependencies:**
-- TASK-FE-001 (WhatsApp Sessions page already complete ✅)
+- TASK-FE-001 (WhatsApp accounts page already complete ✅)
 - No backend changes required
 
 **Cross-References:**
@@ -2837,7 +2837,7 @@ public function down()
 7. ✅ Mobile view: Icon + text readable
 
 **Success Metrics:**
-- 100% users can discover WhatsApp Sessions feature
+- 100% users can discover WhatsApp accounts feature
 - Zero confusion between Meta API vs Web.JS settings
 - Navigation flow: Settings → WhatsApp Numbers → Add Number → QR Scan → Success
 
@@ -2915,7 +2915,7 @@ public function down()
 
 **Solution 2: Info Banner on Web.JS Page**
 ```vue
-<!-- File: resources/js/Pages/User/Settings/WhatsAppSessions.vue (TASK-FE-001) -->
+<!-- File: resources/js/Pages/User/Settings/WhatsAppAccounts.vue (TASK-FE-001) -->
 <template>
     <div class="mb-6">
         <!-- Info Banner: Page Purpose -->
@@ -3055,7 +3055,7 @@ public function down()
 ```
 
 **Implementation Impact:**
-- **Files Modified:** 2 (Whatsapp.vue, WhatsAppSessions.vue from TASK-FE-001)
+- **Files Modified:** 2 (Whatsapp.vue, WhatsAppAccounts.vue from TASK-FE-001)
 - **Lines Added:** ~60 lines (30 per page)
 - **Translation Keys:** 9 keys × 2 languages = 18 entries
 - **Fix Time:** 2 hours (1 hour implementation + 1 hour testing)
@@ -3582,7 +3582,7 @@ class SendWhatsAppMessage implements ShouldQueue
 - [ ] Composite indexes untuk common queries:
   ```sql
   CREATE INDEX idx_chats_workspace_session_created 
-      ON chats(workspace_id, whatsapp_session_id, created_at);
+      ON chats(workspace_id, whatsapp_account_id, created_at);
   
   CREATE INDEX idx_contacts_workspace_phone 
       ON contacts(workspace_id, phone);
@@ -3596,7 +3596,7 @@ class SendWhatsAppMessage implements ShouldQueue
   - Contact list cached for 120 seconds
 - [ ] Eager loading prevention of N+1 queries:
   ```php
-  Chat::with(['contact', 'whatsappSession', 'latestMessage'])->get();
+  Chat::with(['contact', 'whatsappAccount', 'latestMessage'])->get();
   ```
 - [ ] Pagination for large datasets: Max 50 items per page
 - [ ] Query performance monitoring: Alert if query > 1 second
@@ -3616,13 +3616,13 @@ public function index(Request $request)
     return Cache::remember($cacheKey, 30, function () use ($workspaceId, $sessionId) {
         $query = Chat::with([
             'contact:id,first_name,last_name,phone',
-            'whatsappSession:id,phone_number,name',
+            'whatsappAccount:id,phone_number,name',
             'latestMessage:id,chat_id,body,created_at'
         ])
         ->where('workspace_id', $workspaceId);
         
         if ($sessionId) {
-            $query->where('whatsapp_session_id', $sessionId);
+            $query->where('whatsapp_account_id', $sessionId);
         }
         
         return $query
@@ -3642,10 +3642,10 @@ public function index(Request $request)
 
 **Acceptance Criteria:**
 - [ ] Prometheus metrics exported dari Node.js service:
-  - `whatsapp_session_status{workspace_id, session_id, phone_number}` - Gauge (1=connected, 0=disconnected)
+  - `whatsapp_account_status{workspace_id, session_id, phone_number}` - Gauge (1=connected, 0=disconnected)
   - `whatsapp_messages_sent_total{workspace_id, session_id, type, status}` - Counter
   - `whatsapp_qr_generation_duration_seconds` - Histogram
-  - `whatsapp_session_health_score{workspace_id, session_id}` - Gauge (0-100)
+  - `whatsapp_account_health_score{workspace_id, session_id}` - Gauge (0-100)
   - `whatsapp_ban_risk_score{workspace_id, session_id}` - Gauge (0-100)
   - `whatsapp_chat_sync_duration_seconds` - Histogram
   - `whatsapp_message_delivery_duration_seconds` - Histogram
@@ -3663,12 +3663,12 @@ public function index(Request $request)
     - name: whatsapp_alerts
       rules:
         - alert: SessionDisconnected
-          expr: whatsapp_session_status == 0
+          expr: whatsapp_account_status == 0
           for: 5m
           labels:
             severity: warning
           annotations:
-            summary: "WhatsApp session disconnected"
+            summary: "WhatsApp account disconnected"
             
         - alert: HighBanRisk
           expr: whatsapp_ban_risk_score > 80
@@ -3679,7 +3679,7 @@ public function index(Request $request)
             summary: "High ban risk detected"
             
         - alert: LowHealthScore
-          expr: whatsapp_session_health_score < 50
+          expr: whatsapp_account_health_score < 50
           for: 10m
           labels:
             severity: warning
@@ -3696,8 +3696,8 @@ class WhatsAppMetrics {
         
         // Session status gauge
         this.sessionStatus = new promClient.Gauge({
-            name: 'whatsapp_session_status',
-            help: 'WhatsApp session connection status',
+            name: 'whatsapp_account_status',
+            help: 'WhatsApp account connection status',
             labelNames: ['workspace_id', 'session_id', 'phone_number'],
             registers: [this.register]
         });
@@ -3720,8 +3720,8 @@ class WhatsAppMetrics {
         
         // Health score gauge
         this.healthScore = new promClient.Gauge({
-            name: 'whatsapp_session_health_score',
-            help: 'WhatsApp session health score (0-100)',
+            name: 'whatsapp_account_health_score',
+            help: 'WhatsApp account health score (0-100)',
             labelNames: ['workspace_id', 'session_id'],
             registers: [this.register]
         });
@@ -3729,7 +3729,7 @@ class WhatsAppMetrics {
         // Ban risk gauge
         this.banRiskScore = new promClient.Gauge({
             name: 'whatsapp_ban_risk_score',
-            help: 'WhatsApp session ban risk score (0-100)',
+            help: 'WhatsApp account ban risk score (0-100)',
             labelNames: ['workspace_id', 'session_id'],
             registers: [this.register]
         });
@@ -3777,7 +3777,7 @@ app.get('/metrics', async (req, res) => {
 **Technical Implementation:**
 ```bash
 #!/bin/bash
-# filepath: scripts/backup-whatsapp-sessions.sh
+# filepath: scripts/backup-whatsapp-accounts.sh
 
 BACKUP_DIR="/backups/whatsapp/$(date +%Y%m%d_%H%M%S)"
 BACKUP_KEY=$(cat /etc/whatsapp/backup.key)
@@ -3789,9 +3789,9 @@ mkdir -p $BACKUP_DIR
 # 1. Backup database
 echo "Backing up database..."
 mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME \
-    whatsapp_sessions \
-    whatsapp_session_events \
-    whatsapp_session_access_logs \
+    whatsapp_accounts \
+    whatsapp_account_events \
+    whatsapp_account_access_logs \
     contact_sessions \
     > $BACKUP_DIR/whatsapp_database.sql
 
@@ -3846,13 +3846,13 @@ echo "Backup completed successfully: $BACKUP_DIR"
 # Log to monitoring
 curl -X POST http://localhost:8000/api/admin/backup-logs \
     -H "Content-Type: application/json" \
-    -d "{\"type\":\"whatsapp_sessions\",\"status\":\"success\",\"backup_dir\":\"$BACKUP_DIR\"}"
+    -d "{\"type\":\"whatsapp_accounts\",\"status\":\"success\",\"backup_dir\":\"$BACKUP_DIR\"}"
 ```
 
 **Restore Procedures:**
 ```bash
 #!/bin/bash
-# filepath: scripts/restore-whatsapp-sessions.sh
+# filepath: scripts/restore-whatsapp-accounts.sh
 
 BACKUP_DIR=$1
 BACKUP_KEY=$(cat /etc/whatsapp/backup.key)
@@ -3903,7 +3903,7 @@ echo "Restore completed. Please verify system functionality."
 
 #### FR-12.3: Zero-Downtime Deployment
 **Priority:** MEDIUM  
-**User Story:** Sebagai DevOps engineer, saya ingin deploy updates tanpa disconnect active WhatsApp sessions.
+**User Story:** Sebagai DevOps engineer, saya ingin deploy updates tanpa disconnect active WhatsApp accounts.
 
 **Acceptance Criteria:**
 - [ ] Blue-green deployment strategy:
@@ -4037,7 +4037,7 @@ jobs:
 
 ### Must Have (P0 - Critical)
 - ✅ Multi-number setup via QR code
-- ✅ Chat routing per WhatsApp session
+- ✅ Chat routing per WhatsApp account
 - ✅ Campaign multi-session distribution
 - ✅ Node.js service architecture
 - ✅ Laravel-Node communication
@@ -4073,7 +4073,7 @@ jobs:
 ## TESTING REQUIREMENTS
 
 ### Unit Tests
-- [ ] WhatsApp session CRUD operations
+- [ ] WhatsApp account CRUD operations
 - [ ] Message routing logic
 - [ ] Campaign distribution algorithm
 - [ ] Rate limiting mechanism
@@ -4116,7 +4116,7 @@ jobs:
 # Laravel .env additions
 WHATSAPP_NODE_SERVICE_URL=http://localhost:3000
 WHATSAPP_NODE_API_KEY=your-secret-api-key
-WHATSAPP_SESSION_ENCRYPTION_KEY=32-char-key
+WHATSAPP_ACCOUNT_ENCRYPTION_KEY=32-char-key
 REDIS_QUEUE_CONNECTION=redis
 
 # Laravel Reverb Configuration (DEFAULT)
@@ -4215,7 +4215,7 @@ curl http://localhost:3000/health
 
 ### A. User-Provided Solutions Reference
 Lihat user response untuk detailed technical solutions:
-- Database architecture (whatsapp_sessions table structure)
+- Database architecture (whatsapp_accounts table structure)
 - Laravel-Node.js communication patterns
 - Campaign distribution algorithm
 - Automation enhancement strategy

@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use App\Models\Contact;
 use App\Models\User;
 use App\Models\Workspace;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\ProviderSelector;
 use App\Services\Adapters\WebJSAdapter;
 use Tests\TestCase;
@@ -17,7 +17,7 @@ class WhatsAppServiceTest extends TestCase
 
     private User $user;
     private Workspace $workspace;
-    private WhatsAppSession $session;
+    private WhatsAppAccount $session;
 
     protected function setUp(): void
     {
@@ -28,7 +28,7 @@ class WhatsAppServiceTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $this->session = WhatsAppSession::factory()->create([
+        $this->account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -59,7 +59,7 @@ class WhatsAppServiceTest extends TestCase
     /** @test */
     public function webjs_adapter_can_send_message()
     {
-        $adapter = new WebJSAdapter($this->workspace->id, $this->session);
+        $adapter = new WebJSAdapter($this->workspace->id, $this->account);
         $contact = Contact::factory()->create([
             'workspace_id' => $this->workspace->id,
             'phone' => '+6281234567891',
@@ -77,7 +77,7 @@ class WhatsAppServiceTest extends TestCase
     /** @test */
     public function webjs_adapter_returns_error_when_session_unavailable()
     {
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'status' => 'disconnected',
         ]);
@@ -94,9 +94,9 @@ class WhatsAppServiceTest extends TestCase
     }
 
     /** @test */
-    public function whatsapp_session_calculates_health_score_correctly()
+    public function whatsapp_account_calculates_health_score_correctly()
     {
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'status' => 'connected',
             'last_activity_at' => now()->subMinutes(30),
@@ -117,9 +117,9 @@ class WhatsAppServiceTest extends TestCase
     }
 
     /** @test */
-    public function whatsapp_session_is_healthy_when_score_above_threshold()
+    public function whatsapp_account_is_healthy_when_score_above_threshold()
     {
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'status' => 'connected',
             'last_activity_at' => now()->subMinutes(30),
@@ -132,9 +132,9 @@ class WhatsAppServiceTest extends TestCase
     }
 
     /** @test */
-    public function whatsapp_session_formats_phone_number_correctly()
+    public function whatsapp_account_formats_phone_number_correctly()
     {
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'phone_number' => '6281234567890',
         ]);

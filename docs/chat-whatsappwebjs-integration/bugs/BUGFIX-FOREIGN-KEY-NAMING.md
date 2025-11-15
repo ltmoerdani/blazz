@@ -28,21 +28,21 @@ select
   (
     select count(*)
     from `chats`
-    where `whatsapp_sessions`.`id` = `chats`.`whats_app_session_id`  -- WRONG!
+    where `whatsapp_accounts`.`id` = `chats`.`whats_app_session_id`  -- WRONG!
       and `is_read` = 0
       and `type` = inbound
       and `deleted_at` is null
   ) as `unread_count`
-from `whatsapp_sessions`
+from `whatsapp_accounts`
 where `workspace_id` = 1
   and `status` = connected
-  and `whatsapp_sessions`.`deleted_at` is null
+  and `whatsapp_accounts`.`deleted_at` is null
 ```
 
 ### Symptoms:
 - ❌ Chats page completely inaccessible
 - ❌ SQL error: Column 'chats.whats_app_session_id' not found
-- ✅ Database has column: `whatsapp_session_id` (no underscore after `whats`)
+- ✅ Database has column: `whatsapp_account_id` (no underscore after `whats`)
 
 ---
 
@@ -50,20 +50,20 @@ where `workspace_id` = 1
 
 ### Issue: Laravel Naming Convention Mismatch
 
-**Database Column Name:** `whatsapp_session_id` (from migration)
+**Database Column Name:** `whatsapp_account_id` (from migration)
 **Laravel Expected Name:** `whats_app_session_id` (Laravel default naming)
 
 #### Why This Happened:
 
-1. **Migration defined column as:** `whatsapp_session_id`
+1. **Migration defined column as:** `whatsapp_account_id`
    ```php
    // database/migrations/2025_10_13_000002_add_session_foreign_keys.php
-   $table->foreignId('whatsapp_session_id')->nullable()->after('workspace_id');
+   $table->foreignId('whatsapp_account_id')->nullable()->after('workspace_id');
    ```
 
 2. **Model relation didn't specify foreign key:**
    ```php
-   // app/Models/WhatsAppSession.php (BEFORE FIX)
+   // app/Models/WhatsAppAccount.php (BEFORE FIX)
    public function chats(): HasMany
    {
        return $this->hasMany(Chat::class);  // No foreign key specified!
@@ -71,26 +71,26 @@ where `workspace_id` = 1
    ```
 
 3. **Laravel auto-generated foreign key name:**
-   - Model name: `WhatsAppSession`
+   - Model name: `WhatsAppAccount`
    - Laravel convention: snake_case of model name + `_id`
    - Result: `whats_app_session_id` (with underscore after `whats`)
-   - Actual column: `whatsapp_session_id` (no underscore after `whats`)
+   - Actual column: `whatsapp_account_id` (no underscore after `whats`)
 
 ### Why Laravel Naming is Different:
 
 Laravel uses `Str::snake()` which converts:
-- `WhatsAppSession` → `whats_app_session` (splits on capital letters)
+- `WhatsAppAccount` → `whats_app_session` (splits on capital letters)
 
 But our migration used:
-- `whatsapp_session_id` (treating "whatsapp" as one word)
+- `whatsapp_account_id` (treating "whatsapp" as one word)
 
 ---
 
 ## ✅ Solution Implemented
 
-### Fix 1: Explicit Foreign Key in WhatsAppSession Model
+### Fix 1: Explicit Foreign Key in WhatsAppAccount Model
 
-**File:** `app/Models/WhatsAppSession.php`
+**File:** `app/Models/WhatsAppAccount.php`
 
 **Changed:**
 ```php
@@ -116,17 +116,17 @@ public function contactSessions(): HasMany
 // AFTER (CORRECT - explicit foreign key):
 public function chats(): HasMany
 {
-    return $this->hasMany(Chat::class, 'whatsapp_session_id');
+    return $this->hasMany(Chat::class, 'whatsapp_account_id');
 }
 
 public function campaignLogs(): HasMany
 {
-    return $this->hasMany(CampaignLog::class, 'whatsapp_session_id');
+    return $this->hasMany(CampaignLog::class, 'whatsapp_account_id');
 }
 
 public function contactSessions(): HasMany
 {
-    return $this->hasMany(ContactSession::class, 'whatsapp_session_id');
+    return $this->hasMany(ContactSession::class, 'whatsapp_account_id');
 }
 ```
 
@@ -137,18 +137,18 @@ public function contactSessions(): HasMany
 **Changed:**
 ```php
 // BEFORE (INCORRECT):
-public function whatsappSession(): BelongsTo
+public function whatsappAccount(): BelongsTo
 {
-    return $this->belongsTo(WhatsAppSession::class);
+    return $this->belongsTo(WhatsAppAccount::class);
 }
 ```
 
 **To:**
 ```php
 // AFTER (CORRECT):
-public function whatsappSession(): BelongsTo
+public function whatsappAccount(): BelongsTo
 {
-    return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id');
+    return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id');
 }
 ```
 
@@ -156,20 +156,20 @@ public function whatsappSession(): BelongsTo
 
 ✅ **Chat.php** - Already had explicit foreign key:
 ```php
-public function whatsappSession()
+public function whatsappAccount()
 {
-    return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
+    return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id', 'id');
 }
 ```
 
 ✅ **WhatsAppGroup.php** - Already correct:
 ```php
-return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id');
+return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id');
 ```
 
 ✅ **CampaignLog.php** - Already correct:
 ```php
-return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id', 'id');
+return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id', 'id');
 ```
 
 ---
@@ -184,16 +184,16 @@ mysql -u root -e "DESCRIBE blazz.chats" | grep -i session
 
 **Result:** ✅
 ```
-whatsapp_session_id  bigint unsigned  YES  MUL  NULL
+whatsapp_account_id  bigint unsigned  YES  MUL  NULL
 ```
 
-Confirms column name is `whatsapp_session_id` (no underscore after `whats`).
+Confirms column name is `whatsapp_account_id` (no underscore after `whats`).
 
 ### Test 2: Query Execution Test
 
 ```bash
 php artisan tinker --execute="
-  \$sessions = \App\Models\WhatsAppSession::where('workspace_id', 1)
+  \$sessions = \App\Models\WhatsAppAccount::where('workspace_id', 1)
     ->where('status', 'connected')
     ->select('id', 'phone_number', 'provider_type')
     ->withCount(['chats as unread_count' => function (\$query) {
@@ -222,7 +222,7 @@ curl -I http://127.0.0.1:8000/chats
 
 ## 📝 Files Modified
 
-### 1. app/Models/WhatsAppSession.php
+### 1. app/Models/WhatsAppAccount.php
 
 **Changes:** 3 method updates
 - `chats()` - Added foreign key parameter
@@ -235,22 +235,22 @@ curl -I http://127.0.0.1:8000/chats
   public function chats(): HasMany
   {
 -     return $this->hasMany(Chat::class);
-+     return $this->hasMany(Chat::class, 'whatsapp_session_id');
++     return $this->hasMany(Chat::class, 'whatsapp_account_id');
   }
 ```
 
 ### 2. app/Models/ContactSession.php
 
 **Changes:** 1 method update
-- `whatsappSession()` - Added foreign key parameter
+- `whatsappAccount()` - Added foreign key parameter
 
 **Lines Modified:** 41
 
 ```diff
-  public function whatsappSession(): BelongsTo
+  public function whatsappAccount(): BelongsTo
   {
--     return $this->belongsTo(WhatsAppSession::class);
-+     return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id');
+-     return $this->belongsTo(WhatsAppAccount::class);
++     return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id');
   }
 ```
 
@@ -284,12 +284,12 @@ curl -I http://127.0.0.1:8000/chats
 // Explicit foreign key - RECOMMENDED
 public function chats(): HasMany
 {
-    return $this->hasMany(Chat::class, 'whatsapp_session_id');
+    return $this->hasMany(Chat::class, 'whatsapp_account_id');
 }
 
-public function whatsappSession(): BelongsTo
+public function whatsappAccount(): BelongsTo
 {
-    return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id');
+    return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id');
 }
 ```
 
@@ -307,17 +307,17 @@ public function chats(): HasMany
 **Option A: Match Laravel Convention**
 ```php
 // If using Laravel default naming, use underscore
-$table->foreignId('whats_app_session_id')->constrained('whatsapp_sessions');
+$table->foreignId('whats_app_session_id')->constrained('whatsapp_accounts');
 ```
 
 **Option B: Explicit Foreign Key (RECOMMENDED)**
 ```php
 // Keep readable name, but ALWAYS specify in model
-$table->foreignId('whatsapp_session_id')->constrained('whatsapp_sessions');
+$table->foreignId('whatsapp_account_id')->constrained('whatsapp_accounts');
 
 // Then in model:
 public function chats() {
-    return $this->hasMany(Chat::class, 'whatsapp_session_id');
+    return $this->hasMany(Chat::class, 'whatsapp_account_id');
 }
 ```
 
@@ -328,7 +328,7 @@ After creating relationships, always test:
 ```bash
 # Test the relationship works
 php artisan tinker
->>> $session = \App\Models\WhatsAppSession::first();
+>>> $session = \App\Models\WhatsAppAccount::first();
 >>> $session->chats;  // Should not throw error
 >>> $session->chats()->count();  // Should return integer
 ```
@@ -339,7 +339,7 @@ php artisan tinker
 
 ### How Laravel Generates Foreign Key Names:
 
-1. **Model Name:** `WhatsAppSession`
+1. **Model Name:** `WhatsAppAccount`
 2. **Apply `Str::snake()`:** `whats_app_session`
 3. **Add `_id` suffix:** `whats_app_session_id`
 
@@ -348,7 +348,7 @@ php artisan tinker
 | Model Name | Laravel Default FK | Common Alternative |
 |------------|-------------------|-------------------|
 | `User` | `user_id` | `user_id` ✅ |
-| `WhatsAppSession` | `whats_app_session_id` | `whatsapp_session_id` ⚠️ |
+| `WhatsAppAccount` | `whats_app_session_id` | `whatsapp_account_id` ⚠️ |
 | `CampaignLog` | `campaign_log_id` | `campaign_log_id` ✅ |
 | `ContactSession` | `contact_session_id` | `contact_session_id` ✅ |
 

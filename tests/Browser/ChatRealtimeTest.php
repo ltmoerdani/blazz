@@ -4,7 +4,7 @@ namespace Tests\Browser;
 
 use App\Models\Contact;
 use App\Models\User;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\Workspace;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
@@ -50,7 +50,7 @@ class ChatRealtimeTest extends DuskTestCase
         ]);
 
         // Create WhatsApp session
-        $this->session = WhatsAppSession::factory()->create([
+        $this->account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -87,7 +87,7 @@ class ChatRealtimeTest extends DuskTestCase
 
             // Simulate incoming webhook (private chat)
             $this->sendWebhook([
-                'session_id' => $this->session->id,
+                'session_id' => $this->account->id,
                 'workspace_id' => $this->workspace->id,
                 'chat_type' => 'private',
                 'contact_phone' => $this->contact->phone,
@@ -139,7 +139,7 @@ class ChatRealtimeTest extends DuskTestCase
 
             // Simulate incoming group webhook
             $this->sendWebhook([
-                'session_id' => $this->session->id,
+                'session_id' => $this->account->id,
                 'workspace_id' => $this->workspace->id,
                 'chat_type' => 'group',
                 'group_jid' => '1234567890-1234567890@g.us',
@@ -198,7 +198,7 @@ class ChatRealtimeTest extends DuskTestCase
 
             foreach ($messages as $index => $messageBody) {
                 $this->sendWebhook([
-                    'session_id' => $this->session->id,
+                    'session_id' => $this->account->id,
                     'workspace_id' => $this->workspace->id,
                     'chat_type' => 'private',
                     'contact_phone' => $this->contact->phone,
@@ -236,7 +236,7 @@ class ChatRealtimeTest extends DuskTestCase
         $chat = \App\Models\Chat::factory()->create([
             'contact_id' => $this->contact->id,
             'workspace_id' => $this->workspace->id,
-            'whatsapp_session_id' => $this->session->id,
+            'whatsapp_account_id' => $this->account->id,
             'chat_type' => 'private',
             'type' => 'inbound',
             'body' => 'Initial message',
@@ -254,7 +254,7 @@ class ChatRealtimeTest extends DuskTestCase
 
             // Send new message while viewing thread
             $this->sendWebhook([
-                'session_id' => $this->session->id,
+                'session_id' => $this->account->id,
                 'workspace_id' => $this->workspace->id,
                 'chat_type' => 'private',
                 'contact_phone' => $this->contact->phone,
@@ -293,27 +293,27 @@ class ChatRealtimeTest extends DuskTestCase
     public function test_session_filter_with_realtime_updates()
     {
         // Create second session
-        $session2 = WhatsAppSession::factory()->create([
+        $account2 = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'meta',
             'status' => 'connected',
             'phone_number' => '+6289999999999',
         ]);
 
-        $this->browse(function (Browser $browser) use ($session2) {
+        $this->browse(function (Browser $browser) use ($account2) {
             $browser->loginAs($this->user)
                 ->visit('/chats')
                 ->waitFor('.chat-table', 10);
 
             // Select session filter
             if ($browser->element('.session-filter')) {
-                $browser->select('.session-filter', $this->session->id);
+                $browser->select('.session-filter', $this->account->id);
                 $browser->pause(500);
             }
 
             // Send message to filtered session
             $this->sendWebhook([
-                'session_id' => $this->session->id,
+                'session_id' => $this->account->id,
                 'workspace_id' => $this->workspace->id,
                 'chat_type' => 'private',
                 'contact_phone' => $this->contact->phone,
@@ -330,7 +330,7 @@ class ChatRealtimeTest extends DuskTestCase
 
             // Send message to different session
             $this->sendWebhook([
-                'session_id' => $session2->id,
+                'session_id' => $account2->id,
                 'workspace_id' => $this->workspace->id,
                 'chat_type' => 'private',
                 'contact_phone' => '+6287777777777',
@@ -366,7 +366,7 @@ class ChatRealtimeTest extends DuskTestCase
 
             // Send unread message
             $this->sendWebhook([
-                'session_id' => $this->session->id,
+                'session_id' => $this->account->id,
                 'workspace_id' => $this->workspace->id,
                 'chat_type' => 'private',
                 'contact_phone' => $this->contact->phone,
@@ -403,7 +403,7 @@ class ChatRealtimeTest extends DuskTestCase
 
             // Send media message
             $this->sendWebhook([
-                'session_id' => $this->session->id,
+                'session_id' => $this->account->id,
                 'workspace_id' => $this->workspace->id,
                 'chat_type' => 'private',
                 'contact_phone' => $this->contact->phone,
@@ -466,7 +466,7 @@ class ChatRealtimeTest extends DuskTestCase
             // Send multiple messages
             for ($i = 1; $i <= 3; $i++) {
                 $this->sendWebhook([
-                    'session_id' => $this->session->id,
+                    'session_id' => $this->account->id,
                     'workspace_id' => $this->workspace->id,
                     'chat_type' => 'private',
                     'contact_phone' => $this->contact->phone,

@@ -1,4 +1,4 @@
-# WhatsApp Sessions → Accounts Renaming Guide
+# WhatsApp accounts → Accounts Renaming Guide
 
 ## 🎯 **THIS IS A RENAMING TASK - NOT A REWRITE**
 
@@ -28,7 +28,7 @@
 - Database migration files with foreign keys
 
 ### **Critical Dependencies:**
-- **6 Database Tables** with `whatsapp_session_id` foreign keys
+- **6 Database Tables** with `whatsapp_account_id` foreign keys
 - **API Validation Rules** referencing table names
 - **Queue Jobs** with session dependencies
 - **Frontend State Management** with WebSocket events
@@ -44,7 +44,7 @@
 ## 🚀 **Why This Change Matters**
 
 ### **Current Problem:**
-"WhatsApp Sessions" terminology is technically accurate but confusing from a business perspective.
+"WhatsApp accounts" terminology is technically accurate but confusing from a business perspective.
 
 ### **Target Solution:**
 "WhatsApp Accounts/Numbers" terminology that clearly represents business WhatsApp numbers/accounts.
@@ -99,7 +99,7 @@
 
 ## **Actual Scope (Based on Comprehensive Scanning)**
 
-### **Total Files Found: 161 files containing "whatsapp session"**
+### **Total Files Found: 161 files containing "whatsapp account"**
 
 #### **Files to ACTUALLY Rename: 16 files**
 - 9 Backend PHP files (models, services, controllers)
@@ -148,18 +148,18 @@
 #### User Interface Changes:
 ```
 BEFORE:                              AFTER:
-"Add WhatsApp Session"              → "Add WhatsApp Number"
+"Add WhatsApp account"              → "Add WhatsApp Number"
 "Session Status: Connected"          → "Connection Status: Connected"
 "Primary Session"                   → "Primary Number"
-"Manage WhatsApp Sessions"           → "Manage WhatsApp Numbers"
+"Manage WhatsApp accounts"           → "Manage WhatsApp Numbers"
 ```
 
 #### API Changes:
 ```
 BEFORE:                              AFTER:
 /api/whatsapp/sessions/{id}         → /api/whatsapp/accounts/{id}
-whatsapp_session_id                  → whatsapp_account_id
-WhatsAppSession::find()              → WhatsAppAccount::find()
+whatsapp_account_id                  → whatsapp_account_id
+WhatsAppAccount::find()              → WhatsAppAccount::find()
 ```
 
 ### **Long-term Strategic Benefits:**

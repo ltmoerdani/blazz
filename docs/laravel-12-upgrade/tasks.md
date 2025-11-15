@@ -221,7 +221,7 @@ php artisan migrate --path=database/migrations --force ✅
 - [x] Authentication flows working correctly
 - [x] Multi-guard authentication preserved
 - [x] API token management functional
-- [x] Session management working properly
+- [x] Account management working properly
 
 #### 📋 TASK-5: LARAVEL 12 FRAMEWORK INSTALLATION (✅ SUCCESSFULLY COMPLETED)
 
@@ -838,7 +838,7 @@ curl -X POST http://localhost:8080/admin/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"password"}'
 
-# Verify session management dan workspace context
+# Verify account management dan workspace context
 # Check app/Http/Middleware/SetOrganizationFromSession.php still functional
 ```
 
