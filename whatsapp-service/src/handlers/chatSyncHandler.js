@@ -87,7 +87,7 @@ class ChatSyncHandler {
             });
 
             // Send batches with rate limiting
-            const results = await this.sendBatches(chatBatches, sessionId);
+            const results = await this.sendBatches(chatBatches, sessionId, workspaceId);
 
             const duration = Date.now() - startTime;
 
@@ -327,9 +327,10 @@ class ChatSyncHandler {
      *
      * @param {Array} batches - Array of chat batches
      * @param {string} sessionId - Session ID
+     * @param {number} workspaceId - Workspace ID
      * @returns {Promise<Array>} Array of results
      */
-    async sendBatches(batches, sessionId) {
+    async sendBatches(batches, sessionId, workspaceId) {
         const results = [];
 
         // Use p-limit to control concurrency
@@ -343,7 +344,7 @@ class ChatSyncHandler {
                 });
 
                 try {
-                    const result = await this.sendBatchWithRetry(batch, sessionId);
+                    const result = await this.sendBatchWithRetry(batch, sessionId, workspaceId);
                     results.push({
                         success: true,
                         batch_index: index,
@@ -379,14 +380,15 @@ class ChatSyncHandler {
      *
      * @param {Array} batch - Chat batch
      * @param {string} sessionId - Session ID
+     * @param {number} workspaceId - Workspace ID
      * @returns {Promise<Object>} Response from Laravel
      */
-    async sendBatchWithRetry(batch, sessionId) {
+    async sendBatchWithRetry(batch, sessionId, workspaceId) {
         let lastError;
 
         for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
             try {
-                const response = await this.webhookNotifier.syncChatBatch(batch);
+                const response = await this.webhookNotifier.syncChatBatch(sessionId, workspaceId, batch);
 
                 this.logger.debug('Batch sent successfully', {
                     session_id: sessionId,

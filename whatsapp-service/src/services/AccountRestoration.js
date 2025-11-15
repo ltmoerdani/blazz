@@ -82,7 +82,7 @@ class SessionRestoration {
     async getActiveSessions() {
         try {
             const response = await axios.get(
-                `${this.laravelUrl}/api/whatsapp/sessions/active`,
+                `${this.laravelUrl}/api/whatsapp/accounts/active`,
                 {
                     headers: {
                         'X-API-Key': this.apiKey,
