@@ -251,10 +251,22 @@ class MessageService
      */
     protected function getPrimaryAccount()
     {
-        return WhatsAppAccount::where('workspace_id', $this->workspaceId)
+        $account = WhatsAppAccount::where('workspace_id', $this->workspaceId)
             ->where('status', 'connected')
             ->where('is_primary', true)
             ->first();
+
+        // Debug logging
+        Log::info('getPrimaryAccount debug', [
+            'workspace_id' => $this->workspaceId,
+            'account_found' => $account ? 'Yes' : 'No',
+            'account_uuid' => $account?->uuid,
+            'all_accounts_count' => WhatsAppAccount::where('workspace_id', $this->workspaceId)->count(),
+            'connected_accounts_count' => WhatsAppAccount::where('workspace_id', $this->workspaceId)
+                ->where('status', 'connected')->count(),
+        ]);
+
+        return $account;
     }
 
     /**

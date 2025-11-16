@@ -4,6 +4,7 @@ namespace App\Services\WhatsApp;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\Contact;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
@@ -29,8 +30,8 @@ class WhatsAppServiceClient
 
     public function __construct()
     {
-        $this->baseUrl = config('services.whatsapp.nodejs_url', 'http://localhost:3000');
-        $this->apiKey = config('services.whatsapp.api_key');
+        $this->baseUrl = config('services.whatsapp.nodejs_url', 'http://127.0.0.1:3001');
+        $this->apiKey = config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN'));
         $this->hmacSecret = config('services.whatsapp.hmac_secret');
         $this->timeout = config('services.whatsapp.timeout', 30);
         $this->retryAttempts = config('services.whatsapp.retry_attempts', 3);
@@ -63,15 +64,35 @@ class WhatsAppServiceClient
      */
     public function sendMessage($workspaceId, $accountUuid, $contactUuid, $message, $type = 'text', $options = [])
     {
-        $endpoint = '/api/messages/send';
-        $payload = [
-            'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
-            'contact_uuid' => $contactUuid,
-            'message' => $message,
-            'type' => $type,
-            'options' => $options,
-        ];
+        // Use correct endpoint based on message type
+        $endpoint = ($type === 'text') ? '/api/messages/send' : '/api/messages/send-media';
+
+        // Convert contact UUID to actual phone number
+        $contactPhone = $this->getContactPhone($contactUuid, $workspaceId);
+
+        // Build correct payload for Node.js service
+        if ($type === 'text') {
+            // Text message payload
+            $payload = [
+                'workspace_id' => $workspaceId,
+                'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+                'recipient_phone' => $contactPhone,  // Fixed: contact_uuid -> recipient_phone
+                'message' => $message,
+                'type' => $type,
+                'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
+            ];
+        } else {
+            // Media message payload
+            $payload = [
+                'workspace_id' => $workspaceId,
+                'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+                'recipient_phone' => $contactPhone,  // Fixed: contact_uuid -> recipient_phone
+                'media_url' => $options['media_url'] ?? null,
+                'caption' => $message,  // For media, message is the caption
+                'filename' => $options['file_name'] ?? 'media',
+                'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
+            ];
+        }
 
         return $this->makeRequest('POST', $endpoint, $payload);
     }
@@ -89,12 +110,18 @@ class WhatsAppServiceClient
     public function sendTemplateMessage($workspaceId, $accountUuid, $contactUuid, $templateData, $options = [])
     {
         $endpoint = '/api/messages/send-template';
+
+        // Convert contact UUID to actual phone number
+        $contactPhone = $this->getContactPhone($contactUuid, $workspaceId);
+
+        // Build correct payload for Node.js service
         $payload = [
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
-            'contact_uuid' => $contactUuid,
+            'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+            'recipient_phone' => $contactPhone,  // Fixed: contact_uuid -> recipient_phone
+            'template_name' => $templateData['name'] ?? 'unknown',
             'template_data' => $templateData,
-            'options' => $options,
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ];
 
         return $this->makeRequest('POST', $endpoint, $payload);
@@ -110,11 +137,36 @@ class WhatsAppServiceClient
      */
     public function sendBulkMessages($workspaceId, $accountUuid, $messages)
     {
-        $endpoint = '/api/messages/bulk';
+        $endpoint = '/api/messages/bulk-send';
+
+        // Convert contact UUIDs to phone numbers and prepare recipients list
+        $recipients = [];
+        foreach ($messages as $messageData) {
+            $contactPhone = $this->getContactPhone($messageData['contact_uuid'], $workspaceId);
+            if ($contactPhone) {
+                $recipients[] = $contactPhone;
+            }
+        }
+
+        if (empty($recipients)) {
+            return [
+                'success' => false,
+                'error' => 'No valid recipients found'
+            ];
+        }
+
+        // Get message content from first message (assuming all are the same)
+        $messageText = $messages[0]['message'] ?? '';
+        $messageType = $messages[0]['type'] ?? 'text';
+
+        // Build correct payload for Node.js service
         $payload = [
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
-            'messages' => $messages,
+            'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+            'recipients' => $recipients,  // Fixed: contact_uuid -> recipient_phone
+            'message' => $messageText,
+            'type' => $messageType,
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ];
 
         return $this->makeRequest('POST', $endpoint, $payload);
@@ -130,10 +182,11 @@ class WhatsAppServiceClient
      */
     public function createSession($workspaceId, $accountUuid, $config = [])
     {
-        $endpoint = '/api/sessions/create';
+        $endpoint = '/api/sessions';
         $payload = array_merge([
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
+            'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ], $config);
 
         return $this->makeRequest('POST', $endpoint, $payload);
@@ -148,13 +201,13 @@ class WhatsAppServiceClient
      */
     public function getSessionStatus($workspaceId, $accountUuid)
     {
-        $endpoint = '/api/sessions/status';
-        $payload = [
+        $endpoint = "/api/sessions/{$accountUuid}/status";  // RESTful endpoint
+        $params = [
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ];
 
-        return $this->makeRequest('POST', $endpoint, $payload);
+        return $this->makeRequest('GET', $endpoint, $params);
     }
 
     /**
@@ -166,13 +219,13 @@ class WhatsAppServiceClient
      */
     public function disconnectSession($workspaceId, $accountUuid)
     {
-        $endpoint = '/api/sessions/disconnect';
+        $endpoint = "/api/sessions/{$accountUuid}";  // RESTful DELETE endpoint
         $payload = [
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ];
 
-        return $this->makeRequest('POST', $endpoint, $payload);
+        return $this->makeRequest('DELETE', $endpoint, $payload);
     }
 
     /**
@@ -184,10 +237,10 @@ class WhatsAppServiceClient
      */
     public function reconnectSession($workspaceId, $accountUuid)
     {
-        $endpoint = '/api/sessions/reconnect';
+        $endpoint = "/api/sessions/{$accountUuid}/reconnect";  // RESTful endpoint
         $payload = [
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ];
 
         return $this->makeRequest('POST', $endpoint, $payload);
@@ -202,10 +255,10 @@ class WhatsAppServiceClient
      */
     public function regenerateQR($workspaceId, $accountUuid)
     {
-        $endpoint = '/api/sessions/regenerate-qr';
+        $endpoint = "/api/sessions/{$accountUuid}/regenerate-qr";  // RESTful endpoint
         $payload = [
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ];
 
         return $this->makeRequest('POST', $endpoint, $payload);
@@ -220,10 +273,10 @@ class WhatsAppServiceClient
      */
     public function getQRCode($workspaceId, $accountUuid)
     {
-        $endpoint = '/api/sessions/qr';
+        $endpoint = "/api/sessions/{$accountUuid}/qr";  // RESTful endpoint
         $payload = [
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ];
 
         return $this->makeRequest('POST', $endpoint, $payload);
@@ -236,7 +289,7 @@ class WhatsAppServiceClient
      */
     public function healthCheck()
     {
-        $endpoint = '/api/health';
+        $endpoint = '/health';
 
         try {
             $response = $this->client->get($endpoint);
@@ -323,7 +376,8 @@ class WhatsAppServiceClient
         $endpoint = '/api/sync/trigger';
         $payload = array_merge([
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
+            'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ], $options);
 
         return $this->makeRequest('POST', $endpoint, $payload);
@@ -341,7 +395,8 @@ class WhatsAppServiceClient
         $endpoint = '/api/sync/status';
         $payload = [
             'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
+            'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+            'api_key' => config('services.whatsapp.api_key', env('LARAVEL_API_TOKEN')),  // Added authentication
         ];
 
         return $this->makeRequest('POST', $endpoint, $payload);
@@ -370,6 +425,12 @@ class WhatsAppServiceClient
                 // Add payload for POST/PUT requests
                 if (in_array(strtoupper($method), ['POST', 'PUT', 'PATCH']) && !empty($payload)) {
                     $options['json'] = $payload;
+                }
+
+                // Add query parameters for GET requests
+                if (strtoupper($method) === 'GET' && !empty($payload)) {
+                    $queryString = http_build_query($payload);
+                    $endpoint .= '?' . $queryString;
                 }
 
                 $this->logger->debug('WhatsApp service request', [
@@ -468,9 +529,10 @@ class WhatsAppServiceClient
     {
         $headers = [];
 
-        if ($this->apiKey) {
-            $headers['X-API-Key'] = $this->apiKey;
-        }
+        // Note: API key is sent in payload, not headers, based on Node.js service expectations
+        // if ($this->apiKey) {
+        //     $headers['X-API-Key'] = $this->apiKey;
+        // }
 
         if ($this->hmacSecret) {
             $timestamp = time();
@@ -500,6 +562,39 @@ class WhatsAppServiceClient
     }
 
     /**
+     * Get contact phone number by UUID
+     *
+     * @param string $contactUuid
+     * @param int $workspaceId
+     * @return string|null
+     */
+    protected function getContactPhone($contactUuid, $workspaceId)
+    {
+        try {
+            $contact = Contact::where('uuid', $contactUuid)
+                ->where('workspace_id', $workspaceId)
+                ->first();
+
+            if (!$contact) {
+                $this->logger->error('Contact not found for phone conversion', [
+                    'contact_uuid' => $contactUuid,
+                    'workspace_id' => $workspaceId
+                ]);
+                return null;
+            }
+
+            return $contact->phone;
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to get contact phone', [
+                'contact_uuid' => $contactUuid,
+                'workspace_id' => $workspaceId,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Test connection to Node.js service
      *
      * @return array
@@ -508,7 +603,7 @@ class WhatsAppServiceClient
     {
         try {
             $startTime = microtime(true);
-            $response = $this->client->get('/api/ping');
+            $response = $this->client->get('/health');
             $endTime = microtime(true);
 
             $responseTime = round(($endTime - $startTime) * 1000, 2);

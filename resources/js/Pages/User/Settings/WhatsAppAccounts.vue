@@ -119,7 +119,7 @@
                                         <div class="ml-4">
                                             <div class="flex items-center">
                                                 <p class="text-sm font-medium text-gray-900">
-                                                    {{ account.formatted_phone_number || account.phone_number || 'Unknown Number' }}
+                                                    {{ account.formatted_phone_number || account.phone_number || account.name || 'Unknown Number' }}
                                                 </p>
                                                 <span v-if="account.is_primary" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                                     {{ $t('Primary') }}
@@ -241,7 +241,7 @@
 
 <script setup>
 import SettingLayout from "./Layout.vue";
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios'
 import { getEchoInstance } from '../../../echo'
@@ -277,31 +277,45 @@ const canAddAccountComputed = computed(() => {
 
     const canAdd = connectedAccountsCount.value < maxAccounts
 
-    console.log('🔢 Add Button Visibility Check:', {
-        connectedCount: connectedAccountsCount.value,
-        maxAccounts: maxAccounts,
-        canAdd: canAdd,
-        totalInList: accountsList.value.length,
-        accountStatuses: accountsList.value.map(s => ({ uuid: s.uuid, status: s.status })),
-        workspace: workspace.value,
-        subscription: workspace.value?.subscription,
-        plan: workspace.value?.subscription?.plan
-    })
+    // Only show detailed debug info in development
+    if (import.meta.env.DEV) {
+        console.log('🔢 Add Button Visibility Check:', {
+            connectedCount: connectedAccountsCount.value,
+            maxAccounts: maxAccounts,
+            canAdd: canAdd,
+            totalInList: accountsList.value.length,
+            accountStatuses: accountsList.value.map(s => ({ uuid: s.uuid, status: s.status })),
+            workspace: workspace.value,
+            subscription: workspace.value?.subscription,
+            plan: workspace.value?.subscription?.plan
+        })
+    }
 
     return canAdd
 })
 
 // Reactive accounts list (instead of using props directly)
-// Filter out qr_scanning and pending accounts - only show connected/disconnected
-const accountsList = ref([...props.accounts.filter(s => s.status === 'connected' || s.status === 'disconnected')])
+// Filter out qr_scanning and pending accounts - only show connected/authenticated/disconnected
+const accountsList = ref([...props.accounts.filter(s => s.status === 'connected' || s.status === 'authenticated' || s.status === 'disconnected')])
 
 const showAddModal = ref(false)
 const qrCode = ref(null)
 const countdown = ref(300) // 5 minutes
 const currentSessionId = ref(null)
 const qrTimeout = ref(null)
+const modalCloseTimeout = ref(null) // Fallback timeout to close modal
 let countdownInterval = null
 let echoChannel = null
+
+// Watch modal state for debugging
+watch(showAddModal, (newValue, oldValue) => {
+    console.log('🔄 Modal state changed:', { from: oldValue, to: newValue })
+    if (!newValue && modalCloseTimeout.value) {
+        console.log('🧹 Cleaning up modal timeout after modal closed')
+        clearTimeout(modalCloseTimeout.value)
+        modalCloseTimeout.value = null
+    }
+})
 
 // Helper function to update account in list
 const updateAccountInList = (accountId, updates) => {
@@ -325,8 +339,8 @@ const removeAccountFromList = (uuid) => {
 
 // Helper function to add account to list
 const addAccountToList = (account) => {
-    // Only add if account is connected or disconnected (not qr_scanning/pending)
-    if (account.status === 'connected' || account.status === 'disconnected') {
+    // Only add if account is connected, authenticated, or disconnected (not qr_scanning/pending)
+    if (account.status === 'connected' || account.status === 'authenticated' || account.status === 'disconnected') {
         accountsList.value.unshift(account)
         console.log('✅ Account added to list:', account)
     } else {
@@ -347,10 +361,14 @@ onMounted(() => {
     const channelName = `workspace.${props.workspaceId}`
 
     console.log('📡 Subscribing to Echo channel:', channelName)
-    console.log('📡 Echo instance:', echo)
     console.log('📡 Workspace ID:', props.workspaceId)
-    console.log('📡 Echo connector:', echo.connector)
-    console.log('📡 Echo socket state:', echo.connector?.pusher?.connection?.state)
+
+    // Only show detailed debug info in development
+    if (import.meta.env.DEV) {
+        console.log('📡 Echo instance:', echo)
+        console.log('📡 Echo connector:', echo.connector)
+        console.log('📡 Echo socket state:', echo.connector?.pusher?.connection?.state)
+    }
 
     // Wait for connection to be ready before subscribing
     const subscribeToChannel = () => {
@@ -369,8 +387,8 @@ onMounted(() => {
             handleSessionStatusChanged(data)
         })
 
-        // Listen to Pusher events directly for debugging
-        if (echo.connector?.pusher) {
+        // Listen to Pusher events directly for debugging (only in development)
+        if (echo.connector?.pusher && import.meta.env.DEV) {
             const pusherChannel = echo.connector.pusher.channel(channelName)
             if (pusherChannel) {
                 pusherChannel.bind_global((eventName, data) => {
@@ -422,8 +440,13 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+    // Clear all timers
     if (countdownInterval) {
         clearInterval(countdownInterval)
+    }
+    if (modalCloseTimeout.value) {
+        clearTimeout(modalCloseTimeout.value)
+        modalCloseTimeout.value = null
     }
     if (echoChannel && props.workspaceId) {
         window.Echo.leaveChannel(`workspace.${props.workspaceId}`)
@@ -452,7 +475,7 @@ const handleQRGenerated = (data) => {
     }
 }
 
-const handleSessionStatusChanged = (data) => {
+const handleSessionStatusChanged = async (data) => {
     console.log('📨 Account Status Changed Event Received:', {
         event_account_id: data.account_id,
         event_status: data.status,
@@ -462,68 +485,97 @@ const handleSessionStatusChanged = (data) => {
     })
 
     if (data.workspace_id === props.workspaceId) {
-        if (data.status === 'connected') {
+        console.log('🎯 WebSocket event matches workspace, processing status:', data.status)
+
+        if (data.status === 'connected' || data.status === 'authenticated') {
+            console.log('🎯 Processing CONNECTED/AUTHENTICATED event for account:', data.account_id, 'status:', data.status)
+            console.log('🎯 Full event data:', JSON.stringify(data, null, 2))
+
+            // Clear any modal timeout since we got connection event
+            if (modalCloseTimeout.value) {
+                clearTimeout(modalCloseTimeout.value)
+                modalCloseTimeout.value = null
+                console.log('⏰ Cleared modal timeout due to successful connection')
+            }
+
             // Check if this is the first connected account
             const currentConnectedAccounts = accountsList.value.filter(s => s.status === 'connected')
             const isFirstAccount = currentConnectedAccounts.length === 0
 
-            // If account already exists, update it
-            const existingAccountIndex = accountsList.value.findIndex(s => s.account_id === data.account_id || s.uuid === data.metadata?.uuid)
+            console.log('🔢 Current connected accounts:', currentConnectedAccounts.length)
+            console.log('🆕 Is this first account?', isFirstAccount)
+
+            // Find if account already exists in any state
+            const existingAccountIndex = accountsList.value.findIndex(s =>
+                s.account_id === data.account_id || s.uuid === data.metadata?.uuid
+            )
+
+            // Extract phone number from various possible sources
+            const phoneNumber = data.metadata?.formatted_phone_number ||
+                              data.metadata?.phone_number ||
+                              data.phone_number ||
+                              data.account_id ||
+                              'Unknown';
+
+            const newAccount = {
+                uuid: data.metadata?.uuid || `temp-${Date.now()}`,
+                account_id: data.account_id,
+                name: phoneNumber,
+                formatted_phone_number: phoneNumber,
+                status: 'connected',
+                connected_at: data.metadata?.timestamp || new Date().toISOString(),
+                is_primary: isFirstAccount,
+                provider: 'whatsapp-web-js',
+                created_at: data.metadata?.timestamp || new Date().toISOString(),
+                updated_at: data.metadata?.timestamp || new Date().toISOString()
+            }
 
             if (existingAccountIndex !== -1) {
                 console.log('📝 Updating existing account in list at index:', existingAccountIndex)
-                accountsList.value[existingAccountIndex] = {
-                    ...accountsList.value[existingAccountIndex],
-                    status: 'connected',
-                    formatted_phone_number: data.metadata?.phone_number || accountsList.value[existingAccountIndex].formatted_phone_number,
-                    connected_at: data.metadata?.timestamp || new Date().toISOString(),
-                    is_primary: isFirstAccount,
-                    updated_at: data.metadata?.timestamp || new Date().toISOString()
-                }
+                // Update existing account
+                accountsList.value[existingAccountIndex] = newAccount
+                console.log('✅ Account updated in list!')
             } else {
                 console.log('➕ Adding new account to list')
-                const newAccount = {
-                    uuid: data.metadata?.uuid || `temp-${Date.now()}`,
-                    account_id: data.account_id,
-                    name: data.metadata?.phone_number || data.account_id,
-                    formatted_phone_number: data.metadata?.phone_number || 'Unknown',
-                    status: 'connected',
-                    connected_at: data.metadata?.timestamp || new Date().toISOString(),
-                    is_primary: isFirstAccount,
-                    provider: 'whatsapp-web-js',
-                    created_at: data.metadata?.timestamp || new Date().toISOString(),
-                    updated_at: data.metadata?.timestamp || new Date().toISOString()
-                }
+                // Add new account to the beginning of the list
                 accountsList.value.unshift(newAccount)
-
-                if (isFirstAccount) {
-                    console.log('⭐ First account connected - automatically set as primary!')
-                }
+                console.log('✅ New account added to list! Total accounts now:', accountsList.value.length)
             }
 
-            // If this is the first account, also update backend to set as primary
+            if (isFirstAccount) {
+                console.log('⭐ First account connected - will be set as primary!')
+            }
+
+            // Force UI update and then close modal
+            console.log('🔄 Forcing UI update before modal close...')
+
+            // Use nextTick to ensure UI is updated before closing modal
+            await nextTick()
+
+            console.log('🚪 Closing modal immediately...')
+            closeAddModal()
+
+            // If this is the first account, also update backend to set as primary (async, non-blocking)
             if (isFirstAccount) {
                 const accountUuid = data.metadata?.uuid || data.account_id
                 console.log('⭐ Setting first account as primary with UUID:', accountUuid)
-                setPrimary(accountUuid)
+                // Set primary asynchronously without blocking modal close
+                setPrimary(accountUuid).catch(error => {
+                    console.error('Failed to set primary account:', error)
+                })
             }
 
-            // Close modal smoothly
-            closeAddModal()
-
-            console.log('✅ Account connected seamlessly, no page reload needed!')
+            console.log('✅ Account connection process completed successfully!')
         } else if (data.status === 'disconnected') {
             console.log('🔌 Handling disconnect event for account_id:', data.account_id)
-            console.log('📋 Current accounts in list:', accountsList.value.map(s => ({ uuid: s.uuid, account_id: s.account_id, status: s.status })))
-
             // Update account status in list
             updateAccountInList(data.account_id, {
                 status: 'disconnected',
                 updated_at: data.metadata?.timestamp || new Date().toISOString()
             })
-
             console.log('✅ Account disconnected seamlessly, list updated!')
-            console.log('📋 Updated accounts in list:', accountsList.value.map(s => ({ uuid: s.uuid, account_id: s.account_id, status: s.status })))
+        } else {
+            console.log('ℹ️ Received status event with status:', data.status)
         }
     }
 }
@@ -554,9 +606,15 @@ const addAccount = async () => {
         showAddModal.value = true
         qrCode.value = null
         countdown.value = 300
-        
+
+        // Clear any existing modal close timeout
+        if (modalCloseTimeout.value) {
+            clearTimeout(modalCloseTimeout.value)
+            modalCloseTimeout.value = null
+        }
+
         console.log('🔄 Creating new WhatsApp account...')
-        
+
         const response = await axios.post('/settings/whatsapp-accounts', {
             provider_type: 'webjs'
         }, {
@@ -565,14 +623,39 @@ const addAccount = async () => {
                 'Accept': 'application/json'
             }
         })
-        
+
         console.log('✅ Session created:', response.data)
 
         if (response.data.success) {
             currentSessionId.value = response.data.session.uuid
 
+            // Set fallback timeout to close modal after 2 minutes if no connection happens
+            modalCloseTimeout.value = setTimeout(() => {
+                if (showAddModal.value) {
+                    console.log('⏰ Modal timeout reached, closing modal automatically')
+                    closeAddModal()
+                    // Also show user feedback
+                    setTimeout(() => {
+                        alert('QR code scan timed out. Please try again.')
+                    }, 100)
+                }
+            }, 120000) // 2 minutes
+
+            // Additional emergency timeout after 3 minutes
+            setTimeout(() => {
+                if (showAddModal.value) {
+                    console.warn('⚠️ EMERGENCY: Modal still open after timeout, forcing close')
+                    showAddModal.value = false
+                    qrCode.value = null
+                    if (countdownInterval) {
+                        clearInterval(countdownInterval)
+                        countdownInterval = null
+                    }
+                }
+            }, 180000) // 3 minutes
+
             // Add the new session to the list immediately
-            addSessionToList(response.data.session)
+            addAccountToList(response.data.session)
             console.log('✨ Session added to list seamlessly, no page reload needed!')
 
             // Check if QR code is already available
@@ -588,17 +671,47 @@ const addAccount = async () => {
         }
     } catch (error) {
         console.error('❌ Failed to create session:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to create WhatsApp session'
-        alert(`Failed to create WhatsApp session: ${errorMessage}`)
+
+        // Provide user-friendly error messages
+        let userMessage = 'Failed to create WhatsApp session. Please try again.'
+        if (error.response?.status === 429) {
+            userMessage = 'Too many requests. Please wait a moment before trying again.'
+        } else if (error.response?.status === 403) {
+            userMessage = 'You do not have permission to add WhatsApp accounts.'
+        } else if (error.response?.data?.message) {
+            userMessage = error.response.data.message
+        }
+
+        alert(userMessage)
         closeAddModal()
     }
 }
 
 const closeAddModal = () => {
+    console.log('🚪 closeAddModal called, current modal state:', showAddModal.value)
+
+    // Force close modal
     showAddModal.value = false
     qrCode.value = null
     countdown.value = 300
-    clearInterval(countdownInterval)
+
+    // Clear all timers
+    if (countdownInterval) {
+        clearInterval(countdownInterval)
+        countdownInterval = null
+    }
+    if (modalCloseTimeout.value) {
+        clearTimeout(modalCloseTimeout.value)
+        modalCloseTimeout.value = null
+    }
+
+    // Double-check modal is closed
+    if (showAddModal.value) {
+        console.warn('⚠️ Modal still open after close attempt, forcing close again')
+        showAddModal.value = false
+    }
+
+    console.log('🚪 Modal closed successfully, state is now:', showAddModal.value)
 }
 
 const setPrimary = async (uuid) => {
@@ -613,15 +726,25 @@ const setPrimary = async (uuid) => {
         })
 
         // Update all sessions: remove is_primary from current primary
-        sessionsList.value.forEach(session => {
+        accountsList.value.forEach(session => {
             session.is_primary = session.uuid === uuid
         })
 
         console.log('✅ Primary session updated seamlessly!')
     } catch (error) {
         console.error('Failed to set primary session:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to set primary session'
-        alert(`Failed to set primary session: ${errorMessage}`)
+
+        // Provide user-friendly error messages
+        let userMessage = 'Failed to set primary WhatsApp number. Please try again.'
+        if (error.response?.status === 404) {
+            userMessage = 'WhatsApp account not found.'
+        } else if (error.response?.status === 403) {
+            userMessage = 'You do not have permission to modify WhatsApp accounts.'
+        } else if (error.response?.data?.message) {
+            userMessage = error.response.data.message
+        }
+
+        alert(userMessage)
     }
 }
 
@@ -640,7 +763,7 @@ const disconnect = async (uuid) => {
             console.log('✅ Disconnect API response:', response.data)
 
             // Status will be updated via WebSocket event, but update optimistically
-            updateSessionInList(uuid, {
+            updateAccountInList(uuid, {
                 status: 'disconnecting...'
             })
 
@@ -659,8 +782,18 @@ const disconnect = async (uuid) => {
             }, 3000)
         } catch (error) {
             console.error('Failed to disconnect session:', error)
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to disconnect session'
-            alert(`Failed to disconnect session: ${errorMessage}`)
+
+            // Provide user-friendly error messages
+            let userMessage = 'Failed to disconnect WhatsApp number. Please try again.'
+            if (error.response?.status === 404) {
+                userMessage = 'WhatsApp account not found.'
+            } else if (error.response?.status === 403) {
+                userMessage = 'You do not have permission to modify WhatsApp accounts.'
+            } else if (error.response?.data?.message) {
+                userMessage = error.response.data.message
+            }
+
+            alert(userMessage)
         }
     }
 }
@@ -685,16 +818,25 @@ const deleteAccount = async (uuid) => {
             console.log('✅ Account deleted seamlessly, no page reload!')
         } catch (error) {
             console.error('❌ Failed to delete account:', error)
-            console.error('Error response:', error.response)
 
+            // Provide user-friendly error messages
             if (error.response?.status === 404) {
                 // Account not found - remove from list anyway
                 removeAccountFromList(uuid)
                 console.log('⚠️ Account not found on server, removed from list')
-            } else {
-                const errorMessage = error.response?.data?.message || error.message || 'Failed to delete account'
-                alert(`Failed to delete account: ${errorMessage}`)
+                return
             }
+
+            let userMessage = 'Failed to delete WhatsApp account. Please try again.'
+            if (error.response?.status === 403) {
+                userMessage = 'You do not have permission to delete WhatsApp accounts.'
+            } else if (error.response?.status === 422) {
+                userMessage = 'Cannot delete account while it has active conversations.'
+            } else if (error.response?.data?.message) {
+                userMessage = error.response.data.message
+            }
+
+            alert(userMessage)
         }
     }
 }
@@ -721,8 +863,20 @@ const reconnect = async (uuid) => {
         startCountdown()
     } catch (error) {
         console.error('Failed to reconnect session:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to reconnect session'
-        alert(`Failed to reconnect session: ${errorMessage}`)
+
+        // Provide user-friendly error messages
+        let userMessage = 'Failed to reconnect WhatsApp number. Please try again.'
+        if (error.response?.status === 404) {
+            userMessage = 'WhatsApp account not found.'
+        } else if (error.response?.status === 403) {
+            userMessage = 'You do not have permission to modify WhatsApp accounts.'
+        } else if (error.response?.status === 429) {
+            userMessage = 'Too many reconnection attempts. Please wait before trying again.'
+        } else if (error.response?.data?.message) {
+            userMessage = error.response.data.message
+        }
+
+        alert(userMessage)
     }
 }
 
@@ -739,8 +893,20 @@ const regenerateQR = async () => {
         startCountdown()
     } catch (error) {
         console.error('Failed to regenerate QR code:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to regenerate QR code'
-        alert(`Failed to regenerate QR code: ${errorMessage}`)
+
+        // Provide user-friendly error messages
+        let userMessage = 'Failed to regenerate QR code. Please try again.'
+        if (error.response?.status === 404) {
+            userMessage = 'WhatsApp account not found.'
+        } else if (error.response?.status === 429) {
+            userMessage = 'Too many QR generation attempts. Please wait before trying again.'
+        } else if (error.response?.status === 403) {
+            userMessage = 'You do not have permission to modify WhatsApp accounts.'
+        } else if (error.response?.data?.message) {
+            userMessage = error.response.data.message
+        }
+
+        alert(userMessage)
     }
 }
 </script>
