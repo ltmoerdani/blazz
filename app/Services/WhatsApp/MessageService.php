@@ -220,8 +220,8 @@ class MessageService
             'updated_at' => now(),
             'metadata' => $metadata,
             'user_id' => Auth::id(),
-            'whatsapp_message_id' => $nodejsResult['message_id'] ?? null,
-            'wam_id' => $nodejsResult['message_id'] ?? null,
+            'whatsapp_message_id' => $nodejsResult['data']['message_id'] ?? $nodejsResult['message_id'] ?? null,
+            'wam_id' => $nodejsResult['data']['message_id'] ?? $nodejsResult['message_id'] ?? null,
         ]);
 
         // Create ChatLog entry for chat list
@@ -232,8 +232,13 @@ class MessageService
             'created_at' => now()
         ]);
 
-        // Load chat with relationships for event
-        $chat = Chat::with('contact', 'media')->where('id', $chat->id)->first();
+        // Load chat with relationships for event and frontend display
+        $chat = Chat::with('contact', 'media', 'user', 'logs')->where('id', $chat->id)->first();
+        
+        // Add optimistic_id as temporary attribute for frontend tracking
+        if (isset($options['optimistic_id'])) {
+            $chat->optimistic_id = $options['optimistic_id'];
+        }
 
         // Prepare chat array for event
         $chatLogRecord = ChatLog::where('id', $chatlogId)
