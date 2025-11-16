@@ -173,6 +173,9 @@ class WebhookController extends Controller
                 'last_activity_at' => now(),
             ]);
 
+            // Refresh model to get updated accessor values
+            $session->refresh();
+
             // Broadcast status change with complete data
             broadcast(new WhatsAppAccountStatusChangedEvent(
                 $sessionId,
