@@ -21,7 +21,7 @@ use App\Models\Template;
 use App\Models\WhatsAppAccount; // NEW: For session filter dropdown
 use App\Services\SubscriptionService;
 use App\Services\WhatsappService;
-use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
 use App\Services\AutoReplyService;
@@ -47,7 +47,7 @@ class ChatService
     // Constants for repeated string literals
     const AI_ASSISTANT_MODULE = 'AI Assistant';
 
-    private MessageSendingService $messageService;
+    private MessageService $messageService;
     private MediaProcessingService $mediaService;
     private TemplateManagementService $templateService;
     private ?AutoReplyService $autoReplyService;
@@ -55,7 +55,7 @@ class ChatService
 
     public function __construct(
         $workspaceId,
-        MessageSendingService $messageService,
+        MessageService $messageService,
         MediaProcessingService $mediaService,
         TemplateManagementService $templateService
     ) {
@@ -96,6 +96,15 @@ class ChatService
      * @deprecated Use getChatListWithFilters instead
      */
     public function getChatList($request, $uuid = null, $searchTerm = null, $sessionId = null)
+    {
+        return $this->getChatListWithFilters($request, $uuid, $searchTerm, $sessionId);
+    }
+
+    /**
+     * New method to replace deprecated getChatList
+     * Retrieves chat list with filters and pagination
+     */
+    public function getChatListWithFilters($request, $uuid = null, $searchTerm = null, $sessionId = null)
     {
         $role = Auth::user()->teams[0]->role;
         $contact = new Contact;
@@ -285,17 +294,6 @@ class ChatService
         }
     }
 
-    /**
-     * New method to replace deprecated getChatList
-     * Retrieves chat list with filters and pagination
-     */
-    public function getChatListWithFilters($request, $uuid = null, $searchTerm = null, $sessionId = null)
-    {
-        // @deprecated Use getChatList method directly
-        /** @noinspection PhpDeprecationInspection */
-        return $this->getChatList($request, $uuid, $searchTerm, $sessionId);
-    }
-
     public function handleTicketAssignment($contactId){
         $workspaceId = $this->workspaceId;
         $workspace = workspace::where('id', $this->workspaceId)->first();
@@ -390,10 +388,9 @@ class ChatService
 
     public function sendMessage(object $request)
     {
-        // OLD: Code removed during dependency injection migration
-        // NEW: Use injected services
+        // NEW: Use MessageService (WebJS) instead of MessageSendingService (Meta API)
         if($request->type === 'text'){
-            return $this->messageService->sendMessage($request->uuid, $request->message, Auth::id());
+            return $this->messageService->sendMessage($request->uuid, $request->message, 'text');
         } else {
             $storage = Setting::where('key', 'storage_system')->first()->value;
             $fileName = $request->file('file')->getClientOriginalName();
@@ -414,92 +411,165 @@ class ChatService
                 $mediaUrl = $mediaFilePath;
             }
 
-            return $this->messageService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
+            // Build options array for MessageService
+            $options = [
+                'file_name' => $fileName,
+                'file_path' => $mediaFilePath,
+                'media_url' => $mediaUrl,
+                'location' => $location,
+            ];
+
+            return $this->messageService->sendMessage($request->uuid, $fileName, $request->type, $options);
         }
     }
 
     public function sendTemplateMessage(object $request, $uuid)
     {
-        // OLD: Keep for reference during transition
-        /*
-        if(!$this->whatsappService) {
-            $responseObject = new \stdClass();
-            $responseObject->success = false;
-            $responseObject->message = 'WhatsApp service not available';
-            return $responseObject;
-        }
-        */
         $template = Template::where('uuid', $request->template)->first();
         $contact = Contact::where('uuid', $uuid)->first();
-        $mediaId = null;
 
-        if(in_array($request->header['format'], ['IMAGE', 'DOCUMENT', 'VIDEO'])){
-            $header = $request->header;
-            
-            if ($request->header['parameters']) {
-                $metadata['header']['format'] = $header['format'];
-                $metadata['header']['parameters'] = [];
-        
-                foreach ($request->header['parameters'] as $parameter) {
-                    if ($parameter['selection'] === 'upload') {
-                        $storage = Setting::where('key', 'storage_system')->first()->value;
-                        $fileName = $parameter['value']->getClientOriginalName();
-                        $fileContent = $parameter['value'];
-
-                        if($storage === 'local'){
-                            $file = Storage::disk('local')->put('public', $fileContent);
-                            $mediaFilePath = $file;
-            
-                            $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-                        } elseif($storage === 'aws') {
-                            $file = $parameter['value'];
-                            $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
-                            /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
-                            $s3Disk = Storage::disk('s3');
-                            $mediaFilePath = $s3Disk->url($uploadedFile);
-            
-                            $mediaUrl = $mediaFilePath;
-                        }
-
-                        $contentType = $this->getContentTypeFromUrl($mediaUrl);
-                        $mediaSize = $this->getMediaSizeInBytesFromUrl($mediaUrl);
-
-                        //save media
-                        $chatMedia = new ChatMedia;
-                        $chatMedia->name = $fileName;
-                        $chatMedia->location = $storage == 'aws' ? 'amazon' : 'local';
-                        $chatMedia->path = $mediaUrl;
-                        $chatMedia->type = $contentType;
-                        $chatMedia->size = $mediaSize;
-                        $chatMedia->created_at = now();
-                        $chatMedia->save();
-
-                        $mediaId = $chatMedia->id;
-                    } else {
-                        $mediaUrl = $parameter['value'];
-                    }
-        
-                    $metadata['header']['parameters'][] = [
-                        'type' => $parameter['type'],
-                        'selection' => $parameter['selection'],
-                        'value' => $mediaUrl,
-                    ];
-                }
-            }
-        } else {
-            $metadata['header'] = $request->header;
+        if (!$template || !$contact) {
+            return (object) [
+                'success' => false,
+                'message' => 'Template or contact not found',
+            ];
         }
 
-        $metadata['body'] = $request->body;
-        $metadata['footer'] = $request->footer;
-        $metadata['buttons'] = $request->buttons;
-        $metadata['media'] = $mediaId;
+        // Build template data for MessageService
+        $templateData = [
+            'name' => $template->name,
+            'language' => [
+                'code' => $template->language ?? 'en_US'
+            ],
+            'components' => []
+        ];
 
-        //Build Template to send
-        $template = $this->buildTemplate($template->name, $template->language, json_decode(json_encode($metadata)), $contact);
+        // Process header if exists
+        if (isset($request->header['format']) && $request->header['format'] !== 'none') {
+            $headerComponent = [
+                'type' => 'header',
+                'parameters' => []
+            ];
 
-        // NEW: Use injected service
-        return $this->messageService->sendTemplateMessage($contact->uuid, $template, Auth::id(), null, $mediaId);
+            if ($request->header['format'] === 'text' && isset($request->header['text'])) {
+                $headerComponent['parameters'][] = [
+                    'type' => 'text',
+                    'text' => $request->header['text']
+                ];
+            } elseif (in_array($request->header['format'], ['IMAGE', 'DOCUMENT', 'VIDEO'])) {
+                if (isset($request->header['parameters'])) {
+                    foreach ($request->header['parameters'] as $parameter) {
+                        if ($parameter['selection'] === 'upload') {
+                            // Handle file upload
+                            $mediaUrl = $this->processTemplateMediaUpload($parameter['value']);
+                            if ($mediaUrl) {
+                                $headerComponent['parameters'][] = [
+                                    'type' => strtolower($request->header['format']),
+                                    'image' => ['link' => $mediaUrl] // Will be adjusted based on type
+                                ];
+                            }
+                        } else {
+                            // Use existing media URL
+                            $headerComponent['parameters'][] = [
+                                'type' => strtolower($request->header['format']),
+                                'image' => ['link' => $parameter['value']]
+                            ];
+                        }
+                    }
+                }
+            }
+
+            $templateData['components'][] = $headerComponent;
+        }
+
+        // Process body (required)
+        $bodyText = '';
+        if (isset($request->body['text'])) {
+            $bodyText = $request->body['text'];
+        } else {
+            $bodyText = $template->body_text ?? '';
+        }
+
+        $templateData['components'][] = [
+            'type' => 'body',
+            'parameters' => [
+                [
+                    'type' => 'text',
+                    'text' => $bodyText
+                ]
+            ]
+        ];
+
+        // Process footer if exists
+        if (isset($request->footer['text']) && !empty($request->footer['text'])) {
+            $templateData['components'][] = [
+                'type' => 'footer',
+                'text' => $request->footer['text']
+            ];
+        }
+
+        // Process buttons if exists
+        if (isset($request->buttons) && !empty($request->buttons)) {
+            $buttonComponent = [
+                'type' => 'buttons',
+                'buttons' => []
+            ];
+
+            foreach ($request->buttons as $button) {
+                $buttonData = [
+                    'type' => $button['type'],
+                    'text' => $button['text']
+                ];
+
+                if ($button['type'] === 'url') {
+                    $buttonData['url'] = $button['url'];
+                } elseif ($button['type'] === 'phone_number') {
+                    $buttonData['phone_number'] = $button['phone_number'];
+                }
+
+                $buttonComponent['buttons'][] = $buttonData;
+            }
+
+            $templateData['components'][] = $buttonComponent;
+        }
+
+        // Build options
+        $options = [
+            'user_id' => Auth::id(),
+            'template_id' => $template->id,
+        ];
+
+        // NEW: Use MessageService (WebJS) instead of MessageSendingService (Meta API)
+        return $this->messageService->sendTemplateMessage($contact->uuid, $templateData, $options);
+    }
+
+    /**
+     * Process template media upload
+     */
+    private function processTemplateMediaUpload($file)
+    {
+        try {
+            $storage = Setting::where('key', 'storage_system')->first()->value;
+            $fileName = $file->getClientOriginalName();
+
+            if($storage === 'local'){
+                $filePath = Storage::disk('local')->put('public', $file);
+                return rtrim(config('app.url'), '/') . '/media/' . ltrim($filePath, '/');
+            } elseif($storage === 'aws') {
+                $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
+                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
+                $s3Disk = Storage::disk('s3');
+                return $s3Disk->url($uploadedFile);
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Failed to process template media upload', [
+                'error' => $e->getMessage(),
+                'workspace_id' => $this->workspaceId
+            ]);
+            return null;
+        }
     }
 
     public function clearMessage($uuid)

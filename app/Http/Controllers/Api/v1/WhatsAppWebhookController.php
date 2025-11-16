@@ -14,7 +14,7 @@ use App\Models\Setting;
 use App\Models\Template;
 use App\Services\AutoReplyService;
 use App\Services\ChatService;
-use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
 use GuzzleHttp\Client;
@@ -36,7 +36,7 @@ class WhatsAppWebhookController extends BaseController
     private ?AutoReplyService $autoReplyService;
 
     public function __construct(
-        MessageSendingService $messageService,
+        MessageService $messageService,
         MediaProcessingService $mediaService,
         TemplateManagementService $templateService
     ) {
