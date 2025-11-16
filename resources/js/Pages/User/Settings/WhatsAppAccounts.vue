@@ -125,7 +125,7 @@
                                                     {{ $t('Primary') }}
                                                 </span>
                                             </div>
-                                            <div class="flex items-center mt-1">
+                                            <div class="flex items-center mt-1 gap-2">
                                                 <span :class="[
                                                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                                                     account.status === 'connected' ? 'bg-green-100 text-green-800' :
@@ -135,9 +135,16 @@
                                                 ]">
                                                     {{ $t(account.status) }}
                                                 </span>
-                                                <span class="ml-2 text-sm text-gray-500">
-                                                    {{ $t('Health Score') }}: {{ account.health_score }}%
-                                                </span>
+                                                
+                                                <!-- Health Status Badge -->
+                                                <HealthStatusBadge 
+                                                    v-if="account.health_score !== null && account.health_score !== undefined"
+                                                    :health-score="account.health_score || 0"
+                                                    :health-status="getHealthStatus(account.health_score)"
+                                                    :issues="account.health_issues || []"
+                                                    :last-check-at="account.last_health_check_at"
+                                                    size="sm"
+                                                />
                                             </div>
                                             <p class="text-sm text-gray-500 mt-1">
                                                 {{ $t('Added') }} {{ formatDate(account.created_at) }}
@@ -241,6 +248,7 @@
 
 <script setup>
 import SettingLayout from "./Layout.vue";
+import HealthStatusBadge from '../../../Components/WhatsApp/HealthStatusBadge.vue';
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios'
@@ -300,6 +308,7 @@ const qrCode = ref(null)
 const countdown = ref(300) // 5 minutes
 const currentSessionId = ref(null)
 const qrTimeout = ref(null)
+const isReconnectMode = ref(false) // Track if this is reconnect or add new
 let countdownInterval = null
 let echoChannel = null
 
@@ -480,6 +489,12 @@ const handleSessionStatusChanged = (data) => {
                     is_primary: isFirstAccount,
                     updated_at: data.metadata?.timestamp || new Date().toISOString()
                 }
+                
+                // Close modal if this was a reconnect
+                if (isReconnectMode.value) {
+                    console.log('✅ Reconnect successful, closing modal...')
+                    closeAddModal()
+                }
             } else {
                 console.log('➕ Adding new account to list')
                 const newAccount = {
@@ -551,6 +566,7 @@ const formatDate = (dateString) => {
 
 const addAccount = async () => {
     try {
+        isReconnectMode.value = false // This is add new, not reconnect
         showAddModal.value = true
         qrCode.value = null
         countdown.value = 300
@@ -572,7 +588,7 @@ const addAccount = async () => {
             currentSessionId.value = response.data.session.uuid
 
             // Add the new session to the list immediately
-            addSessionToList(response.data.session)
+            addAccountToList(response.data.session)
             console.log('✨ Session added to list seamlessly, no page reload needed!')
 
             // Check if QR code is already available
@@ -598,6 +614,7 @@ const closeAddModal = () => {
     showAddModal.value = false
     qrCode.value = null
     countdown.value = 300
+    isReconnectMode.value = false // Reset reconnect mode
     clearInterval(countdownInterval)
 }
 
@@ -612,9 +629,9 @@ const setPrimary = async (uuid) => {
             }
         })
 
-        // Update all sessions: remove is_primary from current primary
-        sessionsList.value.forEach(session => {
-            session.is_primary = session.uuid === uuid
+        // Update all accounts: remove is_primary from current primary
+        accountsList.value.forEach(account => {
+            account.is_primary = account.uuid === uuid
         })
 
         console.log('✅ Primary session updated seamlessly!')
@@ -715,6 +732,7 @@ const reconnect = async (uuid) => {
             }
         })
         currentSessionId.value = uuid
+        isReconnectMode.value = true // Mark as reconnect mode
         showAddModal.value = true
         qrCode.value = response.data.qr_code
         countdown.value = 300
@@ -742,6 +760,15 @@ const regenerateQR = async () => {
         const errorMessage = error.response?.data?.message || error.message || 'Failed to regenerate QR code'
         alert(`Failed to regenerate QR code: ${errorMessage}`)
     }
+}
+
+// Get health status label based on score
+const getHealthStatus = (score) => {
+    if (score >= 90) return 'excellent'
+    if (score >= 70) return 'good'
+    if (score >= 50) return 'warning'
+    if (score >= 30) return 'critical'
+    return 'failed'
 }
 </script>
 

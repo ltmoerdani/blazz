@@ -102,6 +102,12 @@ class WhatsAppServiceProvider extends ServiceProvider
                 $app->make(\App\Services\ProviderSelector::class)
             );
         });
+
+        // NEW: WhatsApp WebJS Message Service (replaces Meta API MessageSendingService)
+        $this->app->singleton(\App\Services\WhatsApp\MessageService::class, function ($app) {
+            $workspaceId = WorkspaceHelper::getCurrentWorkspaceId();
+            return new \App\Services\WhatsApp\MessageService($workspaceId);
+        });
     }
 
     /**

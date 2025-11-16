@@ -814,7 +814,7 @@ class SessionManager {
     async sendToLaravel(eventName, data) {
         try {
             // Use single webhook endpoint with event-wrapped format
-            const endpoint = '/api/whatsapp/webhooks/webjs';
+            const endpoint = process.env.WEBHOOK_ENDPOINT || '/api/whatsapp/webhooks/webjs';
 
             // Wrap data dengan event type
             const payload = {

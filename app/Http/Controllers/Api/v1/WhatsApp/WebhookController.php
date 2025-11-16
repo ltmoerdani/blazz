@@ -170,17 +170,25 @@ class WebhookController extends Controller
                 'last_activity_at' => now(),
             ]);
 
-            // Broadcast status change
+            // Broadcast status change with proper account_id (database ID, not session_id)
             broadcast(new WhatsAppAccountStatusChangedEvent(
-                $sessionId,
+                (string)$session->id, // Use database ID for matching in frontend
                 'connected',
                 $workspaceId,
                 $phoneNumber,
                 [
                     'uuid' => $session->uuid,
+                    'session_id' => $sessionId,
                     'timestamp' => now()->toISOString()
                 ]
             ));
+
+            Log::info('Session ready broadcast sent', [
+                'account_id' => $session->id,
+                'session_id' => $sessionId,
+                'workspace_id' => $workspaceId,
+                'phone_number' => $phoneNumber,
+            ]);
         }
     }
 
@@ -207,18 +215,26 @@ class WebhookController extends Controller
                 ])
             ]);
 
-            // Broadcast status change
+            // Broadcast status change with proper account_id (database ID, not session_id)
             broadcast(new WhatsAppAccountStatusChangedEvent(
-                $sessionId,
+                (string)$session->id, // Use database ID for matching in frontend
                 'disconnected',
                 $workspaceId,
                 $session->phone_number,
                 [
                     'uuid' => $session->uuid,
+                    'session_id' => $sessionId,
                     'reason' => $reason,
                     'timestamp' => now()->toISOString()
                 ]
             ));
+
+            Log::info('Session disconnect broadcast sent', [
+                'account_id' => $session->id,
+                'session_id' => $sessionId,
+                'workspace_id' => $workspaceId,
+                'reason' => $reason,
+            ]);
         }
     }
 

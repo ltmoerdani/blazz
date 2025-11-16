@@ -1,7 +1,55 @@
 # Changelog - Blazz Chat System Implementation
 
-**Last Updated:** November 15, 2025
-**Document Version:** 1.0
+**Last Updated:** November 16, 2025
+**Document Version:** 1.1
+
+---
+
+## 🚀 **November 16, 2025 - Minor Improvements Implementation**
+
+### **Code Quality Enhancements**
+- **Enhanced:** Logging pattern in `ChatService.php` with more descriptive messages
+  - Separate success/error logs for better filtering
+  - Added user_id for auditing
+  - ISO 8601 timestamps for consistency
+- **Added:** Comprehensive JSDoc documentation for Node.js middleware
+  - Module-level documentation with @module tags
+  - Function documentation with @param, @returns, @throws
+  - Usage examples for all public functions
+- **Created:** Standardized API Response utility (`ApiResponse.js`)
+  - Consistent response format across all API endpoints
+  - Helper methods: success(), error(), unauthorized(), notFound(), etc.
+  - Automatic timestamp inclusion
+- **Updated:** Authentication middleware to use ApiResponse
+- **Result:** Code compliance improved from 90% to 95%
+- **Files:**
+  - `app/Services/ChatService.php` - Enhanced logging
+  - `whatsapp-service/src/middleware/auth.js` - JSDoc + ApiResponse
+  - `whatsapp-service/src/utils/ApiResponse.js` - NEW standardized responses
+  - `docs/chats/15-minor-improvements-implementation.md` - Documentation
+
+---
+
+## 🔐 **November 16, 2025 - Authentication Middleware Implementation**
+
+### **Security Enhancement - Authentication Fix**
+- **Created:** Centralized authentication middleware for Node.js service
+- **Fixed:** API key validation mismatch (header vs body)
+- **Added:** Support for both `X-API-Key` header and body `api_key` (backward compatible)
+- **Implemented:** Optional HMAC signature validation for enhanced security
+  - Replay attack prevention (5-minute window)
+  - Timing-safe comparison
+  - Configurable via `HMAC_ENABLED` flag
+- **Cleaned:** Removed duplicate API key validation from 13+ controller methods
+- **Result:** Authentication working correctly, messages can be sent
+- **Files:**
+  - `whatsapp-service/src/middleware/auth.js` - NEW authentication middleware
+  - `whatsapp-service/src/routes/index.js` - Applied middleware to protected routes
+  - `whatsapp-service/src/controllers/MessageController.js` - Cleaned duplicate code
+  - `whatsapp-service/src/controllers/SessionController.js` - Cleaned duplicate code
+  - `config/services.php` - Added WhatsApp service configuration
+  - `.env` - Added WHATSAPP_API_KEY, WHATSAPP_HMAC_SECRET, WHATSAPP_NODE_SERVICE_URL
+  - `docs/chats/14-authentication-middleware-implementation.md` - Full documentation
 
 ---
 

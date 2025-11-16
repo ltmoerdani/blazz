@@ -179,28 +179,44 @@ class AccountStatusService
                 ->where('workspace_id', $this->workspaceId)
                 ->firstOrFail();
 
-            // First disconnect if connected
-            if (in_array($account->status, ['connected', 'ready'])) {
-                $disconnectResult = $this->disconnect($uuid);
-                if (!$disconnectResult->success) {
-                    return $disconnectResult;
+            // Generate new session_id for disconnected sessions
+            $isDisconnected = in_array($account->status, ['disconnected', 'failed', 'error']);
+            
+            if ($isDisconnected || !$account->session_id) {
+                // Create completely new session
+                $account->session_id = 'webjs_' . $this->workspaceId . '_' . time() . '_' . substr(md5(uniqid()), 0, 8);
+                $account->save();
+                
+                $this->logger->info('Generated new session_id for disconnected account', [
+                    'workspace_id' => $this->workspaceId,
+                    'account_id' => $account->id,
+                    'new_session_id' => $account->session_id,
+                ]);
+            } else {
+                // Disconnect existing connected session
+                if (in_array($account->status, ['connected', 'ready'])) {
+                    $disconnectResult = $this->disconnect($uuid);
+                    if (!$disconnectResult->success) {
+                        return $disconnectResult;
+                    }
                 }
             }
 
-            // Call Node.js service to reconnect session
+            // Call Node.js service to create/reconnect session
             $response = Http::timeout(60)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-API-Key' => config('whatsapp.node_api_key'),
                 ])
-                ->post("{$this->nodeServiceUrl}/api/sessions/{$account->session_id}/reconnect", [
+                ->post("{$this->nodeServiceUrl}/api/sessions", [
+                    'session_id' => $account->session_id,
                     'workspace_id' => $this->workspaceId,
                     'account_id' => $account->id,
-                    'api_key' => config('whatsapp.node_api_key'),
+                    'priority' => 'normal',
                 ]);
 
             if (!$response->successful()) {
-                throw new \Exception('Node.js service reconnect failed: ' . $response->body());
+                throw new \Exception('Node.js service session creation failed: ' . $response->body());
             }
 
             // Update account status to connecting
@@ -256,20 +272,36 @@ class AccountStatusService
                 ->where('workspace_id', $this->workspaceId)
                 ->firstOrFail();
 
-            // Call Node.js service to regenerate QR
+            // Generate new session_id for disconnected/failed sessions
+            $isDisconnected = in_array($account->status, ['disconnected', 'failed', 'error']);
+            
+            if ($isDisconnected || !$account->session_id) {
+                // Create new session
+                $account->session_id = 'webjs_' . $this->workspaceId . '_' . time() . '_' . substr(md5(uniqid()), 0, 8);
+                $account->save();
+                
+                $this->logger->info('Generated new session_id for QR regeneration', [
+                    'workspace_id' => $this->workspaceId,
+                    'account_id' => $account->id,
+                    'new_session_id' => $account->session_id,
+                ]);
+            }
+
+            // Call Node.js service to create/regenerate session
             $response = Http::timeout(30)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-API-Key' => config('whatsapp.node_api_key'),
                 ])
-                ->post("{$this->nodeServiceUrl}/api/sessions/{$account->session_id}/regenerate-qr", [
+                ->post("{$this->nodeServiceUrl}/api/sessions", [
+                    'session_id' => $account->session_id,
                     'workspace_id' => $this->workspaceId,
                     'account_id' => $account->id,
-                    'api_key' => config('whatsapp.node_api_key'),
+                    'priority' => 'normal',
                 ]);
 
             if (!$response->successful()) {
-                throw new \Exception('Node.js service QR regeneration failed: ' . $response->body());
+                throw new \Exception('Node.js service session creation failed: ' . $response->body());
             }
 
             $result = $response->json();

@@ -52,17 +52,29 @@ return [
         'class' => App\Services\FlutterwaveService::class,
     ],
 
-    'clickpay' => [
-        'class' => Modules\Clickpaysa\Controllers\ProcessPayment::class,
-    ],
+    // 'clickpay' => [
+    //     'class' => Modules\Clickpaysa\Controllers\ProcessPayment::class,
+    // ],
 
     'razorpay' => [
         'class' => Modules\Razorpay\Controllers\ProcessPayment::class,
     ],
 
-    'pabbly subscriptions' => [
-        'class' => Modules\Pabbly\Controllers\ProcessPayment::class,
+    // 'pabbly subscriptions' => [
+    //     'class' => Modules\Pabbly\Controllers\ProcessPayment::class,
+    // ],
+
+    // WhatsApp Web.js Node.js Service Configuration
+    'whatsapp' => [
+        'nodejs_url' => env('WHATSAPP_NODE_SERVICE_URL', 'http://localhost:3001'),
+        'api_key' => env('WHATSAPP_API_KEY'),
+        'hmac_secret' => env('WHATSAPP_HMAC_SECRET'),
+        'timeout' => env('WHATSAPP_TIMEOUT', 30),
+        'retry_attempts' => env('WHATSAPP_RETRY_ATTEMPTS', 3),
+        'retry_delay' => env('WHATSAPP_RETRY_DELAY', 1000),
     ],
 ];
+
+
 
 

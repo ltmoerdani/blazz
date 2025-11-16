@@ -11,6 +11,7 @@ const express = require('express');
 const SessionController = require('../controllers/SessionController');
 const MessageController = require('../controllers/MessageController');
 const HealthController = require('../controllers/HealthController');
+const { validateApiKey, authenticate } = require('../middleware/auth');
 
 /**
  * Create and configure all routes
@@ -50,68 +51,68 @@ function createRoutes(sessionManager, logger) {
     router.get('/info', healthController.appInfo.bind(healthController));
 
     // ==========================================
-    // Session Management Routes
+    // Session Management Routes (Protected)
     // ==========================================
 
     // Create new WhatsApp session
     // POST /api/sessions
-    router.post('/api/sessions', sessionController.createSession.bind(sessionController));
+    router.post('/api/sessions', authenticate, sessionController.createSession.bind(sessionController));
 
     // Get all sessions
     // GET /api/sessions
-    router.get('/api/sessions', sessionController.getAllSessions.bind(sessionController));
+    router.get('/api/sessions', authenticate, sessionController.getAllSessions.bind(sessionController));
 
     // Get session status
     // GET /api/sessions/:sessionId/status
-    router.get('/api/sessions/:sessionId/status', sessionController.getSessionStatus.bind(sessionController));
+    router.get('/api/sessions/:sessionId/status', authenticate, sessionController.getSessionStatus.bind(sessionController));
 
     // Get session metadata
     // GET /api/sessions/:sessionId/metadata
-    router.get('/api/sessions/:sessionId/metadata', sessionController.getSessionMetadata.bind(sessionController));
+    router.get('/api/sessions/:sessionId/metadata', authenticate, sessionController.getSessionMetadata.bind(sessionController));
 
     // Update session metadata
     // PUT /api/sessions/:sessionId/metadata
-    router.put('/api/sessions/:sessionId/metadata', sessionController.updateSessionMetadata.bind(sessionController));
+    router.put('/api/sessions/:sessionId/metadata', authenticate, sessionController.updateSessionMetadata.bind(sessionController));
 
     // Restore existing session
     // POST /api/sessions/:sessionId/restore
-    router.post('/api/sessions/:sessionId/restore', sessionController.restoreSession.bind(sessionController));
+    router.post('/api/sessions/:sessionId/restore', authenticate, sessionController.restoreSession.bind(sessionController));
 
     // Disconnect session
     // DELETE /api/sessions/:sessionId
-    router.delete('/api/sessions/:sessionId', sessionController.disconnectSession.bind(sessionController));
+    router.delete('/api/sessions/:sessionId', authenticate, sessionController.disconnectSession.bind(sessionController));
 
     // Reconnect session (disconnect + create new)
     // POST /api/sessions/:sessionId/reconnect
-    router.post('/api/sessions/:sessionId/reconnect', sessionController.reconnectSession.bind(sessionController));
+    router.post('/api/sessions/:sessionId/reconnect', authenticate, sessionController.reconnectSession.bind(sessionController));
 
     // Regenerate QR code for session
     // POST /api/sessions/:sessionId/regenerate-qr
-    router.post('/api/sessions/:sessionId/regenerate-qr', sessionController.regenerateQR.bind(sessionController));
+    router.post('/api/sessions/:sessionId/regenerate-qr', authenticate, sessionController.regenerateQR.bind(sessionController));
 
     // ==========================================
-    // Message Management Routes
+    // Message Management Routes (Protected)
     // ==========================================
 
     // Send text message
     // POST /api/messages/send
-    router.post('/api/messages/send', messageController.sendMessage.bind(messageController));
+    router.post('/api/messages/send', authenticate, messageController.sendMessage.bind(messageController));
 
     // Send media message
     // POST /api/messages/send-media
-    router.post('/api/messages/send-media', messageController.sendMediaMessage.bind(messageController));
+    router.post('/api/messages/send-media', authenticate, messageController.sendMediaMessage.bind(messageController));
 
     // Bulk send messages
     // POST /api/messages/bulk-send
-    router.post('/api/messages/bulk-send', messageController.bulkSendMessages.bind(messageController));
+    router.post('/api/messages/bulk-send', authenticate, messageController.bulkSendMessages.bind(messageController));
 
     // Get message status
     // GET /api/messages/:sessionId/status?message_id=<id>
-    router.get('/api/messages/:sessionId/status', messageController.getMessageStatus.bind(messageController));
+    router.get('/api/messages/:sessionId/status', authenticate, messageController.getMessageStatus.bind(messageController));
 
     // Validate session for sending messages
     // GET /api/messages/:sessionId/validate
-    router.get('/api/messages/:sessionId/validate', messageController.validateSessionForSending.bind(messageController));
+    router.get('/api/messages/:sessionId/validate', authenticate, messageController.validateSessionForSending.bind(messageController));
 
     // ==========================================
     // Root Routes

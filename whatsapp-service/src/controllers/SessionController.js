@@ -21,12 +21,9 @@ class SessionController {
      */
     async createSession(req, res) {
         try {
-            const { workspace_id, account_id, session_id, api_key, priority } = req.body;
+            const { workspace_id, account_id, session_id, priority } = req.body;
 
             // Validate API key
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             // Pass options object with priority and account_id
             const options = {
@@ -56,11 +53,8 @@ class SessionController {
     async getSessionStatus(req, res) {
         try {
             const { sessionId } = req.params;
-            const { workspace_id, api_key } = req.query;
+            const { workspace_id } = req.query;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             const status = await this.sessionManager.getSessionStatus(sessionId);
             if (status) {
@@ -84,11 +78,8 @@ class SessionController {
     async disconnectSession(req, res) {
         try {
             const { sessionId } = req.params;
-            const { workspace_id, api_key } = req.body;
+            const { workspace_id } = req.body;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             const result = await this.sessionManager.disconnectSession(sessionId);
             res.json(result);
@@ -108,11 +99,8 @@ class SessionController {
     async reconnectSession(req, res) {
         try {
             const { sessionId } = req.params;
-            const { workspace_id, account_id, api_key, priority } = req.body;
+            const { workspace_id, account_id, priority } = req.body;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             // Disconnect existing session first
             await this.sessionManager.disconnectSession(sessionId);
@@ -141,11 +129,8 @@ class SessionController {
     async regenerateQR(req, res) {
         try {
             const { sessionId } = req.params;
-            const { workspace_id, account_id, api_key, priority } = req.body;
+            const { workspace_id, account_id, priority } = req.body;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             // Disconnect and reconnect to generate new QR
             await this.sessionManager.disconnectSession(sessionId);
@@ -178,9 +163,6 @@ class SessionController {
         try {
             const { api_key } = req.query;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             const sessions = this.sessionManager.getAllSessions();
             res.json({
@@ -204,11 +186,8 @@ class SessionController {
     async restoreSession(req, res) {
         try {
             const { sessionId } = req.params;
-            const { workspace_id, api_key } = req.body;
+            const { workspace_id } = req.body;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             const result = await this.sessionManager.restoreSession(sessionId, workspaceId);
             res.json(result);
@@ -230,9 +209,6 @@ class SessionController {
             const { sessionId } = req.params;
             const { api_key } = req.query;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             const metadata = this.sessionManager.getSessionMetadata(sessionId);
             if (metadata) {
@@ -262,9 +238,6 @@ class SessionController {
             const { sessionId } = req.params;
             const { api_key, updates } = req.body;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
 
             if (!updates || typeof updates !== 'object') {
                 return res.status(400).json({ error: 'Invalid updates object' });

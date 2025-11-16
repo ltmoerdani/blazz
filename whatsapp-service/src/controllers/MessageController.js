@@ -21,11 +21,9 @@ class MessageController {
      */
     async sendMessage(req, res) {
         try {
-            const { session_id, workspace_id, recipient_phone, message, type, api_key } = req.body;
+            const { session_id, workspace_id, recipient_phone, message, type } = req.body;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
+            // API key validation now handled by middleware
 
             // Validate required fields
             if (!session_id || !recipient_phone || !message) {
@@ -101,11 +99,9 @@ class MessageController {
      */
     async sendMediaMessage(req, res) {
         try {
-            const { session_id, workspace_id, recipient_phone, media_url, caption, filename, api_key } = req.body;
+            const { session_id, workspace_id, recipient_phone, media_url, caption, filename } = req.body;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
+            // API key validation now handled by middleware
 
             // Validate required fields
             if (!session_id || !recipient_phone || !media_url) {
@@ -165,11 +161,9 @@ class MessageController {
      */
     async bulkSendMessages(req, res) {
         try {
-            const { session_id, workspace_id, recipients, message, type, api_key } = req.body;
+            const { session_id, workspace_id, recipients, message, type } = req.body;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
+            // API key validation now handled by middleware
 
             // Validate required fields
             if (!session_id || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
@@ -276,11 +270,9 @@ class MessageController {
     async getMessageStatus(req, res) {
         try {
             const { sessionId } = req.params;
-            const { message_id, api_key } = req.query;
+            const { message_id } = req.query;
 
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
+            // API key validation now handled by middleware
 
             if (!message_id) {
                 return res.status(400).json({
@@ -331,11 +323,7 @@ class MessageController {
     async validateSessionForSending(req, res) {
         try {
             const { sessionId } = req.params;
-            const { api_key } = req.query;
-
-            if (api_key !== (process.env.API_KEY || process.env.LARAVEL_API_TOKEN)) {
-                return res.status(401).json({ error: 'Invalid API key' });
-            }
+            // API key validation now handled by middleware
 
             const status = await this.sessionManager.getSessionStatus(sessionId);
 

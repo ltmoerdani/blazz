@@ -21,7 +21,7 @@ use App\Models\Template;
 use App\Models\WhatsAppAccount; // NEW: For session filter dropdown
 use App\Services\SubscriptionService;
 use App\Services\WhatsappService;
-use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MessageService; // NEW: WhatsApp WebJS service
 use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
 use App\Services\AutoReplyService;
@@ -47,7 +47,7 @@ class ChatService
     // Constants for repeated string literals
     const AI_ASSISTANT_MODULE = 'AI Assistant';
 
-    private MessageSendingService $messageService;
+    private MessageService $messageService; // FIX: Use WebJS service
     private MediaProcessingService $mediaService;
     private TemplateManagementService $templateService;
     private ?AutoReplyService $autoReplyService;
@@ -55,7 +55,7 @@ class ChatService
 
     public function __construct(
         $workspaceId,
-        MessageSendingService $messageService,
+        MessageService $messageService, // FIX: Use WebJS service
         MediaProcessingService $mediaService,
         TemplateManagementService $templateService
     ) {
@@ -92,9 +92,6 @@ class ChatService
     }
     */
 
-    /**
-     * @deprecated Use getChatListWithFilters instead
-     */
     public function getChatList($request, $uuid = null, $searchTerm = null, $sessionId = null)
     {
         $role = Auth::user()->teams[0]->role;
@@ -286,13 +283,11 @@ class ChatService
     }
 
     /**
-     * New method to replace deprecated getChatList
      * Retrieves chat list with filters and pagination
+     * @deprecated This method is deprecated. Use getChatList method directly instead.
      */
     public function getChatListWithFilters($request, $uuid = null, $searchTerm = null, $sessionId = null)
     {
-        // @deprecated Use getChatList method directly
-        /** @noinspection PhpDeprecationInspection */
         return $this->getChatList($request, $uuid, $searchTerm, $sessionId);
     }
 
@@ -392,9 +387,47 @@ class ChatService
     {
         // OLD: Code removed during dependency injection migration
         // NEW: Use injected services
+        
+        Log::info('Chat message sending initiated', [
+            'workspace_id' => $this->workspaceId,
+            'contact_uuid' => $request->uuid,
+            'message_type' => $request->type,
+            'user_id' => Auth::id(),
+            'has_message' => !empty($request->message),
+            'has_file' => $request->hasFile('file'),
+            'timestamp' => now()->toIso8601String()
+        ]);
+        
         if($request->type === 'text'){
-            return $this->messageService->sendMessage($request->uuid, $request->message, Auth::id());
+            // FIX: Correct parameter order - sendMessage($contactUuid, $message, $type, $options)
+            $result = $this->messageService->sendMessage(
+                $request->uuid, 
+                $request->message, 
+                'text', 
+                ['user_id' => Auth::id()]
+            );
+            
+            if ($result->success ?? false) {
+                Log::info('Chat message sent successfully', [
+                    'workspace_id' => $this->workspaceId,
+                    'contact_uuid' => $request->uuid,
+                    'message_type' => 'text',
+                    'message_id' => $result->data->id ?? null,
+                    'user_id' => Auth::id()
+                ]);
+            } else {
+                Log::error('Failed to send chat message', [
+                    'workspace_id' => $this->workspaceId,
+                    'contact_uuid' => $request->uuid,
+                    'message_type' => 'text',
+                    'error' => $result->message ?? 'Unknown error',
+                    'user_id' => Auth::id()
+                ]);
+            }
+            
+            return $result;
         } else {
+            // Handle media messages (image, document, audio, video)
             $storage = Setting::where('key', 'storage_system')->first()->value;
             $fileName = $request->file('file')->getClientOriginalName();
             $fileContent = $request->file('file');
@@ -414,7 +447,35 @@ class ChatService
                 $mediaUrl = $mediaFilePath;
             }
 
-            return $this->messageService->sendMedia($request->uuid, $request->type, $fileName, $mediaFilePath, $mediaUrl, $location);
+            // FIX: Use sendMessage with media options instead of non-existent sendMedia method
+            $options = [
+                'location' => $location,
+                'user_id' => Auth::id(),
+                'filename' => $fileName,
+            ];
+            
+            // Map media type to appropriate metadata key
+            switch($request->type) {
+                case 'image':
+                    $options['image_url'] = $mediaUrl;
+                    break;
+                case 'video':
+                    $options['video_url'] = $mediaUrl;
+                    break;
+                case 'document':
+                    $options['document_url'] = $mediaUrl;
+                    break;
+                case 'audio':
+                    $options['audio_url'] = $mediaUrl;
+                    break;
+            }
+            
+            return $this->messageService->sendMessage(
+                $request->uuid,
+                $fileName, // Use filename as caption/message for media
+                $request->type, // type: image, document, audio, video
+                $options
+            );
         }
     }
 
@@ -498,8 +559,17 @@ class ChatService
         //Build Template to send
         $template = $this->buildTemplate($template->name, $template->language, json_decode(json_encode($metadata)), $contact);
 
-        // NEW: Use injected service
-        return $this->messageService->sendTemplateMessage($contact->uuid, $template, Auth::id(), null, $mediaId);
+        // TODO: Template message support via WebJS (currently not implemented)
+        // For now, return error response
+        Log::warning('Template message not yet supported in WebJS', [
+            'contact_uuid' => $contact->uuid,
+            'template_name' => $template->name ?? 'unknown'
+        ]);
+        
+        return (object) [
+            'success' => false,
+            'message' => 'Template messages are not yet supported in WebJS mode. Please use regular text messages.',
+        ];
     }
 
     public function clearMessage($uuid)

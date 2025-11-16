@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ChatService::class, function ($app) {
             return new ChatService(
                 WorkspaceHelper::getCurrentWorkspaceId(),
-                $app->make('App\Services\WhatsApp\MessageSendingService'),
+                $app->make('App\Services\WhatsApp\MessageService'), // FIX: Use WebJS service
                 $app->make('App\Services\WhatsApp\MediaProcessingService'),
                 $app->make('App\Services\WhatsApp\TemplateManagementService')
             );

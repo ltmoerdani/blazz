@@ -55,12 +55,21 @@ class MessageService
             if (!$whatsappAccount) {
                 throw new \Exception('No active WhatsApp account found for this workspace');
             }
-
-            // Send via Node.js service
+            
+            // FIX: Validate WhatsApp account has session_id
+            if (empty($whatsappAccount->session_id)) {
+                throw new \Exception('WhatsApp account does not have an active session. Please scan QR code to connect.');
+            }
+            
+            // FIX: Validate contact has phone number
+            if (empty($contact->phone)) {
+                throw new \Exception('Contact does not have a phone number');
+            }
+            
+            // FIX: Pass session_id and recipient phone (not UUIDs) to WhatsAppServiceClient
             $result = $this->whatsappClient->sendMessage(
-                $this->workspaceId,
-                $whatsappAccount->uuid,
-                $contactUuid,
+                $whatsappAccount->session_id,  // FIX: Use session_id instead of UUID
+                $contact->phone,                // FIX: Use actual phone number instead of UUID
                 $message,
                 $type,
                 $options
@@ -78,9 +87,11 @@ class MessageService
                 $this->logger->info('WhatsApp message sent successfully', [
                     'workspace_id' => $this->workspaceId,
                     'contact_uuid' => $contactUuid,
+                    'contact_phone' => substr($contact->phone, -4), // Log last 4 digits only
                     'chat_id' => $chat->id,
                     'message_type' => $type,
                     'whatsapp_account_id' => $whatsappAccount->id,
+                    'session_id' => $whatsappAccount->session_id,
                 ]);
 
                 return (object) [

@@ -53,27 +53,58 @@ class WhatsAppServiceClient
     /**
      * Send message via Node.js service
      *
-     * @param int $workspaceId
-     * @param string $accountUuid
-     * @param string $contactUuid
-     * @param string $message
-     * @param string $type
-     * @param array $options
+     * IMPORTANT: This method expects the caller to provide:
+     * - $sessionId: The WhatsApp session ID from WhatsAppAccount.session_id
+     * - $recipientPhone: The actual phone number (not UUID), from Contact.phone
+     * - $message: The message text/content
+     * - $type: Message type (text, image, video, document, audio)
+     *
+     * @param string $sessionId WhatsApp session ID (NOT account UUID)
+     * @param string $recipientPhone Recipient's phone number (NOT contact UUID)
+     * @param string $message Message content
+     * @param string $type Message type (default: 'text')
+     * @param array $options Additional options (media URLs, captions, etc.)
      * @return array
      */
-    public function sendMessage($workspaceId, $accountUuid, $contactUuid, $message, $type = 'text', $options = [])
+    public function sendMessage($sessionId, $recipientPhone, $message, $type = 'text', $options = [])
     {
         $endpoint = '/api/messages/send';
+        
+        // FIX: Map to Node.js API expected fields
         $payload = [
-            'workspace_id' => $workspaceId,
-            'account_uuid' => $accountUuid,
-            'contact_uuid' => $contactUuid,
+            'session_id' => $sessionId,        // Node.js expects session_id
+            'recipient_phone' => $recipientPhone, // Node.js expects recipient_phone
             'message' => $message,
             'type' => $type,
-            'options' => $options,
         ];
+        
+        // Add optional fields if provided
+        if (!empty($options)) {
+            $payload = array_merge($payload, $options);
+        }
+        
+        $this->logger->debug('WhatsAppServiceClient sending message', [
+            'session_id' => $sessionId,
+            'recipient_phone' => $this->maskPhoneNumber($recipientPhone),
+            'type' => $type,
+            'has_options' => !empty($options)
+        ]);
 
         return $this->makeRequest('POST', $endpoint, $payload);
+    }
+    
+    /**
+     * Mask phone number for logging (show only last 4 digits)
+     *
+     * @param string $phone
+     * @return string
+     */
+    protected function maskPhoneNumber($phone)
+    {
+        if (strlen($phone) <= 4) {
+            return $phone;
+        }
+        return str_repeat('*', strlen($phone) - 4) . substr($phone, -4);
     }
 
     /**

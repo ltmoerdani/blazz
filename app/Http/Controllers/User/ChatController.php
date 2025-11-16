@@ -9,7 +9,7 @@ use App\Models\Contact;
 use App\Models\workspace;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
-use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MessageService; // FIX: Use WebJS service
 use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
 use Illuminate\Http\Request;
@@ -23,7 +23,7 @@ class ChatController extends BaseController
     private ?ChatService $chatService;
     
     public function __construct(
-        private MessageSendingService $messageService,
+        private MessageService $messageService, // FIX: Use WebJS service
         private MediaProcessingService $mediaService,
         private TemplateManagementService $templateService
     ) {
@@ -147,7 +147,27 @@ class ChatController extends BaseController
     public function sendMessage(Request $request)
     {
         $workspaceId = session()->get('current_workspace');
-        return $this->getChatService($workspaceId)->sendMessage($request);
+        
+        Log::info('ChatController::sendMessage called', [
+            'workspace_id' => $workspaceId,
+            'contact_uuid' => $request->uuid,
+            'type' => $request->type,
+            'has_message' => !empty($request->message)
+        ]);
+        
+        $result = $this->getChatService($workspaceId)->sendMessage($request);
+        
+        Log::info('ChatController::sendMessage result', [
+            'success' => $result->success ?? false,
+            'message' => $result->message ?? 'No message'
+        ]);
+        
+        // Return JSON response for AJAX requests
+        return response()->json([
+            'success' => $result->success ?? false,
+            'message' => $result->message ?? 'Unknown error',
+            'data' => $result->data ?? null
+        ]);
     }
 
     public function sendTemplateMessage(Request $request, $uuid)

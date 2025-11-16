@@ -408,7 +408,7 @@ class WhatsAppWebhookController extends BaseController
         if (!$this->chatService) {
             $this->chatService = new ChatService(
                 $workspaceId,
-                app('App\Services\WhatsApp\MessageSendingService'),
+                app('App\Services\WhatsApp\MessageService'), // FIX: Use WebJS service
                 app('App\Services\WhatsApp\MediaProcessingService'),
                 app('App\Services\WhatsApp\TemplateManagementService')
             );
@@ -424,7 +424,7 @@ class WhatsAppWebhookController extends BaseController
         if (!$this->autoReplyService) {
             $this->autoReplyService = new AutoReplyService(
                 $workspaceId,
-                app('App\Services\WhatsApp\MessageSendingService'),
+                app('App\Services\WhatsApp\MessageService'), // FIX: Use WebJS service
                 app('App\Services\WhatsApp\MediaProcessingService')
             );
         }

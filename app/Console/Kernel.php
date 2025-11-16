@@ -4,6 +4,7 @@ namespace App\Console;
 
 use App\Jobs\CreateCampaignLogsJob;
 use App\Jobs\ProcessCampaignMessagesJob;
+use App\Jobs\MonitorWhatsAppSessionHealthJob;
 use App\Models\CampaignLog;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -44,6 +45,13 @@ class Kernel extends ConsoleKernel
         // Monitor queue size
         $schedule->command('monitor:queue-size')
             ->everyFiveMinutes();
+        
+        // ✅ NEW: WhatsApp Session Health Monitoring
+        $schedule->job(new MonitorWhatsAppSessionHealthJob(), 'whatsapp-health')
+            ->everyTwoMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->evenInMaintenanceMode();
     }
 
     /**
