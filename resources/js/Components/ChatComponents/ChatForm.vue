@@ -41,7 +41,7 @@
         form.value.uuid = props.contact.uuid;
     });
 
-    const emit = defineEmits(['response', 'viewTemplate', 'optimisticMessageSent', 'messageSent']);
+    const emit = defineEmits(['response', 'viewTemplate', 'optimisticMessageSent', 'optimisticMessageFailed', 'messageSent']);
 
     const viewTemplate = () => {
         emit('viewTemplate', true);

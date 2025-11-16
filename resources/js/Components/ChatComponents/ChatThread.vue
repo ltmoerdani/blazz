@@ -291,7 +291,7 @@ const handleOptimisticMessageSent = (optimisticMessage) => {
         // Store for tracking
         const messageId = optimisticMessage[0]?.value?.id;
         if (messageId) {
-            optimisticMessages.set(messageId, optimisticMessage);
+            optimisticMessages.value.set(messageId, optimisticMessage);
         }
     } else {
         // Convert to array format
@@ -304,7 +304,7 @@ const handleOptimisticMessageSent = (optimisticMessage) => {
         messages.value.push(messageArray);
 
         // Store optimistic message for later replacement
-        optimisticMessages.set(optimisticMessage.id, optimisticMessage);
+        optimisticMessages.value.set(optimisticMessage.id, optimisticMessage);
     }
 
     // Auto-scroll to bottom to show new message
@@ -329,7 +329,7 @@ const handleOptimisticMessageFailed = (errorData) => {
     }
 
     // Remove from tracking map
-    optimisticMessages.delete(errorData.optimisticId);
+    optimisticMessages.value.delete(errorData.optimisticId);
 };
 
 // Replace optimistic message with real message
@@ -366,7 +366,7 @@ const replaceOptimisticMessage = (realMessage) => {
         console.log(`🔄 Replaced optimistic message with real message: ${optimisticId || whatsappMessageId}`);
 
         // Clean up tracking
-        optimisticMessages.delete(optimisticId);
+        optimisticMessages.value.delete(optimisticId);
 
     } else {
         // If not found, add as new message
