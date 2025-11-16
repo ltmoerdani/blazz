@@ -405,7 +405,8 @@ class ChatService
                 $result = $this->messageService->sendMessage(
                     $request->uuid, 
                     $request->message ?? '', 
-                    'text'
+                    'text',
+                    ['optimistic_id' => $request->optimistic_id ?? null]
                 );
                 
                 Log::info('ChatService::sendMessage - MessageService result', [
@@ -696,6 +697,19 @@ class ChatService
                 'value' => $chatLog->relatedEntities
             ]);
         }
+
+        // DEBUG: Log structure untuk debug double bubble issue
+        Log::debug('getChatMessages structure', [
+            'contact_id' => $contactId,
+            'total_chat_logs' => $chatLogs->count(),
+            'chats_array_count' => count($chats),
+            'first_chat_structure' => isset($chats[0]) ? [
+                'is_array' => is_array($chats[0]),
+                'first_element_type' => isset($chats[0][0]) ? $chats[0][0]['type'] : null,
+                'has_value' => isset($chats[0][0]['value']),
+                'value_id' => isset($chats[0][0]['value']->id) ? $chats[0][0]['value']->id : null,
+            ] : null
+        ]);
 
         return [
             'messages' => array_reverse($chats),
