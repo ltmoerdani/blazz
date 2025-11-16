@@ -25,6 +25,7 @@ class Chat extends Model {
         'read_at' => 'datetime',
         'is_read' => 'boolean',
         'retry_count' => 'integer',
+        'metadata' => 'array',  // Cast metadata as JSON array
     ];
 
     protected static function boot()

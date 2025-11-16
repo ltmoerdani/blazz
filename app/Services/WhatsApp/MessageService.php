@@ -212,7 +212,7 @@ class MessageService
             'contact_id' => $contact->id,
             'whatsapp_account_id' => $this->getPrimaryAccount()->id,
             'type' => 'outbound',
-            'chat_type' => $type,
+            'chat_type' => 'private',  // Fixed: chat_type is 'private' or 'group', not message type
             'message_status' => $nodejsResult['success'] ? 'sent' : 'failed',
             'provider_type' => 'webjs',
             'sent_at' => now(),
