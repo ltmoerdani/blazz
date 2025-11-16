@@ -140,9 +140,12 @@ class WebhookController extends Controller
                 $sessionId,
                 'authenticated',
                 $workspaceId,
-                null,
+                $session->phone_number,
                 [
+                    'id' => $session->id,
                     'uuid' => $session->uuid,
+                    'phone_number' => $session->phone_number,
+                    'formatted_phone_number' => $session->formatted_phone_number,
                     'timestamp' => now()->toISOString()
                 ]
             ));
@@ -170,14 +173,17 @@ class WebhookController extends Controller
                 'last_activity_at' => now(),
             ]);
 
-            // Broadcast status change
+            // Broadcast status change with complete data
             broadcast(new WhatsAppAccountStatusChangedEvent(
                 $sessionId,
                 'connected',
                 $workspaceId,
                 $phoneNumber,
                 [
+                    'id' => $session->id,
                     'uuid' => $session->uuid,
+                    'phone_number' => $phoneNumber,
+                    'formatted_phone_number' => $session->formatted_phone_number,
                     'timestamp' => now()->toISOString()
                 ]
             ));
@@ -214,7 +220,10 @@ class WebhookController extends Controller
                 $workspaceId,
                 $session->phone_number,
                 [
+                    'id' => $session->id,
                     'uuid' => $session->uuid,
+                    'phone_number' => $session->phone_number,
+                    'formatted_phone_number' => $session->formatted_phone_number,
                     'reason' => $reason,
                     'timestamp' => now()->toISOString()
                 ]

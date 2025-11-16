@@ -188,7 +188,7 @@
             </div>
         </div>
 
-        <!-- Add Session Modal -->
+        <!-- Add Account Modal -->
         <div v-if="showAddModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
                 <div class="mt-3">
@@ -301,7 +301,7 @@ const accountsList = ref([...props.accounts.filter(s => s.status === 'connected'
 const showAddModal = ref(false)
 const qrCode = ref(null)
 const countdown = ref(300) // 5 minutes
-const currentSessionId = ref(null)
+const currentAccountId = ref(null)
 const qrTimeout = ref(null)
 const modalCloseTimeout = ref(null) // Fallback timeout to close modal
 let countdownInterval = null
@@ -319,7 +319,12 @@ watch(showAddModal, (newValue, oldValue) => {
 
 // Helper function to update account in list
 const updateAccountInList = (accountId, updates) => {
-    const index = accountsList.value.findIndex(s => s.account_id === accountId || s.uuid === accountId)
+    // accountId can be session_id (string like "webjs_1_...") or uuid
+    const index = accountsList.value.findIndex(s => 
+        s.session_id === accountId || 
+        s.uuid === accountId ||
+        s.id === accountId
+    )
     if (index !== -1) {
         accountsList.value[index] = { ...accountsList.value[index], ...updates }
         console.log('✅ Account updated in list:', accountId, updates)
@@ -506,26 +511,33 @@ const handleSessionStatusChanged = async (data) => {
             console.log('🆕 Is this first account?', isFirstAccount)
 
             // Find if account already exists in any state
+            // data.account_id actually contains session_id (string like "webjs_1_...")
             const existingAccountIndex = accountsList.value.findIndex(s =>
-                s.account_id === data.account_id || s.uuid === data.metadata?.uuid
+                s.session_id === data.account_id || 
+                s.uuid === data.metadata?.uuid ||
+                s.id === data.account_id
             )
 
             // Extract phone number from various possible sources
             const phoneNumber = data.metadata?.formatted_phone_number ||
                               data.metadata?.phone_number ||
                               data.phone_number ||
-                              data.account_id ||
                               'Unknown';
 
             const newAccount = {
+                id: data.metadata?.id || null,  // Database integer ID if available
                 uuid: data.metadata?.uuid || `temp-${Date.now()}`,
-                account_id: data.account_id,
+                session_id: data.account_id,  // data.account_id actually contains session_id string
                 name: phoneNumber,
+                phone_number: phoneNumber,
                 formatted_phone_number: phoneNumber,
                 status: 'connected',
-                connected_at: data.metadata?.timestamp || new Date().toISOString(),
+                health_score: 100,
+                last_activity_at: data.metadata?.timestamp || new Date().toISOString(),
+                last_connected_at: data.metadata?.timestamp || new Date().toISOString(),
                 is_primary: isFirstAccount,
-                provider: 'whatsapp-web-js',
+                is_active: true,
+                provider_type: 'webjs',
                 created_at: data.metadata?.timestamp || new Date().toISOString(),
                 updated_at: data.metadata?.timestamp || new Date().toISOString()
             }
@@ -624,10 +636,10 @@ const addAccount = async () => {
             }
         })
 
-        console.log('✅ Session created:', response.data)
+        console.log('✅ Account created:', response.data)
 
         if (response.data.success) {
-            currentSessionId.value = response.data.session.uuid
+            currentAccountId.value = response.data.account.uuid
 
             // Set fallback timeout to close modal after 2 minutes if no connection happens
             modalCloseTimeout.value = setTimeout(() => {
@@ -654,9 +666,9 @@ const addAccount = async () => {
                 }
             }, 180000) // 3 minutes
 
-            // Add the new session to the list immediately
-            addAccountToList(response.data.session)
-            console.log('✨ Session added to list seamlessly, no page reload needed!')
+            // Add the new account to the list immediately
+            addAccountToList(response.data.account)
+            console.log('✨ Account added to list seamlessly, no page reload needed!')
 
             // Check if QR code is already available
             if (response.data.qr_code) {
@@ -670,10 +682,10 @@ const addAccount = async () => {
             }
         }
     } catch (error) {
-        console.error('❌ Failed to create session:', error)
+        console.error('❌ Failed to create account:', error)
 
         // Provide user-friendly error messages
-        let userMessage = 'Failed to create WhatsApp session. Please try again.'
+        let userMessage = 'Failed to create WhatsApp account. Please try again.'
         if (error.response?.status === 429) {
             userMessage = 'Too many requests. Please wait a moment before trying again.'
         } else if (error.response?.status === 403) {
@@ -716,7 +728,7 @@ const closeAddModal = () => {
 
 const setPrimary = async (uuid) => {
     try {
-        console.log('⭐ Setting primary session:', uuid)
+        console.log('⭐ Setting primary account:', uuid)
 
         await axios.post(`/settings/whatsapp-accounts/${uuid}/set-primary`, {}, {
             headers: {
@@ -725,12 +737,12 @@ const setPrimary = async (uuid) => {
             }
         })
 
-        // Update all sessions: remove is_primary from current primary
-        accountsList.value.forEach(session => {
-            session.is_primary = session.uuid === uuid
+        // Update all accounts: remove is_primary from current primary
+        accountsList.value.forEach(account => {
+            account.is_primary = account.uuid === uuid
         })
 
-        console.log('✅ Primary session updated seamlessly!')
+        console.log('✅ Primary account updated seamlessly!')
     } catch (error) {
         console.error('Failed to set primary session:', error)
 
@@ -751,7 +763,7 @@ const setPrimary = async (uuid) => {
 const disconnect = async (uuid) => {
     if (confirm('Are you sure you want to disconnect this WhatsApp number?')) {
         try {
-            console.log('🔌 Disconnecting session with UUID:', uuid)
+            console.log('🔌 Disconnecting account with UUID:', uuid)
 
             const response = await axios.post(`/settings/whatsapp-accounts/${uuid}/disconnect`, {}, {
                 headers: {
@@ -849,14 +861,14 @@ const reconnect = async (uuid) => {
     }
 
     try {
-        console.log('🔄 Reconnecting session:', uuid)
+        console.log('🔄 Reconnecting account:', uuid)
         const response = await axios.post(`/settings/whatsapp-accounts/${uuid}/reconnect`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
             }
         })
-        currentSessionId.value = uuid
+        currentAccountId.value = uuid
         showAddModal.value = true
         qrCode.value = response.data.qr_code
         countdown.value = 300
@@ -882,7 +894,7 @@ const reconnect = async (uuid) => {
 
 const regenerateQR = async () => {
     try {
-        const response = await axios.post(`/settings/whatsapp-accounts/${currentSessionId.value}/regenerate-qr`, {}, {
+        const response = await axios.post(`/settings/whatsapp-accounts/${currentAccountId.value}/regenerate-qr`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'

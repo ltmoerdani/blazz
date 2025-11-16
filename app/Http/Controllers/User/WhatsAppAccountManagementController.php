@@ -155,8 +155,8 @@ class WhatsAppAccountManagementController extends Controller
 
                 $response = response()->json([
                     'success' => true,
-                    'message' => 'WhatsApp session created successfully',
-                    'session' => [
+                    'message' => 'WhatsApp account created successfully',
+                    'account' => [
                         'id' => $session->id,
                         'uuid' => $session->uuid,
                         'session_id' => $session->session_id,
@@ -174,7 +174,7 @@ class WhatsAppAccountManagementController extends Controller
                 ], 201);
 
             } catch (\Exception $e) {
-                Log::error('Failed to create WhatsApp session', [
+                Log::error('Failed to create WhatsApp account', [
                     'error' => $e->getMessage(),
                     'workspace_id' => $workspaceId,
                     'request_data' => $request->all()
@@ -182,7 +182,7 @@ class WhatsAppAccountManagementController extends Controller
 
                 $response = response()->json([
                     'success' => false,
-                    'message' => 'Failed to create WhatsApp session: ' . $e->getMessage()
+                    'message' => 'Failed to create WhatsApp account: ' . $e->getMessage()
                 ], 500);
             }
         }
@@ -191,7 +191,7 @@ class WhatsAppAccountManagementController extends Controller
     }
 
     /**
-     * Get session details by UUID
+     * Get account details by UUID
      */
     public function show(string $uuid)
     {
@@ -258,21 +258,21 @@ class WhatsAppAccountManagementController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to get WhatsApp session details', [
+            Log::error('Failed to get WhatsApp account details', [
                 'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
+                'account_uuid' => $uuid,
                 'workspace_id' => $workspaceId
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get session details: ' . $e->getMessage()
+                'message' => 'Failed to get account details: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Delete session
+     * Delete account
      */
     public function destroy(string $uuid)
     {
@@ -339,19 +339,19 @@ class WhatsAppAccountManagementController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'WhatsApp session deleted successfully'
+                'message' => 'WhatsApp account deleted successfully'
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to delete WhatsApp session', [
+            Log::error('Failed to delete WhatsApp account', [
                 'error' => $e->getMessage(),
-                'session_uuid' => $uuid,
+                'account_uuid' => $uuid,
                 'workspace_id' => $workspaceId
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete session: ' . $e->getMessage()
+                'message' => 'Failed to delete account: ' . $e->getMessage()
             ], 500);
         }
     }
