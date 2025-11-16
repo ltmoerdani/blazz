@@ -151,6 +151,14 @@ class ChatController extends BaseController
         $workspaceId = session()->get('current_workspace');
         $result = $this->getChatService($workspaceId)->sendMessage($request);
         
+        // Debug logging
+        Log::info('ChatController::sendMessage result', [
+            'success' => $result->success ?? 'null',
+            'message' => $result->message ?? 'null',
+            'has_data' => isset($result->data),
+            'result_type' => gettype($result),
+        ]);
+        
         // Return JSON for AJAX request
         return response()->json([
             'success' => $result->success,

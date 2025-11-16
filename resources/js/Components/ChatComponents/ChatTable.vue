@@ -52,12 +52,14 @@
     }
 
     const contentType = (metadata) => {
-        const chatData = JSON.parse(metadata);
+        // Handle both string JSON and object (after Laravel cast)
+        const chatData = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
         return chatData.type;
     }
 
     const content = (metadata) => {
-        return JSON.parse(metadata);
+        // Handle both string JSON and object (after Laravel cast)
+        return typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
     }
 
     const getExtension = (fileFormat) => {
@@ -76,7 +78,9 @@
     };
 
     const getContactDisplayName = (metadata) => {
-        const contacts = JSON.parse(metadata).contacts;
+        // Handle both string JSON and object (after Laravel cast)
+        const chatData = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+        const contacts = chatData.contacts;
         if (contacts.length === 1) {
             const contact = contacts[0];
             return contact.name.formatted_name || `${contact.name.first_name} ${contact.name.last_name}`;

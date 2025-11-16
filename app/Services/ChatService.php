@@ -388,10 +388,33 @@ class ChatService
 
     public function sendMessage(object $request)
     {
-        // NEW: Use MessageService (WebJS) instead of MessageSendingService (Meta API)
-        if($request->type === 'text'){
-            return $this->messageService->sendMessage($request->uuid, $request->message, 'text');
-        } else {
+        try {
+            // NEW: Use MessageService (WebJS) instead of MessageSendingService (Meta API)
+            // Handle null/empty type - default to 'text'
+            $type = $request->type ?? 'text';
+            
+            Log::info('ChatService::sendMessage called', [
+                'type' => $type,
+                'has_message' => !empty($request->message),
+                'has_file' => !empty($request->file('file')),
+                'uuid' => $request->uuid,
+            ]);
+            
+            // Check if this is a text message or media message
+            if($type === 'text' || empty($request->file('file'))){
+                $result = $this->messageService->sendMessage(
+                    $request->uuid, 
+                    $request->message ?? '', 
+                    'text'
+                );
+                
+                Log::info('ChatService::sendMessage - MessageService result', [
+                    'success' => $result->success ?? 'null',
+                    'message' => $result->message ?? 'null',
+                ]);
+                
+                return $result;
+            } else {
             $storage = Setting::where('key', 'storage_system')->first()->value;
             $fileName = $request->file('file')->getClientOriginalName();
             $fileContent = $request->file('file');
@@ -419,7 +442,25 @@ class ChatService
                 'location' => $location,
             ];
 
-            return $this->messageService->sendMessage($request->uuid, $fileName, $request->type, $options);
+                $result = $this->messageService->sendMessage($request->uuid, $fileName, $type, $options);
+                
+                Log::info('ChatService::sendMessage - Media MessageService result', [
+                    'success' => $result->success ?? 'null',
+                    'message' => $result->message ?? 'null',
+                ]);
+                
+                return $result;
+            }
+        } catch (\Exception $e) {
+            Log::error('ChatService::sendMessage - Exception caught', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return (object) [
+                'success' => false,
+                'message' => 'Failed to send message: ' . $e->getMessage(),
+            ];
         }
     }
 

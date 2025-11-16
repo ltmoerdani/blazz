@@ -25,7 +25,7 @@
     const form = ref({
         'uuid' : props.contact.uuid,
         'message' : null,
-        'type' : null,
+        'type' : 'text',
         'file' : null
     })
     const form2 = ref({
@@ -117,9 +117,10 @@
                     processingForm.value = false;
                 });
 
-            if(isAudioRecording.value == true){
-                await sendAudioMessage();
-            }
+            // REMOVED: Don't call sendAudioMessage here - it's handled separately
+            // if(isAudioRecording.value == true){
+            //     await sendAudioMessage();
+            // }
 
         } else {
             if(isAudioRecording.value == true){
