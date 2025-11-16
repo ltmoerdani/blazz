@@ -2,7 +2,6 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { default as axios } from 'axios';
 import ChatBubble from '@/Components/ChatComponents/ChatBubble.vue';
-import MessageStatus from '@/Components/ChatComponents/MessageStatus.vue';
 import { getEchoInstance } from '@/echo.js';
 
 const props = defineProps({
@@ -488,15 +487,6 @@ onUnmounted(() => {
                         <div class="w-2 h-2 bg-red-500 rounded-full"></div>
                     </div>
                 </div>
-
-                <!-- Message status component for outbound messages -->
-                <MessageStatus
-                    v-if="chat[0].value.type === 'outbound'"
-                    :status="chat[0].value.message_status || 'pending'"
-                    :timestamp="chat[0].value.created_at"
-                    :show-indicators="true"
-                    :show-timestamp="true"
-                    size="small" />
 
                 <!-- Retry button for failed messages -->
                 <button v-if="chat[0].value.message_status === 'failed'"
