@@ -428,6 +428,223 @@ class MessageService
     }
 
     /**
+     * Send template message to contact
+     *
+     * @param string $contactUuid
+     * @param array $templateData
+     * @param array $options
+     * @return object
+     */
+    public function sendTemplateMessage($contactUuid, $templateData, $options = [])
+    {
+        try {
+            DB::beginTransaction();
+
+            // Find contact in workspace
+            $contact = Contact::where('uuid', $contactUuid)
+                ->where('workspace_id', $this->workspaceId)
+                ->firstOrFail();
+
+            // Get primary WhatsApp account for workspace
+            $whatsappAccount = $this->getPrimaryAccount();
+            if (!$whatsappAccount) {
+                throw new \Exception('No active WhatsApp account found for this workspace');
+            }
+
+            // Send template via Node.js service
+            $result = $this->whatsappClient->sendTemplateMessage(
+                $this->workspaceId,
+                $whatsappAccount->uuid,
+                $contactUuid,
+                $templateData,
+                $options
+            );
+
+            if ($result['success']) {
+                // Save to database
+                $chat = $this->saveTemplateMessage($contact, $templateData, $result, $options);
+
+                // Update contact activity
+                $this->updateContactActivity($contact, $chat);
+
+                DB::commit();
+
+                $this->logger->info('WhatsApp template sent successfully', [
+                    'workspace_id' => $this->workspaceId,
+                    'contact_uuid' => $contactUuid,
+                    'template_name' => $templateData['name'] ?? 'unknown',
+                    'chat_id' => $chat->id,
+                    'whatsapp_account_id' => $whatsappAccount->id,
+                ]);
+
+                return (object) [
+                    'success' => true,
+                    'data' => $chat,
+                    'message' => 'Template message sent successfully',
+                    'nodejs_result' => $result,
+                ];
+            }
+
+            DB::rollBack();
+
+            return (object) [
+                'success' => false,
+                'message' => 'Failed to send template message: ' . ($result['error'] ?? 'Unknown error'),
+                'nodejs_result' => $result,
+            ];
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+
+            return (object) [
+                'success' => false,
+                'message' => 'Contact not found',
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            $this->logger->error('Failed to send WhatsApp template message', [
+                'workspace_id' => $this->workspaceId,
+                'contact_uuid' => $contactUuid,
+                'template_name' => $templateData['name'] ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return (object) [
+                'success' => false,
+                'message' => 'Failed to send template message: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Save template message to database
+     *
+     * @param Contact $contact
+     * @param array $templateData
+     * @param array $nodejsResult
+     * @param array $options
+     * @return Chat
+     */
+    protected function saveTemplateMessage($contact, $templateData, $nodejsResult, $options = [])
+    {
+        // Prepare metadata
+        $metadata = [
+            'template' => $templateData,
+            'nodejs_response' => $nodejsResult,
+            'options' => $options,
+        ];
+
+        // Create chat record
+        $chat = Chat::create([
+            'uuid' => Str::uuid(),
+            'workspace_id' => $this->workspaceId,
+            'contact_id' => $contact->id,
+            'whatsapp_account_id' => $this->getPrimaryAccount()->id,
+            'type' => 'outbound',
+            'chat_type' => 'template',
+            'message_status' => $nodejsResult['success'] ? 'sent' : 'failed',
+            'provider_type' => 'webjs',
+            'sent_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+            'metadata' => $metadata,
+            'user_id' => Auth::id(),
+        ]);
+
+        return $chat;
+    }
+
+    /**
+     * Send direct message for campaigns (compatible with MessageSendingService interface)
+     *
+     * @param string $contactUuid
+     * @param array $messageRequest
+     * @param int|null $userId
+     * @param int|null $campaignId
+     * @param WhatsAppAccount|null $session
+     * @return object
+     */
+    public function sendDirectMessage($contactUuid, $messageRequest, $userId = null, $campaignId = null, $session = null)
+    {
+        try {
+            // Convert direct message to standard message format
+            $content = $messageRequest['content'] ?? [];
+            $messageType = 'text';
+            $messageText = '';
+            $options = [];
+
+            // Extract message content
+            if (isset($content['body']['text'])) {
+                $messageText = $content['body']['text'];
+            }
+
+            // Handle media messages
+            if (isset($content['header'])) {
+                $header = $content['header'];
+                if (in_array($header['type'] ?? '', ['image', 'document', 'video', 'audio'])) {
+                    $messageType = $header['type'];
+                    $options['media_url'] = $header['media'] ?? null;
+                    $options['caption'] = $messageText;
+                }
+            }
+
+            // Handle buttons
+            if (isset($content['buttons']) && !empty($content['buttons'])) {
+                $options['buttons'] = $content['buttons'];
+            }
+
+            // Build full message
+            if ($messageType === 'text') {
+                return $this->sendMessage($contactUuid, $messageText, $messageType, $options);
+            } else {
+                // For media messages, include the media URL in options
+                $options['file_name'] = null;
+                $options['file_path'] = null;
+                $options['media_url'] = $options['media_url'];
+                $options['location'] = null;
+
+                return $this->sendMessage($contactUuid, $options['media_url'], $messageType, $options);
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to send direct message', [
+                'workspace_id' => $this->workspaceId,
+                'contact_uuid' => $contactUuid,
+                'error' => $e->getMessage(),
+                'campaign_id' => $campaignId,
+            ]);
+
+            return (object) [
+                'success' => false,
+                'message' => 'Failed to send direct message: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Send template message (compatible with MessageSendingService interface)
+     *
+     * @param string $contactUuid
+     * @param array $templateData
+     * @param int|null $userId
+     * @param int|null $campaignId
+     * @param WhatsAppAccount|null $session
+     * @return object
+     */
+    public function sendTemplateMessageLegacy($contactUuid, $templateData, $userId = null, $campaignId = null, $session = null)
+    {
+        $options = [
+            'user_id' => $userId,
+            'campaign_id' => $campaignId,
+            'session_id' => $session?->id,
+        ];
+
+        return $this->sendTemplateMessage($contactUuid, $templateData, $options);
+    }
+
+    /**
      * Get message statistics for workspace
      *
      * @param array $filters

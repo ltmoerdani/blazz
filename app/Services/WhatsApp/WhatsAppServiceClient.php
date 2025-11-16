@@ -77,6 +77,30 @@ class WhatsAppServiceClient
     }
 
     /**
+     * Send template message
+     *
+     * @param int $workspaceId
+     * @param string $accountUuid
+     * @param string $contactUuid
+     * @param array $templateData
+     * @param array $options
+     * @return array
+     */
+    public function sendTemplateMessage($workspaceId, $accountUuid, $contactUuid, $templateData, $options = [])
+    {
+        $endpoint = '/api/messages/send-template';
+        $payload = [
+            'workspace_id' => $workspaceId,
+            'account_uuid' => $accountUuid,
+            'contact_uuid' => $contactUuid,
+            'template_data' => $templateData,
+            'options' => $options,
+        ];
+
+        return $this->makeRequest('POST', $endpoint, $payload);
+    }
+
+    /**
      * Send bulk messages
      *
      * @param int $workspaceId

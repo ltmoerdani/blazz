@@ -10,7 +10,7 @@ use App\Models\Contact;
 use App\Models\WhatsAppAccount;
 use App\Models\Workspace;
 use App\Models\Setting;
-use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\ProviderSelectionService;
 use App\Traits\HasUuid;
 use App\Traits\TemplateTrait;
@@ -27,7 +27,7 @@ class SendCampaignJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, TemplateTrait, SerializesModels;
 
     private $workspaceId;
-    private MessageSendingService $messageService;
+    private MessageService $messageService;
     private ProviderSelectionService $providerService;
     private ?WhatsAppAccount $selectedAccount = null;
 
@@ -36,10 +36,10 @@ class SendCampaignJob implements ShouldQueue
      */
     public function __construct(
         private Campaign $campaign,
-        ?MessageSendingService $messageService = null,
+        ?MessageService $messageService = null,
         ?ProviderSelectionService $providerService = null
     ) {
-        $this->messageService = $messageService ?? app(MessageSendingService::class);
+        $this->messageService = $messageService ?? app(MessageService::class);
         $this->providerService = $providerService ?? app(ProviderSelectionService::class);
     }
 
