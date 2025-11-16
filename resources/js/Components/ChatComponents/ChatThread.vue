@@ -2,7 +2,6 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { default as axios } from 'axios';
 import ChatBubble from '@/Components/ChatComponents/ChatBubble.vue';
-import MessageStatus from '@/Components/ChatComponents/MessageStatus.vue';
 import { getEchoInstance } from '@/echo.js';
 
 const props = defineProps({
@@ -38,9 +37,23 @@ const isTyping = ref(false);
 const typingUser = ref(null);
 
 // CRITICAL: Watch for prop changes when switching contacts
-watch(() => props.initialMessages, (newMessages) => {
-    console.log('🔄 ChatThread: Messages updated from parent', newMessages.length);
-    messages.value = newMessages;
+watch(() => props.initialMessages, (newMessages, oldMessages) => {
+    // Only update if messages actually changed to prevent unnecessary re-renders
+    if (!oldMessages || newMessages.length !== oldMessages.length || 
+        JSON.stringify(newMessages) !== JSON.stringify(oldMessages)) {
+        console.log('🔄 ChatThread: Messages updated from parent', newMessages.length);
+        
+        // DEBUG: Check array structure
+        if (newMessages && newMessages.length > 0) {
+            console.log('📊 First message structure:', {
+                chatArrayLength: newMessages[0]?.length,
+                messageId: newMessages[0]?.[0]?.value?.id,
+                fullStructure: newMessages[0]
+            });
+        }
+        
+        messages.value = newMessages;
+    }
 }, { immediate: true, deep: false });
 
 watch(() => props.contactId, (newContactId, oldContactId) => {
@@ -354,6 +367,14 @@ const replaceOptimisticMessage = (realMessage) => {
     }
 
     if (messageIndex !== -1) {
+        console.log('📋 Real message structure:', {
+            id: realMessage.id,
+            type: realMessage.type,
+            metadata: realMessage.metadata,
+            has_user: !!realMessage.user,
+            has_logs: !!realMessage.logs
+        });
+        
         // Replace optimistic message with real message
         messages.value[messageIndex] = [{
             type: 'chat',
@@ -464,7 +485,9 @@ onUnmounted(() => {
         <div v-for="(chat, index) in messages"
              :key="index"
              class="flex flex-grow flex-col"
-             :class="chat[0].type === 'ticket' ? 'justify-center' : 'justify-end'">
+             :class="chat[0].type === 'ticket' ? 'justify-center' : 'justify-end'"
+             :data-debug-chat-length="chat.length"
+             :data-debug-msg-id="chat[0]?.value?.id || chat[0]?.value?.wam_id">
 
             <!-- Chat messages with status indicators -->
             <div v-if="chat[0].type === 'chat'"
@@ -488,15 +511,6 @@ onUnmounted(() => {
                         <div class="w-2 h-2 bg-red-500 rounded-full"></div>
                     </div>
                 </div>
-
-                <!-- Message status component for outbound messages -->
-                <MessageStatus
-                    v-if="chat[0].value.type === 'outbound'"
-                    :status="chat[0].value.message_status || 'pending'"
-                    :timestamp="chat[0].value.created_at"
-                    :show-indicators="true"
-                    :show-timestamp="true"
-                    size="small" />
 
                 <!-- Retry button for failed messages -->
                 <button v-if="chat[0].value.message_status === 'failed'"
