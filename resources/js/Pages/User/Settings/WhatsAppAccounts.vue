@@ -524,6 +524,13 @@ const handleSessionStatusChanged = async (data) => {
                               data.phone_number ||
                               'Unknown';
 
+            console.log('📞 Phone number extracted:', {
+                from_formatted: data.metadata?.formatted_phone_number,
+                from_phone: data.metadata?.phone_number,
+                from_data_phone: data.phone_number,
+                final: phoneNumber
+            })
+
             const newAccount = {
                 id: data.metadata?.id || null,  // Database integer ID if available
                 uuid: data.metadata?.uuid || `temp-${Date.now()}`,
@@ -544,9 +551,12 @@ const handleSessionStatusChanged = async (data) => {
 
             if (existingAccountIndex !== -1) {
                 console.log('📝 Updating existing account in list at index:', existingAccountIndex)
-                // Update existing account
-                accountsList.value[existingAccountIndex] = newAccount
-                console.log('✅ Account updated in list!')
+                // Merge with existing data to preserve any fields not in event
+                accountsList.value[existingAccountIndex] = {
+                    ...accountsList.value[existingAccountIndex],
+                    ...newAccount
+                }
+                console.log('✅ Account updated in list!', accountsList.value[existingAccountIndex])
             } else {
                 console.log('➕ Adding new account to list')
                 // Add new account to the beginning of the list
