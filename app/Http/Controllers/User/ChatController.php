@@ -9,7 +9,7 @@ use App\Models\Contact;
 use App\Models\workspace;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
-use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
 use Illuminate\Http\Request;
@@ -23,7 +23,6 @@ class ChatController extends BaseController
     private ?ChatService $chatService;
     
     public function __construct(
-        private MessageSendingService $messageService,
         private MediaProcessingService $mediaService,
         private TemplateManagementService $templateService
     ) {
@@ -34,9 +33,12 @@ class ChatController extends BaseController
     private function getChatService($workspaceId)
     {
         if (!$this->chatService) {
+            // Create MessageService instance with workspaceId
+            $messageService = new MessageService($workspaceId);
+
             $this->chatService = new ChatService(
                 $workspaceId,
-                $this->messageService,
+                $messageService,
                 $this->mediaService,
                 $this->templateService
             );
