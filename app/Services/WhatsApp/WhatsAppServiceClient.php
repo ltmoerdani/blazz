@@ -69,13 +69,24 @@ class WhatsAppServiceClient
 
         // Convert contact UUID to actual phone number
         $contactPhone = $this->getContactPhone($contactUuid, $workspaceId);
+        
+        // CRITICAL FIX: Get actual session_id from WhatsAppAccount (not UUID)
+        $account = \App\Models\WhatsAppAccount::where('uuid', $accountUuid)
+            ->where('workspace_id', $workspaceId)
+            ->first();
+        
+        if (!$account || !$account->session_id) {
+            throw new \Exception('WhatsApp account not found or session_id missing');
+        }
+        
+        $sessionId = $account->session_id;  // e.g., webjs_1_1763300356_ot6RUaMF
 
         // Build correct payload for Node.js service
         if ($type === 'text') {
             // Text message payload
             $payload = [
                 'workspace_id' => $workspaceId,
-                'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+                'session_id' => $sessionId,  // FIXED: Use actual session_id from database
                 'recipient_phone' => $contactPhone,  // Fixed: contact_uuid -> recipient_phone
                 'message' => $message,
                 'type' => $type,
@@ -85,7 +96,7 @@ class WhatsAppServiceClient
             // Media message payload
             $payload = [
                 'workspace_id' => $workspaceId,
-                'session_id' => $accountUuid,  // Fixed: account_uuid -> session_id
+                'session_id' => $sessionId,  // FIXED: Use actual session_id from database
                 'recipient_phone' => $contactPhone,  // Fixed: contact_uuid -> recipient_phone
                 'media_url' => $options['media_url'] ?? null,
                 'caption' => $message,  // For media, message is the caption
@@ -583,7 +594,12 @@ class WhatsAppServiceClient
                 return null;
             }
 
-            return $contact->phone;
+            // CRITICAL FIX: Strip '+' prefix for WhatsApp Web.js compatibility
+            // WhatsApp Web.js expects: 628xxx, not +628xxx
+            $phone = $contact->phone;
+            $phone = ltrim($phone, '+');  // Remove leading '+' if present
+            
+            return $phone;
         } catch (\Exception $e) {
             $this->logger->error('Failed to get contact phone', [
                 'contact_uuid' => $contactUuid,

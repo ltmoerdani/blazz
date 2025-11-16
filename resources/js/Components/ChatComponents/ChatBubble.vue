@@ -71,6 +71,11 @@
     const chatStatus = (logs) => {
         let status = 'sent';
 
+        // Add null safety check
+        if (!logs || !Array.isArray(logs)) {
+            return status;
+        }
+
         logs.forEach(log => {
             const metadata = JSON.parse(log.metadata);
             const logStatus = metadata.status;

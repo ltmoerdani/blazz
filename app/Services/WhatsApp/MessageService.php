@@ -3,8 +3,10 @@
 namespace App\Services\WhatsApp;
 
 use App\Models\Chat;
+use App\Models\ChatLog;
 use App\Models\Contact;
 use App\Models\WhatsAppAccount;
+use App\Events\NewChatEvent;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -218,6 +220,39 @@ class MessageService
             'updated_at' => now(),
             'metadata' => $metadata,
             'user_id' => Auth::id(),
+            'whatsapp_message_id' => $nodejsResult['message_id'] ?? null,
+            'wam_id' => $nodejsResult['message_id'] ?? null,
+        ]);
+
+        // Create ChatLog entry for chat list
+        $chatlogId = ChatLog::insertGetId([
+            'contact_id' => $contact->id,
+            'entity_type' => 'chat',
+            'entity_id' => $chat->id,
+            'created_at' => now()
+        ]);
+
+        // Load chat with relationships for event
+        $chat = Chat::with('contact', 'media')->where('id', $chat->id)->first();
+
+        // Prepare chat array for event
+        $chatLogRecord = ChatLog::where('id', $chatlogId)
+            ->whereNull('deleted_at')
+            ->first();
+        
+        $chatArray = [[
+            'type' => 'chat',
+            'value' => $chatLogRecord->relatedEntities
+        ]];
+
+        // Broadcast NewChatEvent for real-time update
+        event(new NewChatEvent($chatArray, $this->workspaceId));
+
+        $this->logger->info('Chat message saved with ChatLog and event broadcasted', [
+            'chat_id' => $chat->id,
+            'chatlog_id' => $chatlogId,
+            'workspace_id' => $this->workspaceId,
+            'whatsapp_message_id' => $nodejsResult['message_id'] ?? 'unknown',
         ]);
 
         return $chat;
@@ -235,6 +270,7 @@ class MessageService
         $contact->update([
             'last_message_at' => $chat->created_at,
             'last_activity' => $chat->created_at,
+            'latest_chat_created_at' => $chat->created_at,
         ]);
 
         // Update WhatsApp account statistics

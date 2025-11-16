@@ -149,7 +149,14 @@ class ChatController extends BaseController
     public function sendMessage(Request $request)
     {
         $workspaceId = session()->get('current_workspace');
-        return $this->getChatService($workspaceId)->sendMessage($request);
+        $result = $this->getChatService($workspaceId)->sendMessage($request);
+        
+        // Return JSON for AJAX request
+        return response()->json([
+            'success' => $result->success,
+            'message' => $result->message,
+            'data' => $result->success ? $result->data : null,
+        ], $result->success ? 200 : 400);
     }
 
     public function sendTemplateMessage(Request $request, $uuid)

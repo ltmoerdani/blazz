@@ -49,7 +49,7 @@ const props = defineProps({
     status: {
         type: String,
         default: 'pending',
-        validator: (value) => ['pending', 'sent', 'delivered', 'read', 'failed'].includes(value)
+        validator: (value) => ['pending', 'sending', 'sent', 'delivered', 'read', 'failed'].includes(value)
     },
     timestamp: {
         type: [String, Number, Date],
@@ -75,7 +75,7 @@ const props = defineProps({
 })
 
 // Computed properties for status checking
-const isPending = computed(() => ['pending', 'sending'].includes(props.status))
+const isPending = computed(() => props.status === 'pending' || props.status === 'sending')
 const isSent = computed(() => props.status === 'sent')
 const isDelivered = computed(() => props.status === 'delivered')
 const isRead = computed(() => props.status === 'read')
