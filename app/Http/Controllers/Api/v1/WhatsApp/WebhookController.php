@@ -450,39 +450,52 @@ class WebhookController extends Controller
             );
 
             if ($contact) {
-                // Create chat record with real-time messaging fields
-                $chat = \App\Models\Chat::create([
-                    'workspace_id' => $workspaceId,
-                    'contact_id' => $contact->id,
-                    'whatsapp_account_id' => $session->id,
-                    'whatsapp_message_id' => $messageData['id'],
-                    'wam_id' => $messageData['id'], // Keep for compatibility
-                    'type' => 'outbound',
-                    'status' => 'sent',
-                    'message_status' => 'pending', // Real-time status
-                    'ack_level' => 1, // Pending status
-                    'metadata' => json_encode([
-                        'body' => $messageData['body'] ?? '',
-                        'type' => $messageData['type'] ?? 'text',
-                        'has_media' => $messageData['has_media'] ?? false,
-                        'from_me' => true,
-                    ]),
-                    'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
-                ]);
+                // Check if chat already exists (to prevent duplicates from MessageService)
+                $existingChat = \App\Models\Chat::where('whatsapp_message_id', $messageData['id'])
+                    ->orWhere('wam_id', $messageData['id'])
+                    ->first();
 
-                // Create ChatLog entry for UI display
-                \App\Models\ChatLog::create([
-                    'contact_id' => $contact->id,
-                    'entity_type' => 'chat',
-                    'entity_id' => $chat->id,
-                    'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
-                    'updated_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
-                ]);
+                if ($existingChat) {
+                    Log::info('Chat record already exists, skipping duplicate creation', [
+                        'contact_id' => $contact->id,
+                        'message_id' => $messageData['id'],
+                        'existing_chat_id' => $existingChat->id,
+                    ]);
+                } else {
+                    // Create chat record with real-time messaging fields
+                    $chat = \App\Models\Chat::create([
+                        'workspace_id' => $workspaceId,
+                        'contact_id' => $contact->id,
+                        'whatsapp_account_id' => $session->id,
+                        'whatsapp_message_id' => $messageData['id'],
+                        'wam_id' => $messageData['id'], // Keep for compatibility
+                        'type' => 'outbound',
+                        'status' => 'sent',
+                        'message_status' => 'pending', // Real-time status
+                        'ack_level' => 1, // Pending status
+                        'metadata' => json_encode([
+                            'body' => $messageData['body'] ?? '',
+                            'type' => $messageData['type'] ?? 'text',
+                            'has_media' => $messageData['has_media'] ?? false,
+                            'from_me' => true,
+                        ]),
+                        'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
+                    ]);
 
-                Log::info('Chat record created for sent message', [
-                    'contact_id' => $contact->id,
-                    'message_id' => $messageData['id'],
-                ]);
+                    // Create ChatLog entry for UI display
+                    \App\Models\ChatLog::create([
+                        'contact_id' => $contact->id,
+                        'entity_type' => 'chat',
+                        'entity_id' => $chat->id,
+                        'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
+                        'updated_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
+                    ]);
+
+                    Log::info('Chat record created for sent message', [
+                        'contact_id' => $contact->id,
+                        'message_id' => $messageData['id'],
+                    ]);
+                }
             }
 
         } catch (\Exception $e) {

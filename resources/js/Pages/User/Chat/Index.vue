@@ -155,12 +155,14 @@
     watch(() => props.contact, (newContact) => {
         if (newContact) {
             contact.value = newContact;
-            chatThread.value = props.chatThread || [];
+            // Don't update chatThread here - let props.chatThread watcher handle it
         }
     });
 
     watch(() => props.chatThread, (newThread) => {
-        if (newThread) {
+        // Only update if it's actually different to prevent duplicate renders
+        if (newThread && JSON.stringify(newThread) !== JSON.stringify(chatThread.value)) {
+            console.log('📨 Updating chatThread from props:', newThread.length);
             chatThread.value = newThread;
         }
     });
@@ -273,7 +275,7 @@
     }
     
     // Background fetch untuk update cache tanpa blocking UI
-    const fetchChatDataInBackground = async (uuid, cacheKey) => {
+    const fetchChatDataInBackground = async (uuid, cacheKey, force = false) => {
         try {
             const response = await axios.get(`/chats/${uuid}`, {
                 headers: {
@@ -291,8 +293,20 @@
                 
                 // If user still viewing this contact, update the UI too
                 if (contact.value && contact.value.uuid === uuid) {
-                    chatThread.value = [...response.data.chatThread];
-                    console.log('🔄 Cache & UI refreshed in background');
+                    // Check if data actually changed before updating (skip check if forced)
+                    if (force) {
+                        chatThread.value = [...response.data.chatThread];
+                        console.log('🔄 Chat thread force-refreshed from backend');
+                    } else {
+                        const currentData = JSON.stringify(chatThread.value);
+                        const newData = JSON.stringify(response.data.chatThread);
+                        if (currentData !== newData) {
+                            chatThread.value = [...response.data.chatThread];
+                            console.log('🔄 Cache & UI refreshed in background');
+                        } else {
+                            console.log('✅ Cache refreshed, no UI update needed (data unchanged)');
+                        }
+                    }
                 } else {
                     console.log('🔄 Cache refreshed in background');
                 }
@@ -370,8 +384,18 @@
     }
     
     // Handle message send confirmation
-    const handleMessageSent = (message) => {
-        console.log('✅ Message confirmed sent:', message);
+    const handleMessageSent = (response) => {
+        console.log('✅ Message confirmed sent:', response);
+        
+        // Replace optimistic message with real message from backend
+        if (response.success && response.data && chatThreadRef.value) {
+            console.log('🔄 Replacing optimistic with real message ID:', response.data.id);
+            
+            // Call ChatThread to replace optimistic with real
+            if (chatThreadRef.value.replaceOptimisticMessage) {
+                chatThreadRef.value.replaceOptimisticMessage(response.data);
+            }
+        }
         
         // Update chat list to show latest message
         refreshSidePanel();

@@ -1,7 +1,43 @@
 # Changelog - Blazz Chat System Implementation
 
-**Last Updated:** November 15, 2025
-**Document Version:** 1.0
+**Last Updated:** November 16, 2025
+**Document Version:** 1.1
+
+---
+
+## 🐛 **BUG FIX - November 16, 2025**
+
+### **Fixed: Double Chat Bubble Issue After Refresh**
+
+**Issue:** Chat bubbles were displaying as 2 separate bubbles after page refresh:
+1. First bubble: Message content with timestamp
+2. Second bubble: Only "Sent By: [User Name]"
+
+**Root Cause:** Incorrect HTML structure in `ChatBubble.vue` component (lines 305-323). User info, timestamp, and status icon were in separate containers with conflicting margins, creating visual separation.
+
+**Solution Implemented:**
+- ✅ Reorganized HTML structure to combine all message metadata into single visual unit
+- ✅ Added conditional rendering for user info with proper spacing
+- ✅ Implemented dynamic margin application based on presence of user info
+- ✅ Ensured status icon only displays for outbound messages
+
+**Impact:**
+- Messages now display consistently as single bubble unit
+- No more visual double bubble after refresh
+- Improved UX with clearer visual hierarchy
+
+**Files Modified:**
+- `resources/js/Components/ChatComponents/ChatBubble.vue` (Lines 305-323)
+
+**Documentation:**
+- Created detailed fix report: `docs/chats/18-double-bubble-fix-report.md`
+
+**Testing:**
+- ✅ Outbound messages with user info
+- ✅ Outbound messages without user info  
+- ✅ Inbound messages
+- ✅ After page refresh
+- ✅ All message types (text, image, document, etc.)
 
 ---
 

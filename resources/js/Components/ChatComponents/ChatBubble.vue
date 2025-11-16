@@ -145,11 +145,13 @@
 </script>
 <template>
     <div 
-        class="rounded-lg my-1 p-2 text-sm flex flex-col relative"
-        :class="props.type === 'outbound' ? 'ml-auto rounded-tr-none bg-[#d8fad4] speech-bubble-right' : 'mr-auto rounded-tl-none bg-white speech-bubble-left'">
+        class="rounded-lg my-1 p-2 text-sm flex flex-col relative chat-bubble-container"
+        :class="props.type === 'outbound' ? 'ml-auto rounded-tr-none bg-[#d8fad4] speech-bubble-right' : 'mr-auto rounded-tl-none bg-white speech-bubble-left'"
+        :data-message-id="content.id || content.wam_id || 'unknown'"
+        :data-type="props.type">
         <div>
             <!--Text message formatting-->
-            <div v-if="metadata.type === 'text' || metadata.type === 'chat'" class="max-w-[300px]">
+            <div v-if="metadata.type === 'text' || metadata.type === 'chat' || metadata.text" class="max-w-[300px]">
                 <p class="normal-case whitespace-pre-wrap">{{ content.body || metadata.text?.body || metadata.body }}</p>
                 <div v-if="metadata?.buttons" class="mr-auto text-sm text-[#00a5f4] flex flex-col relative max-w-[25em]">
                     <div v-for="(item, index) in metadata?.buttons" :key="index" class="flex justify-center items-center space-x-2 rounded-lg bg-white h-10 my-[0.1em]">
@@ -322,23 +324,23 @@
                 </div>
             </div>
 
-            <!--Timestamp with User Info-->
-            <div class="flex items-center justify-between space-x-4 mt-2">
-                <div class="flex flex-col">
-                    <span v-if="props.type === 'outbound' && content.user" class="text-gray-500 text-xs leading-none mb-0.5">
-                        Sent By: <u>{{ content.user?.first_name + ' ' + content.user?.last_name }}</u>
-                    </span>
-                    <p class="text-gray-500 text-xs leading-none">{{ content.created_at }}</p>
+            <!--Timestamp with User Info (Combined in single container)-->
+            <div class="flex flex-col gap-1" :class="props.type === 'outbound' ? 'mt-2' : 'mt-2'">
+                <div v-if="props.type === 'outbound' && content.user" class="flex items-center justify-between">
+                    <span class="text-gray-500 text-xs leading-none">Sent By: <u>{{ content.user?.first_name + ' ' + content.user?.last_name }}</u></span>
                 </div>
-                <span class="relative group cursor-pointer" :class="chatStatus(content.logs) === 'read' ? 'text-blue-500' : 'text-gray-500'">
-                    <!-- Tooltip text -->
-                    <div class="absolute capitalize hidden group-hover:block bg-white text-gray-600 text-xs rounded-sm py-1 px-2 bottom-full mb-1 whitespace-no-wrap">
-                        {{ chatStatus(content.logs) }}
-                    </div>
-                    <svg v-if="chatStatus(content.logs) === 'sent'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m2.75 8.75l3.5 3.5l7-7.5"/></svg>
-                    <svg v-if="chatStatus(content.logs) === 'delivered' || chatStatus(content.logs) === 'read'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m1.75 9.75l2.5 2.5m3.5-4l2.5-2.5m-4.5 4l2.5 2.5l6-6.5"/></svg>
-                    <svg @click="isModalOpen = true;" v-if="chatStatus(content.logs) === 'failed'" class="text-red-600" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><g fill="currentColor"><path d="M2 2a2 2 0 0 0-2 2v8.01A2 2 0 0 0 2 14h5.5a.5.5 0 0 0 0-1H2a1 1 0 0 1-.966-.741l5.64-3.471L8 9.583l7-4.2V8.5a.5.5 0 0 0 1 0V4a2 2 0 0 0-2-2zm3.708 6.208L1 11.105V5.383zM1 4.217V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v.217l-7 4.2z"/><path d="M12.5 16a3.5 3.5 0 1 0 0-7a3.5 3.5 0 0 0 0 7m.5-5v1.5a.5.5 0 0 1-1 0V11a.5.5 0 0 1 1 0m0 3a.5.5 0 1 1-1 0a.5.5 0 0 1 1 0"/></g></svg>
-                </span>
+                <div class="flex items-center justify-between space-x-4">
+                    <p class="text-gray-500 text-xs leading-none">{{ content.created_at }}</p>
+                    <span v-if="props.type === 'outbound'" class="relative group cursor-pointer" :class="chatStatus(content.logs) === 'read' ? 'text-blue-500' : 'text-gray-500'">
+                        <!-- Tooltip text -->
+                        <div class="absolute capitalize hidden group-hover:block bg-white text-gray-600 text-xs rounded-sm py-1 px-2 bottom-full mb-1 whitespace-no-wrap">
+                            {{ chatStatus(content.logs) }}
+                        </div>
+                        <svg v-if="chatStatus(content.logs) === 'sent'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m2.75 8.75l3.5 3.5l7-7.5"/></svg>
+                        <svg v-if="chatStatus(content.logs) === 'delivered' || chatStatus(content.logs) === 'read'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m1.75 9.75l2.5 2.5m3.5-4l2.5-2.5m-4.5 4l2.5 2.5l6-6.5"/></svg>
+                        <svg @click="isModalOpen = true;" v-if="chatStatus(content.logs) === 'failed'" class="text-red-600" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><g fill="currentColor"><path d="M2 2a2 2 0 0 0-2 2v8.01A2 2 0 0 0 2 14h5.5a.5.5 0 0 0 0-1H2a1 1 0 0 1-.966-.741l5.64-3.471L8 9.583l7-4.2V8.5a.5.5 0 0 0 1 0V4a2 2 0 0 0-2-2zm3.708 6.208L1 11.105V5.383zM1 4.217V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v.217l-7 4.2z"/><path d="M12.5 16a3.5 3.5 0 1 0 0-7a3.5 3.5 0 0 0 0 7m.5-5v1.5a.5.5 0 0 1-1 0V11a.5.5 0 0 1 1 0m0 3a.5.5 0 1 1-1 0a.5.5 0 0 1 1 0"/></g></svg>
+                    </span>
+                </div>
             </div>
 
             <div v-if="metadata.type === 'contacts'" class="cursor-pointer text-center border-t mt-2 pt-2">
