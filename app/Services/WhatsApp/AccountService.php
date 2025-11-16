@@ -95,7 +95,7 @@ class AccountService
                 'phone_number' => $data['phone_number'],
                 'display_name' => $data['display_name'] ?? $data['phone_number'],
                 'provider_type' => $data['provider_type'] ?? 'webjs',
-                'status' => 'disconnected',
+                'status' => $data['status'] ?? 'disconnected',
                 'is_primary' => $data['is_primary'] ?? false,
                 'settings' => $data['settings'] ?? [],
                 'webhook_url' => $data['webhook_url'] ?? null,
@@ -484,8 +484,14 @@ class AccountService
                 ];
             }
 
-            // Create account
-            $createResult = $this->create($data);
+            // Create account - handle QR scanning where phone_number is not known yet
+            $accountData = array_merge([
+                'phone_number' => 'Unknown', // Will be updated after QR scan
+                'display_name' => 'Connecting...',
+                'status' => 'qr_scanning', // Set status for QR scanning
+            ], $data);
+
+            $createResult = $this->create($accountData);
             if (!$createResult->success) {
                 return $createResult;
             }

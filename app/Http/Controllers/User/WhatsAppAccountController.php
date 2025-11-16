@@ -83,7 +83,7 @@ class WhatsAppAccountController extends Controller
                 'to' => $accounts->lastItem(),
             ],
             'statistics' => $statistics,
-            'canAddSession' => $this->accountService->canAddSession(),
+            'canAddAccount' => $this->accountService->canAddSession(),
             'modules' => \App\Models\Addon::get(),
             'embeddedSignupActive' => \App\Helpers\CustomHelper::isModuleEnabled('Embedded Signup'),
             'graphAPIVersion' => config('graph.api_version'),
@@ -102,7 +102,7 @@ class WhatsAppAccountController extends Controller
     {
         // Validate request
         $validator = Validator::make($request->all(), [
-            'phone_number' => 'required|string',
+            'phone_number' => 'nullable|string',  // Phone number is not known yet for QR scanning
             'display_name' => 'nullable|string|max:255',
             'provider_type' => 'required|in:webjs,meta',
             'is_primary' => 'boolean',
