@@ -21,6 +21,15 @@ Broadcast::channel('chats', function ($user) {
     return true; // Adjust authentication logic if needed
 });
 
+// Authorization for workspace chat list channel (used by NewChatEvent)
+Broadcast::channel('chats.ch{workspaceId}', function ($user, $workspaceId) {
+    // Check if user belongs to the workspace via teams
+    if ($user->teams()->where('workspace_id', $workspaceId)->exists()) {
+        return ['id' => $user->id, 'name' => $user->name];
+    }
+    return false;
+});
+
 Broadcast::channel('workspace.{workspaceId}', function ($user, $workspaceId) {
     // Check if user belongs to the workspace via teams
     return $user->teams()->where('workspace_id', $workspaceId)->exists();
