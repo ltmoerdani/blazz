@@ -6,13 +6,13 @@ use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
-class NewChatEvent implements ShouldBroadcast
+class NewChatEvent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -70,6 +70,7 @@ class NewChatEvent implements ShouldBroadcast
      */
     private function getReverbChannel()
     {
+        // Using public Channel for better Reverb compatibility
         $channel = 'chats.' . 'ch' . $this->workspaceId;
         return new Channel($channel);
     }
@@ -86,6 +87,16 @@ class NewChatEvent implements ShouldBroadcast
 
         Log::error('Pusher settings are not configured.');
         return null;
+    }
+
+    /**
+     * The event's broadcast name.
+     *
+     * @return string
+     */
+    public function broadcastAs()
+    {
+        return 'NewChatEvent';
     }
 
     /**

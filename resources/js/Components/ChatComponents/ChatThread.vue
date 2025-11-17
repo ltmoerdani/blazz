@@ -427,7 +427,8 @@ defineExpose({
     handleOptimisticMessageSent,
     handleOptimisticMessageFailed,
     replaceOptimisticMessage,
-    autoScrollToBottom
+    autoScrollToBottom,
+    addNewMessage  // ✅ REALTIME FIX: Expose addNewMessage for parent to call
 });
 
 // Setup and cleanup Echo listeners

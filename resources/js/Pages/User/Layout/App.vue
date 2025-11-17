@@ -77,7 +77,11 @@
             getValueByKey('pusher_app_cluster')
         );
 
-        echo.channel('chats.ch' + workspace.value.id).listen('NewChatEvent', (event) => {
+        const channelName = 'chats.ch' + workspace.value.id;
+        console.log('📡 [App.vue] Subscribing to PUBLIC channel:', channelName);
+        
+        echo.channel(channelName).listen('.NewChatEvent', (event) => {
+            console.log('🔔 [App.vue] NewChatEvent received:', event);
             const chat = event.chat;
 
             if (chat[0].value.deleted_at == null && chat[0].value.type === 'inbound') {
