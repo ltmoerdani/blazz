@@ -30,21 +30,53 @@ Broadcast::channel('chats.ch{workspaceId}', function ($user, $workspaceId) {
     return false;
 });
 
-Broadcast::channel('workspace.{workspaceId}', function ($user, $workspaceId) {
-    // Check if user belongs to the workspace via teams
-    return $user->teams()->where('workspace_id', $workspaceId)->exists();
-});
-
 /*
 |--------------------------------------------------------------------------
-| Real-time Chat Channels
+| Real-time Chat Channels (Following Riset Pattern)
 |--------------------------------------------------------------------------
 |
-| Real-time messaging channels for WhatsApp Web-like experience
+| Private workspace channels untuk real-time messaging
+| Based on best practice from riset documentation Section 4.2
 |
 */
 
-// Chat channels for individual contacts
+// Primary workspace channel - all users in workspace see new messages
+Broadcast::channel('workspace.{workspaceId}', function ($user, $workspaceId) {
+    // Check if user belongs to the workspace via teams
+    if ($user->teams()->where('workspace_id', $workspaceId)->exists()) {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'avatar' => $user->avatar ?? null,
+        ];
+    }
+    return false;
+});
+
+// Specific contact chat channel - for users viewing specific contact
+Broadcast::channel('workspace.{workspaceId}.chat.{contactId}', function ($user, $workspaceId, $contactId) {
+    // Verify user belongs to workspace
+    if (!$user->teams()->where('workspace_id', $workspaceId)->exists()) {
+        return false;
+    }
+    
+    // Verify contact exists in workspace
+    $contact = \App\Models\Contact::where('workspace_id', $workspaceId)
+        ->where('id', $contactId)
+        ->first();
+    
+    if (!$contact) {
+        return false;
+    }
+    
+    return [
+        'id' => $user->id,
+        'name' => $user->name,
+        'viewing_contact_id' => $contactId,
+    ];
+});
+
+// Legacy chat channel for backward compatibility
 Broadcast::channel('chat.{contactId}', function ($user, $contactId) {
     $contact = \App\Models\Contact::find($contactId);
 

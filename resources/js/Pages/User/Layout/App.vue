@@ -72,21 +72,29 @@
     onMounted(() => {
         setupSound();
 
-        const echo = getEchoInstance(
-            getValueByKey('pusher_app_key'),
-            getValueByKey('pusher_app_cluster')
-        );
+        // Listen for new messages globally (untuk badge counter)
+        // Following riset pattern: private workspace channel
+        const workspaceChannel = window.Echo.private(`workspace.${workspace.value.id}`);
+        console.log('📡 [App.vue] Subscribing to PRIVATE workspace channel:', `workspace.${workspace.value.id}`);
 
-        const channelName = 'chats.ch' + workspace.value.id;
-        console.log('📡 [App.vue] Subscribing to PUBLIC channel:', channelName);
-        
-        echo.channel(channelName).listen('.NewChatEvent', (event) => {
-            console.log('🔔 [App.vue] NewChatEvent received:', event);
-            const chat = event.chat;
+        workspaceChannel.listen('.message.received', (event) => {
+            console.log('🔔 [App.vue] New message received globally:', event);
 
-            if (chat[0].value.deleted_at == null && chat[0].value.type === 'inbound') {
-                playSound(); // Play sound for inbound messages
-                unreadMessages.value += 1; // Increment unread messages count
+            // Emit custom DOM event for chat page to catch
+            window.dispatchEvent(new CustomEvent('new-chat-message', { 
+                detail: event 
+            }));
+            console.log('📢 [App.vue] Dispatched new-chat-message event');
+
+            // Only increment global counter if user is NOT on chat page
+            // This prevents double counting since Index.vue handles it when user is on chat page
+            if (!window.location.pathname.includes('/user/chat')) {
+                console.log('➕ [App.vue] User not on chat page, incrementing global counter');
+                // Increment unread messages counter
+                unreadMessages.value = (unreadMessages.value || 0) + 1;
+                console.log('✅ Global unread counter updated:', unreadMessages.value);
+            } else {
+                console.log('⏭️ [App.vue] User on chat page, App.vue delegating to Index.vue via custom event');
             }
         });
     });
