@@ -194,32 +194,50 @@ const handleTypingIndicator = (event) => {
 
 // Add new message to chat in real-time
 const addNewMessage = (messageData) => {
+    console.log('📨 [ChatThread] addNewMessage called with:', messageData);
+    
     // Prevent duplicate messages
-    const exists = messages.value.some(msg =>
-        msg[0]?.value?.id === messageData.id ||
-        msg[0]?.value?.whatsapp_message_id === messageData.whatsapp_message_id
-    );
+    // Note: messages array structure is [[{type: 'chat', value: {...}}]]
+    // Check both id and wam_id (WhatsApp message ID)
+    const exists = messages.value.some(msg => {
+        const msgValue = msg[0]?.value;
+        return msgValue?.id === messageData.id ||
+               msgValue?.wam_id === messageData.wam_id ||
+               msgValue?.whatsapp_message_id === messageData.wam_id;
+    });
 
-    if (!exists) {
-        const newMessage = [{
-            type: 'chat',
-            value: {
-                ...messageData,
-                message_status: messageData.message_status || 'delivered',
-                created_at: messageData.created_at || new Date().toISOString()
-            }
-        }];
+    console.log('🔍 [ChatThread] Duplicate check:', {
+        incomingId: messageData.id,
+        incomingWamId: messageData.wam_id,
+        exists: exists,
+        currentMessagesCount: messages.value.length
+    });
 
-        messages.value.push(newMessage);
-
-        // Scroll to bottom if needed
-        setTimeout(() => {
-            const chatContainer = document.querySelector('.chat-thread-container');
-            if (chatContainer) {
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-        }, 100);
+    if (exists) {
+        console.log('⚠️ [ChatThread] Message already exists, skipping');
+        return;
     }
+
+    const newMessage = [{
+        type: 'chat',
+        value: {
+            ...messageData,
+            message_status: messageData.message_status || 'delivered',
+            created_at: messageData.created_at || new Date().toISOString()
+        }
+    }];
+
+    messages.value.push(newMessage);
+    console.log('✅ [ChatThread] Message added, new count:', messages.value.length);
+
+    // Scroll to bottom if needed
+    setTimeout(() => {
+        const chatContainer = document.querySelector('.chat-thread-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            console.log('📜 [ChatThread] Scrolled to bottom');
+        }
+    }, 100);
 };
 
 // Handle contact presence updates (online/offline, typing status)
@@ -427,7 +445,8 @@ defineExpose({
     handleOptimisticMessageSent,
     handleOptimisticMessageFailed,
     replaceOptimisticMessage,
-    autoScrollToBottom
+    autoScrollToBottom,
+    addNewMessage  // ✅ REALTIME FIX: Expose addNewMessage for parent to call
 });
 
 // Setup and cleanup Echo listeners

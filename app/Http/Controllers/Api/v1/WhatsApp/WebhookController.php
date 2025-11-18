@@ -6,6 +6,7 @@ use App\Events\WhatsAppQRGeneratedEvent;
 use App\Events\WhatsAppAccountStatusChangedEvent;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsAppAccount;
+use App\Services\ChatService;
 use App\Services\ContactProvisioningService;
 use App\Services\MediaService;
 use App\Services\ProviderSelector;
@@ -397,6 +398,45 @@ class WebhookController extends Controller
                 'chat_saved' => true
             ]);
 
+            // ✅ REALTIME FIX: Broadcast new message event
+            // Load relationships needed for broadcast
+            $chat->load(['contact', 'media', 'user']);
+            
+            // Build message data structure
+            // Extract message body from metadata
+            $messageBody = is_string($chat->metadata) 
+                ? (json_decode($chat->metadata, true)['body'] ?? '') 
+                : ($chat->metadata['body'] ?? '');
+            
+            $messageData = [
+                'id' => $chat->id,
+                'wam_id' => $chat->wam_id,
+                'contact_id' => $chat->contact_id,
+                'contact' => [
+                    'id' => $chat->contact->id,
+                    'name' => $chat->contact->name,
+                    'phone' => $chat->contact->phone,
+                    'avatar' => $chat->contact->avatar ?? null,
+                    'unread_messages' => $chat->contact->unread_messages ?? 0,
+                ],
+                'message' => $messageBody,  // For compatibility
+                'body' => $messageBody,     // For ChatThread component
+                'type' => $chat->type,
+                'message_status' => $chat->message_status,
+                'from_me' => $chat->type === 'outbound',
+                'created_at' => is_string($chat->created_at) ? $chat->created_at : $chat->created_at?->toISOString(),
+                'metadata' => $chat->metadata,
+            ];
+            
+            // Broadcast event (use workspaceId from context, not from relationship)
+            event(new \App\Events\NewChatEvent($messageData, $workspaceId, $chat->contact_id));
+            
+            Log::info('📤 NewChatEvent broadcasted', [
+                'workspace_id' => $workspaceId,
+                'contact_id' => $chat->contact_id,
+                'chat_id' => $chat->id,
+            ]);
+
         } catch (\Exception $e) {
             Log::error('Error handling WhatsApp message', [
                 'error' => $e->getMessage(),
@@ -494,6 +534,32 @@ class WebhookController extends Controller
                     Log::info('Chat record created for sent message', [
                         'contact_id' => $contact->id,
                         'message_id' => $messageData['id'],
+                    ]);
+
+                    // ✅ REALTIME FIX: Broadcast NewChatEvent for outbound messages too
+                    $chatData = [[
+                        'type' => 'chat',
+                        'value' => [
+                            'id' => $chat->id,
+                            'wam_id' => $chat->wam_id,
+                            'message' => $messageData['body'] ?? '',
+                            'type' => 'outbound',
+                            'message_status' => 'pending',
+                            'created_at' => $chat->created_at,
+                            'from_me' => true,
+                            'metadata' => $chat->metadata,
+                            'contact_id' => $contact->id,
+                            'whatsapp_message_id' => $chat->whatsapp_message_id,
+                        ]
+                    ]];
+
+                    // Broadcast to workspace channel
+                    event(new \App\Events\NewChatEvent($chatData, $workspaceId));
+
+                    Log::info('✅ NewChatEvent broadcasted for sent message', [
+                        'workspace_id' => $workspaceId,
+                        'contact_id' => $contact->id,
+                        'chat_id' => $chat->id,
                     ]);
                 }
             }

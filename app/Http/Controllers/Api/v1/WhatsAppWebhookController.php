@@ -286,11 +286,12 @@ class WhatsAppWebhookController extends BaseController
                 ]);
 
                 // Broadcast status update
-                event(new NewChatEvent($chatLog->chat_id, [
+                event(new NewChatEvent([
                     'type' => 'message_status',
                     'status' => $status['status'],
                     'message_id' => $status['id'],
-                ]));
+                    'chat_id' => $chatLog->chat_id,
+                ], $workspace->id));
             }
 
         } catch (Exception $e) {

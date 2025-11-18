@@ -6,95 +6,159 @@ use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
-class NewChatEvent implements ShouldBroadcast
+class NewChatEvent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $chat;
     public $workspaceId;
+    public $contactId;
 
     /**
      * Create a new event instance.
+     * Following best practice from riset: structured message data
      *
-     * @param mixed $chat
+     * @param array $chat - Chat data in array format (not Eloquent model)
      * @param int $workspaceId
+     * @param int|null $contactId - For specific contact channel
      */
-    public function __construct($chat, $workspaceId)
+    public function __construct($chat, $workspaceId, $contactId = null)
     {
         $this->chat = $chat;
         $this->workspaceId = $workspaceId;
+        $this->contactId = $contactId ?? ($chat['contact_id'] ?? null);
+        
+        Log::info('📤 NewChatEvent created', [
+            'workspace_id' => $this->workspaceId,
+            'contact_id' => $this->contactId,
+            'chat_id' => $chat['id'] ?? 'unknown',
+        ]);
     }
 
     /**
      * Get the channels the event should broadcast on.
+     * Following riset pattern: workspace-based channels
      *
-     * @return \Illuminate\Broadcasting\Channel
+     * @return array<\Illuminate\Broadcasting\Channel>
      */
     public function broadcastOn()
     {
         try {
-            return $this->getBroadcastChannel();
+            $channels = [];
+            
+            // Primary workspace channel (all users in workspace see new messages)
+            $channels[] = new PrivateChannel('workspace.' . $this->workspaceId);
+            
+            // Specific contact channel (for users viewing this specific contact)
+            if ($this->contactId) {
+                $channels[] = new PrivateChannel('workspace.' . $this->workspaceId . '.chat.' . $this->contactId);
+            }
+            
+            Log::info('📡 Broadcasting to channels', [
+                'channels' => array_map(fn($ch) => $ch->name, $channels),
+            ]);
+            
+            return $channels;
         } catch (Exception $e) {
-            Log::error('Failed to broadcast NewChatEvent: ' . $e->getMessage());
-            return null;
+            Log::error('❌ Failed to get broadcast channels: ' . $e->getMessage(), [
+                'workspace_id' => $this->workspaceId,
+                'contact_id' => $this->contactId,
+            ]);
+            return [];
         }
     }
 
     /**
-     * Get the appropriate broadcast channel based on driver configuration
+     * The event's broadcast name.
+     * Following riset pattern: dot-prefixed event names for private channels
+     *
+     * @return string
      */
-    private function getBroadcastChannel()
+    public function broadcastAs()
     {
-        $driver = config('broadcasting.default', 'reverb');
-
-        if ($driver === 'reverb') {
-            return $this->getReverbChannel();
-        }
-
-        if ($driver === 'pusher') {
-            return $this->getPusherChannel();
-        }
-
-        Log::error('Unsupported broadcast driver: ' . $driver);
-        return null;
-    }
-
-    /**
-     * Get Reverb broadcast channel
-     */
-    private function getReverbChannel()
-    {
-        $channel = 'chats.' . 'ch' . $this->workspaceId;
-        return new Channel($channel);
-    }
-
-    /**
-     * Get Pusher broadcast channel
-     */
-    private function getPusherChannel()
-    {
-        if (config('broadcasting.connections.pusher.key') && config('broadcasting.connections.pusher.secret')) {
-            $channel = 'chats.' . 'ch' . $this->workspaceId;
-            return new Channel($channel);
-        }
-
-        Log::error('Pusher settings are not configured.');
-        return null;
+        return 'message.received';
     }
 
     /**
      * Get the data to broadcast.
+     * Following riset pattern: fully structured message data
      *
      * @return array
      */
     public function broadcastWith()
     {
-        return ['chat' => $this->chat];
+        try {
+            $structuredData = [
+                'message' => [
+                    'id' => $this->chat['id'] ?? null,
+                    'wam_id' => $this->chat['wam_id'] ?? null,
+                    'contact_id' => $this->chat['contact_id'] ?? null,
+                    
+                    // Contact information
+                    'contact' => [
+                        'id' => $this->chat['contact']['id'] ?? null,
+                        'first_name' => $this->chat['contact']['first_name'] ?? null,
+                        'phone' => $this->chat['contact']['phone'] ?? null,
+                        'profile_picture_url' => $this->chat['contact']['profile_picture_url'] ?? null,
+                        'unread_messages' => $this->chat['contact']['unread_messages'] ?? 0,
+                    ],
+                    
+                    // Message details
+                    'type' => $this->chat['type'] ?? 'inbound',
+                    'message_type' => $this->chat['message_type'] ?? 'text',
+                    'message_status' => $this->chat['message_status'] ?? 'sent',
+                    'body' => $this->chat['body'] ?? null,
+                    
+                    // Media information
+                    'media_id' => $this->chat['media_id'] ?? null,
+                    'media' => $this->chat['media'] ?? null,
+                    
+                    // User information (for outbound messages)
+                    'user_id' => $this->chat['user_id'] ?? null,
+                    'user' => $this->chat['user'] ?? null,
+                    
+                    // Timestamps
+                    'created_at' => $this->chat['created_at'] ?? null,
+                    'sent_at' => $this->chat['sent_at'] ?? null,
+                    'delivered_at' => $this->chat['delivered_at'] ?? null,
+                    'read_at' => $this->chat['read_at'] ?? null,
+                    'is_read' => $this->chat['is_read'] ?? false,
+                    
+                    // Metadata
+                    'metadata' => $this->chat['metadata'] ?? null,
+                ],
+                
+                // Workspace context
+                'workspace_id' => $this->workspaceId,
+                
+                // Timestamp of broadcast
+                'broadcast_at' => now()->toISOString(),
+            ];
+            
+            Log::info('✅ Broadcast data structured', [
+                'message_id' => $structuredData['message']['id'],
+                'contact_id' => $structuredData['message']['contact_id'],
+                'contact_name' => $structuredData['message']['contact']['first_name'] ?? 'Unknown',
+                'message_type' => $structuredData['message']['message_type'],
+            ]);
+            
+            return $structuredData;
+        } catch (Exception $e) {
+            Log::error('❌ Failed to structure broadcast data: ' . $e->getMessage(), [
+                'chat' => $this->chat,
+            ]);
+            
+            // Fallback to simple structure
+            return [
+                'message' => $this->chat,
+                'workspace_id' => $this->workspaceId,
+            ];
+        }
     }
 }
