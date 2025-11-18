@@ -1,11 +1,15 @@
 node_modules
 vendor
 .env
+.env.bak
 storage/installed
 public/build/assets/
 whatsapp-service/sessions/
 whatsapp-service/logs/
 whatsapp-service/.wwebjs_cache
 logs/
+*.log
+reverb-debug.log
+reverb-verbose.log
 .claude
 .DS_Store
