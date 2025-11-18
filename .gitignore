@@ -13,3 +13,4 @@ reverb-debug.log
 reverb-verbose.log
 .claude
 .DS_Store
+public/build/manifest.json
