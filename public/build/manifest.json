@@ -292,6 +292,7 @@
   "_echo-6e578fd5.js": {
     "file": "assets/echo-6e578fd5.js",
     "imports": [
+      "_keyboard-05d4d039.js",
       "resources/js/app.js"
     ]
   },
