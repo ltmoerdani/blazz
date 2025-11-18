@@ -737,11 +737,9 @@ class ChatService
             }
 
             // Broadcast new message event
-            event(new NewChatEvent($contact->id, [
-                'type' => 'text',
-                'message' => $message['text']['body'],
-                'message_id' => $message['id'],
-            ]));
+            if ($chat) {
+                $this->broadcastNewChatEvent($chat, $workspace);
+            }
 
         } catch (Exception $e) {
             Log::error('Error processing text message', [
@@ -771,11 +769,9 @@ class ChatService
             }
 
             // Broadcast new message event
-            event(new NewChatEvent($contact->id, [
-                'type' => $message['type'],
-                'message_id' => $message['id'],
-                'media_url' => $message[$message['type']]['url'] ?? null,
-            ]));
+            if ($chat) {
+                $this->broadcastNewChatEvent($chat, $workspace);
+            }
 
         } catch (Exception $e) {
             Log::error('Error processing media message', [
@@ -805,11 +801,9 @@ class ChatService
             }
 
             // Broadcast new message event
-            event(new NewChatEvent($contact->id, [
-                'type' => 'interactive',
-                'message_id' => $message['id'],
-                'interactive_type' => $message['interactive']['type'] ?? null,
-            ]));
+            if ($chat) {
+                $this->broadcastNewChatEvent($chat, $workspace);
+            }
 
         } catch (Exception $e) {
             Log::error('Error processing interactive message', [
@@ -839,11 +833,9 @@ class ChatService
             }
 
             // Broadcast new message event
-            event(new NewChatEvent($contact->id, [
-                'type' => 'button',
-                'message_id' => $message['id'],
-                'button_text' => $message['button']['text'] ?? null,
-            ]));
+            if ($chat) {
+                $this->broadcastNewChatEvent($chat, $workspace);
+            }
 
         } catch (Exception $e) {
             Log::error('Error processing button message', [
@@ -873,12 +865,9 @@ class ChatService
             }
 
             // Broadcast new message event
-            event(new NewChatEvent($contact->id, [
-                'type' => 'location',
-                'message_id' => $message['id'],
-                'latitude' => $message['location']['latitude'] ?? null,
-                'longitude' => $message['location']['longitude'] ?? null,
-            ]));
+            if ($chat) {
+                $this->broadcastNewChatEvent($chat, $workspace);
+            }
 
         } catch (Exception $e) {
             Log::error('Error processing location message', [
@@ -908,11 +897,9 @@ class ChatService
             }
 
             // Broadcast new message event
-            event(new NewChatEvent($contact->id, [
-                'type' => 'contacts',
-                'message_id' => $message['id'],
-                'contacts_count' => count($message['contacts'] ?? []),
-            ]));
+            if ($chat) {
+                $this->broadcastNewChatEvent($chat, $workspace);
+            }
 
         } catch (Exception $e) {
             Log::error('Error processing contacts message', [
@@ -988,6 +975,113 @@ class ChatService
 
         // Handle ticket assignment if enabled
         $this->handleTicketAssignment($contact->id);
+    }
+    
+    /**
+     * Broadcast NewChatEvent with proper chat structure
+     * 
+     * @param Chat $chat
+     * @param Workspace $workspace
+     * @return void
+     */
+    /**
+     * Broadcast new chat event with complete structured data
+     * Following riset best practice (Section 4.3)
+     */
+    public function broadcastNewChatEvent($chat, $workspace = null)
+    {
+        try {
+            // Load all necessary relationships
+            $chat->load(['contact.workspace', 'media', 'user']);
+            
+            // Auto-resolve workspace if not provided
+            if (!$workspace) {
+                $workspace = $chat->contact->workspace;
+            }
+            
+            Log::info('🔍 Broadcasting chat event', [
+                'chat_id' => $chat->id,
+                'contact_id' => $chat->contact_id,
+                'workspace_id' => $workspace->id
+            ]);
+            
+            // Build complete structured message data following riset pattern
+            $messageData = [
+                'id' => $chat->id,
+                'wam_id' => $chat->wam_id,
+                'contact_id' => $chat->contact_id,
+                
+                // Contact information (fully structured)
+                'contact' => [
+                    'id' => $chat->contact->id,
+                    'first_name' => $chat->contact->first_name,
+                    'phone' => $chat->contact->phone,
+                    'profile_picture_url' => $chat->contact->profile_picture_url,
+                    'unread_messages' => $chat->contact->unread_messages,
+                    'latest_chat_created_at' => $chat->contact->latest_chat_created_at,
+                ],
+                
+                // Message details
+                'type' => $chat->type, // inbound/outbound
+                'message_type' => $chat->message_type, // text/image/video/document
+                'message_status' => $chat->message_status,
+                'body' => $chat->body, // Uses accessor untuk get body dari metadata
+                'chat_type' => $chat->chat_type ?? 'private',
+                
+                // Media information (if exists)
+                'media_id' => $chat->media_id,
+                'media' => $chat->media ? [
+                    'id' => $chat->media->id,
+                    'url' => $chat->media->url,
+                    'mime_type' => $chat->media->mime_type,
+                    'file_name' => $chat->media->file_name,
+                    'file_size' => $chat->media->file_size,
+                ] : null,
+                
+                // User information (for outbound messages)
+                'user_id' => $chat->user_id,
+                'user' => $chat->user ? [
+                    'id' => $chat->user->id,
+                    'name' => $chat->user->name,
+                    'avatar' => $chat->user->avatar ?? null,
+                ] : null,
+                
+                // Timestamps (handle both Carbon and string)
+                'created_at' => is_string($chat->created_at) ? $chat->created_at : $chat->created_at?->toISOString(),
+                'sent_at' => is_string($chat->sent_at) ? $chat->sent_at : $chat->sent_at?->toISOString(),
+                'delivered_at' => is_string($chat->delivered_at) ? $chat->delivered_at : $chat->delivered_at?->toISOString(),
+                'read_at' => is_string($chat->read_at) ? $chat->read_at : $chat->read_at?->toISOString(),
+                'is_read' => (bool) $chat->is_read,
+                
+                // Metadata
+                'metadata' => $chat->metadata,
+            ];
+            
+            Log::info('📤 Broadcasting message.received event', [
+                'workspace_id' => $workspace->id,
+                'contact_id' => $chat->contact_id,
+                'chat_id' => $chat->id,
+                'channels' => [
+                    'workspace.' . $workspace->id,
+                    'workspace.' . $workspace->id . '.chat.' . $chat->contact_id
+                ],
+                'message_type' => $chat->message_type,
+                'contact_name' => $chat->contact->first_name ?? 'Unknown'
+            ]);
+            
+            // Broadcast with new structure and contactId for specific channel
+            event(new NewChatEvent($messageData, $workspace->id, $chat->contact_id));
+            
+            Log::info('✅ message.received event broadcasted successfully');
+            
+        } catch (\Exception $e) {
+            Log::error('❌ Error broadcasting message.received event', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'chat_id' => $chat->id,
+                'workspace_id' => $workspace->id
+            ]);
+        }
     }
     
     /**

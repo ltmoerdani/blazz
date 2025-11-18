@@ -409,10 +409,17 @@
 
     const updateSidePanel = async(chat) => {
         console.log('📥 updateSidePanel called', {
+            chatStructure: chat,
             currentContactId: contact.value?.id,
-            incomingContactId: chat[0].value.contact_id,
-            messageType: chat[0].value.type
+            incomingContactId: chat?.[0]?.value?.contact_id,
+            messageType: chat?.[0]?.value?.type
         });
+
+        // Validate chat structure
+        if (!chat || !chat[0] || !chat[0].value) {
+            console.error('❌ Invalid chat structure:', chat);
+            return;
+        }
 
         const incomingContactId = chat[0].value.contact_id;
         const isCurrentChat = contact.value && contact.value.id == incomingContactId;
@@ -522,61 +529,53 @@
     }
 
     onMounted(() => {
-        const echo = getEchoInstance(
-            props.pusherSettings['pusher_app_key'],
-            props.pusherSettings['pusher_app_cluster']
-        );
+        // Listen to custom DOM event from App.vue (to avoid Echo channel subscription collision)
+        // App.vue handles the workspace WebSocket channel and dispatches to Index.vue
+        const handleNewMessage = (event) => {
+            const data = event.detail;
+            console.log('🔔 [Index.vue] New message received via custom event:', data);
+            console.log('🔍 [Index.vue] Message structure:', JSON.stringify(data.message, null, 2));
 
-        // Subscribe to workspace chat channel (public channel for Reverb compatibility)
-        const channelName = 'chats.ch' + props.workspaceId;
-        console.log('📡 [Index.vue] Subscribing to PUBLIC channel:', channelName);
-        console.log('📡 [Index.vue] Echo instance:', echo);
-        console.log('📡 [Index.vue] Workspace ID:', props.workspaceId);
-        
-        const chatChannel = echo.channel(channelName);
-        
-        // Debug: Log when subscription is successful
-        if (chatChannel.subscription) {
-            chatChannel.subscription.bind('pusher:subscription_succeeded', () => {
-                console.log('✅ [Index.vue] Successfully subscribed to PUBLIC channel:', channelName);
-            });
+            // Validate event data - new structure has 'message' not 'chat'
+            if (!data.message || !data.message.id) {
+                console.warn('⚠️ Invalid message event data:', data);
+                return;
+            }
+
+            // Convert new message structure to legacy format for compatibility
+            // Note: Single array level, not double!
+            const legacyChat = [{ 
+                type: 'chat', 
+                value: data.message 
+            }];
             
-            chatChannel.subscription.bind('pusher:subscription_error', (error) => {
-                console.error('❌ [Index.vue] Subscription error:', error);
-            });
-        }
+            console.log('🔍 [Index.vue] Legacy chat format:', JSON.stringify(legacyChat, null, 2));
+
+            // Determine if private or group chat
+            const isGroup = data.message.chat_type === 'group';
+
+            if (isGroup) {
+                console.log('📱 Group chat received:', data.message);
+
+                // Update chat thread if user is viewing this group
+                if (contact.value && contact.value.group_id === data.message.group_id) {
+                    updateChatThread(legacyChat);
+                }
+                
+                // Refresh sidebar for group chats (they have different structure)
+                refreshSidePanel();
+            } else {
+                // For private chats, updateSidePanel handles ALL scenarios:
+                // ✅ Scenario 1: No chat active → updates sidebar & badge
+                // ✅ Scenario 2: Same chat active → updates thread + sidebar
+                // ✅ Scenario 3: Different chat active → updates badge + sidebar
+                console.log('💬 Private chat received');
+                updateSidePanel(legacyChat);
+            }
+        };
         
-        chatChannel.listen('.NewChatEvent', (event) => {
-                console.log('🔔 [Index.vue] New chat received via WebSocket:', event);
-
-                // Validate event data
-                if (!event.chat || !Array.isArray(event.chat) || event.chat.length === 0) {
-                    console.warn('⚠️ Invalid chat event data:', event);
-                    return;
-                }
-
-                // Determine if private or group chat
-                const isGroup = event.chat[0]?.value?.chat_type === 'group';
-
-                if (isGroup) {
-                    console.log('📱 Group chat received:', event.group);
-
-                    // Update chat thread if user is viewing this group
-                    if (contact.value && contact.value.group_id === event.group?.id) {
-                        updateChatThread(event.chat);
-                    }
-                    
-                    // Refresh sidebar for group chats (they have different structure)
-                    refreshSidePanel();
-                } else {
-                    // For private chats, updateSidePanel handles ALL scenarios:
-                    // ✅ Scenario 1: No chat active → updates sidebar & badge
-                    // ✅ Scenario 2: Same chat active → updates thread + sidebar
-                    // ✅ Scenario 3: Different chat active → updates badge + sidebar
-                    console.log('💬 Private chat received');
-                    updateSidePanel(event.chat);
-                }
-            });
+        window.addEventListener('new-chat-message', handleNewMessage);
+        console.log('✅ [Index.vue] Listening to custom new-chat-message events from App.vue');
 
         scrollToBottom();
         
