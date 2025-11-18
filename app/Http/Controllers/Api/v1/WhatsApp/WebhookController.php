@@ -403,6 +403,11 @@ class WebhookController extends Controller
             $chat->load(['contact', 'media', 'user']);
             
             // Build message data structure
+            // Extract message body from metadata
+            $messageBody = is_string($chat->metadata) 
+                ? (json_decode($chat->metadata, true)['body'] ?? '') 
+                : ($chat->metadata['body'] ?? '');
+            
             $messageData = [
                 'id' => $chat->id,
                 'wam_id' => $chat->wam_id,
@@ -414,7 +419,8 @@ class WebhookController extends Controller
                     'avatar' => $chat->contact->avatar ?? null,
                     'unread_messages' => $chat->contact->unread_messages ?? 0,
                 ],
-                'message' => is_string($chat->metadata) ? json_decode($chat->metadata, true)['body'] ?? '' : ($chat->metadata['body'] ?? ''),
+                'message' => $messageBody,  // For compatibility
+                'body' => $messageBody,     // For ChatThread component
                 'type' => $chat->type,
                 'message_status' => $chat->message_status,
                 'from_me' => $chat->type === 'outbound',

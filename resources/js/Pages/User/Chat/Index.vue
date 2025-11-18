@@ -427,14 +427,15 @@
         // SCENARIO 2: User is viewing this chat - update thread immediately
         if (isCurrentChat) {
             console.log('✅ Scenario 2: Message for current chat - updating thread only');
-            updateChatThread(chat);
             
             // Pass new message to ChatThread for real-time display
+            // Do NOT call updateChatThread() to avoid fetching from server and causing race condition
             if (chatThreadRef.value && chatThreadRef.value.addNewMessage) {
                 chatThreadRef.value.addNewMessage(chat[0].value);
-                console.log('✅ Message added to current chat thread');
+                console.log('✅ Message added to current chat thread via WebSocket');
             } else {
-                console.warn('⚠️ chatThreadRef not available');
+                console.warn('⚠️ chatThreadRef not available, fallback to updateChatThread');
+                updateChatThread(chat);
             }
             
             // IMPORTANT: Return early - don't update badge or reorder for current chat
