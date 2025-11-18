@@ -88,7 +88,13 @@
 
             // Only increment global counter if user is NOT on chat page
             // This prevents double counting since Index.vue handles it when user is on chat page
-            if (!window.location.pathname.includes('/user/chat')) {
+            const isOnChatPage = window.location.pathname.includes('/chats');
+            console.log('🔍 [App.vue] Path check:', { 
+                pathname: window.location.pathname, 
+                isOnChatPage 
+            });
+            
+            if (!isOnChatPage) {
                 console.log('➕ [App.vue] User not on chat page, incrementing global counter');
                 // Increment unread messages counter
                 unreadMessages.value = (unreadMessages.value || 0) + 1;
