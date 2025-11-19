@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Chat;
 use App\Models\Contact;
+use App\Models\CampaignLog;
 use App\Events\MessageStatusUpdated;
 use App\Events\MessageDelivered;
 use App\Events\MessageRead;
@@ -90,6 +91,9 @@ class UpdateMessageStatusJob implements ShouldQueue
                 'ack_level' => $this->ackLevel
             ]);
 
+            // Update campaign_log if this chat is part of a campaign
+            $this->updateCampaignLog($chat);
+
             // Broadcast real-time event based on event type
             switch ($this->eventType) {
                 case 'message_delivered':
@@ -114,6 +118,63 @@ class UpdateMessageStatusJob implements ShouldQueue
             ]);
 
             throw $e;
+        }
+    }
+
+    /**
+     * Update campaign log metadata and trigger statistics update
+     */
+    private function updateCampaignLog(Chat $chat): void
+    {
+        try {
+            $campaignLog = CampaignLog::where('chat_id', $chat->id)->first();
+
+            if (!$campaignLog) {
+                // Not a campaign message, skip
+                return;
+            }
+
+            Log::info('Updating campaign log status', [
+                'campaign_log_id' => $campaignLog->id,
+                'campaign_id' => $campaignLog->campaign_id,
+                'old_status' => $campaignLog->status,
+                'new_message_status' => $this->status,
+                'ack_level' => $this->ackLevel
+            ]);
+
+            // Update metadata with real-time status tracking
+            $metadata = $campaignLog->metadata ? json_decode($campaignLog->metadata, true) : [];
+            
+            $metadata['message_status'] = $this->status;
+            $metadata['ack_level'] = $this->ackLevel;
+            $metadata['status_updated_at'] = now()->toISOString();
+
+            if ($this->status === 'delivered') {
+                $metadata['delivered_at'] = now()->toISOString();
+            } elseif ($this->status === 'read') {
+                $metadata['read_at'] = now()->toISOString();
+            } elseif ($this->status === 'failed') {
+                $metadata['failed_at'] = now()->toISOString();
+            }
+
+            $campaignLog->update(['metadata' => json_encode($metadata)]);
+
+            Log::info('Campaign log metadata updated', [
+                'campaign_log_id' => $campaignLog->id,
+                'metadata' => $metadata
+            ]);
+
+            // Trigger campaign statistics recalculation (throttled with delay for batching)
+            dispatch(new UpdateCampaignStatisticsJob($campaignLog->campaign_id))
+                ->onQueue('campaign-stats')
+                ->delay(now()->addSeconds(5));
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update campaign log', [
+                'chat_id' => $chat->id,
+                'error' => $e->getMessage()
+            ]);
+            // Don't throw - campaign log update is secondary, don't fail the main job
         }
     }
 
