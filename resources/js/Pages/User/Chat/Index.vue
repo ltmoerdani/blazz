@@ -213,6 +213,26 @@
             return;
         }
         lastFetchTime = now;
+
+        // GLOBAL BADGE & SIDEBAR SYNC:
+        // Check if the contact has unread messages and update immediately
+        // This ensures the global badge is updated even if we load from cache
+        if (selectedContact.unread_messages > 0) {
+            console.log('📖 Contact selected with unread messages:', selectedContact.unread_messages);
+            
+            // 1. Dispatch event to decrement global badge in App.vue
+            window.dispatchEvent(new CustomEvent('chat-read'));
+            console.log('📢 Dispatched chat-read event');
+            
+            // 2. Update internal rows state to reflect read status
+            // This prevents double-counting if updateContactInSidebar runs later
+            if (rows.value?.data) {
+                const index = rows.value.data.findIndex(c => c.id === selectedContact.id);
+                if (index !== -1) {
+                    rows.value.data[index].unread_messages = 0;
+                }
+            }
+        }
         
         // INSTANT FEEDBACK: Update contact immediately (optimistic)
         contact.value = selectedContact;
@@ -371,12 +391,21 @@
         
         const index = rows.value.data.findIndex(c => c.id === updatedContact.id);
         if (index !== -1) {
+            // Check if it had unread messages before reset
+            const previousUnreadCount = rows.value.data[index].unread_messages;
+
             // Update the contact with fresh data (including unread_messages = 0)
             rows.value.data[index] = {
                 ...rows.value.data[index],
                 ...updatedContact,
                 unread_messages: 0 // Force zero unread
             };
+            
+            // If it had unread messages, dispatch event to decrement global counter
+            if (previousUnreadCount > 0) {
+                 window.dispatchEvent(new CustomEvent('chat-read'));
+                 console.log('📖 Dispatched chat-read event (decrement global badge)');
+            }
             
             console.log('📭 Sidebar updated: unread reset for', updatedContact.full_name || updatedContact.phone);
         }
@@ -478,7 +507,17 @@
                 
                 // Increment unread count if NOT current chat
                 if (!isCurrentChat) {
+                    // Check if it was previously read (0 unread)
+                    const wasRead = (targetContact.unread_messages || 0) === 0;
+                    
                     targetContact.unread_messages = (targetContact.unread_messages || 0) + 1;
+                    
+                    // If it was read and now has 1 unread, increment global counter
+                    if (wasRead) {
+                        window.dispatchEvent(new CustomEvent('chat-unread'));
+                        console.log('📬 Dispatched chat-unread event (increment global badge)');
+                    }
+
                     console.log('🔔 Badge updated locally:', {
                         contactId: incomingContactId,
                         unreadCount: targetContact.unread_messages

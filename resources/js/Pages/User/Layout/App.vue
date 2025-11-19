@@ -103,5 +103,22 @@
                 console.log('⏭️ [App.vue] User on chat page, App.vue delegating to Index.vue via custom event');
             }
         });
+
+        // Listen for chat read events to update global counter (decrement)
+        window.addEventListener('chat-read', () => {
+            console.log('📖 [App.vue] Chat read event received');
+            if (unreadMessages.value > 0) {
+                unreadMessages.value--;
+                console.log('✅ Global unread counter decremented:', unreadMessages.value);
+            }
+        });
+
+        // Listen for chat unread events to update global counter (increment)
+        // This is triggered by Index.vue when a new conversation becomes unread while on chat page
+        window.addEventListener('chat-unread', () => {
+            console.log('📬 [App.vue] Chat unread event received');
+            unreadMessages.value = (unreadMessages.value || 0) + 1;
+            console.log('✅ Global unread counter incremented:', unreadMessages.value);
+        });
     });
 </script>

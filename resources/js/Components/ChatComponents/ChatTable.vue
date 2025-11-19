@@ -52,8 +52,17 @@
     // NEW: Handle contact selection without page reload (SPA behavior)
     function selectContact(contact, event) {
         event.preventDefault(); // Prevent default link behavior
-        selectedContact.value = contact;
+        
+        // Emit FIRST so parent sees original state (unread > 0)
         emit('contact-selected', contact);
+        
+        selectedContact.value = contact;
+        
+        // OPTIMISTIC UPDATE: Mark as read immediately in localRows
+        const index = localRows.value.findIndex(c => c.id === contact.id);
+        if (index !== -1) {
+             localRows.value[index].unread_messages = 0;
+        }
     }
 
     const contentType = (metadata) => {
