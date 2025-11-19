@@ -330,8 +330,24 @@
 
             <!--Timestamp with User Info (Combined in single container)-->
             <div class="flex flex-col gap-1" :class="props.type === 'outbound' ? 'mt-2' : 'mt-2'">
-                <div v-if="props.type === 'outbound' && content.user" class="flex items-center justify-between">
-                    <span class="text-gray-500 text-xs leading-none">Sent By: <u>{{ content.user?.first_name + ' ' + content.user?.last_name }}</u></span>
+                <!-- Device Source Badge: Show if message from mobile OR from Blazz user -->
+                <div v-if="props.type === 'outbound'" class="flex items-center justify-between">
+                    <!-- WhatsApp Mobile Badge -->
+                    <span v-if="metadata.device_source === 'mobile'" class="flex items-center gap-1 text-gray-500 text-xs leading-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                        <span>Sent By: <u class="text-green-600">WhatsApp Mobile</u></span>
+                    </span>
+                    <!-- Blazz User Badge -->
+                    <span v-else-if="content.user" class="flex items-center gap-1 text-gray-500 text-xs leading-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span>Sent By: <u class="text-blue-600">{{ content.user?.first_name + ' ' + content.user?.last_name }}</u></span>
+                    </span>
                 </div>
                 <div class="flex items-center justify-between space-x-4">
                     <p class="text-gray-500 text-xs leading-none">{{ content.created_at }}</p>

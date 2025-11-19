@@ -116,6 +116,7 @@ class NewChatEvent implements ShouldBroadcastNow
                     'message' => $this->chat['message'] ?? $this->chat['body'] ?? null,
                     'body' => $this->chat['body'] ?? $this->chat['message'] ?? null,
                     'from_me' => $this->chat['from_me'] ?? ($this->chat['type'] === 'outbound'),
+                    'device_source' => $this->chat['device_source'] ?? null,  // 🆕 Track device origin
                     
                     // Media information
                     'media_id' => $this->chat['media_id'] ?? null,

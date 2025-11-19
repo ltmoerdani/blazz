@@ -573,6 +573,16 @@ class WebhookController extends Controller
                         : ($existingChat->metadata['body'] ?? '');
                     
                     // Build message data for broadcast - MUST match inbound format for consistency!
+                    // Parse metadata to add device source info
+                    $metadataArray = is_string($existingChat->metadata) 
+                        ? json_decode($existingChat->metadata, true) 
+                        : $existingChat->metadata;
+                    
+                    // Add device source indicator
+                    if (!isset($metadataArray['device_source'])) {
+                        $metadataArray['device_source'] = $source === 'message_create_event' ? 'mobile' : 'web';
+                    }
+                    
                     $chatData = [
                         'id' => $existingChat->id,
                         'wam_id' => $existingChat->wam_id,
@@ -593,8 +603,9 @@ class WebhookController extends Controller
                         'type' => 'outbound',
                         'message_status' => $existingChat->message_status ?? 'sent',
                         'from_me' => true,
+                        'device_source' => $metadataArray['device_source'],  // 🆕 Add device source
                         'created_at' => is_string($existingChat->created_at) ? $existingChat->created_at : $existingChat->created_at?->toISOString(),
-                        'metadata' => $existingChat->metadata,
+                        'metadata' => $metadataArray,
                     ];
                     
                     // ✅ BROADCAST EVENT - This makes chat appear in list
@@ -624,6 +635,7 @@ class WebhookController extends Controller
                             'type' => $messageData['type'] ?? 'text',
                             'has_media' => $messageData['has_media'] ?? false,
                             'from_me' => true,
+                            'device_source' => $source === 'message_create_event' ? 'mobile' : 'web',  // 🆕 Track device origin
                         ]),
                         'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
                     ]);
@@ -651,6 +663,8 @@ class WebhookController extends Controller
 
                     // ✅ REALTIME FIX: Broadcast NewChatEvent for outbound messages too
                     // MUST match inbound format for consistency!
+                    $metadataForBroadcast = is_string($chat->metadata) ? json_decode($chat->metadata, true) : $chat->metadata;
+                    
                     $chatData = [
                         'id' => $chat->id,
                         'wam_id' => $chat->wam_id,
@@ -671,8 +685,9 @@ class WebhookController extends Controller
                         'type' => 'outbound',
                         'message_status' => 'pending',
                         'from_me' => true,
+                        'device_source' => $metadataForBroadcast['device_source'] ?? ($source === 'message_create_event' ? 'mobile' : 'web'),  // 🆕 Device source
                         'created_at' => is_string($chat->created_at) ? $chat->created_at : $chat->created_at?->toISOString(),
-                        'metadata' => $chat->metadata,
+                        'metadata' => $metadataForBroadcast,
                     ];
 
                     // Broadcast to workspace channel
