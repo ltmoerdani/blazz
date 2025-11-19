@@ -28,6 +28,10 @@ pkill -f "php artisan reverb:start" && echo -e "${GREEN}✅ Laravel Reverb stopp
 echo -e "${YELLOW}Stopping Queue Worker...${NC}"
 pkill -f "php artisan queue:work" && echo -e "${GREEN}✅ Queue Worker stopped${NC}" || echo -e "${RED}❌ Queue Worker not running${NC}"
 
+# Stop Laravel Scheduler
+echo -e "${YELLOW}Stopping Laravel Scheduler...${NC}"
+pkill -f "php artisan schedule:work" && echo -e "${GREEN}✅ Laravel Scheduler stopped${NC}" || echo -e "${RED}❌ Laravel Scheduler not running${NC}"
+
 # Stop Node.js WhatsApp Service
 echo -e "${YELLOW}Stopping WhatsApp Service...${NC}"
 pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC}" || echo -e "${RED}❌ WhatsApp Service not running${NC}"

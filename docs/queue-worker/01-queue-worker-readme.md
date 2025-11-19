@@ -10,9 +10,17 @@
 ./start-dev.sh
 ```
 
+### ❓ Apakah Laravel Scheduler harus di-start manual?
+
+**✅ TIDAK!** Laravel Scheduler **OTOMATIS START** ketika menjalankan:
+
+```bash
+./start-dev.sh
+```
+
 ### ❓ Apakah bisa dijalankan langsung dengan start-dev.sh?
 
-**✅ YA!** Queue worker sudah termasuk dalam `start-dev.sh` dan akan otomatis berjalan.
+**✅ YA!** Queue worker dan Laravel Scheduler sudah termasuk dalam `start-dev.sh` dan akan otomatis berjalan.
 
 ---
 
@@ -41,6 +49,7 @@ Output:
 2. Starting Laravel Reverb (Port 8080)...       ✅
 3. Starting WhatsApp Service (Port 3001)...     ✅
 4. Starting Queue Worker...                     ✅ ← AUTO START!
+5. Starting Laravel Scheduler...                ✅ ← AUTO START!
 ```
 
 ### 2. Verify Queue Worker
@@ -61,18 +70,31 @@ Output:
 
 ## 🔧 Management Commands
 
+### Queue Worker
 ```bash
 # Check if queue worker is running
-./manage-queue-worker.sh status
+./docs/queue-worker/03-manage-queue-worker.sh status
 
 # Restart queue worker (after code changes)
-./manage-queue-worker.sh restart
+./docs/queue-worker/03-manage-queue-worker.sh restart
 
 # Monitor logs in real-time
-./manage-queue-worker.sh monitor
+./docs/queue-worker/03-manage-queue-worker.sh monitor
+```
 
-# View last 50 log lines
-./manage-queue-worker.sh log
+### Laravel Scheduler
+```bash
+# Check if scheduler is running
+./docs/queue-worker/08-manage-scheduler.sh status
+
+# List all scheduled tasks
+./docs/queue-worker/08-manage-scheduler.sh list
+
+# Monitor scheduler logs
+./docs/queue-worker/08-manage-scheduler.sh monitor
+
+# Run scheduler manually (test)
+./docs/queue-worker/08-manage-scheduler.sh test
 ```
 
 ---
@@ -94,13 +116,15 @@ Queue worker perlu di-restart **HANYA** jika:
 
 ## 🎬 Flow Lengkap
 
+### Immediate Campaign (Skip Schedule)
 ```
 ./start-dev.sh
     │
     ├─> Laravel Backend      ✅
     ├─> Laravel Reverb       ✅
     ├─> WhatsApp Service     ✅
-    └─> Queue Worker         ✅ (OTOMATIS!)
+    ├─> Queue Worker         ✅ (OTOMATIS!)
+    └─> Laravel Scheduler    ✅ (OTOMATIS!)
             │
             ▼
     User creates campaign with "Skip schedule" ✅
@@ -116,6 +140,28 @@ Queue worker perlu di-restart **HANYA** jika:
             │
             ▼
     Campaign status: completed ✅
+```
+
+### Scheduled Campaign
+```
+./start-dev.sh
+    │
+    └─> Laravel Scheduler    ✅ (Runs every minute)
+            │
+            ▼
+    Check campaigns with scheduled_at <= now
+            │
+            ▼
+    Create campaign logs
+            │
+            ▼
+    Update status: scheduled → ongoing
+            │
+            ▼
+    Queue Worker processes pending logs
+            │
+            ▼
+    Messages sent at scheduled time ✅
 ```
 
 ---
@@ -194,24 +240,33 @@ tail -f storage/logs/laravel.log | grep campaign
 | Question | Answer |
 |----------|--------|
 | Apakah queue worker otomatis start? | ✅ **YA** |
+| Apakah scheduler otomatis start? | ✅ **YA** |
 | Perlu start manual? | ❌ **TIDAK** (kecuali crash/code changes) |
-| Dimana queue worker di-start? | 📄 `start-dev.sh` line 68-70 |
-| Command untuk check status? | `./manage-queue-worker.sh status` |
-| Command untuk restart? | `./manage-queue-worker.sh restart` |
+| Dimana queue worker di-start? | 📄 `start-dev.sh` |
+| Dimana scheduler di-start? | 📄 `start-dev.sh` |
+| Command untuk check queue status? | `./docs/queue-worker/03-manage-queue-worker.sh status` |
+| Command untuk check scheduler status? | `./docs/queue-worker/08-manage-scheduler.sh status` |
+| Command untuk list scheduled tasks? | `./docs/queue-worker/08-manage-scheduler.sh list` |
 
 ---
 
 ## 🔗 Related Files
 
-- `start-dev.sh` - Main startup script (includes queue worker)
+- `start-dev.sh` - Main startup script (includes queue worker + scheduler)
 - `stop-dev.sh` - Stop all services
-- `manage-queue-worker.sh` - Queue worker management script
+- `docs/queue-worker/03-manage-queue-worker.sh` - Queue worker management
+- `docs/queue-worker/08-manage-scheduler.sh` - Scheduler management
+- `app/Console/Kernel.php` - Scheduler configuration
+- `app/Jobs/CreateCampaignLogsJob.php` - Check scheduled campaigns
+- `app/Jobs/ProcessCampaignMessagesJob.php` - Process campaign messages
 - `app/Jobs/SendCampaignJob.php` - Campaign processing job
 - `app/Services/CampaignService.php` - Campaign service logic
 
 ---
 
-**📌 Remember:** Queue worker **SUDAH OTOMATIS JALAN** ketika `./start-dev.sh`!
+**📌 Remember:** 
+- Queue worker **SUDAH OTOMATIS JALAN** ketika `./start-dev.sh`!
+- Laravel Scheduler **SUDAH OTOMATIS JALAN** ketika `./start-dev.sh`!
 
 **Last Updated:** 2025-11-19  
-**Status:** ✅ Tested & Working
+**Status:** ✅ Tested & Working (with Scheduler)

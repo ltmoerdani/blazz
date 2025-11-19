@@ -60,6 +60,7 @@ echo -e "${BLUE}Checking existing services...${NC}"
 pkill -f "php artisan serve"
 pkill -f "php artisan reverb:start"
 pkill -f "php artisan queue:work"
+pkill -f "php artisan schedule:work"
 pkill -f "whatsapp-service"
 sleep 2
 
@@ -87,6 +88,11 @@ cd ..
 echo -e "${BLUE}4. Starting Queue Worker...${NC}"
 nohup php artisan queue:work --queue=whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign --tries=3 --timeout=300 > logs/queue.log 2>&1 &
 QUEUE_PID=$!
+
+# Start Laravel Scheduler
+echo -e "${BLUE}5. Starting Laravel Scheduler...${NC}"
+nohup php artisan schedule:work > logs/scheduler.log 2>&1 &
+SCHEDULER_PID=$!
 
 # Create logs directory if it doesn't exist
 mkdir -p logs
@@ -126,6 +132,7 @@ if [ "$SERVICES_OK" = true ]; then
     echo "Reverb: $REVERB_PID" 
     echo "WhatsApp: $WHATSAPP_PID"
     echo "Queue: $QUEUE_PID"
+    echo "Scheduler: $SCHEDULER_PID"
     echo ""
     echo -e "${YELLOW}💡 To stop all services, run: ./stop-dev.sh${NC}"
     echo -e "${YELLOW}📋 To view logs: tail -f logs/*.log${NC}"
