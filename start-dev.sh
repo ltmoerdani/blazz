@@ -85,7 +85,7 @@ cd ..
 
 # Start Queue Worker
 echo -e "${BLUE}4. Starting Queue Worker...${NC}"
-nohup php artisan queue:work --queue=whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign > logs/queue.log 2>&1 &
+nohup php artisan queue:work --queue=whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign --tries=3 --timeout=300 > logs/queue.log 2>&1 &
 QUEUE_PID=$!
 
 # Create logs directory if it doesn't exist
