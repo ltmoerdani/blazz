@@ -565,29 +565,41 @@
             console.log('🔔 [Index.vue] New message received via custom event:', data);
             console.log('🔍 [Index.vue] Message structure:', JSON.stringify(data.message, null, 2));
 
-            // Validate event data - new structure has 'message' not 'chat'
-            if (!data.message || !data.message.id) {
-                console.warn('⚠️ Invalid message event data:', data);
+            // Validate event data - support both 'message' (new) and 'chat' (legacy)
+            const messageData = data.message || data.chat;
+
+            if (!messageData) {
+                console.debug('⚠️ Event data missing message/chat property:', data);
                 return;
             }
+
+            if (!messageData.id) {
+                console.debug('⚠️ Message ID missing, skipping event:', messageData);
+                return;
+            }
+
+            // Use the normalized message data
+            // Note: We need to ensure the structure matches what the rest of the code expects
+            // If it was 'chat', it might need transformation, but for now we assume 'message' structure is primary
+            const message = messageData;
 
             // Convert new message structure to legacy format for compatibility
             // Note: Single array level, not double!
             const legacyChat = [{ 
                 type: 'chat', 
-                value: data.message 
+                value: message 
             }];
             
             console.log('🔍 [Index.vue] Legacy chat format:', JSON.stringify(legacyChat, null, 2));
 
             // Determine if private or group chat
-            const isGroup = data.message.chat_type === 'group';
+            const isGroup = message.chat_type === 'group';
 
             if (isGroup) {
-                console.log('📱 Group chat received:', data.message);
+                console.log('📱 Group chat received:', message);
 
                 // Update chat thread if user is viewing this group
-                if (contact.value && contact.value.group_id === data.message.group_id) {
+                if (contact.value && contact.value.group_id === message.group_id) {
                     updateChatThread(legacyChat);
                 }
                 
