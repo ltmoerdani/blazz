@@ -325,7 +325,7 @@ class SessionManager {
                 // Base message data
                 const messageData = {
                     id: message.id._serialized,
-                    from: message.from,
+                    from: message.from, // Will be overridden for groups below
                     to: message.to,
                     body: message.body,
                     timestamp: message.timestamp,
@@ -337,8 +337,17 @@ class SessionManager {
 
                 // Add group-specific data if it's a group message
                 if (isGroup) {
+                    // CRITICAL: For group messages, 'from' should be the GROUP ID, not the sender's number
+                    console.log('🔍 BEFORE - messageData.from:', messageData.from);
+                    console.log('🔍 chat.id._serialized:', chat.id._serialized);
+                    messageData.from = chat.id._serialized;
+                    console.log('🔍 AFTER - messageData.from:', messageData.from);
+
                     messageData.group_id = chat.id._serialized;
                     messageData.group_name = chat.name || 'Unnamed Group';
+
+                    // Include participants
+                    messageData.participants = chat.participants.map(p => p.id._serialized);
 
                     // Get sender contact info for group messages
                     if (!message.fromMe) {
@@ -926,6 +935,188 @@ class SessionManager {
         this.sessions.clear();
         this.metadata.clear();
         this.qrCodes.clear();
+    }
+    /**
+     * Create a new group
+     * 
+     * @param {string} sessionId - Session identifier
+     * @param {string} name - Group name
+     * @param {Array<string>} participants - Array of participant phone numbers
+     * @returns {Promise<Object>} Result
+     */
+    async createGroup(sessionId, name, participants) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+
+        try {
+            // Format participants to ID format
+            const participantIds = participants.map(p => {
+                const phone = p.replace(/\D/g, '');
+                return `${phone}@c.us`;
+            });
+
+            const result = await client.createGroup(name, participantIds);
+
+            this.logger.info('Group created successfully', {
+                sessionId,
+                name,
+                groupId: result.gid._serialized
+            });
+
+            return {
+                success: true,
+                group_id: result.gid._serialized,
+                name: name,
+                participants: participantIds
+            };
+        } catch (error) {
+            this.logger.error('Failed to create group', {
+                sessionId,
+                name,
+                error: error.message
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Add participants to a group
+     */
+    async addParticipants(sessionId, groupId, participants) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+
+        try {
+            const chat = await client.getChatById(groupId);
+            if (!chat.isGroup) throw new Error('Chat is not a group');
+
+            const participantIds = participants.map(p => {
+                const phone = p.replace(/\D/g, '');
+                return `${phone}@c.us`;
+            });
+
+            await chat.addParticipants(participantIds);
+
+            return { success: true };
+        } catch (error) {
+            this.logger.error('Failed to add participants', { sessionId, groupId, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Remove participants from a group
+     */
+    async removeParticipants(sessionId, groupId, participants) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+
+        try {
+            const chat = await client.getChatById(groupId);
+            if (!chat.isGroup) throw new Error('Chat is not a group');
+
+            const participantIds = participants.map(p => {
+                const phone = p.replace(/\D/g, '');
+                return `${phone}@c.us`;
+            });
+
+            await chat.removeParticipants(participantIds);
+
+            return { success: true };
+        } catch (error) {
+            this.logger.error('Failed to remove participants', { sessionId, groupId, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Promote participants to admin
+     */
+    async promoteParticipants(sessionId, groupId, participants) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+
+        try {
+            const chat = await client.getChatById(groupId);
+            if (!chat.isGroup) throw new Error('Chat is not a group');
+
+            const participantIds = participants.map(p => {
+                const phone = p.replace(/\D/g, '');
+                return `${phone}@c.us`;
+            });
+
+            await chat.promoteParticipants(participantIds);
+
+            return { success: true };
+        } catch (error) {
+            this.logger.error('Failed to promote participants', { sessionId, groupId, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Demote participants to regular users
+     */
+    async demoteParticipants(sessionId, groupId, participants) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+
+        try {
+            const chat = await client.getChatById(groupId);
+            if (!chat.isGroup) throw new Error('Chat is not a group');
+
+            const participantIds = participants.map(p => {
+                const phone = p.replace(/\D/g, '');
+                return `${phone}@c.us`;
+            });
+
+            await chat.demoteParticipants(participantIds);
+
+            return { success: true };
+        } catch (error) {
+            this.logger.error('Failed to demote participants', { sessionId, groupId, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Update group subject (name)
+     */
+    async updateGroupSubject(sessionId, groupId, subject) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+
+        try {
+            const chat = await client.getChatById(groupId);
+            if (!chat.isGroup) throw new Error('Chat is not a group');
+
+            await chat.setSubject(subject);
+
+            return { success: true };
+        } catch (error) {
+            this.logger.error('Failed to update group subject', { sessionId, groupId, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Update group description
+     */
+    async updateGroupDescription(sessionId, groupId, description) {
+        const client = this.sessions.get(sessionId);
+        if (!client) throw new Error('Session not found');
+
+        try {
+            const chat = await client.getChatById(groupId);
+            if (!chat.isGroup) throw new Error('Chat is not a group');
+
+            await chat.setDescription(description);
+
+            return { success: true };
+        } catch (error) {
+            this.logger.error('Failed to update group description', { sessionId, groupId, error: error.message });
+            throw error;
+        }
     }
 }
 

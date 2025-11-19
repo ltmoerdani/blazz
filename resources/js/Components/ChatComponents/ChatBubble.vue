@@ -152,6 +152,10 @@
         <div>
             <!--Text message formatting-->
             <div v-if="metadata.type === 'text' || metadata.type === 'chat' || metadata.text" class="max-w-[300px]">
+                <!-- Sender name for group messages (inbound only) -->
+                <div v-if="props.type === 'inbound' && metadata.sender_name" class="text-xs font-semibold text-gray-700 mb-1">
+                    {{ metadata.sender_name }}
+                </div>
                 <p class="normal-case whitespace-pre-wrap">{{ content.body || metadata.text?.body || metadata.body }}</p>
                 <div v-if="metadata?.buttons" class="mr-auto text-sm text-[#00a5f4] flex flex-col relative max-w-[25em]">
                     <div v-for="(item, index) in metadata?.buttons" :key="index" class="flex justify-center items-center space-x-2 rounded-lg bg-white h-10 my-[0.1em]">

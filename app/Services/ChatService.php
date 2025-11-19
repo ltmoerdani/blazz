@@ -1020,7 +1020,10 @@ class ChatService
                 'message_type' => $chat->message_type, // text/image/video/document
                 'message_status' => $chat->message_status,
                 'body' => $chat->body, // Uses accessor untuk get body dari metadata
-                'chat_type' => $chat->chat_type ?? 'private',
+                'message_status' => $chat->message_status,
+                'body' => $chat->body, // Uses accessor untuk get body dari metadata
+                'chat_type' => $chat->chat_type ?? ($chat->contact->type === 'group' ? 'group' : 'private'), // Ensure chat_type is set
+                'group_id' => $chat->contact->type === 'group' ? $chat->contact->phone : null, // Add group_id for frontend matching
                 
                 // Media information (if exists)
                 'media_id' => $chat->media_id,

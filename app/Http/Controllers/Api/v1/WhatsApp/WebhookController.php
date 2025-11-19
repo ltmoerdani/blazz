@@ -311,10 +311,21 @@ class WebhookController extends Controller
             // Provision contact using ContactProvisioningService
             $provisioningService = new ContactProvisioningService();
 
-            // Get contact name: group messages have sender_name, private chats use phone number
-            $contactName = $isGroup
-                ? ($message['sender_name'] ?? $phoneNumber)
-                : ($message['notifyName'] ?? $phoneNumber);
+            // Get contact name: group messages should use group_name, private chats use notifyName or phone number
+            if ($isGroup) {
+                $contactName = $message['group_name'] ?? 'Group ' . substr($phoneNumber, -4);
+            } else {
+                $contactName = $message['notifyName'] ?? $phoneNumber;
+            }
+
+            Log::debug('🔍 DEBUG: Contact Name Calculation', [
+                'is_group' => $isGroup,
+                'group_name_raw' => $message['group_name'] ?? 'MISSING',
+                'sender_name_raw' => $message['sender_name'] ?? 'MISSING',
+                'notify_name_raw' => $message['notifyName'] ?? 'MISSING',
+                'phone_number' => $phoneNumber,
+                'calculated_name' => $contactName
+            ]);
 
             Log::debug('🔍 DEBUG: About to provision contact', [
                 'phone_number' => $phoneNumber,
@@ -328,7 +339,12 @@ class WebhookController extends Controller
                 $contactName,
                 $workspaceId,
                 'webjs',
-                $session->id
+                $session->id,
+                $isGroup,
+                $isGroup ? [
+                    'group_id' => $message['group_id'] ?? null,
+                    'participants' => $message['participants'] ?? []
+                ] : []
             );
 
             Log::debug('🔍 DEBUG: Contact provision result', [
@@ -368,6 +384,9 @@ class WebhookController extends Controller
                     'from' => $message['from'] ?? null,
                     'to' => $message['to'] ?? null,
                     'timestamp' => $message['timestamp'] ?? null,
+                    // For group messages, include sender information
+                    'sender_phone' => $isGroup ? ($message['sender_phone'] ?? null) : null,
+                    'sender_name' => $isGroup ? ($message['sender_name'] ?? 'Unknown') : null,
                 ]),
             ]);
 
@@ -479,15 +498,29 @@ class WebhookController extends Controller
             // Extract phone number and find/create contact
             $to = $messageData['to'];
             $phoneNumber = str_replace(['@c.us', '@g.us'], '', $to);
+            
+            // Determine if this is a group message
+            $isGroup = strpos($to, '@g.us') !== false;
 
             $provisioningService = new ContactProvisioningService();
-            $contact = $provisioningService->getOrCreateContact(
-                $phoneNumber,
-                $phoneNumber, // Use phone number as name for sent messages
-                $workspaceId,
-                'webjs',
-                $session->id
-            );
+            
+            // Try to find existing contact first (to avoid duplicates)
+            $contact = Contact::where('workspace_id', $workspaceId)
+                ->where('phone', $phoneNumber)
+                ->first();
+            
+            // If not found, create it
+            if (!$contact) {
+                $contact = $provisioningService->getOrCreateContact(
+                    $phoneNumber,
+                    $phoneNumber, // Use phone number as name for sent messages
+                    $workspaceId,
+                    'webjs',
+                    $session->id,
+                    $isGroup,  // CRITICAL: Pass isGroup parameter
+                    $isGroup ? ['group_id' => $phoneNumber] : []
+                );
+            }
 
             if ($contact) {
                 // Check if chat already exists (to prevent duplicates from MessageService)

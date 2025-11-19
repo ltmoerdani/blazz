@@ -18,7 +18,20 @@ class Contact extends Model {
     protected $guarded = [];
     protected $appends = ['formatted_phone_number'];
     protected $dates = ['deleted_at'];
+    protected $casts = [
+        'group_metadata' => 'array',
+    ];
     public $timestamps = true;
+
+    public function isGroup(): bool
+    {
+        return $this->type === 'group';
+    }
+
+    public function isIndividual(): bool
+    {
+        return $this->type === 'individual';
+    }
 
     protected static function boot()
     {
@@ -132,7 +145,7 @@ class Contact extends Model {
             })
             ->with(['lastChat', 'lastInboundChat'])
             ->whereNull('contacts.deleted_at')
-            ->select('contacts.*')
+            ->select('contacts.*', 'contacts.type', 'contacts.group_metadata')
             ->selectSub(function ($subquery) use ($workspaceId, $sessionId) {
                 $subquery->from('chats')
                     ->selectRaw('MAX(created_at)')
@@ -284,7 +297,16 @@ class Contact extends Model {
         if (!$this->phone) {
             return '';
         }
-        return phone($this->phone)->formatInternational();
+
+        if ($this->isGroup()) {
+            return $this->phone;
+        }
+
+        try {
+            return phone($this->phone)->formatInternational();
+        } catch (\Exception $e) {
+            return $this->phone;
+        }
     }
 
     protected function decodeUnicodeBytes($value)

@@ -472,7 +472,7 @@
                 <!-- NEW: Chat Type Icon (TASK-FE-2) -->
                 <div class="w-[15%] relative">
                     <!-- Group Chat Icon -->
-                    <div v-if="contact.chat_type === 'group'" class="rounded-full w-10 h-10 flex items-center justify-center bg-blue-100">
+                    <div v-if="contact.type === 'group'" class="rounded-full w-10 h-10 flex items-center justify-center bg-blue-100">
                         <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
                         </svg>
@@ -488,10 +488,10 @@
                         <div class="flex-1 min-w-0">
                             <!-- Contact/Group Name -->
                             <h3 class="truncate font-semibold">
-                                {{ contact.chat_type === 'group' ? contact.group_name : contact.full_name }}
+                                {{ contact.type === 'group' ? (contact.first_name || contact.phone) : contact.full_name }}
                                 <!-- NEW: Participant count for groups (TASK-FE-2) -->
-                                <span v-if="contact.chat_type === 'group' && contact.participants_count" class="text-xs text-gray-500 font-normal ml-1">
-                                    ({{ contact.participants_count }} members)
+                                <span v-if="contact.type === 'group' && contact.group_metadata?.participants" class="text-xs text-gray-500 font-normal ml-1">
+                                    ({{ contact.group_metadata.participants.length }} members)
                                 </span>
                             </h3>
                             <!-- NEW: Provider Type Badge (TASK-FE-2) -->
@@ -509,7 +509,7 @@
                     <div v-if="contact?.last_chat?.deleted_at === null" class="flex justify-between">
                         <div v-if="contentType(contact?.last_chat?.metadata) ==='text'" class="text-slate-500 text-xs truncate self-end">
                             <!-- NEW: Show sender name for group messages (TASK-FE-2) -->
-                            <span v-if="contact.chat_type === 'group' && contact.last_sender_name" class="font-medium text-gray-700">
+                            <span v-if="contact.type === 'group' && contact.last_sender_name" class="font-medium text-gray-700">
                                 {{ contact.last_sender_name }}:
                             </span>
                             {{ content(contact?.last_chat?.metadata).text.body }}
