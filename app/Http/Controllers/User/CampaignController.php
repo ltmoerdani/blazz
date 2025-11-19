@@ -223,28 +223,19 @@ class CampaignController extends BaseController
     /**
      * Store hybrid campaign (template or direct message)
      */
-    public function storeHybrid(HybridCampaignRequest $request): JsonResponse
+    /**
+     * Store hybrid campaign (template or direct message)
+     */
+    public function storeHybrid(HybridCampaignRequest $request)
     {
-        try {
-            $campaign = $this->campaignService->createHybridCampaign($request);
+        $this->campaignService->createHybridCampaign($request);
 
-            return response()->json([
-                'success' => true,
-                'message' => __('Campaign created successfully!'),
-                'campaign' => [
-                    'uuid' => $campaign->uuid,
-                    'name' => $campaign->name,
-                    'type' => $campaign->campaign_type,
-                    'status' => $campaign->status,
-                    'provider' => $campaign->preferred_provider
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => __('Failed to create campaign: ') . $e->getMessage()
-            ], 500);
-        }
+        return Redirect::route('campaigns')->with(
+            'status', [
+                'type' => 'success',
+                'message' => __('Campaign created successfully!')
+            ]
+        );
     }
 
     /**

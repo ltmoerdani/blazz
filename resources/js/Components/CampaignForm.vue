@@ -405,33 +405,9 @@
                 },
             });
         } else {
+
             // Use hybrid campaign endpoint for direct messages
-            const formData = new FormData();
-
-            // Add all form fields to FormData
-            Object.keys(form.data()).forEach(key => {
-                if (key === 'buttons' && Array.isArray(form.data()[key])) {
-                    formData.append(key, JSON.stringify(form.data()[key]));
-                } else if (form.data()[key] !== null && form.data()[key] !== undefined) {
-                    formData.append(key, form.data()[key]);
-                }
-            });
-
-            // Convert FormData to JSON for the hybrid endpoint
-            const jsonData = {};
-            formData.forEach((value, key) => {
-                if (key === 'buttons') {
-                    try {
-                        jsonData[key] = JSON.parse(value);
-                    } catch (e) {
-                        jsonData[key] = value;
-                    }
-                } else {
-                    jsonData[key] = value;
-                }
-            });
-
-            form.transform(() => jsonData).post('/campaigns/hybrid', {
+            form.post('/campaigns/hybrid', {
                 onFinish: () => {
                     isLoading.value = false;
                 },

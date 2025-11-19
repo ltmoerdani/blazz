@@ -85,6 +85,14 @@ class WhatsAppAccount extends Model
     }
 
     /**
+     * Get all campaigns for this session
+     */
+    public function campaigns(): HasMany
+    {
+        return $this->hasMany(Campaign::class, 'whatsapp_account_id');
+    }
+
+    /**
      * Get all contact sessions for this session
      */
     public function contactSessions(): HasMany

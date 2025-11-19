@@ -35,12 +35,11 @@ class SendCampaignJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        private Campaign $campaign,
-        ?MessageService $messageService = null,
+        private Campaign|int $campaign,
         ?ProviderSelectionService $providerService = null
     ) {
-        $this->messageService = $messageService ?? app(MessageService::class);
         $this->providerService = $providerService ?? app(ProviderSelectionService::class);
+        $this->onQueue('whatsapp-campaign');
     }
 
     /**
@@ -49,6 +48,11 @@ class SendCampaignJob implements ShouldQueue
     public function handle(): void
     {
         try {
+            // Resolve campaign if passed as ID
+            if (is_int($this->campaign)) {
+                $this->campaign = Campaign::find($this->campaign);
+            }
+
             // Handle both single campaign and batch processing
             if (isset($this->campaign)) {
                 $this->processSingleCampaign($this->campaign);
@@ -137,6 +141,9 @@ class SendCampaignJob implements ShouldQueue
     protected function processCampaign(Campaign $campaign)
     {
         try {
+            // Initialize MessageService with campaign's workspace ID
+            $this->messageService = new MessageService($campaign->workspace_id);
+
             // Select the best WhatsApp session for this campaign
             $this->selectedAccount = $this->providerService->selectBestAccount($campaign);
 
@@ -487,6 +494,7 @@ class SendCampaignJob implements ShouldQueue
 
                     // NEW: Use injected service
                     $this->workspaceId = $campaignLog->campaign->workspace_id;
+                    $this->messageService = new MessageService($this->workspaceId);
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
                     $responseObject = $this->messageService->sendTemplateMessage($campaignLog->contact->uuid, $template, $campaign_user_id, $campaignLog->campaign_id);
                     $successStatus = ($responseObject->success === true) ? 'success' : 'failed';
