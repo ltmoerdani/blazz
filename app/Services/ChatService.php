@@ -146,6 +146,17 @@ class ChatService
         $contacts = $contact->contactsWithChats($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats, $sessionId);
         $rowCount = $contact->contactsWithChatsCount($this->workspaceId, $searchTerm, $ticketingActive, $ticketState, $sortDirection, $role, $allowAgentsToViewAllChats, $sessionId);
 
+        // DEBUG: Log all incoming requests
+        Log::info('getChatListWithFilters called', [
+            'page' => request()->get('page', 1),
+            'expects_json' => request()->expectsJson(),
+            'ajax' => request()->ajax(),
+            'x_requested_with' => request()->header('X-Requested-With'),
+            'accept' => request()->header('Accept'),
+            'contacts_count' => $contacts->count(),
+            'has_more' => $contacts->hasMorePages(),
+        ]);
+
         $pusherSettings = Setting::whereIn('key', [
             'pusher_app_id',
             'pusher_app_key',
@@ -234,9 +245,40 @@ class ChatService
             }
         }
 
-        if (request()->expectsJson()) {
+        // Check if this is an AJAX/JSON request for pagination (not initial Inertia load)
+        $isAjaxPagination = request()->ajax() || 
+                           request()->expectsJson() || 
+                           request()->header('X-Requested-With') === 'XMLHttpRequest' ||
+                           (request()->has('page') && request()->get('page') > 1);
+        
+        if ($isAjaxPagination && !request()->header('X-Inertia')) {
+            // Build proper pagination metadata for infinite scroll
+            $resourceData = ContactResource::collection($contacts)->toArray(request());
+            
+            // DEBUG: Log pagination request
+            Log::info('✅ Chat list AJAX pagination request', [
+                'page' => request()->get('page', 1),
+                'workspace_id' => $this->workspaceId,
+                'current_page' => $contacts->currentPage(),
+                'count' => count($resourceData),
+                'has_more_pages' => $contacts->hasMorePages(),
+            ]);
+            
             return response()->json([
-                'result' => ContactResource::collection($contacts)->response()->getData(),
+                'result' => [
+                    'data' => $resourceData,
+                    'meta' => [
+                        'current_page' => $contacts->currentPage(),
+                        'per_page' => $contacts->perPage(),
+                        'has_more_pages' => $contacts->hasMorePages(),
+                        'from' => $contacts->firstItem(),
+                        'to' => $contacts->lastItem(),
+                    ],
+                    'links' => [
+                        'next' => $contacts->nextPageUrl(),
+                        'prev' => $contacts->previousPageUrl(),
+                    ]
+                ],
             ], 200);
         } else {
             $settings = $config && $config->metadata ? json_decode($config->metadata) : null;

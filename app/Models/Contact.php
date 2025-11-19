@@ -186,10 +186,8 @@ class Contact extends Model {
             });
         }
 
-        // Order by the latest chat's created_at
-        $query->orderBy('last_chat_created_at', $sortDirection); // Order contacts by last chat created_at
-
-        // Use simple pagination for infinite scroll (no total count needed)
+        // NOTE: orderBy already set above at line 162, no need to duplicate
+        // Using simplePaginate for infinite scroll (efficient, no COUNT query)
         return $query->simplePaginate(15);
 
     }

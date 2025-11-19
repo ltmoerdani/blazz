@@ -52,13 +52,19 @@ class ChatController extends BaseController
 
         // Support AJAX requests untuk SPA navigation (no page reload)
         // Only return JSON if it's explicitly an AJAX call (not Inertia)
-        if ($request->ajax() && $request->header('X-Requested-With') === 'XMLHttpRequest' && !$request->header('X-Inertia')) {
-            Log::info('ChatController::index - AJAX request', [
+        // CRITICAL: Don't intercept pagination requests (they have 'page' parameter)
+        $isContactAjax = $request->ajax() && 
+                        $request->header('X-Requested-With') === 'XMLHttpRequest' && 
+                        !$request->header('X-Inertia') &&
+                        !$request->has('page'); // Allow pagination to pass through
+        
+        if ($isContactAjax) {
+            Log::info('ChatController::index - AJAX contact request', [
                 'workspace_id' => $workspaceId,
                 'uuid' => $uuid
             ]);
             
-            // Return JSON response untuk AJAX
+            // Return JSON response untuk individual contact AJAX
             return $this->getContactChatData($workspaceId, $uuid);
         }
 

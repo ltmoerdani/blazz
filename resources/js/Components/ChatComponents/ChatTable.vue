@@ -226,11 +226,21 @@
                 url.searchParams.set('account_id', params.value.account_id);
             }
             
+            console.log('📤 Request URL:', url.toString());
+            
             const response = await axios.get(url.toString(), {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
                 }
+            });
+            
+            console.log('📥 Response received:', {
+                status: response.status,
+                hasData: !!response.data,
+                hasResult: !!response.data?.result,
+                resultKeys: response.data?.result ? Object.keys(response.data.result) : []
             });
             
             if (response.data?.result?.data) {
@@ -297,22 +307,37 @@
     // Setup Intersection Observer for more efficient infinite scroll
     const setupIntersectionObserver = () => {
         if (!loadMoreTrigger.value) {
-            console.log('⚠️ loadMoreTrigger not available yet');
+            console.error('❌ loadMoreTrigger ref not available');
+            console.log('Retrying in 1 second...');
+            setTimeout(setupIntersectionObserver, 1000);
             return;
         }
         
+        if (!hasNextPage.value) {
+            console.log('⏸️ Skipping Intersection Observer setup - no more pages');
+            return;
+        }
+        
+        console.log('🔧 Setting up Intersection Observer...', {
+            trigger: loadMoreTrigger.value,
+            hasNextPage: hasNextPage.value,
+            scrollContainer: !!scrollContainer.value
+        });
+        
         const options = {
             root: scrollContainer.value,
-            rootMargin: '50px', // Reduced from 100px to prevent premature trigger
-            threshold: 0.01 // Very small threshold
+            rootMargin: '100px', // Load before user reaches bottom
+            threshold: 0.1
         };
         
         intersectionObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                console.log('👁️ Intersection:', {
+                console.log('👁️ Intersection event:', {
                     isIntersecting: entry.isIntersecting,
+                    intersectionRatio: entry.intersectionRatio,
                     isLoading: isLoadingMore.value,
-                    hasNext: hasNextPage.value
+                    hasNext: hasNextPage.value,
+                    targetVisible: entry.target.offsetParent !== null
                 });
                 
                 if (entry.isIntersecting && !isLoadingMore.value && hasNextPage.value) {
@@ -323,7 +348,7 @@
         }, options);
         
         intersectionObserver.observe(loadMoreTrigger.value);
-        console.log('✅ Intersection Observer setup complete');
+        console.log('✅ Intersection Observer setup complete and observing');
     };
     
     // Watch for props changes to update local copy
@@ -380,6 +405,12 @@
         // Initialize local rows from props
         localRows.value = [...props.rows.data];
         
+        console.log('🚀 ChatTable onMounted - Props received:', {
+            hasRowsMeta: !!props.rows?.meta,
+            rowsDataLength: props.rows?.data?.length,
+            metaKeys: props.rows?.meta ? Object.keys(props.rows.meta) : [],
+        });
+        
         // Initialize pagination state from props
         if (props.rows?.meta) {
             currentPage.value = props.rows.meta.current_page || 1;
@@ -387,16 +418,22 @@
             // Check has_more_pages from backend if available
             if (props.rows.meta.has_more_pages !== undefined) {
                 hasNextPage.value = props.rows.meta.has_more_pages;
+                console.log('✅ Using backend has_more_pages:', props.rows.meta.has_more_pages);
             } else {
                 // Fallback: check if we have full page of data
                 hasNextPage.value = props.rows.data.length >= 15;
+                console.log('⚠️ Fallback: has_more_pages not provided, using length check');
             }
             
-            console.log('📋 Initial state:', {
+            console.log('📋 Initial pagination state:', {
                 currentPage: currentPage.value,
                 hasNextPage: hasNextPage.value,
-                contactCount: localRows.value.length
+                contactCount: localRows.value.length,
+                perPage: props.rows.meta.per_page,
+                backendHasMore: props.rows.meta.has_more_pages,
             });
+        } else {
+            console.error('❌ No meta object in props.rows!');
         }
         
         // Setup Intersection Observer with slight delay to ensure DOM is ready
@@ -567,7 +604,9 @@
         </div>
         
         <!-- Intersection Observer Target - Must be AFTER all items -->
-        <div v-if="hasNextPage && !isLoadingMore" ref="loadMoreTrigger" class="h-4"></div>
+        <div v-if="hasNextPage && !isLoadingMore" ref="loadMoreTrigger" class="h-20 flex items-center justify-center">
+            <span class="text-xs text-gray-400">📡 Scroll detector active</span>
+        </div>
         
         <!-- Infinite Scroll Loading Indicator -->
         <div v-if="isLoadingMore" class="py-4 flex justify-center items-center">
