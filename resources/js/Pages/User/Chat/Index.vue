@@ -3,6 +3,7 @@
         <div class="md:flex md:flex-grow md:overflow-hidden">
             <div class="md:w-[30%] md:flex flex-col h-full bg-white border-r border-l" :class="contact ? 'hidden' : ''">
                 <ChatTable 
+                    ref="chatTableRef"
                     :rows="rows" 
                     :filters="props.filters" 
                     :rowCount="props.rowCount" 
@@ -146,6 +147,7 @@
     const chatThread = shallowRef(props.chatThread); // Optimized: shallow reactivity for large arrays
     const contact = ref(props.contact);
     const chatThreadRef = ref(null);
+    const chatTableRef = ref(null); // NEW: Ref for ChatTable component
     
     // Cache untuk menyimpan data chat yang sudah di-load
     const chatCache = new Map();
@@ -462,12 +464,11 @@
         const incomingContactId = chat[0].value.contact_id;
         const isCurrentChat = contact.value && contact.value.id == incomingContactId;
 
-        // SCENARIO 2: User is viewing this chat - update thread immediately
+        // 1. Update Thread (if current chat)
         if (isCurrentChat) {
-            console.log('✅ Scenario 2: Message for current chat - updating thread only');
+            console.log('✅ Message for current chat - updating thread');
             
             // Pass new message to ChatThread for real-time display
-            // Do NOT call updateChatThread() to avoid fetching from server and causing race condition
             if (chatThreadRef.value && chatThreadRef.value.addNewMessage) {
                 chatThreadRef.value.addNewMessage(chat[0].value);
                 console.log('✅ Message added to current chat thread via WebSocket');
@@ -475,79 +476,66 @@
                 console.warn('⚠️ chatThreadRef not available, fallback to updateChatThread');
                 updateChatThread(chat);
             }
-            
-            // IMPORTANT: Return early - don't update badge or reorder for current chat
-            return;
         }
 
-        // SCENARIO 1 & 3: Update sidebar badge and chat list (only if NOT current chat)
-        // Update badge immediately in local state BEFORE server fetch
-        console.log('🔍 Searching for contact in list', {
-            incomingContactId: incomingContactId,
-            incomingContactIdType: typeof incomingContactId,
-            totalContacts: rows.value?.data?.length || 0,
-            firstContactId: rows.value?.data?.[0]?.id,
-            firstContactIdType: typeof rows.value?.data?.[0]?.id
-        });
+        // 2. Update Sidebar (Badge, Preview, Order)
+        console.log('🔍 Searching for contact in list to update sidebar');
+        // Prepare update data
+        const updateData = {};
         
+        // Update Badge: Increment unread count if NOT current chat
+        if (!isCurrentChat) {
+            // Find current unread count from rows to know if we need to increment global badge
+            const currentContact = rows.value?.data?.find(c => c.id == incomingContactId);
+            const currentUnread = currentContact?.unread_messages || 0;
+            
+            updateData.unread_messages = currentUnread + 1;
+            
+            // If it was read (0) and now has 1, increment global counter
+            if (currentUnread === 0) {
+                window.dispatchEvent(new CustomEvent('chat-unread'));
+                console.log('📬 Dispatched chat-unread event (increment global badge)');
+            }
+        } else {
+            // If current chat, keep unread as 0 (or reset if it wasn't)
+            updateData.unread_messages = 0;
+        }
+        
+        // Update Preview: Last message content and time
+        const messageContent = chat[0].value.message || 
+                             chat[0].value.body || 
+                             (chat[0].value.metadata ? 
+                                 (typeof chat[0].value.metadata === 'string' ? 
+                                     JSON.parse(chat[0].value.metadata).body : 
+                                     chat[0].value.metadata.body) : 
+                                 'New message');
+        
+        updateData.last_message = messageContent;
+        updateData.last_message_at = chat[0].value.created_at || new Date().toISOString();
+        updateData.latest_chat_created_at = chat[0].value.created_at || new Date().toISOString();
+        
+        // METHOD 1: Call ChatTable method directly (Most Reliable)
+        if (chatTableRef.value && chatTableRef.value.moveContactToTop) {
+            chatTableRef.value.moveContactToTop(incomingContactId, updateData);
+            console.log('✅ Called ChatTable.moveContactToTop');
+        } else {
+            console.warn('⚠️ ChatTable ref not available, falling back to reactive update');
+        }
+        
+        // METHOD 2: Update reactive state (Consistency)
         if (rows.value?.data) {
-            const contactIndex = rows.value.data.findIndex(c => {
-                console.log('🔍 Comparing:', { cId: c.id, cIdType: typeof c.id, incoming: incomingContactId, match: c.id == incomingContactId });
-                return c.id == incomingContactId; // Use == instead of === for type coercion
-            });
-            
-            console.log('🔍 Contact search result:', { contactIndex, found: contactIndex !== -1 });
-            
+            const contactIndex = rows.value.data.findIndex(c => c.id == incomingContactId);
             if (contactIndex !== -1) {
-                const targetContact = rows.value.data[contactIndex];
-                console.log('✅ Target contact found:', {
-                    id: targetContact.id,
-                    currentUnread: targetContact.unread_messages
-                });
-                
-                // Increment unread count if NOT current chat
-                if (!isCurrentChat) {
-                    // Check if it was previously read (0 unread)
-                    const wasRead = (targetContact.unread_messages || 0) === 0;
-                    
-                    targetContact.unread_messages = (targetContact.unread_messages || 0) + 1;
-                    
-                    // If it was read and now has 1 unread, increment global counter
-                    if (wasRead) {
-                        window.dispatchEvent(new CustomEvent('chat-unread'));
-                        console.log('📬 Dispatched chat-unread event (increment global badge)');
-                    }
-
-                    console.log('🔔 Badge updated locally:', {
-                        contactId: incomingContactId,
-                        unreadCount: targetContact.unread_messages
-                    });
-                }
-                
-                // Update latest message preview
-                // Extract message from various possible sources
-                const messageContent = chat[0].value.message || 
-                                     chat[0].value.body || 
-                                     (chat[0].value.metadata ? 
-                                         (typeof chat[0].value.metadata === 'string' ? 
-                                             JSON.parse(chat[0].value.metadata).body : 
-                                             chat[0].value.metadata.body) : 
-                                         'New message');
-                
-                targetContact.last_message = messageContent;
-                targetContact.last_message_at = chat[0].value.created_at || new Date().toISOString();
-                targetContact.latest_chat_created_at = chat[0].value.created_at || new Date().toISOString();
-                
-                // Move contact to top of list for better UX
-                const movedContact = rows.value.data.splice(contactIndex, 1)[0];
-                rows.value.data.unshift(movedContact);
-                
-                console.log('✅ Chat list reordered, contact moved to top');
+                const newRowsData = [...rows.value.data];
+                const targetContact = { ...newRowsData[contactIndex], ...updateData };
+                newRowsData.splice(contactIndex, 1);
+                newRowsData.unshift(targetContact);
+                rows.value.data = newRowsData;
+                console.log('✅ Updated rows.value.data (backup method)');
             }
         }
 
         // Fetch fresh data from server for accuracy (non-blocking, debounced)
-        // Use setTimeout to debounce multiple rapid events
         if (window.chatListSyncTimeout) {
             clearTimeout(window.chatListSyncTimeout);
         }
@@ -556,21 +544,13 @@
             try {
                 const response = await axios.get('/chats');
                 if (response?.data?.result) {
-                    // Preserve current chat state to avoid flickering
-                    const currentContactId = contact.value?.id;
-                    
-                    // Update chat list with server data
                     rows.value = response.data.result;
-                    
-                    console.log('✅ Chat list synced with server', {
-                        totalContacts: response.data.result?.data?.length || 0,
-                        currentContactId: currentContactId
-                    });
+                    console.log('✅ Chat list synced with server');
                 }
             } catch (error) {
                 console.error('❌ Error updating side panel:', error);
             }
-        }, 500); // Debounce 500ms to avoid too many requests
+        }, 2000);
     }
 
     const onCloseDemoModal = () => {

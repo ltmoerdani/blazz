@@ -342,6 +342,40 @@
         localRows.value = [...props.rows.data]; // Reset to initial data
     });
     
+    // NEW: Method to programmatically move a contact to the top (called by parent)
+    const moveContactToTop = (contactId, updateData = {}) => {
+        console.log('🔄 ChatTable: Moving contact to top', contactId);
+        
+        const index = localRows.value.findIndex(c => c.id == contactId);
+        if (index !== -1) {
+            // Create copy of contact
+            const contact = { ...localRows.value[index] };
+            
+            // Apply updates (last message, time, unread count)
+            Object.assign(contact, updateData);
+            
+            // Remove from current position
+            localRows.value.splice(index, 1);
+            
+            // Add to top
+            localRows.value.unshift(contact);
+            
+            // Scroll to top to ensure visibility
+            if (scrollContainer.value) {
+                scrollContainer.value.scrollTop = 0;
+            }
+            
+            console.log('✅ ChatTable: Contact moved to top successfully');
+        } else {
+            console.warn('⚠️ ChatTable: Contact not found for reordering', contactId);
+        }
+    };
+
+    // Expose method to parent
+    defineExpose({
+        moveContactToTop
+    });
+
     onMounted(() => {
         // Initialize local rows from props
         localRows.value = [...props.rows.data];
