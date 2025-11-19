@@ -70,10 +70,24 @@ class ContactProvisioningService
         }
 
         // Step 2: Find existing contact (with soft delete awareness)
-        $contact = Contact::where('workspace_id', $workspaceId)
-            ->where('phone', $formattedPhone)
-            ->whereNull('deleted_at')
-            ->first();
+        $query = Contact::where('workspace_id', $workspaceId)
+            ->whereNull('deleted_at');
+
+        if ($isGroup) {
+            // For groups, check both raw ID and ID with suffix to avoid duplicates
+            $query->where(function($q) use ($formattedPhone) {
+                $q->where('phone', $formattedPhone)
+                  ->orWhere('phone', $formattedPhone . '@g.us');
+            });
+            // Prioritize contact with a set name (not just the phone number)
+            $query->orderByRaw("CASE WHEN first_name != phone THEN 1 ELSE 2 END");
+        } else {
+            $query->where('phone', $formattedPhone);
+        }
+
+        $contact = $query->first();
+
+        // If found with suffix, we'll normalize it in the update step below
 
         // Handle legacy group contacts (previously formatted as E164)
         if (!$contact && $isGroup) {
@@ -146,7 +160,14 @@ class ContactProvisioningService
                 $updateData['type'] = 'group';
             }
 
-            $contact->update($updateData);
+            // Normalize group phone number (remove @g.us suffix if present)
+            if ($isGroup && strpos($contact->phone, '@g.us') !== false) {
+                $updateData['phone'] = $formattedPhone; // $formattedPhone is raw ID for groups
+            }
+
+            if (!empty($updateData)) {
+                $contact->update($updateData);
+            }
 
             Log::channel('whatsapp')->debug('Contact updated', [
                 'contact_id' => $contact->id,

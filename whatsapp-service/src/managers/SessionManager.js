@@ -325,7 +325,7 @@ class SessionManager {
                 // Base message data
                 const messageData = {
                     id: message.id._serialized,
-                    from: message.from,
+                    from: message.from, // Will be overridden for groups below
                     to: message.to,
                     body: message.body,
                     timestamp: message.timestamp,
@@ -337,6 +337,12 @@ class SessionManager {
 
                 // Add group-specific data if it's a group message
                 if (isGroup) {
+                    // CRITICAL: For group messages, 'from' should be the GROUP ID, not the sender's number
+                    console.log('🔍 BEFORE - messageData.from:', messageData.from);
+                    console.log('🔍 chat.id._serialized:', chat.id._serialized);
+                    messageData.from = chat.id._serialized;
+                    console.log('🔍 AFTER - messageData.from:', messageData.from);
+
                     messageData.group_id = chat.id._serialized;
                     messageData.group_name = chat.name || 'Unnamed Group';
 

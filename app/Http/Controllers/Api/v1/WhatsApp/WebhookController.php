@@ -384,6 +384,9 @@ class WebhookController extends Controller
                     'from' => $message['from'] ?? null,
                     'to' => $message['to'] ?? null,
                     'timestamp' => $message['timestamp'] ?? null,
+                    // For group messages, include sender information
+                    'sender_phone' => $isGroup ? ($message['sender_phone'] ?? null) : null,
+                    'sender_name' => $isGroup ? ($message['sender_name'] ?? 'Unknown') : null,
                 ]),
             ]);
 
@@ -495,15 +498,29 @@ class WebhookController extends Controller
             // Extract phone number and find/create contact
             $to = $messageData['to'];
             $phoneNumber = str_replace(['@c.us', '@g.us'], '', $to);
+            
+            // Determine if this is a group message
+            $isGroup = strpos($to, '@g.us') !== false;
 
             $provisioningService = new ContactProvisioningService();
-            $contact = $provisioningService->getOrCreateContact(
-                $phoneNumber,
-                $phoneNumber, // Use phone number as name for sent messages
-                $workspaceId,
-                'webjs',
-                $session->id
-            );
+            
+            // Try to find existing contact first (to avoid duplicates)
+            $contact = Contact::where('workspace_id', $workspaceId)
+                ->where('phone', $phoneNumber)
+                ->first();
+            
+            // If not found, create it
+            if (!$contact) {
+                $contact = $provisioningService->getOrCreateContact(
+                    $phoneNumber,
+                    $phoneNumber, // Use phone number as name for sent messages
+                    $workspaceId,
+                    'webjs',
+                    $session->id,
+                    $isGroup,  // CRITICAL: Pass isGroup parameter
+                    $isGroup ? ['group_id' => $phoneNumber] : []
+                );
+            }
 
             if ($contact) {
                 // Check if chat already exists (to prevent duplicates from MessageService)
