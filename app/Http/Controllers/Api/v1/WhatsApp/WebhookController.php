@@ -572,38 +572,29 @@ class WebhookController extends Controller
                         ? (json_decode($existingChat->metadata, true)['body'] ?? '') 
                         : ($existingChat->metadata['body'] ?? '');
                     
-                    // Build message data for broadcast - MUST match NewChatEvent structure!
+                    // Build message data for broadcast - MUST match inbound format for consistency!
                     $chatData = [
                         'id' => $existingChat->id,
                         'wam_id' => $existingChat->wam_id,
                         'contact_id' => $existingChat->contact_id,
                         
-                        // Contact nested object (matches NewChatEvent::broadcastWith)
+                        // Contact nested object - MATCH INBOUND FORMAT
                         'contact' => [
                             'id' => $existingChat->contact->id,
-                            'first_name' => $existingChat->contact->first_name ?? $existingChat->contact->name,
+                            'name' => $existingChat->contact->name,  // ✅ Use 'name' like inbound
                             'phone' => $existingChat->contact->phone,
-                            'profile_picture_url' => $existingChat->contact->avatar ?? null,
+                            'avatar' => $existingChat->contact->avatar ?? null,  // ✅ Use 'avatar' like inbound
                             'unread_messages' => 0,  // Outbound doesn't increase unread
                         ],
                         
-                        // Message content and metadata
-                        'body' => $messageBody,
-                        'message' => $messageBody,  // Also set 'message' for compatibility
+                        // Message content and metadata - MATCH INBOUND FORMAT
+                        'message' => $messageBody,  // Primary field (like inbound)
+                        'body' => $messageBody,     // Secondary field (like inbound)
                         'type' => 'outbound',
-                        'message_type' => $messageData['type'] ?? 'text',
                         'message_status' => $existingChat->message_status ?? 'sent',
                         'from_me' => true,
-                        'created_at' => $existingChat->created_at?->toISOString() ?? now()->toISOString(),
+                        'created_at' => is_string($existingChat->created_at) ? $existingChat->created_at : $existingChat->created_at?->toISOString(),
                         'metadata' => $existingChat->metadata,
-                        
-                        // Media (if exists)
-                        'media_id' => $existingChat->media_id ?? null,
-                        'media' => $existingChat->media ?? null,
-                        
-                        // User (who sent from Blazz)
-                        'user_id' => $existingChat->user_id ?? null,
-                        'user' => $existingChat->user ?? null,
                     ];
                     
                     // ✅ BROADCAST EVENT - This makes chat appear in list
@@ -659,33 +650,29 @@ class WebhookController extends Controller
                     ]);
 
                     // ✅ REALTIME FIX: Broadcast NewChatEvent for outbound messages too
-                    // MUST match NewChatEvent structure (flat, not nested!)
+                    // MUST match inbound format for consistency!
                     $chatData = [
                         'id' => $chat->id,
                         'wam_id' => $chat->wam_id,
                         'contact_id' => $contact->id,
                         
-                        // Contact nested object
+                        // Contact nested object - MATCH INBOUND FORMAT
                         'contact' => [
                             'id' => $contact->id,
-                            'first_name' => $contact->first_name ?? $contact->name,
+                            'name' => $contact->name,  // ✅ Use 'name' like inbound
                             'phone' => $contact->phone,
-                            'profile_picture_url' => $contact->avatar ?? null,
+                            'avatar' => $contact->avatar ?? null,  // ✅ Use 'avatar' like inbound
                             'unread_messages' => 0,
                         ],
                         
-                        // Message content
-                        'body' => $messageData['body'] ?? '',
-                        'message' => $messageData['body'] ?? '',
+                        // Message content - MATCH INBOUND FORMAT
+                        'message' => $messageData['body'] ?? '',  // Primary field
+                        'body' => $messageData['body'] ?? '',     // Secondary field
                         'type' => 'outbound',
-                        'message_type' => $messageData['type'] ?? 'text',
                         'message_status' => 'pending',
                         'from_me' => true,
-                        'created_at' => $chat->created_at?->toISOString() ?? now()->toISOString(),
+                        'created_at' => is_string($chat->created_at) ? $chat->created_at : $chat->created_at?->toISOString(),
                         'metadata' => $chat->metadata,
-                        
-                        // WhatsApp IDs
-                        'whatsapp_message_id' => $chat->whatsapp_message_id,
                     ];
 
                     // Broadcast to workspace channel

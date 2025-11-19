@@ -100,20 +100,22 @@ class NewChatEvent implements ShouldBroadcastNow
                     'wam_id' => $this->chat['wam_id'] ?? null,
                     'contact_id' => $this->chat['contact_id'] ?? null,
                     
-                    // Contact information
+                    // Contact information - support both 'name' and 'first_name', 'avatar' and 'profile_picture_url'
                     'contact' => [
                         'id' => $this->chat['contact']['id'] ?? null,
-                        'first_name' => $this->chat['contact']['first_name'] ?? null,
+                        'name' => $this->chat['contact']['name'] ?? $this->chat['contact']['first_name'] ?? null,
                         'phone' => $this->chat['contact']['phone'] ?? null,
-                        'profile_picture_url' => $this->chat['contact']['profile_picture_url'] ?? null,
+                        'avatar' => $this->chat['contact']['avatar'] ?? $this->chat['contact']['profile_picture_url'] ?? null,
                         'unread_messages' => $this->chat['contact']['unread_messages'] ?? 0,
                     ],
                     
-                    // Message details
+                    // Message details - support both 'message' and 'body' for content
                     'type' => $this->chat['type'] ?? 'inbound',
                     'message_type' => $this->chat['message_type'] ?? 'text',
                     'message_status' => $this->chat['message_status'] ?? 'sent',
-                    'body' => $this->chat['body'] ?? null,
+                    'message' => $this->chat['message'] ?? $this->chat['body'] ?? null,
+                    'body' => $this->chat['body'] ?? $this->chat['message'] ?? null,
+                    'from_me' => $this->chat['from_me'] ?? ($this->chat['type'] === 'outbound'),
                     
                     // Media information
                     'media_id' => $this->chat['media_id'] ?? null,
@@ -144,7 +146,7 @@ class NewChatEvent implements ShouldBroadcastNow
             Log::info('✅ Broadcast data structured', [
                 'message_id' => $structuredData['message']['id'],
                 'contact_id' => $structuredData['message']['contact_id'],
-                'contact_name' => $structuredData['message']['contact']['first_name'] ?? 'Unknown',
+                'contact_name' => $structuredData['message']['contact']['name'] ?? 'Unknown',
                 'message_type' => $structuredData['message']['message_type'],
             ]);
             
