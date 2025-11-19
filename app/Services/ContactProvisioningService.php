@@ -44,18 +44,29 @@ class ContactProvisioningService
         ?string $name,
         int $workspaceId,
         string $sourceType = 'webjs',
-        ?int $sessionId = null
+        ?int $sessionId = null,
+        bool $isGroup = false,
+        array $groupMetadata = []
     ): Contact {
-        // Step 1: Format phone to E164
-        $formattedPhone = $this->formatPhone($phone);
+        // Auto-detect group from phone number if not explicitly set
+        if (!$isGroup && (strpos($phone, '-') !== false || strlen($phone) > 15)) {
+            // WhatsApp Group IDs are usually longer or contain hyphens (old format)
+            // This is a heuristic fallback
+            // $isGroup = true; // Commented out to avoid false positives, relying on explicit flag for now
+        }
+        // Step 1: Format phone (skip for groups)
+        $formattedPhone = $phone;
+        if (!$isGroup) {
+            $formattedPhone = $this->formatPhone($phone);
 
-        if (!$formattedPhone) {
-            Log::channel('whatsapp')->error('Phone formatting failed', [
-                'phone' => $phone,
-                'workspace_id' => $workspaceId,
-            ]);
+            if (!$formattedPhone) {
+                Log::channel('whatsapp')->error('Phone formatting failed', [
+                    'phone' => $phone,
+                    'workspace_id' => $workspaceId,
+                ]);
 
-            throw new \Exception("Invalid phone number format: {$phone}");
+                throw new \Exception("Invalid phone number format: {$phone}");
+            }
         }
 
         // Step 2: Find existing contact (with soft delete awareness)
@@ -63,6 +74,32 @@ class ContactProvisioningService
             ->where('phone', $formattedPhone)
             ->whereNull('deleted_at')
             ->first();
+
+        // Handle legacy group contacts (previously formatted as E164)
+        if (!$contact && $isGroup) {
+            $legacyFormattedPhone = $this->formatPhone($phone);
+            if ($legacyFormattedPhone) {
+                $contact = Contact::where('workspace_id', $workspaceId)
+                    ->where('phone', $legacyFormattedPhone)
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                if ($contact) {
+                    // Migrate legacy contact to new format
+                    $contact->update([
+                        'phone' => $formattedPhone, // Update to raw group ID
+                        'type' => 'group',
+                        'updated_at' => now()
+                    ]);
+                    
+                    Log::channel('whatsapp')->info('Migrated legacy group contact', [
+                        'contact_id' => $contact->id,
+                        'old_phone' => $legacyFormattedPhone,
+                        'new_phone' => $formattedPhone
+                    ]);
+                }
+            }
+        }
 
         $isNewContact = false;
 
@@ -74,6 +111,8 @@ class ContactProvisioningService
                 'email' => null,
                 'phone' => $formattedPhone,
                 'workspace_id' => $workspaceId,
+                'type' => $isGroup ? 'group' : 'individual',
+                'group_metadata' => $isGroup ? $groupMetadata : null,
                 'created_by' => 0, // System-created
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -85,18 +124,31 @@ class ContactProvisioningService
                 'contact_id' => $contact->id,
                 'phone' => $formattedPhone,
                 'name' => $name,
+                'type' => $isGroup ? 'group' : 'individual',
                 'workspace_id' => $workspaceId,
             ]);
         }
 
         // Step 4: Update name if currently null (enrich from incoming data)
-        if ($contact->first_name === null && $name) {
-            $contact->update([
+        // For groups, always update name if provided
+        if (($contact->first_name === null && $name) || ($isGroup && $name && $contact->first_name !== $name)) {
+            $updateData = [
                 'first_name' => $name,
                 'updated_at' => now(),
-            ]);
+            ];
 
-            Log::channel('whatsapp')->debug('Contact name updated', [
+            if ($isGroup && !empty($groupMetadata)) {
+                $updateData['group_metadata'] = array_merge($contact->group_metadata ?? [], $groupMetadata);
+            }
+
+            // Ensure type is updated to group if it was previously individual (e.g. created before migration)
+            if ($isGroup && $contact->type !== 'group') {
+                $updateData['type'] = 'group';
+            }
+
+            $contact->update($updateData);
+
+            Log::channel('whatsapp')->debug('Contact updated', [
                 'contact_id' => $contact->id,
                 'new_name' => $name,
             ]);

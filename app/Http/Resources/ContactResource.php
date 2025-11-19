@@ -39,9 +39,11 @@ class ContactResource extends JsonResource
 
         // Include additional fields for chats UI
         $data['full_name'] = $this->full_name ?? trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
-        $data['chat_type'] = $this->chat_type ?? 'private';
-        $data['group_name'] = $this->group_name ?? null;
-        $data['participants_count'] = $this->participants_count ?? null;
+        $data['type'] = $this->type ?? 'individual'; // Expose type
+        $data['group_metadata'] = $this->group_metadata ?? null; // Expose metadata
+        $data['chat_type'] = $this->type === 'group' ? 'group' : 'private'; // Backward compatibility
+        $data['group_name'] = $this->first_name; // Map group name to first_name
+        $data['participants_count'] = isset($this->group_metadata['participants']) ? count($this->group_metadata['participants']) : null;
         $data['provider_type'] = $this->provider_type ?? null;
         $data['is_online'] = $this->is_online ?? false;
         $data['typing_status'] = $this->typing_status ?? 'idle';

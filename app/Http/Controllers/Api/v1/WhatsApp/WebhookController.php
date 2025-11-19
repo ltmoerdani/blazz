@@ -311,10 +311,21 @@ class WebhookController extends Controller
             // Provision contact using ContactProvisioningService
             $provisioningService = new ContactProvisioningService();
 
-            // Get contact name: group messages have sender_name, private chats use phone number
-            $contactName = $isGroup
-                ? ($message['sender_name'] ?? $phoneNumber)
-                : ($message['notifyName'] ?? $phoneNumber);
+            // Get contact name: group messages should use group_name, private chats use notifyName or phone number
+            if ($isGroup) {
+                $contactName = $message['group_name'] ?? 'Group ' . substr($phoneNumber, -4);
+            } else {
+                $contactName = $message['notifyName'] ?? $phoneNumber;
+            }
+
+            Log::debug('🔍 DEBUG: Contact Name Calculation', [
+                'is_group' => $isGroup,
+                'group_name_raw' => $message['group_name'] ?? 'MISSING',
+                'sender_name_raw' => $message['sender_name'] ?? 'MISSING',
+                'notify_name_raw' => $message['notifyName'] ?? 'MISSING',
+                'phone_number' => $phoneNumber,
+                'calculated_name' => $contactName
+            ]);
 
             Log::debug('🔍 DEBUG: About to provision contact', [
                 'phone_number' => $phoneNumber,
@@ -328,7 +339,12 @@ class WebhookController extends Controller
                 $contactName,
                 $workspaceId,
                 'webjs',
-                $session->id
+                $session->id,
+                $isGroup,
+                $isGroup ? [
+                    'group_id' => $message['group_id'] ?? null,
+                    'participants' => $message['participants'] ?? []
+                ] : []
             );
 
             Log::debug('🔍 DEBUG: Contact provision result', [

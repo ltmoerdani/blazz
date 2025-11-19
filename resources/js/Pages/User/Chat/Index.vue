@@ -532,6 +532,11 @@
                 newRowsData.unshift(targetContact);
                 rows.value.data = newRowsData;
                 console.log('✅ Updated rows.value.data (backup method)');
+            } else {
+                // Contact not found in current list (New Contact / Group)
+                console.log('🆕 Contact not found in list, fetching fresh data...');
+                // Force refresh immediately to show new contact
+                refreshSidePanel();
             }
         }
 
@@ -597,14 +602,15 @@
 
             if (isGroup) {
                 console.log('📱 Group chat received:', message);
-
+                
                 // Update chat thread if user is viewing this group
-                if (contact.value && contact.value.group_id === message.group_id) {
+                // Note: contact.phone stores the group ID for groups
+                if (contact.value && (contact.value.group_id === message.group_id || contact.value.phone === message.group_id)) {
                     updateChatThread(legacyChat);
                 }
-                
-                // Refresh sidebar for group chats (they have different structure)
-                refreshSidePanel();
+
+                // Use updateSidePanel for groups too, it handles thread updates and sidebar reordering
+                updateSidePanel(legacyChat);
             } else {
                 // For private chats, updateSidePanel handles ALL scenarios:
                 // ✅ Scenario 1: No chat active → updates sidebar & badge
