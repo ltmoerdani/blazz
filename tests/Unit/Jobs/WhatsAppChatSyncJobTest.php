@@ -5,7 +5,7 @@ namespace Tests\Unit\Jobs;
 use App\Jobs\WhatsAppChatSyncJob;
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\WhatsAppGroup;
 use App\Models\Workspace;
 use App\Events\NewChatEvent;
@@ -37,7 +37,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         parent::setUp();
 
         $this->workspace = Workspace::factory()->create();
-        $this->session = WhatsAppSession::factory()->create([
+        $this->account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -71,7 +71,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         ];
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             $chats
         );
@@ -110,7 +110,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         ];
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             $chats
         );
@@ -158,7 +158,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         ];
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             $chats
         );
@@ -180,7 +180,7 @@ class WhatsAppChatSyncJobTest extends TestCase
     public function test_retries_on_failure()
     {
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             [/* invalid data to cause failure */]
         );
@@ -207,7 +207,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         $exception = new \Exception('Test failure');
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             []
         );
@@ -241,7 +241,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         ];
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             $chats
         );
@@ -278,7 +278,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         ];
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             $chats
         );
@@ -306,7 +306,7 @@ class WhatsAppChatSyncJobTest extends TestCase
 
         $existingChat = Chat::factory()->create([
             'workspace_id' => $this->workspace->id,
-            'whatsapp_session_id' => $this->session->id,
+            'whatsapp_account_id' => $this->account->id,
             'contact_id' => $contact->id,
             'wam_id' => $wamId,
             'provider_type' => 'webjs',
@@ -324,7 +324,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         ];
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             $chats
         );
@@ -343,7 +343,7 @@ class WhatsAppChatSyncJobTest extends TestCase
     public function test_timeout_configuration()
     {
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             []
         );
@@ -371,7 +371,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         ];
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             $chats
         );
@@ -406,7 +406,7 @@ class WhatsAppChatSyncJobTest extends TestCase
         ];
 
         $job = new WhatsAppChatSyncJob(
-            $this->session->id,
+            $this->account->id,
             $this->workspace->id,
             $chats
         );

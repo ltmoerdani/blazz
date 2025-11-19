@@ -95,7 +95,7 @@ echo -e "${PURPLE}1. Open browser${NC}"
 echo -e "${PURPLE}2. Press F12 or Cmd+Option+I to open DevTools${NC}"
 echo -e "${PURPLE}3. Click 'Console' tab${NC}"
 echo -e "${PURPLE}4. Navigate to:${NC}"
-echo -e "${GREEN}   http://127.0.0.1:8000/settings/whatsapp-sessions${NC}"
+echo -e "${GREEN}   http://127.0.0.1:8000/settings/whatsapp-accounts${NC}"
 echo ""
 
 read -p "Browser ready with DevTools open? (y/n): " browser_ready
@@ -138,14 +138,14 @@ echo ""
 echo -e "1. ${PURPLE}Console logs show:${NC}"
 echo -e "   ${CYAN}📡 Subscribing to Echo channel: workspace.X${NC}"
 echo -e "   ${CYAN}✅ Echo channel subscribed successfully${NC}"
-echo -e "   ${CYAN}🔄 Creating new WhatsApp session...${NC}"
+echo -e "   ${CYAN}🔄 Creating new WhatsApp account...${NC}"
 echo -e "   ${CYAN}✅ Session created: {...}${NC}"
 echo ""
 read -p "Do you see these logs? (y/n): " console_logs
 
 echo ""
 echo -e "2. ${PURPLE}Network tab shows:${NC}"
-echo -e "   ${CYAN}POST /settings/whatsapp-sessions → 200 OK${NC}"
+echo -e "   ${CYAN}POST /settings/whatsapp-accounts → 200 OK${NC}"
 echo ""
 read -p "Do you see successful POST request? (y/n): " network_post
 
@@ -168,7 +168,7 @@ echo ""
 echo -e "${GREEN}Check Terminal 1 (Laravel Logs):${NC}"
 echo ""
 echo -e "Expected logs:"
-echo -e "${CYAN}  [timestamp] local.INFO: 📥 WhatsApp session creation request${NC}"
+echo -e "${CYAN}  [timestamp] local.INFO: 📥 WhatsApp account creation request${NC}"
 echo -e "${CYAN}  [timestamp] local.INFO: workspace_id: 1${NC}"
 echo -e "${CYAN}  [timestamp] local.INFO: 🔄 Calling Node.js service${NC}"
 echo -e "${CYAN}  [timestamp] local.INFO: ✅ Session initialized successfully${NC}"
@@ -181,7 +181,7 @@ echo ""
 echo -e "${GREEN}Check Terminal 2 (WhatsApp Service Logs):${NC}"
 echo ""
 echo -e "Expected logs:"
-echo -e "${CYAN}  [timestamp] [POST /api/sessions] Creating new WhatsApp session${NC}"
+echo -e "${CYAN}  [timestamp] [POST /api/sessions] Creating new WhatsApp account${NC}"
 echo -e "${CYAN}  [timestamp] workspace_id: 1${NC}"
 echo -e "${CYAN}  [timestamp] Initializing whatsapp-web.js client...${NC}"
 echo -e "${CYAN}  [timestamp] ✅ QR code generated successfully${NC}"
@@ -290,7 +290,7 @@ if [ $success_count -eq $total_checks ]; then
         
         if [ "$authenticated" = "y" ]; then
             echo ""
-            echo -e "${GREEN}🎉 Perfect! WhatsApp session fully functional!${NC}"
+            echo -e "${GREEN}🎉 Perfect! WhatsApp account fully functional!${NC}"
         else
             echo ""
             echo -e "${YELLOW}⚠️  Authentication event not received${NC}"

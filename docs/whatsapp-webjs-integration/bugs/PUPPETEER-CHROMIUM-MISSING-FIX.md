@@ -10,7 +10,7 @@
 
 ### Error Message
 ```
-Failed to create WhatsApp session: Node.js service returned error: 
+Failed to create WhatsApp account: Node.js service returned error: 
 {"error":"Cannot read properties of undefined (reading 'priority')"}
 ```
 
@@ -181,7 +181,7 @@ curl -X POST http://127.0.0.1:3001/api/sessions \
 
 ### Test 2: Browser Test
 
-1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-sessions`
+1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-accounts`
 2. Open DevTools Console (F12)
 3. Click "Add WhatsApp Number"
 
@@ -189,7 +189,7 @@ curl -X POST http://127.0.0.1:3001/api/sessions \
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ✅ Session created: {success: true, session: {...}, qr_code: "..."}
 📨 QR Code Generated Event received: {...}
 ```
@@ -209,7 +209,7 @@ tail -f whatsapp-service.log
 **Expected logs:**
 ```
 [timestamp] info: WhatsApp Service started on port 3001
-[timestamp] info: Creating WhatsApp session {sessionId: "...", workspaceId: 1}
+[timestamp] info: Creating WhatsApp account {sessionId: "...", workspaceId: 1}
 [timestamp] info: QR code generated {sessionId: "...", workspaceId: 1}
 [timestamp] info: Webhook sent successfully (status: 200)
 ```
@@ -323,7 +323,7 @@ After applying fix:
 This fix resolves:
 - ❌ `Cannot read properties of undefined (reading 'priority')`
 - ❌ HTTP 500 Internal Server Error from Node.js service
-- ❌ Alert: "Failed to create WhatsApp session: Node.js service returned error"
+- ❌ Alert: "Failed to create WhatsApp account: Node.js service returned error"
 - ❌ No QR code generation
 
 This fix enables:

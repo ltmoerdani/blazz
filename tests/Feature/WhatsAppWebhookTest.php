@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Events\NewChatEvent;
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\WhatsAppGroup;
 use App\Models\Workspace;
 use Tests\TestCase;
@@ -36,7 +36,7 @@ class WhatsAppWebhookTest extends TestCase
         parent::setUp();
 
         $this->workspace = Workspace::factory()->create();
-        $this->session = WhatsAppSession::factory()->create([
+        $this->account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -64,7 +64,7 @@ class WhatsAppWebhookTest extends TestCase
         Event::fake([NewChatEvent::class]);
 
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',
@@ -109,7 +109,7 @@ class WhatsAppWebhookTest extends TestCase
     public function test_webhook_creates_group_chat()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'group',
             'group_jid' => '1234567890-1234567890@g.us',
@@ -156,7 +156,7 @@ class WhatsAppWebhookTest extends TestCase
     public function test_invalid_signature_returns_401()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',
@@ -183,7 +183,7 @@ class WhatsAppWebhookTest extends TestCase
     public function test_missing_signature_returns_401()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',
@@ -203,7 +203,7 @@ class WhatsAppWebhookTest extends TestCase
     public function test_auto_provisions_new_contact()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',
@@ -240,7 +240,7 @@ class WhatsAppWebhookTest extends TestCase
         ]);
 
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',
@@ -272,7 +272,7 @@ class WhatsAppWebhookTest extends TestCase
     public function test_workspace_isolation()
     {
         $workspace2 = Workspace::factory()->create();
-        $session2 = WhatsAppSession::factory()->create([
+        $account2 = WhatsAppAccount::factory()->create([
             'workspace_id' => $workspace2->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -287,7 +287,7 @@ class WhatsAppWebhookTest extends TestCase
 
         // Webhook for workspace 2 should create separate contact
         $payload = [
-            'session_id' => $session2->id,
+            'session_id' => $account2->id,
             'workspace_id' => $workspace2->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',
@@ -320,7 +320,7 @@ class WhatsAppWebhookTest extends TestCase
     public function test_handles_media_messages()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',
@@ -355,7 +355,7 @@ class WhatsAppWebhookTest extends TestCase
     {
         $payload = [
             // Missing required fields
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
         ];
 
         $signature = $this->generateSignature($payload);
@@ -402,7 +402,7 @@ class WhatsAppWebhookTest extends TestCase
     public function test_sets_correct_chat_status()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',
@@ -433,7 +433,7 @@ class WhatsAppWebhookTest extends TestCase
     public function test_handles_concurrent_webhook_calls()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chat_type' => 'private',
             'contact_phone' => '+6281234567890',

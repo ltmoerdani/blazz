@@ -68,11 +68,11 @@ Week 3 focused on frontend enhancements for group chat support, session filterin
 
 3. **ChatService.php Enhancement:**
    ```php
-   // Added WhatsAppSession import
-   use App\Models\WhatsAppSession;
+   // Added WhatsAppAccount import
+   use App\Models\WhatsAppAccount;
 
    // Added sessions query (lines 153-162 & 201-210)
-   $sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
+   $sessions = WhatsAppAccount::where('workspace_id', $this->workspaceId)
        ->where('status', 'connected')
        ->select('id', 'phone_number', 'provider_type')
        ->withCount(['chats as unread_count' => function ($query) {
@@ -387,7 +387,7 @@ php artisan test tests/Feature/WhatsAppSyncControllerTest.php
    - Added: Sender name for groups (lines 271-274)
 
 2. **app/Services/ChatService.php**
-   - Added: WhatsAppSession import (line 21)
+   - Added: WhatsAppAccount import (line 21)
    - Added: Sessions query (lines 153-162)
    - Added: Sessions query for second render (lines 201-210)
    - Added: Sessions to Inertia props (lines 188, 228)
@@ -424,7 +424,7 @@ php artisan test tests/Feature/WhatsAppSyncControllerTest.php
 ## 🎯 ACCEPTANCE CRITERIA VALIDATION
 
 ### TASK-FE-1: Session Filter Dropdown
-- ✅ Dropdown displays all connected WhatsApp sessions
+- ✅ Dropdown displays all connected WhatsApp accounts
 - ✅ Shows "All Conversations" default option
 - ✅ Displays unread count per session
 - ✅ Shows provider type (Meta API / WhatsApp Web.js)

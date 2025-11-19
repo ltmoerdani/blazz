@@ -101,7 +101,7 @@ Perbaikan critical security vulnerability pada message encryption system. Semua 
 
 ### 🔧 Infrastructure & Performance  
 - **Database**: Migration scripts, indexing, query optimization
-- **Caching**: Redis integration, session management, real-time updates
+- **Caching**: Redis integration, account management, real-time updates
 - **Queue System**: Background jobs, message processing, notification delivery
 - **Monitoring**: Logging, metrics, health checks, error tracking
 

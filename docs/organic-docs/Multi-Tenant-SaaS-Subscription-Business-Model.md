@@ -254,7 +254,7 @@ class SubscriptionPlanSeeder extends Seeder {
                     'message_limit' => ['value' => 1000, 'unit' => 'messages/month'],
                     'campaigns_limit' => ['value' => 5, 'unit' => 'campaigns/month'],
                     'agents_limit' => ['value' => 2, 'unit' => 'agents'],
-                    'whatsapp_sessions' => ['value' => 1, 'unit' => 'session'],
+                    'whatsapp_accounts' => ['value' => 1, 'unit' => 'session'],
                     'api_access' => ['value' => false],
                     'analytics' => ['value' => 'basic'],
                     'support' => ['value' => 'email'],
@@ -276,7 +276,7 @@ class SubscriptionPlanSeeder extends Seeder {
                     'message_limit' => ['value' => 10000, 'unit' => 'messages/month'],
                     'campaigns_limit' => ['value' => 25, 'unit' => 'campaigns/month'],
                     'agents_limit' => ['value' => 5, 'unit' => 'agents'],
-                    'whatsapp_sessions' => ['value' => 2, 'unit' => 'sessions'],
+                    'whatsapp_accounts' => ['value' => 2, 'unit' => 'sessions'],
                     'api_access' => ['value' => true],
                     'analytics' => ['value' => 'advanced'],
                     'support' => ['value' => 'priority'],
@@ -300,7 +300,7 @@ class SubscriptionPlanSeeder extends Seeder {
                     'message_limit' => ['value' => 100000, 'unit' => 'messages/month'],
                     'campaigns_limit' => ['value' => 'unlimited'],
                     'agents_limit' => ['value' => 20, 'unit' => 'agents'],
-                    'whatsapp_sessions' => ['value' => 5, 'unit' => 'sessions'],
+                    'whatsapp_accounts' => ['value' => 5, 'unit' => 'sessions'],
                     'api_access' => ['value' => true],
                     'analytics' => ['value' => 'enterprise'],
                     'support' => ['value' => '24/7'],
@@ -478,7 +478,7 @@ class SubscriptionService {
             'message_limit' => 'messages_sent_this_month',
             'campaigns_limit' => 'campaigns_this_month',
             'agents_limit' => 'active_agents',
-            'whatsapp_sessions' => 'whatsapp_sessions_count',
+            'whatsapp_accounts' => 'whatsapp_accounts_count',
         ];
 
         $usageKey = $featureMapping[$feature] ?? $feature;

@@ -128,7 +128,7 @@ php artisan reverb:status  # Should show running
 **Subtasks:**
 - [ ] Extend BroadcastConfigServiceProvider for dynamic driver loading
 - [ ] Make NewChatEvent and NewPaymentEvent broadcaster-agnostic
-- [ ] Create WhatsAppQRGenerated and WhatsAppSessionStatusChanged events
+- [ ] Create WhatsAppQRGenerated and WhatsAppAccountStatusChanged events
 - [ ] Test event broadcasting with both drivers
 
 **Verification:**
@@ -167,14 +167,14 @@ $service = new WhatsappService(null, null, null, null, null, 1);
 **Objective:** Create and execute database migration untuk critical gaps yang ditemukan
 
 **Critical Issues Addressed:**
-- ❌ `whatsapp_sessions` table MISSING dari existing schema
-- ❌ Missing `whatsapp_session_id` foreign keys di `chats` dan `campaign_logs`
+- ❌ `whatsapp_accounts` table MISSING dari existing schema
+- ❌ Missing `whatsapp_account_id` foreign keys di `chats` dan `campaign_logs`
 - ❌ Missing `contact_sessions` junction table untuk multi-number tracking
 
 **Subtasks:**
-- [ ] Create migration untuk tabel `whatsapp_sessions` dengan semua required fields
-- [ ] Alter tabel `chats`: Add `whatsapp_session_id` foreign key
-- [ ] Alter tabel `campaign_logs`: Add `whatsapp_session_id` foreign key
+- [ ] Create migration untuk tabel `whatsapp_accounts` dengan semua required fields
+- [ ] Alter tabel `chats`: Add `whatsapp_account_id` foreign key
+- [ ] Alter tabel `campaign_logs`: Add `whatsapp_account_id` foreign key
 - [ ] Create tabel `contact_sessions` junction table
 - [ ] Create data migration untuk existing Meta API credentials dari `workspaces.metadata`
 - [ ] Add database indexes untuk performance optimization
@@ -183,7 +183,7 @@ $service = new WhatsappService(null, null, null, null, null, 1);
 
 **Migration Files Required:**
 ```php
-// database/migrations/2025_10_13_000000_create_whatsapp_sessions_table.php
+// database/migrations/2025_10_13_000000_create_whatsapp_accounts_table.php
 // database/migrations/2025_10_13_000001_migrate_existing_whatsapp_credentials.php
 // database/migrations/2025_10_13_000002_add_session_foreign_keys.php
 ```
@@ -191,7 +191,7 @@ $service = new WhatsappService(null, null, null, null, null, 1);
 **Verification:**
 ```sql
 -- Check new tables exist
-SHOW TABLES LIKE 'whatsapp_sessions';
+SHOW TABLES LIKE 'whatsapp_accounts';
 SHOW TABLES LIKE 'contact_sessions';
 
 -- Check foreign keys added
@@ -199,13 +199,13 @@ SHOW CREATE TABLE chats;
 SHOW CREATE TABLE campaign_logs;
 
 -- Check data migrated
-SELECT COUNT(*) FROM whatsapp_sessions WHERE provider_type = 'meta';
+SELECT COUNT(*) FROM whatsapp_accounts WHERE provider_type = 'meta';
 ```
 
 **Database Schema (New Tables):**
 ```sql
--- whatsapp_sessions table
-CREATE TABLE `whatsapp_sessions` (
+-- whatsapp_accounts table
+CREATE TABLE `whatsapp_accounts` (
   `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `uuid` CHAR(50) NOT NULL UNIQUE,
   `workspace_id` BIGINT UNSIGNED NOT NULL,
@@ -235,18 +235,18 @@ CREATE TABLE `whatsapp_sessions` (
 CREATE TABLE `contact_sessions` (
   `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `contact_id` BIGINT UNSIGNED NOT NULL,
-  `whatsapp_session_id` BIGINT UNSIGNED NOT NULL,
+  `whatsapp_account_id` BIGINT UNSIGNED NOT NULL,
   `first_interaction_at` TIMESTAMP,
   `last_interaction_at` TIMESTAMP,
   `total_messages` INT DEFAULT 0,
   `created_at` TIMESTAMP,
   `updated_at` TIMESTAMP,
 
-  UNIQUE KEY unique_contact_session (contact_id, whatsapp_session_id),
+  UNIQUE KEY unique_contact_session (contact_id, whatsapp_account_id),
   FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE,
-  FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+  FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE CASCADE,
   INDEX idx_contact_interactions (contact_id, last_interaction_at),
-  INDEX idx_session_contacts (whatsapp_session_id, last_interaction_at)
+  INDEX idx_session_contacts (whatsapp_account_id, last_interaction_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -254,15 +254,15 @@ CREATE TABLE `contact_sessions` (
 ```sql
 -- Alter chats table
 ALTER TABLE `chats`
-ADD COLUMN `whatsapp_session_id` BIGINT UNSIGNED NULL AFTER `workspace_id`,
-ADD FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
-ADD INDEX idx_session_chats (whatsapp_session_id, created_at);
+ADD COLUMN `whatsapp_account_id` BIGINT UNSIGNED NULL AFTER `workspace_id`,
+ADD FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE SET NULL,
+ADD INDEX idx_session_chats (whatsapp_account_id, created_at);
 
 -- Alter campaign_logs table
 ALTER TABLE `campaign_logs`
-ADD COLUMN `whatsapp_session_id` BIGINT UNSIGNED NULL AFTER `contact_id`,
-ADD FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
-ADD INDEX idx_campaign_session (campaign_id, whatsapp_session_id);
+ADD COLUMN `whatsapp_account_id` BIGINT UNSIGNED NULL AFTER `contact_id`,
+ADD FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE SET NULL,
+ADD INDEX idx_campaign_session (campaign_id, whatsapp_account_id);
 ```
 
 **Duration:** 2-3 days | **Dependencies:** TASK-3 | **Priority:** P0 CRITICAL
@@ -426,7 +426,7 @@ TASK-10 (Deployment)
 
 **Critical Path Notes:**
 - **TASK-DB (P0 BLOCKING):** Must complete before any session-related functionality
-- **Database Schema:** Foundation untuk semua WhatsApp session operations
+- **Database Schema:** Foundation untuk semua WhatsApp account operations
 - **Migration Testing:** Critical untuk ensure zero data loss
 
 **Parallel Work Opportunities:**
@@ -452,7 +452,7 @@ TASK-10 (Deployment)
 - ✅ Unit tests for provider logic passing
 
 ### Phase 3 Deliverable: WhatsApp Integration
-- ✅ Node.js service operational with session management
+- ✅ Node.js service operational with account management
 - ✅ Webhook processing with HMAC security
 - ✅ Message sending/receiving working
 - ✅ Session persistence and recovery functional
@@ -626,7 +626,7 @@ TASK-10 (Deployment)
 
 ### Could Have (Enhancement) 🔄 **PARTIALLY IMPLEMENTED**
 - [x] Advanced analytics dan reporting per WhatsApp number ✅ IMPLEMENTED
-- [x] Bulk operations untuk session management ✅ IMPLEMENTED
+- [x] Bulk operations untuk account management ✅ IMPLEMENTED
 - [x] Advanced filtering dan search dengan session context ✅ IMPLEMENTED
 - [x] API rate limiting dan throttling dengan ban risk scoring ✅ IMPLEMENTED
 
@@ -636,7 +636,7 @@ TASK-10 (Deployment)
 - [x] **GAP #1:** Session Actions & Management - ✅ RESOLVED (FR-1.4 implemented)
 - [x] **GAP #2:** Navigation Menu Discovery - ✅ RESOLVED (FR-10.6 implemented)
 - [x] **GAP #3:** Page Disambiguation - ✅ RESOLVED (FR-10.7 implemented)
-- [x] **GAP #4:** Database Schema (whatsapp_sessions table) - ✅ RESOLVED (TASK-DB created)
+- [x] **GAP #4:** Database Schema (whatsapp_accounts table) - ✅ RESOLVED (TASK-DB created)
 - [x] **GAP #5:** Broadcast Driver Selection - ✅ RESOLVED (FR-10.1 implemented)
 - [x] **GAP #6:** Workspace Driver Selection - ✅ RESOLVED (FR-10.2 implemented)
 - [x] **GAP #7:** Settings Table Seeder - ✅ RESOLVED (FR-10.8 implemented)
@@ -698,9 +698,9 @@ Based on comprehensive codebase analysis:
 
 ### ✅ FULLY IMPLEMENTED & VERIFIED
 - **Database Schema:** Complete with migrations, foreign keys, and data migration ✅ VERIFIED
-- **Backend Services:** Provider abstraction, session management, webhook processing ✅ VERIFIED
+- **Backend Services:** Provider abstraction, account management, webhook processing ✅ VERIFIED
 - **Node.js Service:** Complete WhatsApp Web.js integration with PM2 deployment ✅ VERIFIED
-- **Frontend Components:** QR display, real-time updates, session management UI ✅ VERIFIED
+- **Frontend Components:** QR display, real-time updates, account management UI ✅ VERIFIED
 - **Security:** HMAC authentication, encrypted session data, workspace isolation ✅ VERIFIED
 - **Broadcasting:** Laravel Reverb integration with fallback to Pusher ✅ VERIFIED
 - **Navigation:** Updated menu structure with WhatsApp Numbers discoverability ✅ VERIFIED

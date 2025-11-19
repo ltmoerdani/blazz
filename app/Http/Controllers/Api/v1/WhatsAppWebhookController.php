@@ -14,7 +14,7 @@ use App\Models\Setting;
 use App\Models\Template;
 use App\Services\AutoReplyService;
 use App\Services\ChatService;
-use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
 use GuzzleHttp\Client;
@@ -36,7 +36,7 @@ class WhatsAppWebhookController extends BaseController
     private ?AutoReplyService $autoReplyService;
 
     public function __construct(
-        MessageSendingService $messageService,
+        MessageService $messageService,
         MediaProcessingService $mediaService,
         TemplateManagementService $templateService
     ) {
@@ -286,11 +286,12 @@ class WhatsAppWebhookController extends BaseController
                 ]);
 
                 // Broadcast status update
-                event(new NewChatEvent($chatLog->chat_id, [
+                event(new NewChatEvent([
                     'type' => 'message_status',
                     'status' => $status['status'],
                     'message_id' => $status['id'],
-                ]));
+                    'chat_id' => $chatLog->chat_id,
+                ], $workspace->id));
             }
 
         } catch (Exception $e) {

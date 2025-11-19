@@ -99,6 +99,18 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
     Route::put('/contact-groups/{uuid}', [App\Http\Controllers\Api\v1\ContactGroupApiController::class, 'storeContactGroup']);
     Route::delete('/contact-groups/{uuid}', [App\Http\Controllers\Api\v1\ContactGroupApiController::class, 'destroyContactGroup']);
 
+    // Contact presence management routes (real-time features)
+    Route::prefix('contacts')->group(function () {
+        Route::get('/{contactId}/presence', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'getPresence']);
+        Route::put('/{contactId}/typing-status', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'updateTypingStatus']);
+        Route::put('/{contactId}/online-status', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'updateOnlineStatus']);
+        Route::put('/{contactId}/last-message', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'updateLastMessageTime']);
+        Route::get('/workspace/presence', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'getWorkspaceContactsPresence']);
+        Route::post('/workspace/typing', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'getTypingContacts']);
+        Route::post('/bulk/presence', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'bulkUpdatePresence']);
+        Route::post('/cleanup/offline', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'cleanupOfflineContacts']);
+    });
+
     Route::get('/canned-replies', [App\Http\Controllers\Api\v1\CannedReplyApiController::class, 'listCannedReplies']);
     Route::post('/canned-replies', [App\Http\Controllers\Api\v1\CannedReplyApiController::class, 'storeCannedReply']);
     Route::put('/canned-replies/{uuid}', [App\Http\Controllers\Api\v1\CannedReplyApiController::class, 'storeCannedReply']);

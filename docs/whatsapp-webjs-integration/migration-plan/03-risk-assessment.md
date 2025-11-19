@@ -12,11 +12,11 @@
 
 #### 🔴 **HIGH RISK Files** (Requires careful handling)
 1. **`app/Http/Requests/HybridCampaignRequest.php`**
-   - Risk: Validation rules reference `whatsapp_sessions` table
+   - Risk: Validation rules reference `whatsapp_accounts` table
    - Impact: Campaign creation will fail if validation not updated
 
 2. **`app/Models/WhatsAppGroup.php`**
-   - Risk: Database relationships with `whatsapp_session_id`
+   - Risk: Database relationships with `whatsapp_account_id`
    - Impact: Group associations will break
 
 3. **Database Migrations (5 files)**
@@ -26,7 +26,7 @@
 #### 🟡 **MEDIUM RISK Files** (Standard renaming)
 4. **9 Backend PHP files** - Models, Services, Controllers
 5. **1 Frontend Vue file** - Complex reactive state
-6. **4 Node.js service files** - Session management services
+6. **4 Node.js service files** - Account management services
 7. **2 Shell scripts** - Maintenance and testing scripts
 
 ---
@@ -35,7 +35,7 @@
 
 ### **1. Database Schema Dependencies**
 
-#### Tables with `whatsapp_session_id` foreign keys:
+#### Tables with `whatsapp_account_id` foreign keys:
 ```sql
 -- HIGH RISK - Multiple tables affected
 chats (1 relationship)
@@ -51,7 +51,7 @@ contacts (source_session_id) - NEWLY FOUND!
 #### Migration Files that Reference Table Names:
 ```php
 // HIGH RISK - These must be updated or migration will fail
-2025_10_13_000000_create_whatsapp_sessions_table.php
+2025_10_13_000000_create_whatsapp_accounts_table.php
 2025_10_13_000002_add_session_foreign_keys.php
 2025_10_22_000001_add_chat_provider_and_groups.php - NEWLY FOUND!
 2025_10_22_000002_add_chat_indexes.php - NEWLY FOUND!
@@ -64,14 +64,14 @@ contacts (source_session_id) - NEWLY FOUND!
 #### **Critical Validation Rules:**
 ```php
 // HIGH RISK - HybridCampaignRequest.php
-'whatsapp_session_id' => [
+'whatsapp_account_id' => [
     'nullable',
     'integer',
-    'exists:whatsapp_sessions,id'  // ⚠️ This will break after rename
+    'exists:whatsapp_accounts,id'  // ⚠️ This will break after rename
 ],
 
 // Custom validation rules
-'whatsapp_session_id.exists' => 'Selected WhatsApp session not found',
+'whatsapp_account_id.exists' => 'Selected WhatsApp account not found',
 ```
 
 ### **3. Queue Job Dependencies**
@@ -89,7 +89,7 @@ contacts (source_session_id) - NEWLY FOUND!
 
 #### **Complex Vue Component State:**
 ```javascript
-// WhatsAppSessions.vue - MEDIUM RISK
+// WhatsAppAccounts.vue - MEDIUM RISK
 sessionsList.value // Reactive array
 session_id references in API calls
 WebSocket event handlers for session updates
@@ -104,29 +104,29 @@ WebSocket event handlers for session updates
 #### **Step 1: Create Comprehensive Migration**
 ```php
 // Single migration that handles ALL changes:
-class RenameWhatsAppSessionsToAccounts extends Migration
+class RenameWhatsAppAccountsToAccounts extends Migration
 {
     public function up()
     {
         // 1. Rename tables
-        Schema::rename('whatsapp_sessions', 'whatsapp_accounts');
+        Schema::rename('whatsapp_accounts', 'whatsapp_accounts');
         Schema::rename('contact_sessions', 'contact_accounts');
 
         // 2. Rename columns in ALL related tables
         Schema::table('chats', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
+            $table->renameColumn('whatsapp_account_id', 'whatsapp_account_id');
         });
         Schema::table('campaign_logs', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
+            $table->renameColumn('whatsapp_account_id', 'whatsapp_account_id');
         });
         Schema::table('campaigns', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
+            $table->renameColumn('whatsapp_account_id', 'whatsapp_account_id');
         });
         Schema::table('whatsapp_groups', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
+            $table->renameColumn('whatsapp_account_id', 'whatsapp_account_id');
         });
         Schema::table('contact_accounts', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
+            $table->renameColumn('whatsapp_account_id', 'whatsapp_account_id');
         });
         Schema::table('contacts', function (Blueprint $table) {
             $table->renameColumn('source_session_id', 'source_account_id');
@@ -160,22 +160,22 @@ class RenameWhatsAppSessionsToAccounts extends Migration
 
 1. **Models First** (to prevent cascade failures):
    ```bash
-   mv WhatsAppSession.php WhatsAppAccount.php
+   mv WhatsAppAccount.php WhatsAppAccount.php
    mv ContactSession.php ContactAccount.php
    mv WhatsAppGroup.php WhatsAppGroup.php (rename relationships)
    ```
 
 2. **Services & Validation**:
    ```bash
-   mv WhatsAppSessionService.php WhatsAppAccountService.php
+   mv WhatsAppAccountService.php WhatsAppAccountService.php
    mv HybridCampaignRequest.php HybridCampaignRequest.php
    ```
 
 3. **Controllers**:
    ```bash
-   mv WhatsAppSessionController.php WhatsAppAccountController.php
-   mv WhatsAppSessionManagementController.php WhatsAppAccountManagementController.php
-   mv WhatsAppSessionStatusController.php WhatsAppAccountStatusController.php
+   mv WhatsAppAccountController.php WhatsAppAccountController.php
+   mv WhatsAppAccountManagementController.php WhatsAppAccountManagementController.php
+   mv WhatsAppAccountStatusController.php WhatsAppAccountStatusController.php
    ```
 
 4. **API Controllers**:
@@ -185,8 +185,8 @@ class RenameWhatsAppSessionsToAccounts extends Migration
 
 5. **Events & Exceptions**:
    ```bash
-   mv WhatsAppSessionStatusChangedEvent.php WhatsAppAccountStatusChangedEvent.php
-   mv WhatsAppSessionNotFoundException.php WhatsAppAccountNotFoundException.php
+   mv WhatsAppAccountStatusChangedEvent.php WhatsAppAccountStatusChangedEvent.php
+   mv WhatsAppAccountNotFoundException.php WhatsAppAccountNotFoundException.php
    ```
 
 ### **Phase 3: Find & Replace (CAREFULLY)**
@@ -196,23 +196,23 @@ class RenameWhatsAppSessionsToAccounts extends Migration
 #### **Database References (HIGH PRIORITY):**
 ```bash
 # Table names
-"whatsapp_sessions" → "whatsapp_accounts"
+"whatsapp_accounts" → "whatsapp_accounts"
 "contact_sessions" → "contact_accounts"
 
 # Column names
-"whatsapp_session_id" → "whatsapp_account_id"
+"whatsapp_account_id" → "whatsapp_account_id"
 "source_session_id" → "source_account_id"
 "session_name" → "account_name"
 
 # Model class names
-"WhatsAppSession" → "WhatsAppAccount"
+"WhatsAppAccount" → "WhatsAppAccount"
 "ContactSession" → "ContactAccount"
 ```
 
 #### **Frontend References:**
 ```bash
 "sessionsList" → "accountsList"
-"WhatsAppSessions" → "WhatsAppAccounts"
+"WhatsAppAccounts" → "WhatsAppAccounts"
 "session_id" → "account_id"
 ```
 
@@ -258,7 +258,7 @@ git reset --hard HEAD~1
 
 ### **Files that contain "session" but are UNRELATED:**
 ```php
-// DO NOT TOUCH - Laravel session management
+// DO NOT TOUCH - Laravel account management
 config/session.php
 app/Http/Middleware/SetWorkspaceFromSession.php
 
@@ -271,9 +271,9 @@ config/sanctum.php
 ```
 
 ### **How to Identify Safe to Rename:**
-✅ File contains `whatsapp_session` → **SAFE**
-✅ File contains `whatsapp_session_id` → **SAFE**
-✅ File contains `WhatsAppSession` class → **SAFE**
+✅ File contains `whatsapp_account` → **SAFE**
+✅ File contains `whatsapp_account_id` → **SAFE**
+✅ File contains `WhatsAppAccount` class → **SAFE**
 
 ❌ File contains generic `session` → **DO NOT RENAME**
 ❌ File contains `auth_session` → **DO NOT RENAME**

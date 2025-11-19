@@ -67,9 +67,9 @@ else
     ((FAIL++))
 fi
 
-echo -n "  WhatsAppSessionStatusChangedEvent has broadcastAs(): "
-if grep -q "public function broadcastAs()" app/Events/WhatsAppSessionStatusChangedEvent.php; then
-    BROADCAST_NAME=$(grep -A 2 "public function broadcastAs()" app/Events/WhatsAppSessionStatusChangedEvent.php | grep "return" | sed "s/.*return '\(.*\)'.*/\1/")
+echo -n "  WhatsAppAccountStatusChangedEvent has broadcastAs(): "
+if grep -q "public function broadcastAs()" app/Events/WhatsAppAccountStatusChangedEvent.php; then
+    BROADCAST_NAME=$(grep -A 2 "public function broadcastAs()" app/Events/WhatsAppAccountStatusChangedEvent.php | grep "return" | sed "s/.*return '\(.*\)'.*/\1/")
     echo -e "${GREEN}✅ YES (returns: '$BROADCAST_NAME')${NC}"
     ((PASS++))
 else
@@ -84,7 +84,7 @@ echo "📋 Test 3: Check frontend Echo event listeners"
 echo "------------------------------------------------------"
 
 echo -n "  Frontend listens to '.qr-code-generated': "
-if grep -q "listen('.qr-code-generated'" resources/js/Pages/User/Settings/WhatsAppSessions.vue; then
+if grep -q "listen('.qr-code-generated'" resources/js/Pages/User/Settings/WhatsAppAccounts.vue; then
     echo -e "${GREEN}✅ YES${NC}"
     ((PASS++))
 else
@@ -93,7 +93,7 @@ else
 fi
 
 echo -n "  Frontend listens to '.session-status-changed': "
-if grep -q "listen('.session-status-changed'" resources/js/Pages/User/Settings/WhatsAppSessions.vue; then
+if grep -q "listen('.session-status-changed'" resources/js/Pages/User/Settings/WhatsAppAccounts.vue; then
     echo -e "${GREEN}✅ YES${NC}"
     ((PASS++))
 else
@@ -107,13 +107,13 @@ echo ""
 echo "📋 Test 4: Check for stuck sessions in database"
 echo "------------------------------------------------------"
 
-STUCK_SESSIONS=$(php artisan tinker --execute="echo DB::table('whatsapp_sessions')->where('status', 'qr_scanning')->count();")
+STUCK_SESSIONS=$(php artisan tinker --execute="echo DB::table('whatsapp_accounts')->where('status', 'qr_scanning')->count();")
 
 if [ "$STUCK_SESSIONS" -gt 0 ]; then
     echo -e "  ${YELLOW}⚠️  Found $STUCK_SESSIONS stuck sessions with status 'qr_scanning'${NC}"
     echo "  Sessions:"
     php artisan tinker --execute="
-    DB::table('whatsapp_sessions')
+    DB::table('whatsapp_accounts')
         ->where('status', 'qr_scanning')
         ->get(['id', 'session_id', 'created_at'])
         ->each(function(\$s) {
@@ -132,7 +132,7 @@ echo "📋 Test 5: Check Controller handles qr_scanning status"
 echo "------------------------------------------------------"
 
 echo -n "  disconnect() handles 'qr_scanning': "
-if grep -A 10 "public function disconnect" app/Http/Controllers/User/WhatsAppSessionController.php | grep -q "qr_scanning"; then
+if grep -A 10 "public function disconnect" app/Http/Controllers/User/WhatsAppAccountController.php | grep -q "qr_scanning"; then
     echo -e "${GREEN}✅ YES${NC}"
     ((PASS++))
 else
@@ -141,7 +141,7 @@ else
 fi
 
 echo -n "  destroy() handles 'qr_scanning': "
-if grep -A 10 "public function destroy" app/Http/Controllers/User/WhatsAppSessionController.php | grep -q "qr_scanning"; then
+if grep -A 10 "public function destroy" app/Http/Controllers/User/WhatsAppAccountController.php | grep -q "qr_scanning"; then
     echo -e "${GREEN}✅ YES${NC}"
     ((PASS++))
 else
@@ -211,7 +211,7 @@ echo ""
 
 if [ "$STUCK_SESSIONS" -gt 0 ]; then
     echo "1. ${YELLOW}Cleanup stuck sessions:${NC}"
-    echo "   ./cleanup-whatsapp-sessions.sh"
+    echo "   ./cleanup-whatsapp-accounts.sh"
     echo ""
 fi
 
@@ -222,7 +222,7 @@ if [ $FAIL -gt 0 ]; then
 fi
 
 echo "3. ${BLUE}To test QR code display:${NC}"
-echo "   a. Open http://127.0.0.1:8000/settings/whatsapp-sessions in browser"
+echo "   a. Open http://127.0.0.1:8000/settings/whatsapp-accounts in browser"
 echo "   b. Open browser DevTools Console (F12)"
 echo "   c. Click 'Add WhatsApp Number'"
 echo "   d. Watch console for:"

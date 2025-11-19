@@ -36,7 +36,7 @@ class CampaignFactory extends Factory
             'status' => 'pending',
             'campaign_type' => 'direct',
             'preferred_provider' => 'webjs',
-            'whatsapp_session_id' => null,
+            'whatsapp_account_id' => null,
             'scheduled_at' => null,
             'body_text' => $this->faker->paragraph(2),
             'header_type' => 'text',

@@ -4,27 +4,27 @@
 
 ## Files to Rename (Based on Actual Codebase Scan)
 
-### 🔥 **CORE WhatsApp Session Files (MUST RENAME)**
+### 🔥 **CORE WhatsApp account Files (MUST RENAME)**
 
 #### Backend PHP Files
 
 **🔴 HIGH RISK - Update validation rules FIRST**
-- [ ] `app/Http/Requests/HybridCampaignRequest.php` → Update validation `'exists:whatsapp_sessions,id'` → `'exists:whatsapp_accounts,id'`
-- [ ] `app/Models/WhatsAppSession.php` → `app/Models/WhatsAppAccount.php`
+- [ ] `app/Http/Requests/HybridCampaignRequest.php` → Update validation `'exists:whatsapp_accounts,id'` → `'exists:whatsapp_accounts,id'`
+- [ ] `app/Models/WhatsAppAccount.php` → `app/Models/WhatsAppAccount.php`
 - [ ] `app/Models/ContactSession.php` → `app/Models/ContactAccount.php`
-- [ ] `app/Models/WhatsAppGroup.php` → Update relationships with `whatsapp_session_id` → `whatsapp_account_id`
+- [ ] `app/Models/WhatsAppGroup.php` → Update relationships with `whatsapp_account_id` → `whatsapp_account_id`
 
 **🟡 MEDIUM RISK - Standard file renaming**
-- [ ] `app/Services/WhatsApp/WhatsAppSessionService.php` → `app/Services/WhatsApp/WhatsAppAccountService.php`
-- [ ] `app/Http/Controllers/User/WhatsAppSessionController.php` → `app/Http/Controllers/User/WhatsAppAccountController.php`
-- [ ] `app/Http/Controllers/User/WhatsAppSessionManagementController.php` → `app/Http/Controllers/User/WhatsAppAccountManagementController.php`
-- [ ] `app/Http/Controllers/User/WhatsAppSessionStatusController.php` → `app/Http/Controllers/User/WhatsAppAccountStatusController.php`
+- [ ] `app/Services/WhatsApp/WhatsAppAccountService.php` → `app/Services/WhatsApp/WhatsAppAccountService.php`
+- [ ] `app/Http/Controllers/User/WhatsAppAccountController.php` → `app/Http/Controllers/User/WhatsAppAccountController.php`
+- [ ] `app/Http/Controllers/User/WhatsAppAccountManagementController.php` → `app/Http/Controllers/User/WhatsAppAccountManagementController.php`
+- [ ] `app/Http/Controllers/User/WhatsAppAccountStatusController.php` → `app/Http/Controllers/User/WhatsAppAccountStatusController.php`
 - [ ] `app/Http/Controllers/Api/v1/WhatsApp/SessionController.php` → `app/Http/Controllers/Api/v1/WhatsApp/AccountController.php`
-- [ ] `app/Events/WhatsAppSessionStatusChangedEvent.php` → `app/Events/WhatsAppAccountStatusChangedEvent.php`
-- [ ] `app/Exceptions/WhatsAppSessionNotFoundException.php` → `app/Exceptions/WhatsAppAccountNotFoundException.php`
+- [ ] `app/Events/WhatsAppAccountStatusChangedEvent.php` → `app/Events/WhatsAppAccountStatusChangedEvent.php`
+- [ ] `app/Exceptions/WhatsAppAccountNotFoundException.php` → `app/Exceptions/WhatsAppAccountNotFoundException.php`
 
 #### Frontend Vue Files
-- [ ] `resources/js/Pages/User/Settings/WhatsAppSessions.vue` → `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`
+- [ ] `resources/js/Pages/User/Settings/WhatsAppAccounts.vue` → `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`
 
 #### Node.js Service Files (WhatsApp Web.js Service)
 - [ ] `whatsapp-service/src/services/SessionRestoration.js` → `whatsapp-service/src/services/AccountRestoration.js`
@@ -33,28 +33,28 @@
 - [ ] `whatsapp-service/src/services/SessionPool.js` → `whatsapp-service/src/services/AccountPool.js`
 
 #### Database Migration Files
-- [ ] `2025_10_13_000000_create_whatsapp_sessions_table.php` → rename table references
+- [ ] `2025_10_13_000000_create_whatsapp_accounts_table.php` → rename table references
 - [ ] `2025_10_13_000002_add_session_foreign_keys.php` → update foreign key names
 - [ ] `2025_10_23_042933_add_source_session_id_to_contacts_table.php` → rename column
 
 #### Shell Scripts
-- [ ] `scripts/maintenance/cleanup-whatsapp-sessions.sh` → `scripts/maintenance/cleanup-whatsapp-accounts.sh`
+- [ ] `scripts/maintenance/cleanup-whatsapp-accounts.sh` → `scripts/maintenance/cleanup-whatsapp-accounts.sh`
 - [ ] `scripts/setup/initialize-session.php` → `scripts/setup/initialize-account.php`
 
 ### 📊 **Database Schema Changes**
 
 **🔴 CRITICAL - 6 tables with foreign keys to update:**
-- [ ] `whatsapp_sessions` table → `whatsapp_accounts` table
+- [ ] `whatsapp_accounts` table → `whatsapp_accounts` table
 - [ ] `contact_sessions` table → `contact_accounts` table
-- [ ] `chats.whatsapp_session_id` → `chats.whatsapp_account_id`
-- [ ] `campaign_logs.whatsapp_session_id` → `campaign_logs.whatsapp_account_id`
-- [ ] `campaigns.whatsapp_session_id` → `campaigns.whatsapp_account_id`
-- [ ] `whatsapp_groups.whatsapp_session_id` → `whatsapp_groups.whatsapp_account_id`
-- [ ] `contact_sessions.whatsapp_session_id` → `contact_accounts.whatsapp_account_id`
+- [ ] `chats.whatsapp_account_id` → `chats.whatsapp_account_id`
+- [ ] `campaign_logs.whatsapp_account_id` → `campaign_logs.whatsapp_account_id`
+- [ ] `campaigns.whatsapp_account_id` → `campaigns.whatsapp_account_id`
+- [ ] `whatsapp_groups.whatsapp_account_id` → `whatsapp_groups.whatsapp_account_id`
+- [ ] `contact_sessions.whatsapp_account_id` → `contact_accounts.whatsapp_account_id`
 - [ ] `contacts.source_session_id` → `contacts.source_account_id`
 
 ### 🛣️ **Routes & URLs**
-- [ ] `/settings/whatsapp-sessions` → `/settings/whatsapp-accounts`
+- [ ] `/settings/whatsapp-accounts` → `/settings/whatsapp-accounts`
 - [ ] `whatsapp.sessions.*` route names → `whatsapp.accounts.*`
 - [ ] API routes: `/whatsapp/sessions/*` → `/whatsapp/accounts/*`
 
@@ -73,29 +73,29 @@
 ### In Core Files (after renaming):
 ```php
 // Replace class names and references
-"WhatsAppSession" → "WhatsAppAccount"
+"WhatsAppAccount" → "WhatsAppAccount"
 "ContactSession" → "ContactAccount"
-"WhatsAppSessionService" → "WhatsAppAccountService"
+"WhatsAppAccountService" → "WhatsAppAccountService"
 "getSession" → "getAccount"
 "$session" → "$account"
 ```
 
 ### In Routes:
 ```php
-"/settings/whatsapp-sessions" → "/settings/whatsapp-accounts"
+"/settings/whatsapp-accounts" → "/settings/whatsapp-accounts"
 "whatsapp.sessions." → "whatsapp.accounts."
 ```
 
 ### In Frontend:
 ```javascript
 "sessions" → "accounts"
-"WhatsAppSessions" → "WhatsAppAccounts"
+"WhatsAppAccounts" → "WhatsAppAccounts"
 ```
 
 ### In Database:
 ```sql
-"whatsapp_sessions" → "whatsapp_accounts"
-"whatsapp_session_id" → "whatsapp_account_id"
+"whatsapp_accounts" → "whatsapp_accounts"
+"whatsapp_account_id" → "whatsapp_account_id"
 ```
 
 ## ✅ **Test Cases**
@@ -121,7 +121,7 @@
 
 ### **Key Insights from Ultra-Comprehensive Scan:**
 
-1. **161 total files** with WhatsApp session references (significantly more than initial estimate)
+1. **161 total files** with WhatsApp account references (significantly more than initial estimate)
 2. **45 files require actual renaming** (core application files)
 3. **116 files require find & replace updates** (routes, references, config)
 4. **30+ active session directories** need migration attention
@@ -177,12 +177,12 @@
 - [ ] `whatsapp-service/logs/whatsapp-service.log` - Active session logs
 
 ### **Critical Configuration Updates Required:**
-- [ ] `config/whatsapp.php` - Session management settings
+- [ ] `config/whatsapp.php` - Account management settings
 - [ ] `config/session.php` - **DO NOT RENAME** (Laravel core)
 - [ ] `config/queue.php` - Session-based job processing
 
 ### **Test Files (All Current - No Renaming Needed):**
-✅ **All 25 test files are current** - they reference WhatsAppSession correctly
+✅ **All 25 test files are current** - they reference WhatsAppAccount correctly
 - `tests/Feature/WhatsAppIntegrationTest.php`
 - `tests/Feature/WhatsAppSyncControllerTest.php`
 - `tests/Feature/HybridCampaignTest.php`
@@ -192,15 +192,15 @@
 
 ### **Database Dependencies (Critical):**
 **Tables with Foreign Keys:** 6 tables affected
-- `chats.whatsapp_session_id` → `whatsapp_account_id`
-- `campaign_logs.whatsapp_session_id` → `whatsapp_account_id`
-- `campaigns.whatsapp_session_id` → `whatsapp_account_id`
-- `whatsapp_groups.whatsapp_session_id` → `whatsapp_account_id`
-- `contact_sessions.whatsapp_session_id` → `whatsapp_account_id`
+- `chats.whatsapp_account_id` → `whatsapp_account_id`
+- `campaign_logs.whatsapp_account_id` → `whatsapp_account_id`
+- `campaigns.whatsapp_account_id` → `whatsapp_account_id`
+- `whatsapp_groups.whatsapp_account_id` → `whatsapp_account_id`
+- `contact_sessions.whatsapp_account_id` → `whatsapp_account_id`
 - `contacts.source_session_id` → `source_account_id`
 
 **Migration Files:** 5 files need updating
-- `2025_10_13_000000_create_whatsapp_sessions_table.php`
+- `2025_10_13_000000_create_whatsapp_accounts_table.php`
 - `2025_10_13_000002_add_session_foreign_keys.php`
 - `2025_10_22_000001_add_chat_provider_and_groups.php`
 - `2025_10_22_000002_add_chat_indexes.php`
@@ -212,7 +212,7 @@
 ## 📋 **Risk-Based Priority Order:**
 1. **URGENT**: Update validation rules in `HybridCampaignRequest.php`
 2. **HIGH**: Database migration with ALL foreign keys
-3. **HIGH**: Models (WhatsAppSession, ContactSession, WhatsAppGroup)
+3. **HIGH**: Models (WhatsAppAccount, ContactSession, WhatsAppGroup)
 4. **MEDIUM**: Services & Controllers
 5. **MEDIUM**: Frontend & API files
 6. **LOW**: Scripts & documentation
@@ -224,12 +224,12 @@
 ## **⚠️ FILES NOT TO RENAME (CRITICAL!)**
 
 ### Laravel Core Files (NEVER RENAME):
-❌ `config/session.php` - Laravel session management
+❌ `config/session.php` - Laravel account management
 ❌ `app/Http/Middleware/SetWorkspaceFromSession.php` - Laravel auth middleware
 ❌ `config/auth.php` - Laravel authentication
 ❌ `config/sanctum.php` - Laravel token auth
 ❌ Any file with generic "session" (not whatsapp-specific)
 
 ### How to Identify:
-✅ Safe to rename: `whatsapp_session` or `WhatsAppSession`
+✅ Safe to rename: `whatsapp_account` or `WhatsAppAccount`
 ❌ Do not rename: generic `session` or Laravel session functions

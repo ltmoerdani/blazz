@@ -22,7 +22,7 @@ return [
     */
     'node_service_url' => env('WHATSAPP_NODE_SERVICE_URL', 'http://localhost:3001'),
     'node_api_key' => env('WHATSAPP_NODE_API_KEY', 'your-node-api-key'),
-    'node_api_secret' => env('WHATSAPP_NODE_API_SECRET', 'your-node-api-secret'),
+    'node_api_secret' => env('HMAC_SECRET', env('WHATSAPP_NODE_API_SECRET', 'your-node-api-secret')),
 
     /*
     |--------------------------------------------------------------------------
@@ -63,9 +63,9 @@ return [
     */
 
     'sessions' => [
-        'storage_path' => env('WHATSAPP_SESSIONS_PATH', storage_path('app/whatsapp-sessions')),
-        'cleanup_interval' => env('WHATSAPP_SESSION_CLEANUP_INTERVAL', 24), // hours
-        'max_inactive_time' => env('WHATSAPP_SESSION_MAX_INACTIVE_TIME', 72), // hours
+        'storage_path' => env('WHATSAPP_ACCOUNTS_PATH', storage_path('app/whatsapp-accounts')),
+        'cleanup_interval' => env('WHATSAPP_ACCOUNT_CLEANUP_INTERVAL', 24), // hours
+        'max_inactive_time' => env('WHATSAPP_ACCOUNT_MAX_INACTIVE_TIME', 72), // hours
     ],
 
     /*

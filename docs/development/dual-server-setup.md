@@ -282,7 +282,7 @@ curl -I http://127.0.0.1:8000    # Should return 200
 npm run dev &
 php artisan serve
 
-# Option 2: Use screen/tmux for session management
+# Option 2: Use screen/tmux for account management
 screen -S vite npm run dev
 screen -S laravel php artisan serve
 

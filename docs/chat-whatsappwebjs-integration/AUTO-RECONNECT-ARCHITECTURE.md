@@ -70,7 +70,7 @@ app/
 │       └── Api/
 │           └── WhatsAppWebJSController.php  ← UPDATED: New endpoints
 └── Models/
-    └── WhatsAppSession.php
+    └── WhatsAppAccount.php
 
 routes/
 └── api.php  ← UPDATED: New restoration routes
@@ -230,7 +230,7 @@ Response:
 
 **Query Logic:**
 ```php
-WhatsAppSession::whereIn('status', ['connected', 'authenticated'])
+WhatsAppAccount::whereIn('status', ['connected', 'authenticated'])
     ->where('is_active', true)
     ->get()
 ```
@@ -347,7 +347,7 @@ curl http://localhost:3001/health
 tail -f logs/whatsapp-service.log | grep "disconnect\|reconnect"
 
 # Expected logs:
-# WhatsApp session disconnected {"reason": "CONNECTIVITY_ISSUE"}
+# WhatsApp account disconnected {"reason": "CONNECTIVITY_ISSUE"}
 # Technical disconnect detected, initiating auto-reconnect
 # Scheduling reconnection attempt {"attempt": 1, "delayMs": 5000}
 # Attempting reconnection {"attempt": 1}
@@ -355,7 +355,7 @@ tail -f logs/whatsapp-service.log | grep "disconnect\|reconnect"
 
 # Step 3: Verify session status in Laravel
 php artisan tinker --execute="
-  \$session = \App\Models\WhatsAppSession::where('session_id', 'webjs_1_...')
+  \$session = \App\Models\WhatsAppAccount::where('session_id', 'webjs_1_...')
     ->first();
   echo 'Status: ' . \$session->status . PHP_EOL;
 "
@@ -377,13 +377,13 @@ php artisan tinker --execute="
 
 ```bash
 # Step 1: User clicks "Disconnect" in UI
-# → POST /api/user/whatsapp-sessions/{uuid}/disconnect
+# → POST /api/user/whatsapp-accounts/{uuid}/disconnect
 
 # Step 2: Check Node.js logs
 tail -f logs/whatsapp-service.log | grep "disconnect"
 
 # Expected logs:
-# WhatsApp session disconnected {"reason": "USER_LOGOUT"}
+# WhatsApp account disconnected {"reason": "USER_LOGOUT"}
 # User-initiated disconnect, not reconnecting
 
 # Step 3: Verify no reconnection attempts
@@ -527,7 +527,7 @@ setInterval(async () => {
 
 - Session replication across regions
 - Automatic failover to backup region
-- Geo-distributed session management
+- Geo-distributed account management
 - Sub-second recovery time
 
 ### **Phase 5: Machine Learning Prediction**

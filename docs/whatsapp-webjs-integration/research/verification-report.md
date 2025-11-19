@@ -31,18 +31,18 @@ Setelah melakukan verifikasi menyeluruh terhadap semua dokumen yang telah di-upd
 
 | Gap ID | Description | Status | Evidence Location |
 |--------|-------------|--------|-------------------|
-| **GAP #1** | `whatsapp_sessions` table MISSING | ✅ **FIXED** | tasks.md TASK-DB lines 158-257 (complete DDL) |
-| **GAP #2** | `chats.whatsapp_session_id` FK missing | ✅ **FIXED** | tasks.md TASK-DB lines 261-264 (ALTER TABLE statement) |
-| **GAP #3** | `campaign_logs.whatsapp_session_id` FK missing | ✅ **FIXED** | tasks.md TASK-DB lines 266-270 (ALTER TABLE statement) |
+| **GAP #1** | `whatsapp_accounts` table MISSING | ✅ **FIXED** | tasks.md TASK-DB lines 158-257 (complete DDL) |
+| **GAP #2** | `chats.whatsapp_account_id` FK missing | ✅ **FIXED** | tasks.md TASK-DB lines 261-264 (ALTER TABLE statement) |
+| **GAP #3** | `campaign_logs.whatsapp_account_id` FK missing | ✅ **FIXED** | tasks.md TASK-DB lines 266-270 (ALTER TABLE statement) |
 | **GAP #4** | `contact_sessions` junction table missing | ✅ **FIXED** | tasks.md TASK-DB lines 235-256 (CREATE TABLE statement) |
 
 **Verification Details:**
 
-#### GAP #1: whatsapp_sessions Table
+#### GAP #1: whatsapp_accounts Table
 ✅ **VERIFIED** - Fully addressed in TASK-DB:
 ```sql
 -- FROM: tasks.md lines 206-226
-CREATE TABLE `whatsapp_sessions` (
+CREATE TABLE `whatsapp_accounts` (
   `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `uuid` CHAR(50) NOT NULL UNIQUE,
   `workspace_id` BIGINT UNSIGNED NOT NULL,
@@ -81,19 +81,19 @@ CREATE TABLE `whatsapp_sessions` (
 -- FROM: tasks.md lines 261-270
 -- Alter chats table
 ALTER TABLE `chats`
-ADD COLUMN `whatsapp_session_id` BIGINT UNSIGNED NULL AFTER `workspace_id`,
-ADD FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
-ADD INDEX idx_session_chats (whatsapp_session_id, created_at);
+ADD COLUMN `whatsapp_account_id` BIGINT UNSIGNED NULL AFTER `workspace_id`,
+ADD FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE SET NULL,
+ADD INDEX idx_session_chats (whatsapp_account_id, created_at);
 
 -- Alter campaign_logs table
 ALTER TABLE `campaign_logs`
-ADD COLUMN `whatsapp_session_id` BIGINT UNSIGNED NULL AFTER `contact_id`,
-ADD FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
-ADD INDEX idx_campaign_session (campaign_id, whatsapp_session_id);
+ADD COLUMN `whatsapp_account_id` BIGINT UNSIGNED NULL AFTER `contact_id`,
+ADD FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE SET NULL,
+ADD INDEX idx_campaign_session (campaign_id, whatsapp_account_id);
 ```
 
 **Coverage:**
-- ✅ Both tables updated with whatsapp_session_id FK
+- ✅ Both tables updated with whatsapp_account_id FK
 - ✅ ON DELETE SET NULL untuk preserve chat/campaign history
 - ✅ Proper indexes untuk performance
 - ✅ Non-nullable constraint sesuai business logic
@@ -105,17 +105,17 @@ ADD INDEX idx_campaign_session (campaign_id, whatsapp_session_id);
 CREATE TABLE `contact_sessions` (
   `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `contact_id` BIGINT UNSIGNED NOT NULL,
-  `whatsapp_session_id` BIGINT UNSIGNED NOT NULL,
+  `whatsapp_account_id` BIGINT UNSIGNED NOT NULL,
   `first_interaction_at` TIMESTAMP,
   `last_interaction_at` TIMESTAMP,
   `total_messages` INT DEFAULT 0,
   `created_at` TIMESTAMP,
   `updated_at` TIMESTAMP,
-  UNIQUE KEY unique_contact_session (contact_id, whatsapp_session_id),
+  UNIQUE KEY unique_contact_session (contact_id, whatsapp_account_id),
   FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE,
-  FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+  FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE CASCADE,
   INDEX idx_contact_interactions (contact_id, last_interaction_at),
-  INDEX idx_session_contacts (whatsapp_session_id, last_interaction_at)
+  INDEX idx_session_contacts (whatsapp_account_id, last_interaction_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -160,7 +160,7 @@ CREATE TABLE `contact_sessions` (
 - ✅ Test message to self (WhatsApp Note to Self) untuk verify connection
 - ✅ Auto-reconnect logic dengan LocalAuth (no QR needed)
 - ✅ Laravel webhook integration untuk notify disconnection
-- ✅ ReconnectWhatsAppSessionJob untuk handle automatic recovery
+- ✅ ReconnectWhatsAppAccountJob untuk handle automatic recovery
 
 #### Issue #2: Storage Bloat
 ✅ **VERIFIED** - Detailed cleanup strategy documented:
@@ -204,9 +204,9 @@ CREATE TABLE `contact_sessions` (
 - ✅ **FR-1.2 (Number List):** Lines 458-497 - Session list display dengan real-time status
 - ✅ **FR-1.3 (Plan Limits):** Lines 499-537 - Plan-based number limits dengan proper validation
 - ✅ **FR-1.4 (Session Actions):** Lines 539-703 - **GAP #1 FIX** - reconnect() dan regenerateQR() methods documented dengan complete user flows
-- ✅ **whatsapp_sessions references:** Multiple lines (442, 503, 944, 1046, 1048, 1074, 1086, 1196, 1204, 2016, 2017, 2238, 3792, 4218)
+- ✅ **whatsapp_accounts references:** Multiple lines (442, 503, 944, 1046, 1048, 1074, 1086, 1196, 1204, 2016, 2017, 2238, 3792, 4218)
 - ✅ **contact_sessions references:** Lines 1074, 1196, 1204, 3795
-- ✅ **Database schemas:** Lines 503-509 (subscription_plans.metadata), 2238-2253 (whatsapp_session_access_logs)
+- ✅ **Database schemas:** Lines 503-509 (subscription_plans.metadata), 2238-2253 (whatsapp_account_access_logs)
 - ✅ **Broadcasting:** FR-1.1 lines 185-442 - Driver-agnostic implementation (Reverb default, Pusher optional)
 - ✅ **Multi-number support:** All FR-1 to FR-4 requirements addressed
 
@@ -257,7 +257,7 @@ CREATE TABLE `contact_sessions` (
 
 **Verification Results:**
 - ✅ **TASK-DB (Database Migration):** Lines 158-277 - **COMPLETE DDL STATEMENTS**
-  - whatsapp_sessions table: Lines 206-233 (complete CREATE TABLE)
+  - whatsapp_accounts table: Lines 206-233 (complete CREATE TABLE)
   - contact_sessions table: Lines 235-256 (complete CREATE TABLE)
   - chats FK update: Lines 261-264 (ALTER TABLE statement)
   - campaign_logs FK update: Lines 266-270 (ALTER TABLE statement)
@@ -283,7 +283,7 @@ CREATE TABLE `contact_sessions` (
 
 **Verification Results:**
 - ✅ **ASM-1 (Broadcasting):** Lines 15-21 - Laravel Reverb verification
-- ✅ **ASM-2 (Database):** Lines 23-30 - **whatsapp_sessions table requirement acknowledged**
+- ✅ **ASM-2 (Database):** Lines 23-30 - **whatsapp_accounts table requirement acknowledged**
 - ✅ **ASM-4 (Session Mgmt):** Lines 78-85 - **8 Critical Issues acknowledged**
 - ✅ **Validation Status Table:** Lines 131-143 - All assumptions dengan status verification
   - ASM-2: ⚠️ REQUIRES ACTION (P0 CRITICAL)
@@ -312,16 +312,16 @@ Tambahkan rollback DDL statements di tasks.md untuk safety:
 ```sql
 -- Rollback procedure untuk TASK-DB
 -- Step 1: Remove foreign keys
-ALTER TABLE chats DROP FOREIGN KEY chats_whatsapp_session_id_foreign;
-ALTER TABLE campaign_logs DROP FOREIGN KEY campaign_logs_whatsapp_session_id_foreign;
+ALTER TABLE chats DROP FOREIGN KEY chats_whatsapp_account_id_foreign;
+ALTER TABLE campaign_logs DROP FOREIGN KEY campaign_logs_whatsapp_account_id_foreign;
 
 -- Step 2: Drop columns
-ALTER TABLE chats DROP COLUMN whatsapp_session_id;
-ALTER TABLE campaign_logs DROP COLUMN whatsapp_session_id;
+ALTER TABLE chats DROP COLUMN whatsapp_account_id;
+ALTER TABLE campaign_logs DROP COLUMN whatsapp_account_id;
 
 -- Step 3: Drop tables
 DROP TABLE IF EXISTS contact_sessions;
-DROP TABLE IF EXISTS whatsapp_sessions;
+DROP TABLE IF EXISTS whatsapp_accounts;
 ```
 
 **Priority:** 🟡 LOW (nice-to-have untuk production safety)
@@ -332,7 +332,7 @@ DROP TABLE IF EXISTS whatsapp_sessions;
 **Saat ini:** TASK-DB menyebutkan "Create data migration untuk existing Meta API credentials" tapi tidak ada code sample.
 
 **Rekomendasi:**
-Tambahkan PHP migration code untuk migrate existing Meta API credentials dari `workspaces.metadata` ke `whatsapp_sessions` table:
+Tambahkan PHP migration code untuk migrate existing Meta API credentials dari `workspaces.metadata` ke `whatsapp_accounts` table:
 
 ```php
 // database/migrations/2025_10_13_000001_migrate_existing_whatsapp_credentials.php
@@ -348,7 +348,7 @@ public function up()
         
         // Check jika ada Meta API credentials
         if (isset($metadata['whatsapp_phone_number_id'])) {
-            DB::table('whatsapp_sessions')->insert([
+            DB::table('whatsapp_accounts')->insert([
                 'uuid' => Str::uuid(),
                 'workspace_id' => $workspace->id,
                 'session_id' => 'meta_' . $metadata['whatsapp_phone_number_id'],
@@ -432,7 +432,7 @@ function handleSessionStatusChanged(data) {
 ## 🚀 REKOMENDASI NEXT STEPS
 
 ### Phase 1: Database Migration (Week 1) - P0 BLOCKING
-1. ✅ Execute `php artisan make:migration create_whatsapp_sessions_table` (sudah done berdasarkan terminal history)
+1. ✅ Execute `php artisan make:migration create_whatsapp_accounts_table` (sudah done berdasarkan terminal history)
 2. ⏳ Copy DDL dari tasks.md lines 206-233 ke migration file
 3. ⏳ Execute `php artisan make:migration migrate_existing_whatsapp_credentials`
 4. ⏳ Implement data migration logic (reference Optional Improvement #2)
@@ -449,7 +449,7 @@ function handleSessionStatusChanged(data) {
 5. ⏳ Setup PM2 configuration untuk production
 
 ### Phase 3: Laravel Integration (Week 3-4) - P1 HIGH
-1. ⏳ Implement WhatsAppSessionController with reconnect() & regenerateQR()
+1. ⏳ Implement WhatsAppAccountController with reconnect() & regenerateQR()
 2. ⏳ Implement WhatsAppWebJSProvider service
 3. ⏳ Implement ProviderSelector dengan health monitoring
 4. ⏳ Setup webhook routes dengan HMAC validation
@@ -480,7 +480,7 @@ function handleSessionStatusChanged(data) {
 ### Critical Items Coverage
 - **4 Critical Gaps:** 4/4 addressed (100%)
 - **8 GitHub Issues:** 8/8 mitigated (100%)
-- **Database Tables:** 2/2 created (whatsapp_sessions, contact_sessions)
+- **Database Tables:** 2/2 created (whatsapp_accounts, contact_sessions)
 - **Foreign Keys:** 2/2 added (chats, campaign_logs)
 - **Mitigation Services:** 8/8 designed (SessionHealthMonitor, etc.)
 

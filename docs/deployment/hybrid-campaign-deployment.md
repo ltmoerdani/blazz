@@ -309,9 +309,9 @@ WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
 GROUP BY preferred_provider;
 ```
 
-#### WhatsApp Session Health
+#### WhatsApp account Health
 ```bash
-# Monitor WhatsApp session status
+# Monitor WhatsApp account status
 curl -X GET https://your-domain.com/api/whatsapp/sessions/status
 
 # Check provider health scores
@@ -444,7 +444,7 @@ php artisan route:list --columns=uri,name | grep campaign
 cd whatsapp-service
 pm2 logs
 
-# Restart WhatsApp sessions
+# Restart WhatsApp accounts
 curl -X POST https://your-domain.com/api/whatsapp/sessions/restart
 ```
 

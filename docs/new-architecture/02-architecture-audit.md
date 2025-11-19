@@ -449,7 +449,7 @@ Week 4: Feature tests (Complete user flows)
 ├── TemplateManagementService.php
 ├── MediaProcessingService.php
 ├── BusinessProfileService.php
-├── WhatsAppSessionService.php
+├── WhatsAppAccountService.php
 └── HealthMonitoringService.php
 ```
 

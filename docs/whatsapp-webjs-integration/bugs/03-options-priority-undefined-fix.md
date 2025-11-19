@@ -10,7 +10,7 @@
 
 ### Error Message
 ```
-Failed to create WhatsApp session: Node.js service returned error: 
+Failed to create WhatsApp account: Node.js service returned error: 
 {"error":"Cannot read properties of undefined (reading 'priority')"}
 ```
 
@@ -284,7 +284,7 @@ curl -X POST http://127.0.0.1:3001/api/sessions \
 
 ### Test 2: Browser Test
 
-1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-sessions`
+1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-accounts`
 2. Open DevTools Console (F12)
 3. Click "Add WhatsApp Number"
 
@@ -292,7 +292,7 @@ curl -X POST http://127.0.0.1:3001/api/sessions \
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ✅ Session created: {success: true, session: {...}, qr_code: "data:image/png;base64,..."}
 📨 QR Code Generated Event received: {...}
 ```
@@ -311,7 +311,7 @@ tail -f /Applications/MAMP/htdocs/blazz/whatsapp-service/logs/whatsapp-service.l
 
 **Expected logs:**
 ```json
-{"level":"info","message":"Creating WhatsApp session","service":"whatsapp-service","sessionId":"test_xxx","workspaceId":1,"timestamp":"2025-10-13T..."}
+{"level":"info","message":"Creating WhatsApp account","service":"whatsapp-service","sessionId":"test_xxx","workspaceId":1,"timestamp":"2025-10-13T..."}
 {"level":"info","message":"QR code generated","service":"whatsapp-service","sessionId":"test_xxx","workspaceId":1,"timestamp":"2025-10-13T..."}
 ```
 
@@ -334,9 +334,9 @@ tail -f /Applications/MAMP/htdocs/blazz/whatsapp-service/logs/whatsapp-service.l
 - Existing code that doesn't pass `options` will now work
 
 ### Root Cause
-- SessionPool feature was added to enhance session management
+- SessionPool feature was added to enhance account management
 - But the integration wasn't properly tested with existing API endpoints
-- Original `WhatsAppSessionManager.createSession()` has 2 params
+- Original `WhatsAppAccountManager.createSession()` has 2 params
 - SessionPool's enhanced version expects 3 params
 - Missing parameter validation caused runtime error
 
@@ -363,12 +363,12 @@ After applying fixes and restarting:
 ### This Fix Resolves:
 - ❌ `Cannot read properties of undefined (reading 'priority')`
 - ❌ HTTP 500 Internal Server Error from Node.js service
-- ❌ Alert: "Failed to create WhatsApp session: Node.js service returned error"
+- ❌ Alert: "Failed to create WhatsApp account: Node.js service returned error"
 - ❌ Session creation fails immediately
 
 ### This Fix Enables:
 - ✅ SessionPool integration works properly
-- ✅ Priority-based session management
+- ✅ Priority-based account management
 - ✅ Session creation completes successfully
 - ✅ QR code generation proceeds
 
@@ -412,7 +412,7 @@ Remove SessionPool enhancement:
 
 **Problem:** SessionPool enhancer expects 3 parameters but server.js only passed 2  
 **Solution:** Add default parameter `options = {}` and create sessionOptions object  
-**Impact:** Critical - Blocks all WhatsApp session creation  
+**Impact:** Critical - Blocks all WhatsApp account creation  
 **Risk:** Low - Backward compatible fix  
 **Test Time:** 2-5 seconds per session after restart  
 

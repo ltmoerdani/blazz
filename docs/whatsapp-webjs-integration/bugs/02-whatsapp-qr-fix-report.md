@@ -9,7 +9,7 @@
 ## 🔍 Root Cause Analysis
 
 ### Critical Bug Identified
-**Component:** `resources/js/Pages/User/Settings/WhatsAppSessions.vue`  
+**Component:** `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`  
 **Problem:** Button "Add WhatsApp Number" only opened modal without calling API to create session
 
 ```vue
@@ -31,7 +31,7 @@
 
 **Expected Flow (Complete):**
 1. User clicks button
-2. Call `POST /settings/whatsapp-sessions` API
+2. Call `POST /settings/whatsapp-accounts` API
 3. Laravel creates session record (status: 'initializing')
 4. Laravel calls WebJSAdapter->initializeSession()
 5. Adapter calls Node.js `POST /api/sessions`
@@ -54,7 +54,7 @@
 
 ### 1. Added Missing `addSession()` Method
 
-**File:** `resources/js/Pages/User/Settings/WhatsAppSessions.vue`  
+**File:** `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`  
 **Lines:** ~305-330
 
 ```javascript
@@ -64,9 +64,9 @@ const addSession = async () => {
         qrCode.value = null
         countdown.value = 300
         
-        console.log('🔄 Creating new WhatsApp session...')
+        console.log('🔄 Creating new WhatsApp account...')
         
-        const response = await axios.post('/settings/whatsapp-sessions', {
+        const response = await axios.post('/settings/whatsapp-accounts', {
             provider_type: 'webjs'
         })
         
@@ -80,8 +80,8 @@ const addSession = async () => {
         }
     } catch (error) {
         console.error('❌ Failed to create session:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to create WhatsApp session'
-        alert(`Failed to create WhatsApp session: ${errorMessage}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to create WhatsApp account'
+        alert(`Failed to create WhatsApp account: ${errorMessage}`)
         closeAddModal()
     }
 }
@@ -98,7 +98,7 @@ const addSession = async () => {
 
 ### 2. Updated Button Click Handlers
 
-**File:** `resources/js/Pages/User/Settings/WhatsAppSessions.vue`
+**File:** `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`
 
 **Change 1 - Top button (line ~14):**
 ```vue
@@ -120,7 +120,7 @@ const addSession = async () => {
 
 ### 3. Enhanced Echo Channel Subscription Logging
 
-**File:** `resources/js/Pages/User/Settings/WhatsAppSessions.vue`  
+**File:** `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`  
 **Lines:** ~250-265
 
 ```javascript
@@ -176,18 +176,18 @@ onMounted(() => {
 ### Test Steps
 
 #### Test 1: Create New Session (Happy Path)
-1. Navigate to `/settings/whatsapp-sessions`
+1. Navigate to `/settings/whatsapp-accounts`
 2. Click "Add WhatsApp Number" button
 3. **Expected Console Logs:**
    ```
    📡 Subscribing to Echo channel: workspace.1
    ✅ Echo channel subscribed successfully
-   🔄 Creating new WhatsApp session...
+   🔄 Creating new WhatsApp account...
    ✅ Session created: {success: true, session: {...}, qr_code: "..."}
    📨 QR Code Generated Event received: {qr_code_base64: "...", ...}
    ```
 4. **Expected Network:**
-   - POST `/settings/whatsapp-sessions` → 200 OK
+   - POST `/settings/whatsapp-accounts` → 200 OK
    - Response contains `qr_code` field
 5. **Expected UI:**
    - Modal opens
@@ -205,7 +205,7 @@ onMounted(() => {
    ```
 2. Check WhatsApp service log for:
    ```
-   [timestamp] POST /api/sessions - Creating new WhatsApp session
+   [timestamp] POST /api/sessions - Creating new WhatsApp account
    workspace_id: 1, session_id: webjs_1_1234567890_abc123
    QR code generated successfully
    ```
@@ -240,7 +240,7 @@ onMounted(() => {
 1. Stop Node.js service
 2. Click "Add WhatsApp Number"
 3. **Expected:**
-   - Alert appears: "Failed to create WhatsApp session: Node.js service not responding"
+   - Alert appears: "Failed to create WhatsApp account: Node.js service not responding"
    - Modal closes
    - Session not created in database
 4. Restart Node.js service
@@ -261,7 +261,7 @@ onMounted(() => {
 1. After QR displayed, click "Regenerate QR Code" button
 2. **Expected:**
    - Console: `🔄 Regenerating QR code for session: {uuid}`
-   - POST `/settings/whatsapp-sessions/{uuid}/regenerate-qr` → 200 OK
+   - POST `/settings/whatsapp-accounts/{uuid}/regenerate-qr` → 200 OK
    - New QR code displayed
    - Timer resets to 5:00
 
@@ -297,9 +297,9 @@ Vite Dev:          5173  ✅
 
 | File | Lines Changed | Type | Description |
 |------|---------------|------|-------------|
-| `WhatsAppSessions.vue` | +28 | Added | `addSession()` method implementation |
-| `WhatsAppSessions.vue` | 2 | Modified | Button click handlers (line 14, 83) |
-| `WhatsAppSessions.vue` | +18 | Modified | Enhanced Echo logging in `onMounted()` |
+| `WhatsAppAccounts.vue` | +28 | Added | `addSession()` method implementation |
+| `WhatsAppAccounts.vue` | 2 | Modified | Button click handlers (line 14, 83) |
+| `WhatsAppAccounts.vue` | +18 | Modified | Enhanced Echo logging in `onMounted()` |
 | **TOTAL** | **48** | **3 changes** | **1 file modified** |
 
 ---
@@ -344,8 +344,8 @@ If this fix causes issues, revert with:
 
 ```bash
 cd /Applications/MAMP/htdocs/blazz
-git diff resources/js/Pages/User/Settings/WhatsAppSessions.vue
-git checkout resources/js/Pages/User/Settings/WhatsAppSessions.vue
+git diff resources/js/Pages/User/Settings/WhatsAppAccounts.vue
+git checkout resources/js/Pages/User/Settings/WhatsAppAccounts.vue
 ```
 
 Then re-open modal with simple `showAddModal = true` and investigate further.

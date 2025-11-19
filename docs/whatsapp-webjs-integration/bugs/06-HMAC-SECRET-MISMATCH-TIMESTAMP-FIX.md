@@ -136,7 +136,7 @@ tail -f whatsapp-service/logs/whatsapp-service.log | grep -i "qr\|webhook\|succe
 
 ### Step 4: Test via Browser
 
-1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-sessions`
+1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-accounts`
 2. Open DevTools Console (F12)
 3. Click "Add WhatsApp Number"
 4. Wait ~7-15 seconds
@@ -355,7 +355,7 @@ signature = hmac_sha256(message, "3a10ac583f4c83514e089570b88697c96f6ca4f3...")
 **What User Needs to Do:**
 1. Restart Node.js service: `pkill -9 node && cd whatsapp-service && node server.js &`
 2. Clear Laravel config: `php artisan config:clear`
-3. Test via browser: Navigate to WhatsApp sessions page and add number
+3. Test via browser: Navigate to WhatsApp accounts page and add number
 
 **Expected Result:**
 ✅ QR code appears in modal within 15 seconds, no errors

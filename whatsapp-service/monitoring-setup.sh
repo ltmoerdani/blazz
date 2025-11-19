@@ -68,7 +68,7 @@ groups:
           description: "Memory usage is above 80% for more than 2 minutes"
 
       - alert: SessionDisconnected
-        expr: whatsapp_session_status == 0
+        expr: whatsapp_account_status == 0
         for: 5m
         labels:
           severity: warning
@@ -129,7 +129,7 @@ cat > monitoring/grafana/dashboards/whatsapp-overview.json << 'EOF'
         "type": "stat",
         "targets": [
           {
-            "expr": "whatsapp_session_status",
+            "expr": "whatsapp_account_status",
             "legendFormat": "{{session_id}}"
           }
         ]

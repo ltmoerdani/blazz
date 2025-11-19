@@ -90,7 +90,7 @@ Best for:
 
 **Limitations:**
 - Lower message throughput
-- May require session management
+- May require account management
 - Higher delivery variability
 
 ### Meta Business API
@@ -223,8 +223,8 @@ Track these key metrics for campaign success:
 - **Solution**: Check all required fields and ensure proper formatting
 
 #### Message Delivery Failed
-- **Cause**: WhatsApp session issues or provider problems
-- **Solution**: Check WhatsApp session status and try again
+- **Cause**: WhatsApp account issues or provider problems
+- **Solution**: Check WhatsApp account status and try again
 
 #### Media Upload Failed
 - **Cause**: File size or format issues
@@ -232,7 +232,7 @@ Track these key metrics for campaign success:
 
 #### Provider Not Available
 - **Cause**: WhatsApp Web JS session disconnected
-- **Solution**: Reconnect WhatsApp session or use Meta API
+- **Solution**: Reconnect WhatsApp account or use Meta API
 
 ### Getting Help
 
@@ -247,7 +247,7 @@ Track these key metrics for campaign success:
 
 1. **Verify Contact Data**: Ensure your contact list is clean and accurate
 2. **Test Message Content**: Send test messages to verify content
-3. **Check WhatsApp Sessions**: Ensure WhatsApp connections are active
+3. **Check WhatsApp accounts**: Ensure WhatsApp connections are active
 4. **Review Compliance**: Follow WhatsApp Business messaging guidelines
 
 ### During Campaign Creation
@@ -262,7 +262,7 @@ Track these key metrics for campaign success:
 1. **Monitor Performance**: Track delivery and engagement metrics
 2. **Respond Quickly**: Handle replies and inquiries promptly
 3. **Learn Results**: Analyze campaign performance for future improvements
-4. **Maintain Sessions**: Keep WhatsApp sessions active for reliability
+4. **Maintain Sessions**: Keep WhatsApp accounts active for reliability
 
 ## Compliance Guidelines
 

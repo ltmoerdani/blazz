@@ -45,7 +45,7 @@ class WhatsAppAccountStatusChangedEvent implements ShouldBroadcastNow
      */
     public function broadcastAs(): string
     {
-        return 'session-status-changed';
+        return 'account-status-changed';
     }
 
     /**
@@ -54,7 +54,7 @@ class WhatsAppAccountStatusChangedEvent implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'session_id' => $this->accountId,
+            'account_id' => $this->accountId,
             'status' => $this->status,
             'workspace_id' => $this->workspaceId,
             'phone_number' => $this->phoneNumber,

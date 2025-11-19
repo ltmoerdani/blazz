@@ -22,7 +22,7 @@
 
 ### Fix 1: Updated `disconnect()` Method
 
-**File:** `app/Http/Controllers/User/WhatsAppSessionController.php`  
+**File:** `app/Http/Controllers/User/WhatsAppAccountController.php`  
 **Lines:** 215-282
 
 **Changes:**
@@ -73,7 +73,7 @@ public function disconnect(string $uuid)
 
 ### Fix 2: Updated `destroy()` Method
 
-**File:** `app/Http/Controllers/User/WhatsAppSessionController.php`  
+**File:** `app/Http/Controllers/User/WhatsAppAccountController.php`  
 **Lines:** 287-330
 
 **Changes:**
@@ -127,7 +127,7 @@ public function destroy(string $uuid)
 
 **Run cleanup script:**
 ```bash
-./cleanup-whatsapp-sessions.sh
+./cleanup-whatsapp-accounts.sh
 ```
 
 This will:
@@ -140,7 +140,7 @@ This will:
 ### Test 1: Normal Session Creation (QR Code Display)
 
 **Steps:**
-1. Open: http://127.0.0.1:8000/settings/whatsapp-sessions
+1. Open: http://127.0.0.1:8000/settings/whatsapp-accounts
 2. Open browser DevTools Console (F12)
 3. Click "Add WhatsApp Number"
 4. Wait 7-15 seconds
@@ -150,7 +150,7 @@ This will:
   ```
   📡 Subscribing to Echo channel: workspace.1
   ✅ Echo channel subscribed successfully
-  🔄 Creating new WhatsApp session...
+  🔄 Creating new WhatsApp account...
   ✅ Session created successfully
   📨 QR Code Generated Event received
   ```
@@ -234,7 +234,7 @@ Session disconnected successfully
 ### Check Current Sessions
 ```bash
 php artisan tinker --execute="
-DB::table('whatsapp_sessions')
+DB::table('whatsapp_accounts')
   ->select('id', 'session_id', 'status', 'created_at')
   ->get()
   ->each(fn(\$s) => print_r([
@@ -275,7 +275,7 @@ tail -f storage/logs/laravel.log | grep -i "disconnect\|delete\|qr_scanning"
 
 ## 📋 Files Modified
 
-1. **`app/Http/Controllers/User/WhatsAppSessionController.php`**
+1. **`app/Http/Controllers/User/WhatsAppAccountController.php`**
    - Updated `disconnect()` method (lines 215-282)
    - Updated `destroy()` method (lines 287-330)
 
@@ -324,7 +324,7 @@ After fixes:
 
 **Action Required:**
 1. Open browser with DevTools
-2. Navigate to WhatsApp sessions page
+2. Navigate to WhatsApp accounts page
 3. Click "Add WhatsApp Number"
 4. Check console for event reception
 5. Check WebSocket messages in Network tab
@@ -390,7 +390,7 @@ After fixes:
    - Previous testing summary
    - Related fixes applied
 
-3. **`cleanup-whatsapp-sessions.sh`**
+3. **`cleanup-whatsapp-accounts.sh`**
    - Script to cleanup stuck sessions
    - Run before testing
 

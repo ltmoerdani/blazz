@@ -66,13 +66,13 @@ enable_ai_billing = 0 ❌ MISSING
 ```bash
 # These migrations DON'T EXIST in main branch or current database:
 2025_09_24_060343_create_organization_channels_table.php
-2025_09_24_070313_create_whatsapp_sessions_table.php  
+2025_09_24_070313_create_whatsapp_accounts_table.php  
 2025_09_24_074706_create_device_activities_table.php
 ```
 
 #### **📊 New Tables from staging-whatsapp:**
 1. **organization_channels** - WhatsApp channel management
-2. **whatsapp_sessions** - WhatsApp Web session vault & health monitoring
+2. **whatsapp_accounts** - WhatsApp Web session vault & health monitoring
 3. **device_activities** - Comprehensive device activity tracking
 4. **audit_logs** - Enterprise security audit logging (already exists)
 5. **security_incidents** - Security incident management (already exists)
@@ -135,7 +135,7 @@ sed -i '' 's/Database: blazz/Database: blazz/g' backup_file.sql
 ```sql
 -- Drop staging-whatsapp tables:
 DROP TABLE IF EXISTS device_activities;
-DROP TABLE IF EXISTS whatsapp_sessions;
+DROP TABLE IF EXISTS whatsapp_accounts;
 DROP TABLE IF EXISTS organization_channels;
 -- (Plus other security tables if not needed)
 ```

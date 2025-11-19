@@ -25,7 +25,7 @@
     const form = ref({
         'uuid' : props.contact.uuid,
         'message' : null,
-        'type' : null,
+        'type' : 'text',
         'file' : null
     })
     const form2 = ref({
@@ -41,7 +41,7 @@
         form.value.uuid = props.contact.uuid;
     });
 
-    const emit = defineEmits(['response', 'viewTemplate']);
+    const emit = defineEmits(['response', 'viewTemplate', 'optimisticMessageSent', 'optimisticMessageFailed', 'messageSent']);
 
     const viewTemplate = () => {
         emit('viewTemplate', true);
@@ -52,38 +52,101 @@
         processingForm.value = true;
 
         if(form.value.message != null || form.value.file != null){
-            const formData = new FormData();
+            // Generate unique ID for optimistic message
+            const optimisticId = 'optimistic-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-            formData.append('message', form.value.message);
-            formData.append('type', form.value.type);
-            formData.append('uuid', form.value.uuid);
-
-            if (form.value.file) {
-                formData.append('file', form.value.file);
-            }
-
-            try {
-                const response = await axios.post('/chats', formData);
-
-                if(isAudioRecording.value == true){
-                    await sendAudioMessage();
+            // Prepare optimistic message data in same format as ChatThread expects
+            const optimisticMessage = [{
+                type: 'chat',
+                isOptimistic: true,
+                value: {
+                    id: optimisticId,
+                    whatsapp_message_id: optimisticId,
+                    wam_id: optimisticId,
+                    message: form.value.message,
+                    body: form.value.message,
+                    type: 'outbound',
+                    message_status: 'sending',
+                    ack_level: 0,
+                    created_at: new Date().toISOString(),
+                    is_outbound: true,
+                    from_me: true,
+                    has_media: !!form.value.file,
+                    metadata: JSON.stringify({
+                        text: {
+                            body: form.value.message
+                        },
+                        type: 'text',
+                        from_me: true,
+                        optimistic: true
+                    }),
+                    deleted_at: null,
+                    contact_id: props.contact.id
                 }
+            }];
 
-                form.value.message = null;
-                formTextInput.value = null;
-                form.value.file = null;
+            console.log('🚀 Sending optimistic message:', optimisticMessage);
 
-                processingForm.value = false;
-            } catch (error) {
-                // Handle the error
-                // console.error('Error:', error);
-            }
+            // Emit optimistic message instantly for immediate UI update
+            emit('optimisticMessageSent', optimisticMessage);
+
+            // Clear form immediately for instant UI feedback
+            const originalMessage = form.value.message;
+            const originalFile = form.value.file;
+
+            form.value.message = null;
+            formTextInput.value = null;
+            form.value.file = null;
+
+            // Send actual message in background (non-blocking)
+            sendActualMessage(originalMessage, originalFile, optimisticId)
+                .then((response) => {
+                    // Success - emit messageSent event
+                    console.log('✅ Message sent successfully', response);
+                    emit('messageSent', response);
+                })
+                .catch((error) => {
+                    // Handle error - update optimistic message to failed status
+                    console.error('❌ Message failed to send:', error);
+                    emit('optimisticMessageFailed', {
+                        optimisticId: optimisticId,
+                        error: error.response?.data?.message || 'Failed to send message'
+                    });
+                })
+                .finally(() => {
+                    processingForm.value = false;
+                });
+
+            // REMOVED: Don't call sendAudioMessage here - it's handled separately
+            // if(isAudioRecording.value == true){
+            //     await sendAudioMessage();
+            // }
+
         } else {
             if(isAudioRecording.value == true){
                 await sendAudioMessage();
             }
 
             processingForm.value = false;
+        }
+    }
+
+    const sendActualMessage = async (message, file, optimisticId) => {
+        const formData = new FormData();
+        formData.append('message', message);
+        formData.append('type', form.value.type);
+        formData.append('uuid', form.value.uuid);
+        formData.append('optimistic_id', optimisticId); // Send optimistic ID for tracking
+
+        if (file) {
+            formData.append('file', file);
+        }
+
+        try {
+            const response = await axios.post('/chats', formData);
+            return response.data;
+        } catch (error) {
+            throw error;
         }
     }
 
@@ -120,18 +183,6 @@
             sendMessage();
         }
     };
-
-    const isInboundChatWithin24Hours = computed(() => {
-        if (props.contact.last_inbound_chat) {
-            const lastInboundChatTime = new Date(props.contact.last_inbound_chat.created_at);
-            const currentTime = new Date();
-            const timeDifference = currentTime - lastInboundChatTime;
-
-            return timeDifference < 24 * 60 * 60 * 1000;
-        }
-
-        return false;
-    });
 
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
@@ -348,21 +399,7 @@
             </div>
         </div>
     </div>
-    <div v-if="!isInboundChatWithin24Hours && !props.chatLimitReached" class="flex justify-center items-center w-full px-6 md:px-4">
-        <div class="flex items-center justify-between space-x-4 bg-orange-100 rounded-lg p-2 mb-2 px-4">
-            <div class="flex items-start justify-between space-x-4">
-                <span class="text-red-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 36 36"><path fill="currentColor" d="M18 21.32a1.3 1.3 0 0 0 1.3-1.3V14a1.3 1.3 0 1 0-2.6 0v6a1.3 1.3 0 0 0 1.3 1.32Z" class="clr-i-outline clr-i-outline-path-1"/><circle cx="17.95" cy="24.27" r="1.5" fill="currentColor" class="clr-i-outline clr-i-outline-path-2"/><path fill="currentColor" d="M30.33 25.54L20.59 7.6a3 3 0 0 0-5.27 0L5.57 25.54A3 3 0 0 0 8.21 30h19.48a3 3 0 0 0 2.64-4.43Zm-1.78 1.94a1 1 0 0 1-.86.49H8.21a1 1 0 0 1-.88-1.48l9.74-17.94a1 1 0 0 1 1.76 0l9.74 17.94a1 1 0 0 1-.02.99Z" class="clr-i-outline clr-i-outline-path-3"/><path fill="none" d="M0 0h36v36H0z"/></svg>
-                </span>
-                <div>
-                    <div class="text-sm">{{ $t('24 hour limit') }}</div>
-                    <div class="text-sm">{{ $t('Whatsapp does not allow sending messages 24 hours after they last messaged you. However, you can send them a template message') }}</div>
-                </div>
-            </div>
-            <button @click="viewTemplate()" class="rounded-md bg-primary px-3 py-1 text-sm text-white shadow-sm w-[25%]">Send Template</button>
-        </div>
-    </div>
-    <form v-if="simpleForm && isInboundChatWithin24Hours && !props.chatLimitReached" @submit.prevent="sendMessage()" class="flex items-center px-2 md:px-10 space-x-2">
+    <form v-if="simpleForm && !props.chatLimitReached" @submit.prevent="sendMessage()" class="flex items-center px-2 md:px-10 space-x-2">
         <div class="flex items-center w-full rounded-lg py-4 md:py-2 pl-2 pr-2" :class="processingForm ? 'bg-gray-200' : 'bg-white'">
             <div class="absolute">
                 <button type="button" @click="toggleEmojiPicker">😀</button>
@@ -411,7 +448,7 @@
             </button>
         </div>
     </form>
-    <form v-if="!simpleForm && isInboundChatWithin24Hours && !props.chatLimitReached" @submit.prevent="sendMessage()" class="flex items-center px-2 md:px-10 space-x-2">
+    <form v-if="!simpleForm && !props.chatLimitReached" @submit.prevent="sendMessage()" class="flex items-center px-2 md:px-10 space-x-2">
         <div class="bg-white rounded-md w-full p-4">
             <div>
                 <textarea 

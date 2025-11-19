@@ -6,7 +6,7 @@
 
 ### Create Simple Migration
 ```bash
-php artisan make:migration rename_whatsapp_sessions_to_accounts
+php artisan make:migration rename_whatsapp_accounts_to_accounts
 ```
 
 ### Migration Content (simple):
@@ -22,7 +22,7 @@ return new class extends Migration
     public function up(): void
     {
         // Rename tables
-        Schema::rename('whatsapp_sessions', 'whatsapp_accounts');
+        Schema::rename('whatsapp_accounts', 'whatsapp_accounts');
         Schema::rename('contact_sessions', 'contact_accounts');
 
         // Rename columns in whatsapp_accounts table
@@ -33,15 +33,15 @@ return new class extends Migration
 
         // Update foreign keys in related tables
         Schema::table('contact_accounts', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
+            $table->renameColumn('whatsapp_account_id', 'whatsapp_account_id');
         });
 
         Schema::table('chats', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
+            $table->renameColumn('whatsapp_account_id', 'whatsapp_account_id');
         });
 
         Schema::table('campaign_logs', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
+            $table->renameColumn('whatsapp_account_id', 'whatsapp_account_id');
         });
 
         Schema::table('contacts', function (Blueprint $table) {
@@ -52,7 +52,7 @@ return new class extends Migration
     public function down(): void
     {
         // Reverse all renames
-        Schema::rename('whatsapp_accounts', 'whatsapp_sessions');
+        Schema::rename('whatsapp_accounts', 'whatsapp_accounts');
         Schema::rename('contact_accounts', 'contact_sessions');
         // ... reverse all column renames
     }
@@ -64,29 +64,29 @@ return new class extends Migration
 ### Backend PHP Files (Core Files)
 ```bash
 # Models
-mv app/Models/WhatsAppSession.php app/Models/WhatsAppAccount.php
+mv app/Models/WhatsAppAccount.php app/Models/WhatsAppAccount.php
 mv app/Models/ContactSession.php app/Models/ContactAccount.php
 
 # Services
-mv app/Services/WhatsApp/WhatsAppSessionService.php app/Services/WhatsApp/WhatsAppAccountService.php
+mv app/Services/WhatsApp/WhatsAppAccountService.php app/Services/WhatsApp/WhatsAppAccountService.php
 
 # Controllers (User)
-mv app/Http/Controllers/User/WhatsAppSessionController.php app/Http/Controllers/User/WhatsAppAccountController.php
-mv app/Http/Controllers/User/WhatsAppSessionManagementController.php app/Http/Controllers/User/WhatsAppAccountManagementController.php
-mv app/Http/Controllers/User/WhatsAppSessionStatusController.php app/Http/Controllers/User/WhatsAppAccountStatusController.php
+mv app/Http/Controllers/User/WhatsAppAccountController.php app/Http/Controllers/User/WhatsAppAccountController.php
+mv app/Http/Controllers/User/WhatsAppAccountManagementController.php app/Http/Controllers/User/WhatsAppAccountManagementController.php
+mv app/Http/Controllers/User/WhatsAppAccountStatusController.php app/Http/Controllers/User/WhatsAppAccountStatusController.php
 
 # API Controllers
 mv app/Http/Controllers/Api/v1/WhatsApp/SessionController.php app/Http/Controllers/Api/v1/WhatsApp/AccountController.php
 
 # Events & Exceptions
-mv app/Events/WhatsAppSessionStatusChangedEvent.php app/Events/WhatsAppAccountStatusChangedEvent.php
-mv app/Exceptions/WhatsAppSessionNotFoundException.php app/Exceptions/WhatsAppAccountNotFoundException.php
+mv app/Events/WhatsAppAccountStatusChangedEvent.php app/Events/WhatsAppAccountStatusChangedEvent.php
+mv app/Exceptions/WhatsAppAccountNotFoundException.php app/Exceptions/WhatsAppAccountNotFoundException.php
 ```
 
 ### Frontend Vue Files
 ```bash
 # Vue Components
-mv resources/js/Pages/User/Settings/WhatsAppSessions.vue resources/js/Pages/User/Settings/WhatsAppAccounts.vue
+mv resources/js/Pages/User/Settings/WhatsAppAccounts.vue resources/js/Pages/User/Settings/WhatsAppAccounts.vue
 ```
 
 ### Node.js Service Files (WhatsApp Web.js Service)
@@ -101,7 +101,7 @@ mv SessionPool.js AccountPool.js
 ### Shell Scripts
 ```bash
 # Maintenance scripts
-mv scripts/maintenance/cleanup-whatsapp-sessions.sh scripts/maintenance/cleanup-whatsapp-accounts.sh
+mv scripts/maintenance/cleanup-whatsapp-accounts.sh scripts/maintenance/cleanup-whatsapp-accounts.sh
 
 # Setup scripts
 mv scripts/setup/initialize-session.php scripts/setup/initialize-account.php
@@ -114,19 +114,19 @@ mv scripts/setup/initialize-session.php scripts/setup/initialize-account.php
 # ⚠️ BACKUP FIRST: cp -r app/ app_backup/
 
 # In PHP files - Core class replacements
-find app/ -name "*.php" -type f -exec sed -i '' 's/WhatsAppSession/WhatsAppAccount/g' {} \;
+find app/ -name "*.php" -type f -exec sed -i '' 's/WhatsAppAccount/WhatsAppAccount/g' {} \;
 find app/ -name "*.php" -type f -exec sed -i '' 's/ContactSession/ContactAccount/g' {} \;
 
 # In PHP files - Variable references
-find app/ -name "*.php" -type f -exec sed -i '' 's/whatsapp_session/whatsapp_account/g' {} \;
-find app/ -name "*.php" -type f -exec sed -i '' 's/whatsapp_sessions/whatsapp_accounts/g' {} \;
+find app/ -name "*.php" -type f -exec sed -i '' 's/whatsapp_account/whatsapp_account/g' {} \;
+find app/ -name "*.php" -type f -exec sed -i '' 's/whatsapp_accounts/whatsapp_accounts/g' {} \;
 
 # In Vue/JS files
 find resources/js/ -name "*.vue" -o -name "*.js" | xargs sed -i '' 's/sessionsList/accountsList/g'
-find resources/js/ -name "*.vue" -o -name "*.js" | xargs sed -i '' 's/WhatsAppSessions/WhatsAppAccounts/g'
+find resources/js/ -name "*.vue" -o -name "*.js" | xargs sed -i '' 's/WhatsAppAccounts/WhatsAppAccounts/g'
 
 # In routes
-sed -i '' 's/whatsapp-sessions/whatsapp-accounts/g' routes/web.php
+sed -i '' 's/whatsapp-accounts/whatsapp-accounts/g' routes/web.php
 sed -i '' 's/whatsapp\.sessions\./whatsapp.accounts./g' routes/web.php
 ```
 
@@ -134,7 +134,7 @@ sed -i '' 's/whatsapp\.sessions\./whatsapp.accounts./g' routes/web.php
 **Gunakan IDE/Editor Find & Replace:**
 
 #### Pattern 1: Class Names
-- Find: `WhatsAppSession`
+- Find: `WhatsAppAccount`
 - Replace: `WhatsAppAccount`
 
 #### Pattern 2: Model References
@@ -142,11 +142,11 @@ sed -i '' 's/whatsapp\.sessions\./whatsapp.accounts./g' routes/web.php
 - Replace: `ContactAccount`
 
 #### Pattern 3: Database References
-- Find: `whatsapp_session_id`
+- Find: `whatsapp_account_id`
 - Replace: `whatsapp_account_id`
 
 #### Pattern 4: URL/Route References
-- Find: `whatsapp-sessions`
+- Find: `whatsapp-accounts`
 - Replace: `whatsapp-accounts`
 
 ## Important Routes to Update
@@ -154,7 +154,7 @@ sed -i '' 's/whatsapp\.sessions\./whatsapp.accounts./g' routes/web.php
 ### In `routes/web.php`:
 ```php
 // Find these patterns:
-Route::prefix('settings/whatsapp-sessions')
+Route::prefix('settings/whatsapp-accounts')
 Route::name('whatsapp.sessions.')
 
 // Replace with:
@@ -212,13 +212,13 @@ npm run test
 ## Git Commands
 ```bash
 # Create feature branch
-git checkout -b feature/whatsapp-sessions-to-accounts
+git checkout -b feature/whatsapp-accounts-to-accounts
 
 # Add changes
 git add .
 
 # Commit changes
-git commit -m "Refactor: Rename WhatsApp Sessions to WhatsApp Accounts
+git commit -m "Refactor: Rename WhatsApp accounts to WhatsApp Accounts
 
 - Renamed core model files
 - Updated database schema references

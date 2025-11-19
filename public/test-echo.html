@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Echo Test</title>
+    <meta name="csrf-token" content="">
+</head>
+<body>
+    <h1>Echo WebSocket Test</h1>
+    <div id="logs" style="background: #f0f0f0; padding: 20px; font-family: monospace;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.3.0/dist/web/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
+    
+    <script>
+        const logs = document.getElementById('logs');
+        function log(msg) {
+            console.log(msg);
+            logs.innerHTML += msg + '<br>';
+        }
+
+        log('🚀 Starting Echo test...');
+        
+        // Enable Pusher logging
+        Pusher.logToConsole = true;
+        
+        // Initialize Echo
+        window.Pusher = Pusher;
+        window.Echo = new Echo({
+            broadcaster: 'reverb',
+            key: 'ohrtagckj2hqoiocg7wz',
+            wsHost: '127.0.0.1',
+            wsPort: 8080,
+            wssPort: 8080,
+            forceTLS: false,
+            useTLS: false,
+            encrypted: false,
+            disableStats: true,
+            enabledTransports: ['ws'],
+            authEndpoint: '/broadcasting/auth'
+        });
+
+        log('✅ Echo initialized');
+        log('📡 Subscribing to channel: chats.ch1');
+
+        const channel = window.Echo.channel('chats.ch1');
+        
+        channel.subscription.bind('pusher:subscription_succeeded', () => {
+            log('✅ SUBSCRIBED to chats.ch1');
+        });
+
+        channel.subscription.bind('pusher:subscription_error', (status) => {
+            log('❌ SUBSCRIPTION ERROR: ' + JSON.stringify(status));
+        });
+
+        // Try BOTH ways of listening
+        channel.listen('NewChatEvent', (event) => {
+            log('🔔 EVENT RECEIVED (no dot): ' + JSON.stringify(event));
+        });
+
+        channel.listen('.NewChatEvent', (event) => {
+            log('🔔 EVENT RECEIVED (with dot): ' + JSON.stringify(event));
+        });
+
+        // Also try listening to ALL events
+        channel.subscription.bind_global((eventName, data) => {
+            log('📣 GLOBAL EVENT: ' + eventName + ' = ' + JSON.stringify(data));
+        });
+
+        log('⏳ Waiting for events...');
+    </script>
+</body>
+</html>

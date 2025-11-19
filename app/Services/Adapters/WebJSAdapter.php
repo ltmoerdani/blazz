@@ -159,7 +159,8 @@ class WebJSAdapter implements WhatsAppAdapterInterface
             // Increased timeout to 60 seconds for puppeteer initialization
             $response = Http::timeout(60)->post("{$this->nodeServiceUrl}/api/sessions", [
                 'workspace_id' => $this->workspaceId,
-                'session_id' => $this->session->session_id,
+                'account_id' => $this->session->id,           // INTEGER ID from database
+                'session_id' => $this->session->session_id,   // STRING session identifier
                 'api_key' => config('whatsapp.node_api_key'),
             ]);
 

@@ -38,7 +38,7 @@ Selamat datang di **Organic Documentation Ecosystem** untuk Blazz WhatsApp Busin
 **Deployment, monitoring, dan maintenance**
 - Multi-Service-Deployment-Strategy.md - Production deployment guide
 - Real-Time-Monitoring-WhatsApp-Health-System.md - Health monitoring system
-- WhatsApp-Session-Troubleshooting-Guide.md - Troubleshooting procedures
+- WhatsApp-Account-Troubleshooting-Guide.md - Troubleshooting procedures
 - Performance-Metrics-Analytics-Dashboard.md - Performance monitoring
 - Enterprise-Backup-Recovery-Procedures.md - Backup & recovery strategies
 

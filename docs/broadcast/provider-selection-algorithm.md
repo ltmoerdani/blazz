@@ -18,7 +18,7 @@ The WhatsApp Provider Selection Algorithm intelligently chooses the optimal What
 | Factor | Weight | Description |
 |--------|--------|-------------|
 | **Campaign Mode** | 40% | Direct campaigns prefer WebJS, Template campaigns require Meta API |
-| **Session Health** | 30% | Health score of available WhatsApp sessions |
+| **Session Health** | 30% | Health score of available WhatsApp accounts |
 | **User Preference** | 20% | Explicit provider preference settings |
 | **Performance Metrics** | 10% | Historical delivery rates and speeds |
 
@@ -56,7 +56,7 @@ The WhatsApp Provider Selection Algorithm intelligently chooses the optimal What
 namespace App\Services;
 
 use App\Models\Campaign;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\Template;
 use Illuminate\Support\Facades\Log;
 
@@ -207,9 +207,9 @@ class WhatsAppProviderSelector
         return $this->buildProviderResponse('meta_api', null, 'standard_template');
     }
 
-    private function selectPrimaryWebJSSession(Campaign $campaign): ?WhatsAppSession
+    private function selectPrimaryWebJSSession(Campaign $campaign): ?WhatsAppAccount
     {
-        return WhatsAppSession::forWorkspace($campaign->workspace_id)
+        return WhatsAppAccount::forWorkspace($campaign->workspace_id)
             ->connected()
             ->where('provider_type', 'webjs')
             ->where('is_active', true)
@@ -220,9 +220,9 @@ class WhatsAppProviderSelector
             ->first();
     }
 
-    private function selectSecondaryWebJSSession(Campaign $campaign): ?WhatsAppSession
+    private function selectSecondaryWebJSSession(Campaign $campaign): ?WhatsAppAccount
     {
-        return WhatsAppSession::forWorkspace($campaign->workspace_id)
+        return WhatsAppAccount::forWorkspace($campaign->workspace_id)
             ->connected()
             ->where('provider_type', 'webjs')
             ->where('is_active', true)
@@ -245,7 +245,7 @@ class WhatsAppProviderSelector
         return $this->buildProviderResponse('meta_api', null, 'webjs_unavailable_fallback');
     }
 
-    private function buildProviderResponse(string $type, ?WhatsAppSession $session, string $reason): array
+    private function buildProviderResponse(string $type, ?WhatsAppAccount $session, string $reason): array
     {
         $response = [
             'type' => $type,
@@ -278,7 +278,7 @@ class WhatsAppProviderSelector
         ];
     }
 
-    private function calculateConfidence(string $type, ?WhatsAppSession $session): int
+    private function calculateConfidence(string $type, ?WhatsAppAccount $session): int
     {
         if ($type === 'queue') {
             return 0;
@@ -312,7 +312,7 @@ class WhatsAppProviderSelector
 
 namespace App\Services;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -327,7 +327,7 @@ class SessionHealthCalculator
         'uptime' => 0.15,                  // 15%
     ];
 
-    public function calculateSessionHealth(WhatsAppSession $session): int
+    public function calculateSessionHealth(WhatsAppAccount $session): int
     {
         $metrics = $this->collectSessionMetrics($session);
 
@@ -344,7 +344,7 @@ class SessionHealthCalculator
         return max(0, min(100, round($healthScore)));
     }
 
-    private function collectSessionMetrics(WhatsAppSession $session): array
+    private function collectSessionMetrics(WhatsAppAccount $session): array
     {
         $now = now();
         $oneHourAgo = $now->copy()->subHour();
@@ -372,7 +372,7 @@ class SessionHealthCalculator
         return $metrics;
     }
 
-    private function calculateConnectionStability(WhatsAppSession $session): int
+    private function calculateConnectionStability(WhatsAppAccount $session): int
     {
         $status = $session->status;
 
@@ -387,10 +387,10 @@ class SessionHealthCalculator
         return $statusScores[$status] ?? 0;
     }
 
-    private function calculateSuccessRate(WhatsAppSession $session, Carbon $since): int
+    private function calculateSuccessRate(WhatsAppAccount $session, Carbon $since): int
     {
         $totalMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('created_at', '>=', $since)
             ->count();
@@ -400,7 +400,7 @@ class SessionHealthCalculator
         }
 
         $successfulMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->whereIn('status', ['sent', 'delivered', 'read'])
             ->where('created_at', '>=', $since)
@@ -409,7 +409,7 @@ class SessionHealthCalculator
         return ($successfulMessages / $totalMessages) * 100;
     }
 
-    private function calculateRecentActivity(WhatsAppSession $session, Carbon $since): int
+    private function calculateRecentActivity(WhatsAppAccount $session, Carbon $since): int
     {
         $lastActivity = $session->last_activity_at;
 
@@ -430,10 +430,10 @@ class SessionHealthCalculator
         }
     }
 
-    private function calculateErrorRate(WhatsAppSession $session, Carbon $since): int
+    private function calculateErrorRate(WhatsAppAccount $session, Carbon $since): int
     {
         $totalMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('created_at', '>=', $since)
             ->count();
@@ -443,7 +443,7 @@ class SessionHealthCalculator
         }
 
         $failedMessages = DB::table('chats')
-            ->where('whatsapp_session_id', $session->id)
+            ->where('whatsapp_account_id', $session->id)
             ->where('type', 'outbound')
             ->where('status', 'failed')
             ->where('created_at', '>=', $since)
@@ -452,12 +452,12 @@ class SessionHealthCalculator
         return ($failedMessages / $totalMessages) * 100;
     }
 
-    private function calculateResponseTime(WhatsAppSession $session, Carbon $since): int
+    private function calculateResponseTime(WhatsAppAccount $session, Carbon $since): int
     {
         // Get average response time from campaign logs
         $avgResponseTime = DB::table('campaign_logs')
             ->join('chats', 'campaign_logs.chat_id', '=', 'chats.id')
-            ->where('campaign_logs.whatsapp_session_id', $session->id)
+            ->where('campaign_logs.whatsapp_account_id', $session->id)
             ->where('campaign_logs.created_at', '>=', $since)
             ->whereNotNull('chats.metadata->response_time_ms')
             ->avg(DB::raw('JSON_EXTRACT(chats.metadata, "$.response_time_ms")'));
@@ -471,7 +471,7 @@ class SessionHealthCalculator
         return max(0, 100 - (($avgResponseTime / $maxAcceptableTime) * 100));
     }
 
-    private function calculateUptime(WhatsAppSession $session): int
+    private function calculateUptime(WhatsAppAccount $session): int
     {
         $created = $session->created_at;
         $now = now();
@@ -504,7 +504,7 @@ class SessionHealthCalculator
 namespace App\Services;
 
 use App\Models\Campaign;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Illuminate\Support\Collection;
 
 class LoadBalancer
@@ -516,7 +516,7 @@ class LoadBalancer
         $availableSessions = $this->getLoadBalancedSessions($campaign);
 
         if ($availableSessions->isEmpty()) {
-            throw new \Exception('No available WhatsApp sessions for load balancing');
+            throw new \Exception('No available WhatsApp accounts for load balancing');
         }
 
         return $this->calculateOptimalDistribution($contacts, $availableSessions);
@@ -524,7 +524,7 @@ class LoadBalancer
 
     private function getLoadBalancedSessions(Campaign $campaign): Collection
     {
-        $sessions = WhatsAppSession::forWorkspace($campaign->workspace_id)
+        $sessions = WhatsAppAccount::forWorkspace($campaign->workspace_id)
             ->connected()
             ->where('is_active', true)
             ->where('health_score', '>=', 60)
@@ -590,7 +590,7 @@ class LoadBalancer
         return $distribution;
     }
 
-    private function calculateSessionCapacity(WhatsAppSession $session, Campaign $campaign): int
+    private function calculateSessionCapacity(WhatsAppAccount $session, Campaign $campaign): int
     {
         $baseCapacity = 1000; // Base messages per hour
 
@@ -609,7 +609,7 @@ class LoadBalancer
         return (int) ($baseCapacity * $healthMultiplier * $providerMultiplier * $performanceMultiplier * $messageTypeMultiplier);
     }
 
-    private function getSessionPerformanceMultiplier(WhatsAppSession $session): float
+    private function getSessionPerformanceMultiplier(WhatsAppAccount $session): float
     {
         // Calculate recent performance multiplier
         $recentSuccessRate = $this->getRecentSuccessRate($session);
@@ -661,7 +661,7 @@ class DynamicProviderSwitcher
 
             // Switch provider
             $campaign->update([
-                'whatsapp_session_id' => $newProvider['session']['id'] ?? null,
+                'whatsapp_account_id' => $newProvider['session']['id'] ?? null,
                 'metadata' => array_merge(
                     $campaign->metadata ?? [],
                     [
@@ -689,12 +689,12 @@ class DynamicProviderSwitcher
         }
     }
 
-    private function getRecentSuccessRate(WhatsAppSession $session): float
+    private function getRecentSuccessRate(WhatsAppAccount $session): float
     {
         // Implementation from SessionHealthCalculator
     }
 
-    private function getRecentResponseTime(WhatsAppSession $session): float
+    private function getRecentResponseTime(WhatsAppAccount $session): float
     {
         // Implementation from SessionHealthCalculator
     }
@@ -709,7 +709,7 @@ class DynamicProviderSwitcher
 namespace App\Services;
 
 use App\Models\Campaign;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Illuminate\Support\Facades\DB;
 
 class PredictiveAnalytics
@@ -837,7 +837,7 @@ class PredictiveAnalytics
 namespace App\Services;
 
 use App\Models\CampaignLog;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -858,7 +858,7 @@ class ProviderPerformanceTracker
 
     private function getWebJSPerformance(string $workspaceId, Carbon $startDate, Carbon $endDate): array
     {
-        $webjsSessionIds = WhatsAppSession::where('workspace_id', $workspaceId)
+        $webjsSessionIds = WhatsAppAccount::where('workspace_id', $workspaceId)
             ->where('provider_type', 'webjs')
             ->pluck('id');
 
@@ -869,7 +869,7 @@ class ProviderPerformanceTracker
         $metrics = DB::table('campaign_logs')
             ->join('campaigns', 'campaign_logs.campaign_id', '=', 'campaigns.id')
             ->join('chats', 'campaign_logs.chat_id', '=', 'chats.id')
-            ->whereIn('campaign_logs.whatsapp_session_id', $webjsSessionIds)
+            ->whereIn('campaign_logs.whatsapp_account_id', $webjsSessionIds)
             ->where('campaign_logs.created_at', '>=', $startDate)
             ->where('campaign_logs.created_at', '<=', $endDate)
             ->selectRaw('

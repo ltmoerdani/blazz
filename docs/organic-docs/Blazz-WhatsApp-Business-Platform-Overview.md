@@ -22,7 +22,7 @@
 - Laravel Framework 12.29.0 (Latest Stable)
 - PHP 8.2+ with modern type hints and attributes
 - MySQL 8.0+ with advanced indexing and optimization
-- Redis for caching and session management
+- Redis for caching and account management
 - Queue Workers for asynchronous processing
 
 // Key Laravel Packages

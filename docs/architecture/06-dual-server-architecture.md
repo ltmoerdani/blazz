@@ -13,7 +13,7 @@ Document ini menjelaskan **Dual-Server Architecture** yang menjadi inovasi utama
 1. **Process Isolation** - WhatsApp operations yang crash tidak akan down main application
 2. **Technology Optimization** - Menggunakan teknologi terbaik untuk setiap tugas (PHP untuk web, Node.js untuk real-time)
 3. **Independent Scaling** - Scale WhatsApp services secara terpisah dari main application
-4. **Resource Management** - WhatsApp operations yang heavy (session management, real-time events) tidak block web server
+4. **Resource Management** - WhatsApp operations yang heavy (account management, real-time events) tidak block web server
 5. **Development Flexibility** - Tim WhatsApp service bisa berkembang independently
 
 ---

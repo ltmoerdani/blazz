@@ -83,7 +83,7 @@ app/Services/WhatsApp/
 ├── MediaProcessingService.php (copy media methods)
 ├── BusinessProfileService.php (copy profile methods)
 ├── WhatsAppHealthService.php (copy health methods)
-└── WhatsAppSessionService.php (copy session methods)
+└── WhatsAppAccountService.php (copy session methods)
 ```
 
 #### **1.2 ApiController.php (764 lines) - HIGH PRIORITY**
@@ -114,7 +114,7 @@ class WhatsAppWebJSController {
     // QR code handling: ~100 lines
     // Message processing: ~200 lines
     // Contact provisioning: ~150 lines
-    // Session management: ~100 lines
+    // Account management: ~100 lines
     // Health monitoring: ~80 lines
     // Validation/utility: ~73 lines
 }
@@ -230,7 +230,7 @@ app/Services/
 │   ├── MediaProcessingService.php         # COPY methods dari WhatsappService
 │   ├── BusinessProfileService.php         # COPY methods dari WhatsappService
 │   ├── WhatsAppHealthService.php          # COPY methods dari WhatsappService
-│   ├── WhatsAppSessionService.php         # COPY methods dari WhatsappService
+│   ├── WhatsAppAccountService.php         # COPY methods dari WhatsappService
 │   └── Adapters/                         # MOVE existing adapters
 │       ├── MetaAPIAdapter.php             # MOVE
 │       └── WebJSAdapter.php               # MOVE
@@ -389,14 +389,14 @@ class BusinessProfileService {
 public function register(): void {
     // Register new services dengan existing logic
     $this->app->singleton(MessageSendingService::class, function ($app) {
-        // GET existing configuration dari session/WhatsAppSession
+        // GET existing configuration dari session/WhatsAppAccount
         $workspaceId = session()->get('current_workspace');
-        $session = WhatsAppSession::where('workspace_id', $workspaceId)
+        $session = WhatsAppAccount::where('workspace_id', $workspaceId)
             ->where('provider_type', 'meta')
             ->first();
 
         if (!$session) {
-            throw new Exception('No WhatsApp session configured');
+            throw new Exception('No WhatsApp account configured');
         }
 
         $sessionData = $session->session_data;

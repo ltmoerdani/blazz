@@ -81,7 +81,7 @@ mv app/Http/Controllers/PluginController.php app/Http/Controllers/Admin/
 - AutoReplyController.php
 - ContactGroupController.php
 - TemplateController.php
-- WhatsAppSessionController.php
+- WhatsAppAccountController.php
 - ChatExportController.php
 
 // TO Admin/ (5 files):
@@ -513,7 +513,7 @@ class WhatsAppWebJSController extends Controller {
     // Mixed responsibilities:
     // 1. Webhook processing (~300 lines)
     // 2. QR code generation (~150 lines)
-    // 3. Session management (~200 lines)
+    // 3. Account management (~200 lines)
     // 4. Utility methods (~50 lines)
 }
 ```
