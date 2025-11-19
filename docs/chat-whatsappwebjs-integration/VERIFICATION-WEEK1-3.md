@@ -30,7 +30,7 @@ All Week 1-3 implementations have been **successfully completed and verified**. 
    - provider_type (varchar(20)) - Stores 'meta' or 'webjs'
    - chat_type (enum('private','group')) - Differentiates chat types
    - group_id (bigint unsigned) - FK to whatsapp_groups
-   - session_id (bigint unsigned) - FK to whatsapp_sessions
+   - session_id (bigint unsigned) - FK to whatsapp_accounts
 
 ✅ New Table: `whatsapp_groups`
    - Stores group metadata (name, description, participants)
@@ -45,7 +45,7 @@ All Week 1-3 implementations have been **successfully completed and verified**. 
 
 ---
 
-### **2. WhatsApp Sessions** ✅ **VERIFIED**
+### **2. WhatsApp accounts** ✅ **VERIFIED**
 
 ```
 ✅ Active Sessions in Database:
@@ -88,7 +88,7 @@ return $this->chatService()->getChatList(
 #### **ChatService.php** (Already Complete)
 ```php
 // Lines 153-162 & 201-210: Fetches sessions from database
-$sessions = WhatsAppSession::where('workspace_id', $this->workspaceId)
+$sessions = WhatsAppAccount::where('workspace_id', $this->workspaceId)
     ->where('status', 'connected')
     ->select('id', 'phone_number', 'provider_type')
     ->withCount(['chats as unread_count' => function ($query) {
@@ -344,7 +344,7 @@ php artisan config:clear
 All Week 1-3 implementations have been **successfully verified and deployed**. The codebase is now ready to:
 
 1. ✅ **Display WhatsApp Web.js chats** with visual differentiation
-2. ✅ **Filter chats by WhatsApp session** (when chats exist)
+2. ✅ **Filter chats by WhatsApp account** (when chats exist)
 3. ✅ **Show group chats** with proper icons and metadata
 4. ✅ **Real-time updates** for both private and group messages
 

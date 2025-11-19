@@ -14,7 +14,7 @@
         templates: Object,
         contactGroups: Object,
         settings: Array,
-        whatsappSessions: {
+        whatsappAccounts: {
             type: Array,
             default: () => []
         },
@@ -60,10 +60,10 @@
         // Check for Meta API connection
         const hasMetaApi = settings.value?.whatsapp;
 
-        // Check for WhatsApp Web JS sessions
-        const hasWebJsSessions = props.whatsappSessions && props.whatsappSessions.length > 0;
+        // Check for WhatsApp Web JS accounts
+        const hasWebJsAccounts = props.whatsappAccounts && props.whatsappAccounts.length > 0;
 
-        return hasMetaApi || hasWebJsSessions;
+        return hasMetaApi || hasWebJsAccounts;
     });
 
     const variableOptions = ref([
@@ -97,7 +97,7 @@
         template: null,
         contacts: null,
         preferred_provider: 'webjs', // Default to WhatsApp Web JS as requested
-        whatsapp_session_id: null,
+        whatsapp_account_id: null,
         time: null,
         scheduled_at: null,
         skip_schedule: false,
@@ -262,8 +262,8 @@
     // Computed properties for hybrid functionality
     const isTemplateMode = computed(() => form.campaign_type === 'template');
     const isDirectMode = computed(() => form.campaign_type === 'direct');
-    const hasWebJsSessions = computed(() => props.whatsappSessions?.some(s => s.provider_type === 'webjs') || false);
-    const hasMetaApiSessions = computed(() => props.whatsappSessions?.some(s => s.provider_type === 'meta_api') || false);
+    const hasWebJsAccounts = computed(() => props.whatsappAccounts?.some(a => a.provider_type === 'webjs') || false);
+    const hasMetaApiAccounts = computed(() => props.whatsappAccounts?.some(a => a.provider_type === 'meta_api') || false);
 
     // Watch for campaign type changes to reset form fields
     const onCampaignTypeChange = () => {
@@ -513,17 +513,17 @@
 
                 <!-- Show connection status details -->
                 <div class="text-center mb-4 text-sm text-gray-600">
-                    <div v-if="!settings?.whatsapp && (!whatsappSessions || whatsappSessions.length === 0)" class="mb-2">
+                    <div v-if="!settings?.whatsapp && (!whatsappAccounts || whatsappAccounts.length === 0)" class="mb-2">
                         <p class="mb-2">{{ $t('No WhatsApp connection found. You can connect via:') }}</p>
                         <div class="space-y-1">
                             <p>• {{ $t('Meta API (Business API)') }}</p>
                             <p>• {{ $t('WhatsApp Web JS (Direct connection)') }}</p>
                         </div>
                     </div>
-                    <div v-if="!settings?.whatsapp && whatsappSessions && whatsappSessions.length > 0" class="mb-2">
-                        <p class="text-green-600">{{ $t('WhatsApp Web JS sessions found, but none are connected.') }}</p>
+                    <div v-if="!settings?.whatsapp && whatsappAccounts && whatsappAccounts.length > 0" class="mb-2">
+                        <p class="text-green-600">{{ $t('WhatsApp Web JS accounts found, but none are connected.') }}</p>
                     </div>
-                    <div v-if="settings?.whatsapp && (!whatsappSessions || whatsappSessions.length === 0)" class="mb-2">
+                    <div v-if="settings?.whatsapp && (!whatsappAccounts || whatsappAccounts.length === 0)" class="mb-2">
                         <p class="text-green-600">{{ $t('Meta API is configured.') }}</p>
                     </div>
                 </div>
@@ -532,8 +532,8 @@
                     <Link href="/settings/whatsapp" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 bg-primary" :disabled="isLoading">
                         <span v-if="!isLoading">{{ $t('Connect Meta API') }}</span>
                     </Link>
-                    <Link href="/settings/whatsapp/sessions" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 bg-green-600" :disabled="isLoading">
-                        <span v-if="!isLoading">{{ $t('Manage WhatsApp Sessions') }}</span>
+                    <Link href="/settings/whatsapp/accounts" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 bg-green-600" :disabled="isLoading">
+                        <span v-if="!isLoading">{{ $t('Manage WhatsApp Accounts') }}</span>
                     </Link>
                 </div>
             </div>
@@ -578,7 +578,7 @@
                         :options="providerSelectOptions.map(provider => ({
                             value: provider.value,
                             label: provider.label,
-                            disabled: (provider.value === 'webjs' && !hasWebJsSessions) || (provider.value === 'meta_api' && !hasMetaApiSessions)
+                            disabled: (provider.value === 'webjs' && !hasWebJsAccounts) || (provider.value === 'meta_api' && !hasMetaApiAccounts)
                         }))"
                         :name="$t('Preferred WhatsApp Provider')"
                         :required="true"
@@ -588,25 +588,25 @@
                     />
                     <div class="mt-1 text-xs text-gray-500">
                         {{ providerSelectOptions.find(provider => provider.value === form.preferred_provider)?.description }}
-                        <span v-if="(form.preferred_provider === 'webjs' && !hasWebJsSessions) || (form.preferred_provider === 'meta_api' && !hasMetaApiSessions)"
+                        <span v-if="(form.preferred_provider === 'webjs' && !hasWebJsAccounts) || (form.preferred_provider === 'meta_api' && !hasMetaApiAccounts)"
                               class="text-amber-600">
-                            {{ $t(' - No active sessions available') }}
+                            {{ $t(' - No active accounts available') }}
                         </span>
                     </div>
                 </div>
 
-                <!-- WhatsApp Session Selection -->
+                <!-- WhatsApp Account Selection -->
                 <FormSelect
-                    v-if="props.whatsappSessions && props.whatsappSessions.length > 0"
-                    v-model="form.whatsapp_session_id"
-                    :options="props.whatsappSessions.map(s => ({
-                        value: s.id,
-                        label: `${s.formatted_phone_number} (${s.provider_type === 'webjs' ? 'WebJS' : 'Meta API'}) - Health: ${s.health_score}%`
+                    v-if="props.whatsappAccounts && props.whatsappAccounts.length > 0"
+                    v-model="form.whatsapp_account_id"
+                    :options="props.whatsappAccounts.map(a => ({
+                        value: a.id,
+                        label: `${a.formatted_phone_number} (${a.provider_type === 'webjs' ? 'WebJS' : 'Meta API'}) - Health: ${a.health_score}%`
                     }))"
-                    :name="$t('Specific WhatsApp Session (Optional)')"
+                    :name="$t('Specific WhatsApp Account (Optional)')"
                     :class="'sm:col-span-6'"
-                    :placeholder="$t('Auto-select best session')"
-                    :error="form.errors.whatsapp_session_id"
+                    :placeholder="$t('Auto-select best account')"
+                    :error="form.errors.whatsapp_account_id"
                 />
 
                 <!-- Contact Group Selection -->

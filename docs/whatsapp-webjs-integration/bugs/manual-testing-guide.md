@@ -46,12 +46,12 @@ Keep these terminals visible selama testing!
 1. Buka browser (Chrome/Safari/Firefox)
 2. Tekan **F12** atau **Cmd+Option+I** untuk buka DevTools
 3. Pilih tab **Console**
-4. Navigate ke: `http://127.0.0.1:8000/settings/whatsapp-sessions`
+4. Navigate ke: `http://127.0.0.1:8000/settings/whatsapp-accounts`
 5. Login jika diperlukan
 
 ---
 
-## 🧪 Test Scenario 1: Create New WhatsApp Session (Happy Path)
+## 🧪 Test Scenario 1: Create New WhatsApp account (Happy Path)
 
 ### Test Steps
 
@@ -75,7 +75,7 @@ Keep these terminals visible selama testing!
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ```
 
 **Setelah 1-2 detik:**
@@ -107,7 +107,7 @@ Keep these terminals visible selama testing!
 
 **Check tab "Network" di DevTools:**
 
-1. **POST Request ke `/settings/whatsapp-sessions`**
+1. **POST Request ke `/settings/whatsapp-accounts`**
    - Status: **200 OK**
    - Request Payload:
      ```json
@@ -128,7 +128,7 @@ Keep these terminals visible selama testing!
 
 **Harus muncul log ini:**
 ```
-[2025-10-13 07:40:15] local.INFO: 📥 WhatsApp session creation request
+[2025-10-13 07:40:15] local.INFO: 📥 WhatsApp account creation request
 [2025-10-13 07:40:15] local.INFO: workspace_id: 1
 [2025-10-13 07:40:15] local.INFO: provider_type: webjs
 [2025-10-13 07:40:15] local.INFO: 🔄 Calling Node.js service to initialize session
@@ -144,7 +144,7 @@ Keep these terminals visible selama testing!
 
 **Harus muncul log ini:**
 ```
-[2025-10-13 07:40:15] [POST /api/sessions] Creating new WhatsApp session
+[2025-10-13 07:40:15] [POST /api/sessions] Creating new WhatsApp account
 [2025-10-13 07:40:15] workspace_id: 1
 [2025-10-13 07:40:15] session_id: webjs_1_1734042000_abc123
 [2025-10-13 07:40:15] Initializing whatsapp-web.js client...
@@ -196,7 +196,7 @@ Keep these terminals visible selama testing!
 [2025-10-13 07:40:30] local.INFO: 📨 WhatsApp webhook received
 [2025-10-13 07:40:30] local.INFO: Event: session_status_changed
 [2025-10-13 07:40:30] local.INFO: Status: authenticated
-[2025-10-13 07:40:30] local.INFO: 📡 Broadcasting WhatsAppSessionStatusChangedEvent
+[2025-10-13 07:40:30] local.INFO: 📡 Broadcasting WhatsAppAccountStatusChangedEvent
 ```
 
 #### 3. WhatsApp Service Logs
@@ -231,7 +231,7 @@ Keep these terminals visible selama testing!
 ```
 
 #### 2. Network Tab
-- POST `/settings/whatsapp-sessions/{uuid}/regenerate-qr`
+- POST `/settings/whatsapp-accounts/{uuid}/regenerate-qr`
 - Status: **200 OK**
 - Response: `{ success: true, qr_code: "..." }`
 
@@ -279,12 +279,12 @@ Keep these terminals visible selama testing!
 
 #### 1. Console Logs
 ```javascript
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ❌ Failed to create session: Error: Node.js service not responding
 ```
 
 #### 2. UI Changes
-- ✅ Alert popup: "Failed to create WhatsApp session: Node.js service not responding"
+- ✅ Alert popup: "Failed to create WhatsApp account: Node.js service not responding"
 - ✅ Modal closes
 - ✅ No session created in database
 

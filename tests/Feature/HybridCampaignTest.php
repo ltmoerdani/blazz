@@ -8,7 +8,7 @@ use App\Models\Workspace;
 use App\Models\Template;
 use App\Models\ContactGroup;
 use App\Models\Contact;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Services\CampaignService;
 use App\Services\WhatsApp\ProviderSelectionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -290,7 +290,7 @@ class HybridCampaignTest extends TestCase
     public function test_provider_selection_functionality(): void
     {
         $workspace = $this->createWorkspace();
-        $this->createWhatsAppSessions($workspace);
+        $this->createWhatsAppAccounts($workspace);
 
         session(['current_workspace' => $workspace->id]);
 
@@ -488,15 +488,15 @@ class HybridCampaignTest extends TestCase
         return $contacts;
     }
 
-    private function createWhatsAppSessions($workspace)
+    private function createWhatsAppAccounts($workspace)
     {
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $workspace->id,
             'provider_type' => 'webjs',
             'is_active' => true
         ]);
 
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $workspace->id,
             'provider_type' => 'meta_api',
             'is_active' => true

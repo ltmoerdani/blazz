@@ -13,7 +13,7 @@ After implementing Week 1-3 tasks for Chat WhatsApp Web.js Integration, the What
 
 ```bash
 TypeError: WebhookNotifier is not a constructor
-    at new WhatsAppSessionManager (/Applications/MAMP/htdocs/blazz/whatsapp-service/server.js:62:32)
+    at new WhatsAppAccountManager (/Applications/MAMP/htdocs/blazz/whatsapp-service/server.js:62:32)
 ```
 
 ### Symptoms:
@@ -32,7 +32,7 @@ TypeError: WebhookNotifier is not a constructor
                                ^
 
 TypeError: WebhookNotifier is not a constructor
-    at new WhatsAppSessionManager
+    at new WhatsAppAccountManager
 ```
 
 ---

@@ -48,7 +48,7 @@
 
 - **Model:** `app/Models/Chat.php` (lines 1-50)
   - Relationship: `belongsTo(Contact::class)`
-  - Relationship: `belongsTo(WhatsAppSession::class)` ✅ ALREADY EXISTS
+  - Relationship: `belongsTo(WhatsAppAccount::class)` ✅ ALREADY EXISTS
   - Field: `type` (inbound/outbound), `status`, `metadata`
 
 - **Frontend:** `resources/js/Pages/User/Chat/Index.vue` (lines 1-195)
@@ -58,9 +58,9 @@
   - Real-time: Laravel Echo + Pusher integration
 
 **WhatsApp Web JS Integration Status:**
-- **Model:** `app/Models/WhatsAppSession.php` ✅ ALREADY EXISTS
-- **Migration:** `2025_10_13_000000_create_whatsapp_sessions_table.php` ✅ COMPLETED
-- **Foreign Keys:** `chats.whatsapp_session_id` ✅ ALREADY EXISTS
+- **Model:** `app/Models/WhatsAppAccount.php` ✅ ALREADY EXISTS
+- **Migration:** `2025_10_13_000000_create_whatsapp_accounts_table.php` ✅ COMPLETED
+- **Foreign Keys:** `chats.whatsapp_account_id` ✅ ALREADY EXISTS
 - **Node.js Service:** `/whatsapp-service/server.js` ✅ EXISTS but needs chat sync implementation
 - **Provider Abstraction:** ❌ NOT EXISTS (needs implementation)
 - **Chat Sync Service:** ❌ NOT EXISTS (CRITICAL GAP)
@@ -70,7 +70,7 @@
 **Table: chats (verified via model + migrations)**
 ```sql
 -- Existing columns:
-id, uuid, workspace_id, contact_id, whatsapp_session_id ✅
+id, uuid, workspace_id, contact_id, whatsapp_account_id ✅
 type (inbound/outbound), status, metadata, 
 created_at, updated_at, deleted_at
 
@@ -78,7 +78,7 @@ created_at, updated_at, deleted_at
 provider_type VARCHAR(20) DEFAULT 'meta' ❌ CRITICAL
 ```
 
-**Table: whatsapp_sessions (verified)**
+**Table: whatsapp_accounts (verified)**
 ```sql
 -- All required columns exist:
 id, uuid, workspace_id, session_id, phone_number
@@ -168,8 +168,8 @@ latest_chat_created_at ✅ (indexed)
 ### ASM-7: Database Schema → VERIFIED
 - **Original Assumption:** Semua tables dan foreign keys sudah complete
 - **Verification Result:** ⚠️ PARTIAL
-  - ✅ `whatsapp_sessions` table EXISTS
-  - ✅ `chats.whatsapp_session_id` foreign key EXISTS
+  - ✅ `whatsapp_accounts` table EXISTS
+  - ✅ `chats.whatsapp_account_id` foreign key EXISTS
   - ❌ `chats.provider_type` column MISSING
   - ❓ `contacts.source_session_id` dan `source_type` needs verification
 - **Action Required:** Create migration untuk missing columns
@@ -201,7 +201,7 @@ User sees chat list di inbox dalam < 30 seconds
 - [ ] REQ-1.4: Contact auto-created jika belum ada di database
 - [ ] REQ-1.5: Progress indicator ditampilkan: "Syncing chats... 45/120 (38%)"
 - [ ] REQ-1.6: User bisa skip sync dan langsung gunakan chat (sync continues in background)
-- [ ] REQ-1.7: Sync status tersimpan di `whatsapp_sessions.metadata.sync_status`
+- [ ] REQ-1.7: Sync status tersimpan di `whatsapp_accounts.metadata.sync_status`
 - [ ] REQ-1.8: Config support unlimited sync (`null` value = fetch all available chats)
 
 **Business Rules:**
@@ -259,7 +259,7 @@ client.on('ready', async () => {
 // Laravel - Process Chat Sync
 // POST /api/whatsapp/sync/chats
 public function syncChats(Request $request) {
-    $session = WhatsAppSession::where('session_id', $request->session_id)
+    $session = WhatsAppAccount::where('session_id', $request->session_id)
         ->firstOrFail();
     
     // Create or update contact
@@ -281,7 +281,7 @@ public function syncChats(Request $request) {
             ['wam_id' => $message['id']],
             [
                 'workspace_id' => $session->workspace_id,
-                'whatsapp_session_id' => $session->id,
+                'whatsapp_account_id' => $session->id,
                 'contact_id' => $contact->id,
                 'type' => $message['from_me'] ? 'outbound' : 'inbound',
                 'metadata' => json_encode($message),
@@ -349,14 +349,14 @@ client.on('message', async (message) => {
 ```php
 // Laravel - Webhook Handler
 public function handleIncomingMessage(Request $request) {
-    $session = WhatsAppSession::where('session_id', $request->session_id)
+    $session = WhatsAppAccount::where('session_id', $request->session_id)
         ->firstOrFail();
     
     $contact = $this->getOrCreateContact($request->message['from'], $session);
     
     $chat = Chat::create([
         'workspace_id' => $session->workspace_id,
-        'whatsapp_session_id' => $session->id,
+        'whatsapp_account_id' => $session->id,
         'contact_id' => $contact->id,
         'wam_id' => $request->message['id'],
         'type' => 'inbound',
@@ -397,7 +397,7 @@ Unread count badge shows per-number statistics
   - "+62 812-XXXX (5 unread)"
   - "+62 813-YYYY (0 unread)"
 - [ ] REQ-3.2: Filter state tersimpan di session (persist setelah page reload)
-- [ ] REQ-3.3: Chat list query optimized dengan index pada `whatsapp_session_id`
+- [ ] REQ-3.3: Chat list query optimized dengan index pada `whatsapp_account_id`
 - [ ] REQ-3.4: Empty state jika tidak ada chat untuk selected number
 - [ ] REQ-3.5: Clear filter button untuk kembali ke "All Conversations"
 
@@ -406,13 +406,13 @@ Unread count badge shows per-number statistics
 // ChatService@getChatList with session filter
 public function getChatList($request, $uuid = null, $searchTerm = null, $sessionId = null)
 {
-    $contacts = Contact::with(['lastChat', 'whatsappSession'])
+    $contacts = Contact::with(['lastChat', 'whatsappAccount'])
         ->where('workspace_id', $this->workspaceId)
         ->whereHas('chats', function ($query) use ($sessionId) {
             $query->where('deleted_at', null);
             
             if ($sessionId) {
-                $query->where('whatsapp_session_id', $sessionId);
+                $query->where('whatsapp_account_id', $sessionId);
             }
         })
         ->when($searchTerm, function ($q) use ($searchTerm) {
@@ -467,7 +467,7 @@ User opens chat dari contact yang chat via WhatsApp Web JS number
   ↓
 User type message dan klik Send
   ↓
-System detect chat.whatsapp_session_id
+System detect chat.whatsapp_account_id
   ↓
 System route message via WhatsApp Web JS provider (NOT Meta API)
   ↓
@@ -475,7 +475,7 @@ Message sent dari same number yang contact gunakan
 ```
 
 **Acceptance Criteria:**
-- [ ] REQ-4.1: System auto-detect `chat.whatsapp_session_id` untuk determine provider
+- [ ] REQ-4.1: System auto-detect `chat.whatsapp_account_id` untuk determine provider
 - [ ] REQ-4.2: Provider selection abstraction layer (Meta API vs WebJS)
 - [ ] REQ-4.3: Jika session disconnected, show warning: "WhatsApp number tidak aktif"
 - [ ] REQ-4.4: Fallback to primary number jika original session tidak available
@@ -491,7 +491,7 @@ class WhatsAppProviderService
     {
         // Determine provider from session
         if ($sessionId) {
-            $session = WhatsAppSession::find($sessionId);
+            $session = WhatsAppAccount::find($sessionId);
             
             if (!$session || $session->status !== 'connected') {
                 throw new SessionNotActiveException(
@@ -507,7 +507,7 @@ class WhatsAppProviderService
         }
         
         // Fallback to primary session
-        $primarySession = WhatsAppSession::where('workspace_id', $this->workspaceId)
+        $primarySession = WhatsAppAccount::where('workspace_id', $this->workspaceId)
             ->where('is_primary', true)
             ->where('status', 'connected')
             ->first();
@@ -663,7 +663,7 @@ client.on('message', async (msg) => {
 public function syncGroup(Request $request)
 {
     $validated = $request->validate([
-        'session_id' => 'required|exists:whatsapp_sessions,id',
+        'session_id' => 'required|exists:whatsapp_accounts,id',
         'workspace_id' => 'required|exists:workspaces,id',
         'group_jid' => 'required|string',
         'name' => 'required|string',
@@ -678,7 +678,7 @@ public function syncGroup(Request $request)
             'workspace_id' => $validated['workspace_id'],
         ],
         [
-            'whatsapp_session_id' => $validated['session_id'],
+            'whatsapp_account_id' => $validated['session_id'],
             'name' => $validated['name'],
             'description' => $validated['description'],
             'owner_phone' => $validated['owner_phone'],
@@ -695,7 +695,7 @@ public function syncGroup(Request $request)
 class WhatsAppGroup extends Model
 {
     protected $fillable = [
-        'uuid', 'workspace_id', 'whatsapp_session_id', 
+        'uuid', 'workspace_id', 'whatsapp_account_id', 
         'group_jid', 'name', 'description', 'owner_phone', 'participants'
     ];
     
@@ -710,7 +710,7 @@ class WhatsAppGroup extends Model
     
     public function session()
     {
-        return $this->belongsTo(WhatsAppSession::class, 'whatsapp_session_id');
+        return $this->belongsTo(WhatsAppAccount::class, 'whatsapp_account_id');
     }
     
     public function getParticipantCountAttribute()
@@ -764,7 +764,7 @@ CREATE TABLE whatsapp_groups (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     uuid CHAR(36) UNIQUE NOT NULL,
     workspace_id BIGINT UNSIGNED NOT NULL,
-    whatsapp_session_id BIGINT UNSIGNED NOT NULL,
+    whatsapp_account_id BIGINT UNSIGNED NOT NULL,
     group_jid VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT NULL,
@@ -775,8 +775,8 @@ CREATE TABLE whatsapp_groups (
     updated_at TIMESTAMP NULL,
     
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
-    FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
-    INDEX idx_workspace_session (workspace_id, whatsapp_session_id)
+    FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE CASCADE,
+    INDEX idx_workspace_session (workspace_id, whatsapp_account_id)
 );
 ```
 
@@ -823,7 +823,7 @@ CREATE TABLE whatsapp_groups (
 **Acceptance Criteria:**
 - [ ] Migration untuk add `chats.provider_type` column
 - [ ] Migration untuk add `contacts.source_session_id` dan `source_type`
-- [ ] Index optimization untuk query by `provider_type` dan `whatsapp_session_id`
+- [ ] Index optimization untuk query by `provider_type` dan `whatsapp_account_id`
 - [ ] Foreign key constraints maintained
 - [ ] Zero data loss during migration
 

@@ -162,14 +162,14 @@ class WebhookNotifier {
     /**
      * Send chat sync batch to Laravel
      *
-     * @param {number} sessionId - WhatsApp session ID
+     * @param {number} accountId - WhatsApp Account ID (INTEGER from database)
      * @param {number} workspaceId - Workspace ID
      * @param {Array} chats - Array of chat objects
      * @returns {Promise<Object>} Laravel response
      */
-    async syncChatBatch(sessionId, workspaceId, chats) {
+    async syncChatBatch(accountId, workspaceId, chats) {
         return this.notify('/api/whatsapp/chats/sync', {
-            session_id: sessionId,
+            whatsapp_account_id: accountId,  // INTEGER ID from database
             workspace_id: workspaceId,
             chats: chats,
         });

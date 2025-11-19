@@ -10,25 +10,25 @@ use Illuminate\Support\Collection;
 class ProviderSelectionService
 {
     /**
-     * Select the best WhatsApp session for sending campaign messages
+     * Select the best WhatsApp account for sending campaign messages
      *
      * Prioritization:
      * 1. Preferred provider type (webjs > meta_api)
      * 2. Health score (>= 70)
-     * 3. Primary session status
+     * 3. Primary account status
      * 4. Recent activity
      * 5. Load balancing (fewer active campaigns)
      */
-    public function selectBestSession(Campaign $campaign): ?WhatsAppAccount
+    public function selectBestAccount(Campaign $campaign): ?WhatsAppAccount
     {
         $workspaceId = $campaign->workspace_id;
         $preferredProvider = $campaign->preferred_provider ?? 'webjs';
 
-        // Get all active sessions for workspace
-        $sessions = $this->getActiveSessions($workspaceId);
+        // Get all active accounts for workspace
+        $accounts = $this->getActiveAccounts($workspaceId);
 
-        if ($sessions->isEmpty()) {
-            Log::warning('No active WhatsApp sessions found for workspace', [
+        if ($accounts->isEmpty()) {
+            Log::warning('No active WhatsApp accounts found for workspace', [
                 'workspace_id' => $workspaceId,
                 'campaign_id' => $campaign->id
             ]);
@@ -36,45 +36,45 @@ class ProviderSelectionService
         }
 
         // Filter by preferred provider first
-        $preferredSessions = $sessions->where('provider_type', $preferredProvider);
+        $preferredAccounts = $accounts->where('provider_type', $preferredProvider);
 
-        // If no sessions with preferred provider, fallback to any provider
-        if ($preferredSessions->isEmpty()) {
-            Log::info('No sessions found with preferred provider, falling back to any provider', [
+        // If no accounts with preferred provider, fallback to any provider
+        if ($preferredAccounts->isEmpty()) {
+            Log::info('No accounts found with preferred provider, falling back to any provider', [
                 'preferred_provider' => $preferredProvider,
                 'workspace_id' => $workspaceId
             ]);
-            $preferredSessions = $sessions;
+            $preferredAccounts = $accounts;
         }
 
-        // Score and rank sessions
-        $rankedSessions = $preferredSessions->map(function ($session) use ($campaign) {
+        // Score and rank accounts
+        $rankedAccounts = $preferredAccounts->map(function ($account) use ($campaign) {
             return [
-                'session' => $session,
-                'score' => $this->calculateSessionScore($session, $campaign)
+                'account' => $account,
+                'score' => $this->calculateAccountScore($account, $campaign)
             ];
         })->sortByDesc('score');
 
-        // Get best session
-        $bestSessionData = $rankedSessions->first();
+        // Get best account
+        $bestAccountData = $rankedAccounts->first();
 
-        if (!$bestSessionData || $bestSessionData['score'] < 50) {
-            Log::warning('No healthy sessions available for campaign', [
+        if (!$bestAccountData || $bestAccountData['score'] < 50) {
+            Log::warning('No healthy accounts available for campaign', [
                 'campaign_id' => $campaign->id,
                 'workspace_id' => $workspaceId,
-                'best_score' => $bestSessionData['score'] ?? 0
+                'best_score' => $bestAccountData['score'] ?? 0
             ]);
             return null;
         }
 
-        $selectedAccount = $bestSessionData['session'];
+        $selectedAccount = $bestAccountData['account'];
 
-        Log::info('Selected WhatsApp session for campaign', [
+        Log::info('Selected WhatsApp account for campaign', [
             'campaign_id' => $campaign->id,
-            'session_id' => $selectedAccount->id,
+            'account_id' => $selectedAccount->id,
             'provider_type' => $selectedAccount->provider_type,
             'health_score' => $selectedAccount->health_score,
-            'final_score' => $bestSessionData['score'],
+            'final_score' => $bestAccountData['score'],
             'preferred_provider' => $preferredProvider
         ]);
 
@@ -82,9 +82,9 @@ class ProviderSelectionService
     }
 
     /**
-     * Get all active WhatsApp sessions for a workspace
+     * Get all active WhatsApp accounts for a workspace
      */
-    private function getActiveSessions(int $workspaceId): Collection
+    private function getActiveAccounts(int $workspaceId): Collection
     {
         return WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
@@ -96,42 +96,42 @@ class ProviderSelectionService
     }
 
     /**
-     * Calculate score for a session based on multiple factors
+     * Calculate score for an account based on multiple factors
      */
-    private function calculateSessionScore(WhatsAppAccount $session, Campaign $campaign): int
+    private function calculateAccountScore(WhatsAppAccount $account, Campaign $campaign): int
     {
         $score = 100;
 
         // Health score factor (40% weight)
-        $healthScore = $session->health_score;
+        $healthScore = $account->health_score;
         if ($healthScore < 70) {
             $score -= (70 - $healthScore) * 0.4; // Penalty for low health
         }
 
         // Provider preference factor (30% weight)
-        if ($session->provider_type !== $campaign->preferred_provider) {
+        if ($account->provider_type !== $campaign->preferred_provider) {
             $score -= 30; // Penalty for non-preferred provider
         }
 
-        // Primary session factor (15% weight)
-        if (!$session->is_primary) {
+        // Primary account factor (15% weight)
+        if (!$account->is_primary) {
             $score -= 15;
         }
 
         // Recent activity factor (10% weight)
-        if ($session->last_activity_at && $session->last_activity_at->lt(now()->subHour())) {
-            $inactiveMinutes = $session->last_activity_at->diffInMinutes(now());
+        if ($account->last_activity_at && $account->last_activity_at->lt(now()->subHour())) {
+            $inactiveMinutes = $account->last_activity_at->diffInMinutes(now());
             $score -= min($inactiveMinutes * 0.1, 10); // Max 10 point penalty
         }
 
         // Load balancing factor (5% weight)
-        $activeCampaigns = $session->campaigns_count ?? 0;
+        $activeCampaigns = $account->campaigns_count ?? 0;
         if ($activeCampaigns > 0) {
             $score -= min($activeCampaigns * 2, 5); // Max 5 point penalty
         }
 
         // Provider-specific bonuses/penalties
-        if ($session->provider_type === 'webjs') {
+        if ($account->provider_type === 'webjs') {
             $score += 5; // Bonus for WebJS (preferred)
         } else {
             $score -= 5; // Penalty for Meta API (fallback)
@@ -141,32 +141,32 @@ class ProviderSelectionService
     }
 
     /**
-     * Check if a session is suitable for a specific campaign type
+     * Check if an account is suitable for a specific campaign type
      */
-    public function isSessionCompatible(WhatsAppAccount $session, Campaign $campaign): bool
+    public function isAccountCompatible(WhatsAppAccount $account, Campaign $campaign): bool
     {
         // Check basic connectivity
-        if ($session->status !== 'connected' || !$session->is_active) {
+        if ($account->status !== 'connected' || !$account->is_active) {
             return false;
         }
 
         // Check health
-        if ($session->health_score < 50) {
+        if ($account->health_score < 50) {
             return false;
         }
 
         // Check provider compatibility for campaign type
         if ($campaign->isTemplateBased()) {
-            return $this->isTemplateCompatible($session, $campaign);
+            return $this->isTemplateCompatible($account, $campaign);
         } else {
-            return $this->isDirectMessageCompatible($session, $campaign);
+            return $this->isDirectMessageCompatible($account, $campaign);
         }
     }
 
     /**
-     * Check if session can handle template-based campaign
+     * Check if account can handle template-based campaign
      */
-    private function isTemplateCompatible(WhatsAppAccount $session, Campaign $campaign): bool
+    private function isTemplateCompatible(WhatsAppAccount $account, Campaign $campaign): bool
     {
         if (!$campaign->template) {
             return false;
@@ -175,7 +175,7 @@ class ProviderSelectionService
         $template = $campaign->template;
 
         // Meta API has stricter template requirements
-        if ($session->provider_type === 'meta_api') {
+        if ($account->provider_type === 'meta_api') {
             // Check if template is properly approved
             if ($template->status !== 'APPROVED') {
                 return false;
@@ -193,17 +193,17 @@ class ProviderSelectionService
     }
 
     /**
-     * Check if session can handle direct message campaign
+     * Check if account can handle direct message campaign
      */
-    private function isDirectMessageCompatible(WhatsAppAccount $session, Campaign $campaign): bool
+    private function isDirectMessageCompatible(WhatsAppAccount $account, Campaign $campaign): bool
     {
         // WebJS is preferred for direct messages (more flexible)
-        if ($session->provider_type === 'webjs') {
+        if ($account->provider_type === 'webjs') {
             return true;
         }
 
         // Meta API has some limitations for direct messages
-        if ($session->provider_type === 'meta_api') {
+        if ($account->provider_type === 'meta_api') {
             // Check if direct message has compatible content
             $messageContent = $campaign->getResolvedMessageContent();
 
@@ -219,26 +219,26 @@ class ProviderSelectionService
     }
 
     /**
-     * Get fallback sessions in order of preference
+     * Get fallback accounts in order of preference
      */
-    public function getFallbackSessions(Campaign $campaign, WhatsAppAccount $primarySession): Collection
+    public function getFallbackAccounts(Campaign $campaign, WhatsAppAccount $primaryAccount): Collection
     {
         $workspaceId = $campaign->workspace_id;
 
-        return $this->getActiveSessions($workspaceId)
-            ->where('id', '!=', $primarySession->id)
-            ->filter(function ($session) use ($campaign) {
-                return $this->isSessionCompatible($session, $campaign);
+        return $this->getActiveAccounts($workspaceId)
+            ->where('id', '!=', $primaryAccount->id)
+            ->filter(function ($account) use ($campaign) {
+                return $this->isAccountCompatible($account, $campaign);
             })
-            ->map(function ($session) use ($campaign) {
+            ->map(function ($account) use ($campaign) {
                 return [
-                    'session' => $session,
-                    'score' => $this->calculateSessionScore($session, $campaign)
+                    'account' => $account,
+                    'score' => $this->calculateAccountScore($account, $campaign)
                 ];
             })
             ->sortByDesc('score')
-            ->take(3) // Top 3 fallback sessions
-            ->pluck('session');
+            ->take(3) // Top 3 fallback accounts
+            ->pluck('account');
     }
 
     /**
@@ -247,29 +247,29 @@ class ProviderSelectionService
     public function getRecommendedProvider(Campaign $campaign): array
     {
         $workspaceId = $campaign->workspace_id;
-        $sessions = $this->getActiveSessions($workspaceId);
+        $accounts = $this->getActiveAccounts($workspaceId);
 
-        if ($sessions->isEmpty()) {
+        if ($accounts->isEmpty()) {
             return [
                 'recommended_provider' => 'webjs',
                 'confidence' => 0,
-                'reason' => 'No active sessions available'
+                'reason' => 'No active accounts available'
             ];
         }
 
-        $webjsSessions = $sessions->where('provider_type', 'webjs');
-        $metaApiSessions = $sessions->where('provider_type', 'meta_api');
+        $webjsAccounts = $accounts->where('provider_type', 'webjs');
+        $metaApiAccounts = $accounts->where('provider_type', 'meta_api');
 
-        $webjsScore = $webjsSessions->avg('health_score') ?? 0;
-        $metaApiScore = $metaApiSessions->avg('health_score') ?? 0;
+        $webjsScore = $webjsAccounts->avg('health_score') ?? 0;
+        $metaApiScore = $metaApiAccounts->avg('health_score') ?? 0;
 
         // Template campaigns might prefer Meta API for better compliance
         if ($campaign->isTemplateBased()) {
-            if ($metaApiScore >= 70 && $metaApiSessions->isNotEmpty()) {
+            if ($metaApiScore >= 70 && $metaApiAccounts->isNotEmpty()) {
                 return [
                     'recommended_provider' => 'meta_api',
                     'confidence' => min(90, $metaApiScore + 20),
-                    'reason' => 'Template campaign with healthy Meta API sessions available'
+                    'reason' => 'Template campaign with healthy Meta API accounts available'
                 ];
             }
         }
@@ -279,7 +279,7 @@ class ProviderSelectionService
             return [
                 'recommended_provider' => 'webjs',
                 'confidence' => min(95, $webjsScore + 25),
-                'reason' => 'WebJS sessions available and preferred for flexibility'
+                'reason' => 'WebJS accounts available and preferred for flexibility'
             ];
         }
 
@@ -295,54 +295,54 @@ class ProviderSelectionService
         return [
             'recommended_provider' => 'webjs',
             'confidence' => 30,
-            'reason' => 'Limited session availability, recommend adding more sessions'
+            'reason' => 'Limited account availability, recommend adding more accounts'
         ];
     }
 
     /**
-     * Analyze session health and provide recommendations
+     * Analyze account health and provide recommendations
      */
-    public function analyzeSessionHealth(int $workspaceId): array
+    public function analyzeAccountHealth(int $workspaceId): array
     {
-        $sessions = $this->getActiveSessions($workspaceId);
+        $accounts = $this->getActiveAccounts($workspaceId);
 
-        if ($sessions->isEmpty()) {
+        if ($accounts->isEmpty()) {
             return [
                 'status' => 'critical',
-                'message' => 'No active WhatsApp sessions found',
+                'message' => 'No active WhatsApp accounts found',
                 'recommendations' => [
-                    'Connect at least one WhatsApp session',
-                    'Ensure sessions are properly authenticated'
+                    'Connect at least one WhatsApp account',
+                    'Ensure accounts are properly authenticated'
                 ]
             ];
         }
 
-        $healthySessions = $sessions->where('health_score', '>=', 70);
-        $webjsSessions = $sessions->where('provider_type', 'webjs');
-        $metaApiSessions = $sessions->where('provider_type', 'meta_api');
+        $healthyAccounts = $accounts->where('health_score', '>=', 70);
+        $webjsAccounts = $accounts->where('provider_type', 'webjs');
+        $metaApiAccounts = $accounts->where('provider_type', 'meta_api');
 
         $analysis = [
-            'total_sessions' => $sessions->count(),
-            'healthy_sessions' => $healthySessions->count(),
-            'webjs_sessions' => $webjsSessions->count(),
-            'meta_api_sessions' => $metaApiSessions->count(),
-            'avg_health_score' => round($sessions->avg('health_score'), 1),
+            'total_accounts' => $accounts->count(),
+            'healthy_accounts' => $healthyAccounts->count(),
+            'webjs_accounts' => $webjsAccounts->count(),
+            'meta_api_accounts' => $metaApiAccounts->count(),
+            'avg_health_score' => round($accounts->avg('health_score'), 1),
         ];
 
         // Determine status
-        if ($healthySessions->count() >= 2 && $webjsSessions->isNotEmpty()) {
+        if ($healthyAccounts->count() >= 2 && $webjsAccounts->isNotEmpty()) {
             $analysis['status'] = 'excellent';
-            $analysis['message'] = 'Multiple healthy sessions available with preferred WebJS provider';
-        } elseif ($healthySessions->count() >= 1) {
+            $analysis['message'] = 'Multiple healthy accounts available with preferred WebJS provider';
+        } elseif ($healthyAccounts->count() >= 1) {
             $analysis['status'] = 'good';
-            $analysis['message'] = 'At least one healthy session available';
+            $analysis['message'] = 'At least one healthy account available';
         } else {
             $analysis['status'] = 'warning';
-            $analysis['message'] = 'Sessions available but health is below optimal';
+            $analysis['message'] = 'Accounts available but health is below optimal';
         }
 
         // Generate recommendations
-        $analysis['recommendations'] = $this->generateHealthRecommendations($analysis, $sessions);
+        $analysis['recommendations'] = $this->generateHealthRecommendations($analysis, $accounts);
 
         return $analysis;
     }
@@ -350,32 +350,32 @@ class ProviderSelectionService
     /**
      * Generate health recommendations based on analysis
      */
-    private function generateHealthRecommendations(array $analysis, Collection $sessions): array
+    private function generateHealthRecommendations(array $analysis, Collection $accounts): array
     {
         $recommendations = [];
 
-        if ($analysis['webjs_sessions'] === 0) {
-            $recommendations[] = 'Add a WhatsApp Web JS session for better compatibility';
+        if ($analysis['webjs_accounts'] === 0) {
+            $recommendations[] = 'Add a WhatsApp Web JS account for better compatibility';
         }
 
-        if ($analysis['healthy_sessions'] < $analysis['total_sessions']) {
-            $recommendations[] = 'Check and reconnect sessions with low health scores';
+        if ($analysis['healthy_accounts'] < $analysis['total_accounts']) {
+            $recommendations[] = 'Check and reconnect accounts with low health scores';
         }
 
-        if ($analysis['total_sessions'] < 2) {
-            $recommendations[] = 'Consider adding multiple sessions for load balancing and redundancy';
+        if ($analysis['total_accounts'] < 2) {
+            $recommendations[] = 'Consider adding multiple accounts for load balancing and redundancy';
         }
 
-        $inactiveSessions = $sessions->filter(function ($session) {
-            return !$session->last_activity_at || $session->last_activity_at->lt(now()->subHours(6));
+        $inactiveAccounts = $accounts->filter(function ($account) {
+            return !$account->last_activity_at || $account->last_activity_at->lt(now()->subHours(6));
         });
 
-        if ($inactiveSessions->isNotEmpty()) {
-            $recommendations[] = 'Reactivate inactive sessions to maintain availability';
+        if ($inactiveAccounts->isNotEmpty()) {
+            $recommendations[] = 'Reactivate inactive accounts to maintain availability';
         }
 
         if (empty($recommendations)) {
-            $recommendations[] = 'Session configuration is optimal';
+            $recommendations[] = 'Account configuration is optimal';
         }
 
         return $recommendations;

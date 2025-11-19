@@ -55,7 +55,7 @@
 
 ### 3️⃣ Test via Browser
 
-**URL:** http://127.0.0.1:8000/settings/whatsapp-sessions
+**URL:** http://127.0.0.1:8000/settings/whatsapp-accounts
 
 **Steps:**
 1. Open browser DevTools (F12)
@@ -76,7 +76,7 @@
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ✅ Session created: {success: true, qr_code: null}
 ⏳ Waiting for QR code via websocket...
 📨 QR Code Generated Event received
@@ -105,7 +105,7 @@
 ### Bug #4: ✅ Stuck Sessions
 **Problem:** 7 sessions stuck in qr_scanning status  
 **Fix:** Cleaned up database and Node.js session files  
-**Tool:** `cleanup-whatsapp-sessions.sh`
+**Tool:** `cleanup-whatsapp-accounts.sh`
 
 ---
 
@@ -115,7 +115,7 @@
 
 ```bash
 # 🧹 Cleanup (already done!)
-./cleanup-whatsapp-sessions.sh
+./cleanup-whatsapp-accounts.sh
 
 # 🔄 Restart all services
 ./restart-whatsapp-services.sh
@@ -202,10 +202,10 @@ php artisan tinker --execute="echo config('whatsapp.node_api_secret');"
 2. `routes/api.php` - Moved webhook routes
 3. `app/Http/Middleware/VerifyWhatsAppHmac.php` - Added debug logging
 4. `app/Services/Adapters/WebJSAdapter.php` - Increased timeout
-5. `app/Http/Controllers/User/WhatsAppSessionController.php` - Updated message
+5. `app/Http/Controllers/User/WhatsAppAccountController.php` - Updated message
 
 ### Scripts Created
-1. `cleanup-whatsapp-sessions.sh` - Clean stuck sessions
+1. `cleanup-whatsapp-accounts.sh` - Clean stuck sessions
 2. `restart-whatsapp-services.sh` - Restart all services
 3. `test-whatsapp-qr-fix.sh` - Comprehensive testing
 
@@ -226,7 +226,7 @@ php artisan tinker --execute="echo config('whatsapp.node_api_secret');"
 ### 🔄 TODO:
 - [ ] Run: `./restart-whatsapp-services.sh`
 - [ ] Run: `./test-whatsapp-qr-fix.sh`
-- [ ] Test via browser at /settings/whatsapp-sessions
+- [ ] Test via browser at /settings/whatsapp-accounts
 - [ ] Verify QR code appears
 - [ ] Confirm no error popups
 
@@ -237,7 +237,7 @@ php artisan tinker --execute="echo config('whatsapp.node_api_secret');"
 **What you should see:**
 
 1. **HTTP Request (7 seconds):**
-   - POST /settings/whatsapp-sessions
+   - POST /settings/whatsapp-accounts
    - Response: `{"success":true,"qr_code":null}`
 
 2. **WebSocket Event (~15 seconds):**

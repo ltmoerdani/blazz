@@ -23,7 +23,7 @@ Setelah melakukan riset mendalam terhadap:
 **Kesimpulan:**
 - **Planning:** 🟢 **EXCELLENT** - Dokumentasi sangat detail dan comprehensive
 - **Architecture Readiness:** 🟡 **GOOD WITH GAPS** - Arsitektur service layer siap, tapi ada critical gaps
-- **Database Schema:** 🔴 **CRITICAL GAP** - Tabel `whatsapp_sessions` **TIDAK ADA** di schema existing
+- **Database Schema:** 🔴 **CRITICAL GAP** - Tabel `whatsapp_accounts` **TIDAK ADA** di schema existing
 - **Risk Assessment:** 🟡 **MEDIUM-HIGH** - Ada 8 critical issues dari WhatsApp Web.js yang harus dimitigasi
 
 ---
@@ -56,24 +56,24 @@ Setelah melakukan riset mendalam terhadap:
 
 ## 🚨 CRITICAL GAPS YANG DITEMUKAN
 
-### GAP #1: Database Schema - Tabel `whatsapp_sessions` TIDAK ADA ❌
+### GAP #1: Database Schema - Tabel `whatsapp_accounts` TIDAK ADA ❌
 
 **Severity:** 🔴 **P0 CRITICAL - BLOCKING**
 
 **Problem:**
-Dokumentasi requirements.md (FR-1.1, FR-1.2) dan design.md menyebutkan tabel `whatsapp_sessions` untuk multi-number management, TETAPI tabel ini **TIDAK DITEMUKAN** di `database/schema/mysql-schema.sql`.
+Dokumentasi requirements.md (FR-1.1, FR-1.2) dan design.md menyebutkan tabel `whatsapp_accounts` untuk multi-number management, TETAPI tabel ini **TIDAK DITEMUKAN** di `database/schema/mysql-schema.sql`.
 
 **Evidence:**
 ```bash
 # Hasil grep search di database/schema/*.sql
-No matches found for: whatsapp_sessions
+No matches found for: whatsapp_accounts
 No matches found for: provider_type
 No matches found for: session_data
 ```
 
 **Expected Table Structure (dari requirements.md):**
 ```sql
-CREATE TABLE `whatsapp_sessions` (
+CREATE TABLE `whatsapp_accounts` (
   `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `uuid` CHAR(50) NOT NULL UNIQUE,
   `workspace_id` BIGINT UNSIGNED NOT NULL,
@@ -121,9 +121,9 @@ WhatsApp credentials currently stored di `workspaces.metadata` JSON:
 - ❌ Campaign distribution across multiple numbers tidak possible
 
 **Action Required:**
-1. **URGENT:** Create migration untuk `whatsapp_sessions` table
-2. Update `chats` table: Add `whatsapp_session_id` foreign key
-3. Update `campaign_logs` table: Add `whatsapp_session_id` untuk track distribution
+1. **URGENT:** Create migration untuk `whatsapp_accounts` table
+2. Update `chats` table: Add `whatsapp_account_id` foreign key
+3. Update `campaign_logs` table: Add `whatsapp_account_id` untuk track distribution
 4. Add junction table `contact_sessions` untuk track contact interactions per number
 
 ---
@@ -133,7 +133,7 @@ WhatsApp credentials currently stored di `workspaces.metadata` JSON:
 **Severity:** 🔴 **P0 CRITICAL**
 
 **Problem:**
-Planning document requirements.md FR-2.2 menyebutkan "Reply from Same Number" feature, yang membutuhkan `chats.whatsapp_session_id`. Field ini **TIDAK ADA** di schema existing.
+Planning document requirements.md FR-2.2 menyebutkan "Reply from Same Number" feature, yang membutuhkan `chats.whatsapp_account_id`. Field ini **TIDAK ADA** di schema existing.
 
 **Current `chats` Table:**
 ```sql
@@ -144,7 +144,7 @@ CREATE TABLE `chats` (
   `wam_id` varchar(128) DEFAULT NULL,  -- WhatsApp Message ID
   `contact_id` int NOT NULL,
   `user_id` bigint unsigned DEFAULT NULL,
-  -- ❌ MISSING: whatsapp_session_id
+  -- ❌ MISSING: whatsapp_account_id
   `type` enum('inbound','outbound') DEFAULT NULL,
   `metadata` text NOT NULL,
   ...
@@ -154,9 +154,9 @@ CREATE TABLE `chats` (
 **Required Schema Update:**
 ```sql
 ALTER TABLE `chats` 
-ADD COLUMN `whatsapp_session_id` BIGINT UNSIGNED NULL AFTER `workspace_id`,
-ADD FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
-ADD INDEX idx_session_chats (whatsapp_session_id, created_at);
+ADD COLUMN `whatsapp_account_id` BIGINT UNSIGNED NULL AFTER `workspace_id`,
+ADD FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE SET NULL,
+ADD INDEX idx_session_chats (whatsapp_account_id, created_at);
 ```
 
 **Impact:**
@@ -182,7 +182,7 @@ CREATE TABLE `campaign_logs` (
   `campaign_id` int NOT NULL,
   `contact_id` int NOT NULL,
   `chat_id` int DEFAULT NULL,
-  -- ❌ MISSING: whatsapp_session_id
+  -- ❌ MISSING: whatsapp_account_id
   `metadata` text DEFAULT NULL,
   `status` enum('pending','success','failed','ongoing') NOT NULL,
   ...
@@ -192,9 +192,9 @@ CREATE TABLE `campaign_logs` (
 **Required Update:**
 ```sql
 ALTER TABLE `campaign_logs`
-ADD COLUMN `whatsapp_session_id` BIGINT UNSIGNED NULL AFTER `contact_id`,
-ADD FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
-ADD INDEX idx_campaign_session (campaign_id, whatsapp_session_id);
+ADD COLUMN `whatsapp_account_id` BIGINT UNSIGNED NULL AFTER `contact_id`,
+ADD FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE SET NULL,
+ADD INDEX idx_campaign_session (campaign_id, whatsapp_account_id);
 ```
 
 ---
@@ -211,18 +211,18 @@ requirements.md FR-4.2 describe "Contact Session Association" untuk track all Wh
 CREATE TABLE `contact_sessions` (
   `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `contact_id` BIGINT UNSIGNED NOT NULL,
-  `whatsapp_session_id` BIGINT UNSIGNED NOT NULL,
+  `whatsapp_account_id` BIGINT UNSIGNED NOT NULL,
   `first_interaction_at` TIMESTAMP,
   `last_interaction_at` TIMESTAMP,
   `total_messages` INT DEFAULT 0,
   `created_at` TIMESTAMP,
   `updated_at` TIMESTAMP,
   
-  UNIQUE KEY unique_contact_session (contact_id, whatsapp_session_id),
+  UNIQUE KEY unique_contact_session (contact_id, whatsapp_account_id),
   FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE,
-  FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+  FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE CASCADE,
   INDEX idx_contact_interactions (contact_id, last_interaction_at),
-  INDEX idx_session_contacts (whatsapp_session_id, last_interaction_at)
+  INDEX idx_session_contacts (whatsapp_account_id, last_interaction_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -328,17 +328,17 @@ client.on('ready', () => {
 // app/Http/Controllers/Api/WhatsAppEventController.php
 public function handleSessionDisconnected(Request $request)
 {
-    $session = WhatsAppSession::where('session_id', $request->session_id)->first();
+    $session = WhatsAppAccount::where('session_id', $request->session_id)->first();
     
     if ($session) {
         $session->status = 'disconnected';
         $session->save();
         
         // Attempt auto-reconnect (will use LocalAuth - no QR needed)
-        dispatch(new ReconnectWhatsAppSessionJob($session->id))->delay(now()->addSeconds(10));
+        dispatch(new ReconnectWhatsAppAccountJob($session->id))->delay(now()->addSeconds(10));
         
         // Notify workspace admins
-        event(new WhatsAppSessionDisconnectedEvent($session));
+        event(new WhatsAppAccountDisconnectedEvent($session));
     }
 }
 ```
@@ -503,7 +503,7 @@ class SessionManager {
     
     // Graceful shutdown handler
     async shutdownAll() {
-        console.log('Shutting down all WhatsApp sessions...');
+        console.log('Shutting down all WhatsApp accounts...');
         const destroyPromises = [];
         
         for (const [sessionId, client] of this.sessions) {
@@ -1078,7 +1078,7 @@ class SmartDistributionService
         $sessions = $this->getHealthySessions($campaign->workspace_id);
         
         if ($sessions->isEmpty()) {
-            throw new Exception('No healthy WhatsApp sessions available');
+            throw new Exception('No healthy WhatsApp accounts available');
         }
         
         $recipients = $campaign->recipients;
@@ -1110,7 +1110,7 @@ class SmartDistributionService
             CampaignLog::where('campaign_id', $campaign->id)
                 ->where('contact_id', $recipient->id)
                 ->update([
-                    'whatsapp_session_id' => $bestSession,
+                    'whatsapp_account_id' => $bestSession,
                     'scheduled_at' => $this->calculateSendTime($index, $bestSession)
                 ]);
         }
@@ -1118,7 +1118,7 @@ class SmartDistributionService
         return $distribution;
     }
     
-    private function calculateSessionCapacity(WhatsAppSession $session)
+    private function calculateSessionCapacity(WhatsAppAccount $session)
     {
         // New sessions (< 7 days old) → conservative limit
         if ($session->created_at->diffInDays(now()) < 7) {
@@ -1142,7 +1142,7 @@ class SmartDistributionService
         $totalHours = $endHour - $startHour; // 16 hours
         
         // Calculate interval per message
-        $totalMessagesForSession = CampaignLog::where('whatsapp_session_id', $sessionId)
+        $totalMessagesForSession = CampaignLog::where('whatsapp_account_id', $sessionId)
             ->where('status', 'pending')
             ->count();
         
@@ -1167,18 +1167,18 @@ class SmartDistributionService
 **Priority:** 🔴 P0 BLOCKING
 
 **Tasks:**
-1. Create `whatsapp_sessions` table migration
-2. Alter `chats` table: Add `whatsapp_session_id` FK
-3. Alter `campaign_logs` table: Add `whatsapp_session_id` FK
+1. Create `whatsapp_accounts` table migration
+2. Alter `chats` table: Add `whatsapp_account_id` FK
+3. Alter `campaign_logs` table: Add `whatsapp_account_id` FK
 4. Create `contact_sessions` junction table
-5. Migrate existing WhatsApp credentials dari `workspaces.metadata` ke `whatsapp_sessions`
+5. Migrate existing WhatsApp credentials dari `workspaces.metadata` ke `whatsapp_accounts`
 
 **Migration File:**
 ```php
-// database/migrations/2025_10_13_000000_create_whatsapp_sessions_table.php
+// database/migrations/2025_10_13_000000_create_whatsapp_accounts_table.php
 public function up()
 {
-    Schema::create('whatsapp_sessions', function (Blueprint $table) {
+    Schema::create('whatsapp_accounts', function (Blueprint $table) {
         $table->id();
         $table->char('uuid', 50)->unique();
         $table->foreignId('workspace_id')->constrained()->onDelete('cascade');
@@ -1204,31 +1204,31 @@ public function up()
     
     // Alter chats table
     Schema::table('chats', function (Blueprint $table) {
-        $table->foreignId('whatsapp_session_id')->nullable()->after('workspace_id')
-            ->constrained('whatsapp_sessions')->onDelete('set null');
-        $table->index(['whatsapp_session_id', 'created_at']);
+        $table->foreignId('whatsapp_account_id')->nullable()->after('workspace_id')
+            ->constrained('whatsapp_accounts')->onDelete('set null');
+        $table->index(['whatsapp_account_id', 'created_at']);
     });
     
     // Alter campaign_logs table
     Schema::table('campaign_logs', function (Blueprint $table) {
-        $table->foreignId('whatsapp_session_id')->nullable()->after('contact_id')
-            ->constrained('whatsapp_sessions')->onDelete('set null');
-        $table->index(['campaign_id', 'whatsapp_session_id']);
+        $table->foreignId('whatsapp_account_id')->nullable()->after('contact_id')
+            ->constrained('whatsapp_accounts')->onDelete('set null');
+        $table->index(['campaign_id', 'whatsapp_account_id']);
     });
     
     // Create contact_sessions junction table
     Schema::create('contact_sessions', function (Blueprint $table) {
         $table->id();
         $table->foreignId('contact_id')->constrained()->onDelete('cascade');
-        $table->foreignId('whatsapp_session_id')->constrained('whatsapp_sessions')->onDelete('cascade');
+        $table->foreignId('whatsapp_account_id')->constrained('whatsapp_accounts')->onDelete('cascade');
         $table->timestamp('first_interaction_at')->nullable();
         $table->timestamp('last_interaction_at')->nullable();
         $table->integer('total_messages')->default(0);
         $table->timestamps();
         
-        $table->unique(['contact_id', 'whatsapp_session_id']);
+        $table->unique(['contact_id', 'whatsapp_account_id']);
         $table->index(['contact_id', 'last_interaction_at']);
-        $table->index(['whatsapp_session_id', 'last_interaction_at']);
+        $table->index(['whatsapp_account_id', 'last_interaction_at']);
     });
 }
 ```
@@ -1238,14 +1238,14 @@ public function up()
 // database/migrations/2025_10_13_000001_migrate_existing_whatsapp_credentials.php
 public function up()
 {
-    // Migrate existing Meta API credentials to whatsapp_sessions
+    // Migrate existing Meta API credentials to whatsapp_accounts
     $workspaces = DB::table('workspaces')->whereNotNull('metadata')->get();
     
     foreach ($workspaces as $workspace) {
         $metadata = json_decode($workspace->metadata, true);
         
         if (isset($metadata['whatsapp_phone_number_id'])) {
-            DB::table('whatsapp_sessions')->insert([
+            DB::table('whatsapp_accounts')->insert([
                 'uuid' => Str::uuid(),
                 'workspace_id' => $workspace->id,
                 'session_id' => 'meta-' . $metadata['whatsapp_phone_number_id'],
@@ -1317,7 +1317,7 @@ whatsapp-service/
 **Priority:** 🟡 P1 HIGH
 
 **Key Implementations:**
-1. WhatsAppSessionController (CRUD operations)
+1. WhatsAppAccountController (CRUD operations)
 2. WhatsAppWebJSProvider (implements WhatsAppAdapterInterface)
 3. ProviderSelector service (auto-select meta vs webjs)
 4. SmartDistributionService (campaign multi-number distribution)
@@ -1325,8 +1325,8 @@ whatsapp-service/
 
 **Controllers:**
 ```php
-// app/Http/Controllers/User/WhatsAppSessionController.php
-class WhatsAppSessionController extends Controller
+// app/Http/Controllers/User/WhatsAppAccountController.php
+class WhatsAppAccountController extends Controller
 {
     public function index() // List all sessions
     public function store(Request $request) // Create new session (generate QR)
@@ -1397,10 +1397,10 @@ class WhatsAppWebhookController extends Controller
 
 ### IMMEDIATE (Week 1) - BLOCKING ISSUES
 
-1. **CREATE DATABASE MIGRATION** untuk `whatsapp_sessions` table
-2. **ALTER EXISTING TABLES** (`chats`, `campaign_logs`) dengan `whatsapp_session_id` FK
+1. **CREATE DATABASE MIGRATION** untuk `whatsapp_accounts` table
+2. **ALTER EXISTING TABLES** (`chats`, `campaign_logs`) dengan `whatsapp_account_id` FK
 3. **CREATE JUNCTION TABLE** `contact_sessions`
-4. **MIGRATE EXISTING DATA** dari `workspaces.metadata` ke `whatsapp_sessions`
+4. **MIGRATE EXISTING DATA** dari `workspaces.metadata` ke `whatsapp_accounts`
 5. **REVIEW AND UPDATE** tasks.md dengan database migration tasks
 
 ### SHORT TERM (Week 2-3) - CRITICAL FUNCTIONALITY
@@ -1440,8 +1440,8 @@ class WhatsAppWebhookController extends Controller
 - ✅ Clear implementation roadmap
 
 **Critical Gaps:**
-- 🔴 Database schema **TIDAK SINKRON** dengan planning (tabel `whatsapp_sessions` missing)
-- 🔴 Foreign key relationships **BELUM ADA** (`chats.whatsapp_session_id`, `campaign_logs.whatsapp_session_id`)
+- 🔴 Database schema **TIDAK SINKRON** dengan planning (tabel `whatsapp_accounts` missing)
+- 🔴 Foreign key relationships **BELUM ADA** (`chats.whatsapp_account_id`, `campaign_logs.whatsapp_account_id`)
 - 🟡 8 critical WhatsApp Web.js issues **PERLU MITIGASI** sebelum production
 
 **Verdict:**

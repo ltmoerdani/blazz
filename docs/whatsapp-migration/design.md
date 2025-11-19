@@ -326,7 +326,7 @@ public function migrateMessageId($oldId, $newId) {
 
 ### **RISK 2: Authentication Complexity**
 **Risk Level:** HIGH (Complete flow redesign required)
-**Impact:** User experience, session management, multi-workspace support
+**Impact:** User experience, account management, multi-workspace support
 
 **Mitigation Strategy:**
 1. **QR Code Integration**: Vue component for QR display and scanning
@@ -430,7 +430,7 @@ public function convertListToText($listData) {
 
 ### **RISK 8: Multi-Agent Support Complexity**
 **Risk Level:** MEDIUM (Team collaboration features)
-**Impact:** Multiple user accounts, session management, message routing
+**Impact:** Multiple user accounts, account management, message routing
 
 **Mitigation Strategy:**
 1. **Instance Isolation**: Separate whatsapp-web.js clients per account
@@ -832,7 +832,7 @@ class MultiAgentService
 **Session Persistence per Account:**
 ```php
 // Database structure for multi-agent
-Schema::create('whatsapp_sessions', function (Blueprint $table) {
+Schema::create('whatsapp_accounts', function (Blueprint $table) {
     $table->id();
     $table->unsignedBigInteger('organization_id');
     $table->string('phone_number');
@@ -957,11 +957,11 @@ public function sendProductCatalog($contactId, $products) {
 **Features:**
 - QR code display
 - Authentication status
-- Session management UI
+- Account management UI
 
 #### **7. WhatsappSettings.vue (Modified)**
 **Location:** `resources/js/components/WhatsappSettings.vue`
-**Changes:** Add session management controls
+**Changes:** Add account management controls
 **New Features:**
 - Session status display
 - Reconnect functionality

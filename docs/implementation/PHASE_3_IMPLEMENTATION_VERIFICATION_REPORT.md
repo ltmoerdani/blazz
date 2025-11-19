@@ -58,7 +58,7 @@ Laporan ini memverifikasi implementasi Phase 3: Frontend Implementation untuk Hy
 - ✅ **CampaignForm integration**: Implemented (lines 16-23 in Create.vue)
   - All required props passed to CampaignForm
   - Campaign types and provider options passed
-  - WhatsApp sessions data passed
+  - WhatsApp accounts data passed
 
 - ✅ **Route handling**: Verified
   - Proper route configuration in web.php (line 155)

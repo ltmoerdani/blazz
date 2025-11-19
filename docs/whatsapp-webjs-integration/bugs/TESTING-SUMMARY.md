@@ -73,14 +73,14 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
 ### Step 0: Cleanup Stuck Sessions (REQUIRED!)
 
 ```bash
-./cleanup-whatsapp-sessions.sh
+./cleanup-whatsapp-accounts.sh
 ```
 
 Script ini akan:
 1. Show current sessions in database
 2. Stop Node.js service
 3. Delete Node.js session files (.wwebjs_auth/*)
-4. Delete all database records (whatsapp_sessions table)
+4. Delete all database records (whatsapp_accounts table)
 5. Verify cleanup successful
 
 **⚠️ IMPORTANT:** Jalankan ini dulu sebelum testing untuk menghapus sessions yang stuck!
@@ -112,7 +112,7 @@ Script ini akan mengecek:
 
 ### Step 3: Test via Browser
 
-1. Buka: http://127.0.0.1:8000/settings/whatsapp-sessions
+1. Buka: http://127.0.0.1:8000/settings/whatsapp-accounts
 2. Klik tombol **"Add WhatsApp Number"**
 3. Tunggu ~7-15 detik
 4. **QR code harus muncul!** ✅
@@ -225,7 +225,7 @@ php artisan tinker --execute="echo config('whatsapp.node_api_secret');"
 
 ```bash
 # Cleanup stuck sessions (run first!)
-./cleanup-whatsapp-sessions.sh
+./cleanup-whatsapp-accounts.sh
 
 # Restart everything
 ./restart-whatsapp-services.sh
@@ -255,7 +255,7 @@ php artisan tinker --execute="echo config('whatsapp.node_api_secret');"
 
 Setelah testing, pastikan:
 
-- [x] Script `cleanup-whatsapp-sessions.sh` berhasil (7 sessions deleted)
+- [x] Script `cleanup-whatsapp-accounts.sh` berhasil (7 sessions deleted)
 - [ ] Script `restart-whatsapp-services.sh` berhasil tanpa error
 - [ ] Script `test-whatsapp-qr-fix.sh` semua checks ✅ passed
 - [ ] Browser: Klik "Add WhatsApp Number" → QR code muncul
@@ -267,5 +267,5 @@ Setelah testing, pastikan:
 ---
 
 **Status:** ✅ **SIAP TESTING**  
-**Next Action:** Run `./cleanup-whatsapp-sessions.sh` → `./restart-whatsapp-services.sh` → test via browser
+**Next Action:** Run `./cleanup-whatsapp-accounts.sh` → `./restart-whatsapp-services.sh` → test via browser
 

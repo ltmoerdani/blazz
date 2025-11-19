@@ -20,7 +20,7 @@
 
 **Acceptance Criteria:**
 - QR code generation and display in settings UI
-- Automatic session management and reconnection
+- Automatic account management and reconnection
 - Session persistence across server restarts
 - Clear error messages for authentication failures
 - Mobile-responsive QR code display
@@ -182,7 +182,7 @@
 ### **Dependencies:**
 - **whatsapp-web.js library** (v1.23.0 or compatible)
 - **WebSocket server** (Node.js or PHP-based)
-- **Session storage** (Redis/File system for WhatsApp sessions)
+- **Session storage** (Redis/File system for WhatsApp accounts)
 - **QR code generation library** (existing or new)
 - **Real-time event handling** (WebSocket + Pusher integration)
 
@@ -225,7 +225,7 @@
 - **Queue System**: Background processing for campaigns
 - **Cache System**: Session and configuration caching
 - **WebSocket Service**: Real-time message delivery (NEW)
-- **Session Manager**: WhatsApp session persistence (NEW)
+- **Session Manager**: WhatsApp account persistence (NEW)
 
 ### **Frontend Dependencies (Updated with Alternatives):**
 **Response Formats (Existing Patterns - VERIFIED):**
@@ -269,7 +269,7 @@
 **Server Requirements:**
 - **Node.js Runtime**: For whatsapp-web.js (if separate service)
 - **WebSocket Support**: For real-time message delivery
-- **Session Storage**: Redis/File system for WhatsApp sessions
+- **Session Storage**: Redis/File system for WhatsApp accounts
 - **Background Processing**: Queue system for message sending
 
 **Network Requirements:**
@@ -578,7 +578,7 @@
 **Current Implementation (Verified):**
 - **File:** `app/Http/Controllers/User/InstanceController.php` - Basic instance management
 - **Routes:** `/instances` endpoint exists but implementation incomplete
-- **Database:** No dedicated instance/session management tables
+- **Database:** No dedicated instance/account management tables
 
 **Impact Assessment:**
 - **Business Impact:** High - Multi-user businesses need separate accounts

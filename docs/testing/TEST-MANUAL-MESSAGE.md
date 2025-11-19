@@ -104,7 +104,7 @@ Check these in order:
 cd whatsapp-service
 tail -f logs/whatsapp-service.log | grep "session"
 
-# Look for: "WhatsApp session ready"
+# Look for: "WhatsApp account ready"
 ```
 
 ### Issue: "Webhook timeout"

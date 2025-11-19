@@ -106,7 +106,7 @@ const form = useForm({
   template_mode: 'direct', // 'template' | 'direct'
   template_id: null,
   contact_group_id: '',
-  whatsapp_session_id: null,
+  whatsapp_account_id: null,
   skip_schedule: false,
   scheduled_at: null,
 
@@ -454,7 +454,7 @@ use App\Http\Requests\StoreHybridCampaignRequest;
 use App\Services\HybridCampaignService;
 use App\Models\Template;
 use App\Models\ContactGroup;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\workspace;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -486,7 +486,7 @@ class HybridCampaignController extends Controller
             ->select(['id', 'uuid', 'name'])
             ->get();
 
-        $whatsappSessions = WhatsAppSession::forWorkspace($workspaceId)
+        $whatsappAccounts = WhatsAppAccount::forWorkspace($workspaceId)
             ->connected()
             ->where('is_active', true)
             ->select(['id', 'uuid', 'phone_number', 'provider_type', 'health_score'])
@@ -497,7 +497,7 @@ class HybridCampaignController extends Controller
         return Inertia::render('User/Campaigns/CreateHybrid', [
             'templates' => $templates,
             'contactGroups' => $contactGroups,
-            'whatsappSessions' => $whatsappSessions,
+            'whatsappAccounts' => $whatsappAccounts,
             'settings' => $workspace,
             'template_categories' => [
                 ['value' => 'MARKETING', 'label' => 'Marketing'],
@@ -623,7 +623,7 @@ class HybridCampaignService
             'template_mode' => 'template',
             'template_id' => $template->id,
             'contact_group_id' => $contactGroup->id,
-            'whatsapp_session_id' => $data['whatsapp_session_id'] ?? null,
+            'whatsapp_account_id' => $data['whatsapp_account_id'] ?? null,
             'provider_preference' => $data['provider_preference'] ?? 'auto',
             'status' => 'scheduled',
             'scheduled_at' => $scheduledAt,
@@ -636,7 +636,7 @@ class HybridCampaignService
 
         return (object) [
             'success' => true,
-            'data' => $campaign->fresh(['template', 'contactGroup', 'whatsappSession']),
+            'data' => $campaign->fresh(['template', 'contactGroup', 'whatsappAccount']),
             'message' => 'Template-based campaign created successfully!',
         ];
     }
@@ -659,7 +659,7 @@ class HybridCampaignService
             'template_id' => null,
             'contact_group_id' => $contactGroup->id,
             'direct_template_data' => $templateStructure,
-            'whatsapp_session_id' => $data['whatsapp_session_id'] ?? null,
+            'whatsapp_account_id' => $data['whatsapp_account_id'] ?? null,
             'provider_preference' => $data['provider_preference'] ?? 'auto',
             'status' => 'scheduled',
             'scheduled_at' => $scheduledAt,
@@ -673,7 +673,7 @@ class HybridCampaignService
 
         return (object) [
             'success' => true,
-            'data' => $campaign->fresh(['contactGroup', 'whatsappSession']),
+            'data' => $campaign->fresh(['contactGroup', 'whatsappAccount']),
             'message' => 'Direct campaign created successfully!',
         ];
     }
@@ -814,7 +814,7 @@ class StoreHybridCampaignRequest extends FormRequest
             'name' => 'required|string|max:255',
             'template_mode' => 'required|in:template,direct',
             'contact_group_id' => 'required|string|exists:contact_groups,uuid',
-            'whatsapp_session_id' => 'nullable|string|exists:whatsapp_sessions,uuid',
+            'whatsapp_account_id' => 'nullable|string|exists:whatsapp_accounts,uuid',
             'provider_preference' => 'nullable|in:webjs,meta,auto',
             'skip_schedule' => 'boolean',
             'scheduled_at' => 'required_unless:skip_schedule,true|date|after:now',

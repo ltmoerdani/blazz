@@ -47,8 +47,10 @@ class SecurityHeadersMiddleware
         // Permissions-Policy: Control browser features
         $response->headers->set('Permissions-Policy', $this->getPermissionsPolicy());
         
-        // Content Security Policy: Comprehensive XSS protection
-        $response->headers->set('Content-Security-Policy', $this->getContentSecurityPolicy($request));
+        // Content Security Policy: Only enable in production (disable for development due to Vite IPv6 issues)
+        if (app()->environment('production')) {
+            $response->headers->set('Content-Security-Policy', $this->getContentSecurityPolicy($request));
+        }
         
         // Strict-Transport-Security: Force HTTPS (only if HTTPS)
         if ($request->isSecure()) {
@@ -79,12 +81,35 @@ class SecurityHeadersMiddleware
         $baseUrl = $request->getSchemeAndHttpHost();
         $isProduction = app()->environment('production');
         
+        // Development: Use relaxed CSP to support Vite HMR on any localhost interface (IPv4/IPv6)
+        if (!$isProduction) {
+            $csp = [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net unpkg.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
+                "style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.bunny.net cdn.jsdelivr.net http://localhost:* http://127.0.0.1:*",
+                "font-src 'self' fonts.gstatic.com fonts.bunny.net data:",
+                "img-src 'self' data: blob: *",
+                "media-src 'self' blob:",
+                "object-src 'none'",
+                "frame-src 'none'",
+                "worker-src 'self' blob:",
+                "child-src 'self'",
+                "form-action 'self'",
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "connect-src 'self' {$baseUrl} ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:* ws: wss: http: https:",
+            ];
+            
+            return implode('; ', $csp);
+        }
+        
+        // Production: Strict CSP
         $csp = [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net unpkg.com",
             "style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.bunny.net cdn.jsdelivr.net",
             "font-src 'self' fonts.gstatic.com fonts.bunny.net data:",
-            "img-src 'self' data: blob: *", // Allow images from any source untuk user uploads
+            "img-src 'self' data: blob: *",
             "media-src 'self' blob:",
             "object-src 'none'",
             "frame-src 'none'",
@@ -93,20 +118,11 @@ class SecurityHeadersMiddleware
             "form-action 'self'",
             "frame-ancestors 'none'",
             "base-uri 'self'",
+            "connect-src 'self' {$baseUrl}",
         ];
         
-        // Add connect-src untuk API endpoints
-        $connectSrc = "'self' " . $baseUrl;
-        
-        // Allow external APIs dalam development
-        if (!$isProduction) {
-            $connectSrc .= " ws: wss: http: https:";
-        }
-        
-        $csp[] = "connect-src {$connectSrc}";
-        
         // Add upgrade-insecure-requests dalam production
-        if ($isProduction && $request->isSecure()) {
+        if ($request->isSecure()) {
             $csp[] = "upgrade-insecure-requests";
         }
         

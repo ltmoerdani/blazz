@@ -93,17 +93,20 @@ class ThrottleWhatsAppSync
         // Try to get from route parameter first
         $sessionId = $request->route('sessionId');
 
-        // If not in route, try to get from request payload
+        // If not in route, try to get from request payload (main session_id field)
         if (!$sessionId) {
             $sessionId = $request->input('session_id');
         }
 
-        // For batch sync endpoint, use the first chat's session_id
-        if (!$sessionId && $request->has('chats') && is_array($request->input('chats'))) {
-            $chats = $request->input('chats');
-            if (!empty($chats) && isset($chats[0]['session_id'])) {
-                $sessionId = $chats[0]['session_id'];
-            }
+        // For batch sync endpoint, session_id should be in the root payload
+        // The WhatsApp service sends: { session_id: 123, workspace_id: 1, chats: [...] }
+        if (!$sessionId) {
+            Log::warning('WhatsApp sync rate limit: Missing session ID in request payload', [
+                'ip' => $request->ip(),
+                'path' => $request->path(),
+                'request_data' => $request->only(['session_id', 'workspace_id']),
+                'all_keys' => array_keys($request->all())
+            ]);
         }
 
         return $sessionId;

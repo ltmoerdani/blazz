@@ -97,7 +97,7 @@ whatsapp-service/
 
 ### Key Components
 
-- **WhatsAppSessionManager**: Manages WhatsApp client instances
+- **WhatsAppAccountManager**: Manages WhatsApp client instances
 - **Event Handlers**: QR code, authentication, messages, disconnections
 - **Laravel Integration**: Secure communication with Laravel backend
 - **Health Monitoring**: Session and system health tracking

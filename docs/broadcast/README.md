@@ -41,7 +41,7 @@ The WhatsApp Broadcast System is a **hybrid messaging platform** that enables bu
 - ✅ **Contact Group Targeting** - Specific groups or all contacts
 - ✅ **Real-time Analytics** - Delivery status, read receipts, failure tracking
 - ✅ **Retry Logic** - Configurable retry intervals and max attempts
-- ✅ **Session Management** - Multiple WhatsApp sessions with health monitoring
+- ✅ **Session Management** - Multiple WhatsApp accounts with health monitoring
 
 ### **Business Value**
 
@@ -231,7 +231,7 @@ The WhatsApp Broadcast System is a **hybrid messaging platform** that enables bu
 
 // Analytics & Monitoring
 ├── CampaignAnalyticsService // Performance metrics
-├── SessionHealthService     // WhatsApp session monitoring
+├── SessionHealthService     // WhatsApp account monitoring
 └── WebhookService          // Status update processing
 ```
 
@@ -261,7 +261,7 @@ The WhatsApp Broadcast System is a **hybrid messaging platform** that enables bu
 └── ContactGroup          // Contact segmentation
 
 // WhatsApp Integration
-├── WhatsAppSession        // WhatsApp connection sessions
+├── WhatsAppAccount        // WhatsApp connection sessions
 ├── Chat                  // Individual messages
 ├── ChatMedia             // Message attachments
 └── ChatLog               // Message history
@@ -293,7 +293,7 @@ CREATE TABLE campaigns (
 
     -- Hybrid Campaign Support
     direct_template_data JSON NULL,
-    whatsapp_session_id BIGINT UNSIGNED NULL,
+    whatsapp_account_id BIGINT UNSIGNED NULL,
     provider_preference ENUM('webjs', 'meta', 'auto') DEFAULT 'auto',
 
     -- Status & Scheduling
@@ -312,13 +312,13 @@ CREATE TABLE campaigns (
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
     FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL,
     FOREIGN KEY (contact_group_id) REFERENCES contact_groups(id) ON DELETE SET NULL,
-    FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
+    FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE SET NULL,
 
     -- Indexes
     INDEX idx_campaign_workspace_status (workspace_id, status),
     INDEX idx_campaign_template_mode (template_mode),
     INDEX idx_campaign_scheduled (scheduled_at, status),
-    INDEX idx_campaign_session (whatsapp_session_id, status)
+    INDEX idx_campaign_session (whatsapp_account_id, status)
 );
 ```
 
@@ -331,7 +331,7 @@ CREATE TABLE campaign_logs (
     campaign_id BIGINT UNSIGNED NOT NULL,
     contact_id BIGINT UNSIGNED NOT NULL,
     chat_id BIGINT UNSIGNED NULL,
-    whatsapp_session_id BIGINT UNSIGNED NULL,
+    whatsapp_account_id BIGINT UNSIGNED NULL,
 
     -- Status & Processing
     status ENUM('pending', 'ongoing', 'success', 'failed') DEFAULT 'pending',
@@ -349,12 +349,12 @@ CREATE TABLE campaign_logs (
     FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE,
     FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE SET NULL,
-    FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE SET NULL,
+    FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE SET NULL,
 
     -- Indexes
     INDEX idx_log_campaign_status (campaign_id, status),
     INDEX idx_log_contact_status (contact_id, status),
-    INDEX idx_log_session_status (whatsapp_session_id, status),
+    INDEX idx_log_session_status (whatsapp_account_id, status),
     INDEX idx_log_retry (retry_count, status)
 );
 ```
@@ -380,9 +380,9 @@ CREATE TABLE campaign_log_retries (
 
 ### **WhatsApp Integration Tables**
 
-#### **whatsapp_sessions**
+#### **whatsapp_accounts**
 ```sql
-CREATE TABLE whatsapp_sessions (
+CREATE TABLE whatsapp_accounts (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     uuid CHAR(36) UNIQUE NOT NULL,
     workspace_id BIGINT UNSIGNED NOT NULL,
@@ -520,7 +520,7 @@ Request Body:
   "name": "Flash Sale Campaign",
   "template_mode": "direct",
   "contact_group_id": "contact-group-uuid",
-  "whatsapp_session_id": "session-uuid", // optional
+  "whatsapp_account_id": "session-uuid", // optional
   "provider_preference": "webjs", // optional
   "skip_schedule": false,
   "scheduled_at": "2025-01-14T15:30:00Z",
@@ -615,7 +615,7 @@ Response:
       "total_contacts": 1500
     },
 
-    "whatsapp_session": {
+    "whatsapp_account": {
       "phone_number": "+62812345678",
       "provider_type": "webjs",
       "health_score": 95
@@ -741,7 +741,7 @@ Response:
 ✅ **Full Control** - Direct WhatsApp connection
 
 #### **Limitations**
-❌ **Session Stability** - Requires active session management
+❌ **Session Stability** - Requires active account management
 ❌ **Scalability** - Limited by session capacity
 ❌ **Rate Limiting** - WhatsApp Web app limits apply
 ❌ **Media Size** - Smaller file size limits
@@ -772,7 +772,7 @@ $healthScore = $session->calculateHealthScore([
 ]);
 
 // Session Selection
-$optimalSession = WhatsAppSession::forWorkspace($workspaceId)
+$optimalSession = WhatsAppAccount::forWorkspace($workspaceId)
     ->connected()
     ->where('health_score', '>=', 70)
     ->orderByDesc('is_primary')
@@ -838,7 +838,7 @@ class WhatsAppProviderSelector
 
     private function selectOptimalWebJSSession(Campaign $campaign): array
     {
-        $session = WhatsAppSession::forWorkspace($campaign->workspace_id)
+        $session = WhatsAppAccount::forWorkspace($campaign->workspace_id)
             ->connected()
             ->where('is_active', true)
             ->where('health_score', '>=', 70)
@@ -874,8 +874,8 @@ class WhatsAppProviderSelector
 # Run migrations
 php artisan migrate
 
-# Seed WhatsApp session configuration
-php artisan db:seed --class=WhatsAppSessionSeeder
+# Seed WhatsApp account configuration
+php artisan db:seed --class=WhatsAppAccountSeeder
 ```
 
 #### **2. Configure WhatsApp Providers**
@@ -1003,7 +1003,7 @@ $campaignMetadata = [
 // Custom health check
 class CustomHealthChecker
 {
-    public function calculateSessionHealth(WhatsAppSession $session): int
+    public function calculateSessionHealth(WhatsAppAccount $session): int
     {
         $score = 100;
 
@@ -1111,7 +1111,7 @@ EXPLAIN SELECT
     w.provider_type as session_provider
 FROM campaigns c
 LEFT JOIN campaign_logs cl ON c.id = cl.campaign_id
-LEFT JOIN whatsapp_sessions w ON c.whatsapp_session_id = w.id
+LEFT JOIN whatsapp_accounts w ON c.whatsapp_account_id = w.id
 WHERE c.workspace_id = ? AND c.deleted_at IS NULL
 GROUP BY c.id
 ORDER BY c.created_at DESC
@@ -1166,13 +1166,13 @@ stdout_logfile=/var/log/supervisor/campaign-workers.log
 #### **Session Pooling - Multiple WhatsApp Connections**
 ```php
 // Session pool management
-class WhatsAppSessionPool
+class WhatsAppAccountPool
 {
     public function getOptimalSessionPool(int $messageCount): Collection
     {
         $baseSessionCount = ceil($messageCount / 1000); // 1K messages per session
 
-        return WhatsAppSession::forWorkspace($this->workspaceId)
+        return WhatsAppAccount::forWorkspace($this->workspaceId)
             ->connected()
             ->where('health_score', '>=', 70)
             ->orderByDesc('health_score')
@@ -1259,7 +1259,7 @@ class SessionHealthCache
     public function getHealthySessions(int $workspaceId): Collection
     {
         return Cache::remember("healthy_sessions_{$workspaceId}", now()->addMinutes(2), function () use ($workspaceId) {
-            return WhatsAppSession::forWorkspace($workspaceId)
+            return WhatsAppAccount::forWorkspace($workspaceId)
                 ->connected()
                 ->where('health_score', '>=', 70)
                 ->orderByDesc('health_score')
@@ -1283,7 +1283,7 @@ class CampaignPerformanceDashboard
             'processing_speed' => $this->getCurrentProcessingSpeed(), // messages/minute
             'error_rate' => $this->getCurrentErrorRate(), // percentage
             'average_delivery_time' => $this->getAverageDeliveryTime(), // seconds
-            'healthy_sessions' => WhatsAppSession::where('health_score', '>=', 70)->count(),
+            'healthy_sessions' => WhatsAppAccount::where('health_score', '>=', 70)->count(),
             'system_load' => sys_getloadavg()[0], // CPU load
         ];
     }
@@ -1335,7 +1335,7 @@ class CampaignLogger
             'provider_type' => $response['provider_type'],
             'message_id' => $response['message_id'] ?? null,
             'delivery_time_ms' => $response['delivery_time_ms'] ?? null,
-            'session_id' => $campaignLog->whatsapp_session_id,
+            'session_id' => $campaignLog->whatsapp_account_id,
         ]);
     }
 
@@ -1379,7 +1379,7 @@ Log::channel('campaign-analytics')->info('Campaign performance metrics', [
 ```php
 // Debug endpoint for troubleshooting
 Route::get('/debug/campaign/{uuid}', function ($uuid) {
-    $campaign = Campaign::with(['campaignLogs.contact', 'whatsappSession'])
+    $campaign = Campaign::with(['campaignLogs.contact', 'whatsappAccount'])
         ->where('uuid', $uuid)
         ->firstOrFail();
 
@@ -1390,11 +1390,11 @@ Route::get('/debug/campaign/{uuid}', function ($uuid) {
             'template_structure' => $campaign->getTemplateStructure(),
             'provider_preference' => $campaign->getPreferredProvider(),
         ],
-        'session_info' => $campaign->whatsappSession ? [
-            'phone_number' => $campaign->whatsappSession->phone_number,
-            'provider_type' => $campaign->whatsappSession->provider_type,
-            'health_score' => $campaign->whatsappSession->health_score,
-            'status' => $campaign->whatsappSession->status,
+        'session_info' => $campaign->whatsappAccount ? [
+            'phone_number' => $campaign->whatsappAccount->phone_number,
+            'provider_type' => $campaign->whatsappAccount->provider_type,
+            'health_score' => $campaign->whatsappAccount->health_score,
+            'status' => $campaign->whatsappAccount->status,
         ] : null,
         'message_logs' => $campaign->campaignLogs->take(10)->map(function ($log) {
             return [
@@ -1427,7 +1427,7 @@ Route::get('/health/broadcast', function () {
         'services' => [
             'database' => $this->checkDatabaseHealth(),
             'queue' => $this->checkQueueHealth(),
-            'whatsapp_sessions' => $this->checkWhatsAppSessionsHealth(),
+            'whatsapp_accounts' => $this->checkWhatsAppAccountsHealth(),
             'node_service' => $this->checkNodeServiceHealth(),
         ],
         'metrics' => [
@@ -1603,11 +1603,11 @@ php artisan campaign:process-pending
 // Analyze failure patterns
 $failedLogs = CampaignLog::where('status', 'failed')
     ->where('created_at', '>=', now()->subHour())
-    ->with(['contact', 'campaign.whatsappSession'])
+    ->with(['contact', 'campaign.whatsappAccount'])
     ->get();
 
 $failurePatterns = $failedLogs->groupBy(function ($log) {
-    return $log->campaign->whatsappSession->provider_type ?? 'unknown';
+    return $log->campaign->whatsappAccount->provider_type ?? 'unknown';
 });
 
 foreach ($failurePatterns as $provider => $logs) {
@@ -1625,7 +1625,7 @@ foreach ($failurePatterns as $provider => $logs) {
 // Switch to backup provider
 $campaign->update([
     'provider_preference' => 'auto', // Let system choose optimal
-    'whatsapp_session_id' => null,    // Clear preferred session
+    'whatsapp_account_id' => null,    // Clear preferred session
 ]);
 
 // Increase retry intervals
@@ -1634,7 +1634,7 @@ $metadata['campaigns']['resend_intervals'] = [10, 30, 60, 120]; // minutes
 $campaign->workspace->update(['metadata' => $metadata]);
 ```
 
-#### **3. WhatsApp Session Issues**
+#### **3. WhatsApp account Issues**
 
 **Symptoms:**
 - Session disconnected
@@ -1644,7 +1644,7 @@ $campaign->workspace->update(['metadata' => $metadata]);
 **Debug Steps:**
 ```php
 // Check session health
-$session = WhatsAppSession::find($sessionId);
+$session = WhatsAppAccount::find($sessionId);
 
 echo "Session Status: {$session->status}\n";
 echo "Health Score: {$session->health_score}\n";
@@ -1652,7 +1652,7 @@ echo "Last Activity: {$session->last_activity_at}\n";
 echo "Provider: {$session->provider_type}\n";
 
 // Check recent errors
-$recentErrors = CampaignLog::where('whatsapp_session_id', $sessionId)
+$recentErrors = CampaignLog::where('whatsapp_account_id', $sessionId)
     ->where('status', 'failed')
     ->where('created_at', '>=', now()->subHour())
     ->count();
@@ -1736,7 +1736,7 @@ php artisan campaign:retry-failed {uuid}
 php artisan campaign:cancel {uuid}
 ```
 
-#### **WhatsApp Session Debugging**
+#### **WhatsApp account Debugging**
 ```bash
 # List all sessions
 php artisan whatsapp:sessions:list

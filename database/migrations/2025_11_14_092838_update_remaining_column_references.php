@@ -12,28 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         // Update foreign key columns in related tables
-        Schema::table('contact_accounts', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
-        });
-
-        Schema::table('chats', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
-        });
-
-        Schema::table('campaign_logs', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
-        });
-
-        Schema::table('campaigns', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
-        });
+        // Note: contact_sessions, chats, and campaign_logs already have whatsapp_account_id
+        // Only whatsapp_groups still needs the column rename
 
         Schema::table('whatsapp_groups', function (Blueprint $table) {
             $table->renameColumn('whatsapp_session_id', 'whatsapp_account_id');
-        });
-
-        Schema::table('contacts', function (Blueprint $table) {
-            $table->renameColumn('source_session_id', 'source_account_id');
         });
     }
 
@@ -43,28 +26,8 @@ return new class extends Migration
     public function down(): void
     {
         // Reverse all column renames
-        Schema::table('contact_accounts', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_account_id', 'whatsapp_session_id');
-        });
-
-        Schema::table('chats', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_account_id', 'whatsapp_session_id');
-        });
-
-        Schema::table('campaign_logs', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_account_id', 'whatsapp_session_id');
-        });
-
-        Schema::table('campaigns', function (Blueprint $table) {
-            $table->renameColumn('whatsapp_account_id', 'whatsapp_session_id');
-        });
-
         Schema::table('whatsapp_groups', function (Blueprint $table) {
             $table->renameColumn('whatsapp_account_id', 'whatsapp_session_id');
-        });
-
-        Schema::table('contacts', function (Blueprint $table) {
-            $table->renameColumn('source_account_id', 'source_session_id');
         });
     }
 };
