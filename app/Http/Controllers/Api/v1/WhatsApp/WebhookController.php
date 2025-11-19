@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\v1\WhatsApp;
 use App\Events\WhatsAppQRGeneratedEvent;
 use App\Events\WhatsAppAccountStatusChangedEvent;
 use App\Http\Controllers\Controller;
+use App\Models\Contact;
 use App\Models\WhatsAppAccount;
 use App\Services\ChatService;
 use App\Services\ContactProvisioningService;
@@ -467,6 +468,11 @@ class WebhookController extends Controller
 
     /**
      * Handle message sent event (for real-time UI updates)
+     * 
+     * CRITICAL FIX (Issue #3616): WhatsApp changed behavior
+     * - Messages from mobile NO LONGER trigger 'message' event with fromMe=true
+     * - MUST use 'message_create' event for self-sent messages
+     * - This handler processes messages from BOTH web and mobile
      */
     private function handleMessageSent(array $data): void
     {
@@ -474,12 +480,16 @@ class WebhookController extends Controller
             $workspaceId = $data['workspace_id'];
             $sessionId = $data['session_id'];
             $messageData = $data['message'];
+            $source = $data['source'] ?? 'unknown';
 
-            Log::info('Message sent via WebJS', [
+            Log::info('🔵 Message sent via WebJS (from ' . $source . ')', [
                 'workspace_id' => $workspaceId,
                 'session_id' => $sessionId,
                 'message_id' => $messageData['id'] ?? null,
+                'from' => $messageData['from'] ?? null,  // CRITICAL: Use 'from' not 'to'
                 'to' => $messageData['to'] ?? null,
+                'chat_type' => $messageData['chat_type'] ?? 'private',
+                'source' => $source,
             ]);
 
             // Find or create the chat entry in database with WhatsApp message ID
@@ -496,11 +506,20 @@ class WebhookController extends Controller
             }
 
             // Extract phone number and find/create contact
-            $to = $messageData['to'];
-            $phoneNumber = str_replace(['@c.us', '@g.us'], '', $to);
+            // CRITICAL FIX: For self-sent messages from mobile, 'from' contains the CHAT ID
+            // SessionManager already sets messageData['from'] to chat.id._serialized
+            $chatId = $messageData['from'] ?? $messageData['to'];  // Fallback to 'to' for backward compatibility
+            $phoneNumber = str_replace(['@c.us', '@g.us'], '', $chatId);
             
             // Determine if this is a group message
-            $isGroup = strpos($to, '@g.us') !== false;
+            $isGroup = $messageData['chat_type'] === 'group' || strpos($chatId, '@g.us') !== false;
+            
+            Log::info('📞 Extracting contact info', [
+                'chat_id' => $chatId,
+                'phone_number' => $phoneNumber,
+                'is_group' => $isGroup,
+                'chat_type' => $messageData['chat_type'] ?? 'unknown',
+            ]);
 
             $provisioningService = new ContactProvisioningService();
             
@@ -529,11 +548,74 @@ class WebhookController extends Controller
                     ->first();
 
                 if ($existingChat) {
-                    Log::info('Chat record already exists, skipping duplicate creation', [
+                    // ✅ CRITICAL FIX: Don't skip! Always broadcast for real-time sync
+                    // This ensures messages from mobile always appear in chat list
+                    Log::info('Chat record exists - broadcasting for real-time update', [
                         'contact_id' => $contact->id,
                         'message_id' => $messageData['id'],
                         'existing_chat_id' => $existingChat->id,
+                        'source' => $data['source'] ?? 'unknown'
                     ]);
+                    
+                    // Update contact timestamps to ensure chat appears at top of list
+                    $contact->update([
+                        'latest_chat_created_at' => now(),
+                        'last_message_at' => now(),
+                        'last_activity' => now(),
+                    ]);
+                    
+                    // Load relationships for broadcasting
+                    $existingChat->load(['contact', 'media', 'user']);
+                    
+                    // Extract message body from metadata
+                    $messageBody = is_string($existingChat->metadata) 
+                        ? (json_decode($existingChat->metadata, true)['body'] ?? '') 
+                        : ($existingChat->metadata['body'] ?? '');
+                    
+                    // Build message data for broadcast - MUST match NewChatEvent structure!
+                    $chatData = [
+                        'id' => $existingChat->id,
+                        'wam_id' => $existingChat->wam_id,
+                        'contact_id' => $existingChat->contact_id,
+                        
+                        // Contact nested object (matches NewChatEvent::broadcastWith)
+                        'contact' => [
+                            'id' => $existingChat->contact->id,
+                            'first_name' => $existingChat->contact->first_name ?? $existingChat->contact->name,
+                            'phone' => $existingChat->contact->phone,
+                            'profile_picture_url' => $existingChat->contact->avatar ?? null,
+                            'unread_messages' => 0,  // Outbound doesn't increase unread
+                        ],
+                        
+                        // Message content and metadata
+                        'body' => $messageBody,
+                        'message' => $messageBody,  // Also set 'message' for compatibility
+                        'type' => 'outbound',
+                        'message_type' => $messageData['type'] ?? 'text',
+                        'message_status' => $existingChat->message_status ?? 'sent',
+                        'from_me' => true,
+                        'created_at' => $existingChat->created_at?->toISOString() ?? now()->toISOString(),
+                        'metadata' => $existingChat->metadata,
+                        
+                        // Media (if exists)
+                        'media_id' => $existingChat->media_id ?? null,
+                        'media' => $existingChat->media ?? null,
+                        
+                        // User (who sent from Blazz)
+                        'user_id' => $existingChat->user_id ?? null,
+                        'user' => $existingChat->user ?? null,
+                    ];
+                    
+                    // ✅ BROADCAST EVENT - This makes chat appear in list
+                    event(new \App\Events\NewChatEvent($chatData, $workspaceId, $existingChat->contact_id));
+                    
+                    Log::info('✅ NewChatEvent broadcasted for existing chat (self-sent from mobile)', [
+                        'workspace_id' => $workspaceId,
+                        'contact_id' => $existingChat->contact_id,
+                        'chat_id' => $existingChat->id,
+                    ]);
+                    
+                    return;  // Exit after broadcasting
                 } else {
                     // Create chat record with real-time messaging fields
                     $chat = \App\Models\Chat::create([
@@ -563,6 +645,13 @@ class WebhookController extends Controller
                         'created_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
                         'updated_at' => date('Y-m-d H:i:s', $messageData['timestamp'] ?? time()),
                     ]);
+                    
+                    // Update contact timestamps to ensure chat appears at top of list
+                    $contact->update([
+                        'latest_chat_created_at' => now(),
+                        'last_message_at' => now(),
+                        'last_activity' => now(),
+                    ]);
 
                     Log::info('Chat record created for sent message', [
                         'contact_id' => $contact->id,
@@ -570,24 +659,37 @@ class WebhookController extends Controller
                     ]);
 
                     // ✅ REALTIME FIX: Broadcast NewChatEvent for outbound messages too
-                    $chatData = [[
-                        'type' => 'chat',
-                        'value' => [
-                            'id' => $chat->id,
-                            'wam_id' => $chat->wam_id,
-                            'message' => $messageData['body'] ?? '',
-                            'type' => 'outbound',
-                            'message_status' => 'pending',
-                            'created_at' => $chat->created_at,
-                            'from_me' => true,
-                            'metadata' => $chat->metadata,
-                            'contact_id' => $contact->id,
-                            'whatsapp_message_id' => $chat->whatsapp_message_id,
-                        ]
-                    ]];
+                    // MUST match NewChatEvent structure (flat, not nested!)
+                    $chatData = [
+                        'id' => $chat->id,
+                        'wam_id' => $chat->wam_id,
+                        'contact_id' => $contact->id,
+                        
+                        // Contact nested object
+                        'contact' => [
+                            'id' => $contact->id,
+                            'first_name' => $contact->first_name ?? $contact->name,
+                            'phone' => $contact->phone,
+                            'profile_picture_url' => $contact->avatar ?? null,
+                            'unread_messages' => 0,
+                        ],
+                        
+                        // Message content
+                        'body' => $messageData['body'] ?? '',
+                        'message' => $messageData['body'] ?? '',
+                        'type' => 'outbound',
+                        'message_type' => $messageData['type'] ?? 'text',
+                        'message_status' => 'pending',
+                        'from_me' => true,
+                        'created_at' => $chat->created_at?->toISOString() ?? now()->toISOString(),
+                        'metadata' => $chat->metadata,
+                        
+                        // WhatsApp IDs
+                        'whatsapp_message_id' => $chat->whatsapp_message_id,
+                    ];
 
                     // Broadcast to workspace channel
-                    event(new \App\Events\NewChatEvent($chatData, $workspaceId));
+                    event(new \App\Events\NewChatEvent($chatData, $workspaceId, $contact->id));
 
                     Log::info('✅ NewChatEvent broadcasted for sent message', [
                         'workspace_id' => $workspaceId,

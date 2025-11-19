@@ -411,36 +411,80 @@ class SessionManager {
         });
 
         // Message Create Event (for sent messages)
+        // CRITICAL FIX: Handle self-sent messages from other devices (mobile)
         client.on('message_create', async (message) => {
             if (message.fromMe) {
-                this.logger.debug('Message sent', {
-                    sessionId,
-                    workspaceId,
-                    to: message.to,
-                    id: message.id._serialized
-                });
+                try {
+                    // Get chat to determine if group and get proper chat ID
+                    const chat = await message.getChat();
+                    const isGroup = chat.isGroup;
+                    
+                    // CRITICAL: Use chat.id for "from" to ensure proper contact matching
+                    // For groups, this is the group ID, not sender ID
+                    const chatId = chat.id._serialized;
+                    
+                    this.logger.info('Self-sent message detected (from mobile or web)', {
+                        sessionId,
+                        workspaceId,
+                        messageId: message.id._serialized,
+                        chatId: chatId,
+                        isGroup: isGroup,
+                        to: message.to,
+                        hasBody: !!message.body
+                    });
 
-                // Update activity timestamp
-                const metadata = this.metadata.get(sessionId);
-                if (metadata) {
-                    metadata.lastActivity = new Date();
-                    this.metadata.set(sessionId, metadata);
-                }
+                    // Update activity timestamp
+                    const metadata = this.metadata.get(sessionId);
+                    if (metadata) {
+                        metadata.lastActivity = new Date();
+                        this.metadata.set(sessionId, metadata);
+                    }
 
-                // Broadcast message sent event for real-time UI updates
-                await this.sendToLaravel('message_sent', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    message: {
+                    // Build complete message data with chat context
+                    const messageData = {
                         id: message.id._serialized,
+                        from: chatId,  // CRITICAL: Use chat ID instead of sender ID
                         to: message.to,
                         body: message.body,
                         timestamp: message.timestamp,
                         type: message.type,
                         has_media: message.hasMedia,
-                        status: 'pending'
+                        status: 'pending',
+                        from_me: true,
+                        chat_type: isGroup ? 'group' : 'private'
+                    };
+                    
+                    // Add group-specific data if applicable
+                    if (isGroup) {
+                        messageData.group_id = chatId;
+                        messageData.group_name = chat.name || 'Unnamed Group';
+                        messageData.participants = chat.participants?.map(p => p.id._serialized) || [];
                     }
-                });
+
+                    // Broadcast message sent event for real-time UI updates
+                    // This will trigger handleMessageSent in Laravel
+                    await this.sendToLaravel('message_sent', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        message: messageData,
+                        source: 'message_create_event'  // Flag to identify source
+                    });
+                    
+                    this.logger.info('Self-sent message broadcasted to Laravel', {
+                        messageId: message.id._serialized,
+                        chatId: chatId,
+                        isGroup: isGroup
+                    });
+                    
+                } catch (error) {
+                    this.logger.error('Error processing self-sent message', {
+                        sessionId,
+                        workspaceId,
+                        messageId: message.id._serialized,
+                        error: error.message,
+                        stack: error.stack
+                    });
+                }
             }
         });
 
