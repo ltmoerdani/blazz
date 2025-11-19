@@ -405,6 +405,26 @@
                 },
             });
         } else {
+            // Normalize button types for backend validation
+            const normalizedButtons = form.buttons.map(button => ({
+                type: button.type === 'PHONE_NUMBER' ? 'phone_number' : 
+                      button.type === 'URL' ? 'url' : 
+                      button.type === 'QUICK_REPLY' ? 'reply' : 
+                      button.type === 'copy_code' ? 'reply' : button.type.toLowerCase(),
+                text: button.text,
+                url: button.url || null,
+                phone_number: button.phone_number || null,
+                country: button.country || null,
+                example: button.example || null,
+            }));
+
+            // Update form buttons with normalized data
+            form.buttons = normalizedButtons;
+            
+            // Map 'time' field to 'scheduled_at' for backend
+            if (form.time && !form.skip_schedule) {
+                form.scheduled_at = form.time;
+            }
 
             // Use hybrid campaign endpoint for direct messages
             form.post('/campaigns/hybrid', {
@@ -416,6 +436,9 @@
                     form.reset();
                     form.campaign_type = 'direct'; // Reset to default
                     form.preferred_provider = 'webjs'; // Reset to default
+                },
+                onError: (errors) => {
+                    console.error('Campaign creation failed:', errors);
                 }
             });
         }

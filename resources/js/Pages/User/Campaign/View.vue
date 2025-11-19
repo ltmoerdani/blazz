@@ -54,6 +54,10 @@
                             <p>{{ props.campaign?.name }}</p>
                         </div>
                         <div class="text-sm bg-slate-100 p-3 rounded-lg">
+                            <h3>{{ $t('Campaign Type') }}</h3>
+                            <p>{{ props.campaign?.campaign_type === 'direct' ? $t('Direct Message') : $t('Template-based') }}</p>
+                        </div>
+                        <div v-if="props.campaign?.template" class="text-sm bg-slate-100 p-3 rounded-lg">
                             <h3>{{ $t('Template') }}</h3>
                             <p>{{ props.campaign?.template?.name }}</p>
                         </div>
@@ -68,7 +72,23 @@
                     </div>
 
                     <div class="w-full rounded-lg p-5 mt-5 border chat-bg">
-                        <WhatsappTemplate :parameters="JSON.parse(props.campaign.metadata)" :placeholder="false" :visible="true"/>
+                        <!-- Direct Message Preview -->
+                        <div v-if="props.campaign?.campaign_type === 'direct'" class="mr-auto rounded-lg rounded-tl-none my-1 p-1 text-sm bg-white flex flex-col relative speech-bubble-left w-[25em]">
+                            <div v-if="props.campaign.header_type && props.campaign.header_type !== 'text'" class="mb-4 bg-[#ccd0d5] flex justify-center py-8 rounded">
+                                <img v-if="props.campaign.header_type === 'image'" :src="'/images/image-placeholder.png'">
+                                <img v-if="props.campaign.header_type === 'video'" :src="'/images/video-placeholder.png'">
+                                <img v-if="props.campaign.header_type === 'document'" :src="'/images/document-placeholder.png'">
+                            </div>
+                            <h2 v-else-if="props.campaign.header_text" class="text-gray-700 text-sm mb-1 px-2 normal-case whitespace-pre-wrap">{{ props.campaign.header_text }}</h2>
+                            <p class="px-2 normal-case whitespace-pre-wrap">{{ props.campaign.body_text }}</p>
+                            <div class="text-[#8c8c8c] mt-1 px-2">
+                                <span class="text-[13px]">{{ props.campaign.footer_text }}</span>
+                                <span class="text-right text-xs leading-none float-right" :class="props.campaign.footer_text ? 'mt-2' : ''">9:15</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Template-based Preview -->
+                        <WhatsappTemplate v-else :parameters="JSON.parse(props.campaign.metadata)" :placeholder="false" :visible="true"/>
                     </div>
                 </div>
             </div>
