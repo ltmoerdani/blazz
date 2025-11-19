@@ -394,9 +394,9 @@ INSERT INTO campaigns (
 );
 ```
 
-### WhatsApp Session Recovery
+### WhatsApp account Recovery
 ```bash
-# Check WhatsApp session status
+# Check WhatsApp account status
 curl -X GET https://your-domain.com/api/whatsapp/sessions
 
 # Restart failed sessions

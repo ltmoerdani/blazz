@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Contracts\WhatsAppAdapterInterface;
 use App\Exceptions\WhatsAppProviderNotFoundException;
-use App\Exceptions\WhatsAppSessionNotFoundException;
+use App\Exceptions\WhatsAppAccountNotFoundException;
 use App\Models\WhatsAppAccount;
 use App\Services\Adapters\MetaAPIAdapter;
 use App\Services\Adapters\WebJSAdapter;
@@ -40,7 +40,7 @@ class ProviderSelector
             ->get();
 
         if ($sessions->isEmpty()) {
-            throw new WhatsAppSessionNotFoundException();
+            throw new WhatsAppAccountNotFoundException();
         }
 
         // Try each session until we find a working provider

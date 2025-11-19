@@ -3,7 +3,7 @@
         <div class="md:h-[90vh]">
             <div class="flex justify-center items-center mb-8">
                 <div class="md:w-[60em]">
-                    <div v-if="!sessionsList || sessionsList.length === 0" class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4">
+                    <div v-if="!accountsList || accountsList.length === 0" class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4">
                         <div class="flex items-center px-4 pt-2 pb-4">
                             <div class="w-[70%]">
                                 <h2 class="text-[17px]">{{ $t('Setup WhatsApp Numbers') }}</h2>
@@ -11,8 +11,8 @@
                                     {{ $t('Setup your WhatsApp numbers to be able to receive and send messages via WhatsApp Web.JS.') }}
                                 </span>
                             </div>
-                            <div class="ml-auto" v-if="canAddSessionComputed">
-                                <button @click="addSession" class="bg-primary text-white p-2 rounded-lg text-sm mt-5 flex px-3 w-fit">
+                            <div class="ml-auto" v-if="canAddAccountComputed">
+                                <button @click="addAccount" class="bg-primary text-white p-2 rounded-lg text-sm mt-5 flex px-3 w-fit">
                                     {{ $t('Add WhatsApp Number') }}
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4C7.58 4 4 7.58 4 12s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm3-7h-2v-2c0-.55-.45-1-1-1s-1 .45-1 1v2H9c-.55 0-1 .45-1 1s.45 1 1 1h2v2c0 .55.45 1 1 1s1-.45 1-1v-2h2c.55 0 1-.45 1-1s-.45-1-1-1z"/></svg>
                                 </button>
@@ -20,24 +20,24 @@
                         </div>
                     </div>
 
-                    <div v-if="sessionsList && sessionsList.length > 0" class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4">
+                    <div v-if="accountsList && accountsList.length > 0" class="bg-white border border-slate-200 rounded-lg py-2 text-sm mb-4">
                         <div class="grid grid-cols-4 items-center px-4 gap-x-4 py-2 border-b relative">
                             <div class="border-r">
                                 <div>{{ $t('Total Numbers') }}</div>
-                                <div>{{ sessionsList.length }}</div>
+                                <div>{{ accountsList.length }}</div>
                             </div>
                             <div class="border-r">
                                 <div>{{ $t('Connected') }}</div>
-                                <div>{{ connectedSessionsCount }}</div>
+                                <div>{{ connectedAccountsCount }}</div>
                             </div>
                             <div class="border-r">
                                 <div>{{ $t('Primary Number') }}</div>
-                                <div>{{ sessionsList.find(s => s.is_primary)?.formatted_phone_number || 'None' }}</div>
+                                <div>{{ accountsList.find(s => s.is_primary)?.formatted_phone_number || 'None' }}</div>
                             </div>
                             <div>
                                 <div>{{ $t('Status') }}</div>
                                 <div class="bg-slate-50 py-1 px-2 rounded-md w-[fit-content] text-xs">
-                                    {{ sessionsList.some(s => s.status === 'connected') ? 'Active' : 'Inactive' }}
+                                    {{ accountsList.some(s => s.status === 'connected') ? 'Active' : 'Inactive' }}
                                 </div>
                             </div>
                         </div>
@@ -53,7 +53,7 @@
                             </div>
                             <div class="ml-3">
                                 <h3 class="text-sm font-medium text-green-800">
-                                    {{ $t('WhatsApp Numbers (On-premise Multi-Session)') }}
+                                    {{ $t('WhatsApp Numbers (On-premise Multi-Account Management)') }}
                                 </h3>
                                 <div class="mt-2 text-sm text-green-700">
                                     <p>
@@ -70,17 +70,17 @@
                         </div>
                     </div>
 
-                    <!-- Sessions List -->
+                    <!-- Accounts List -->
                     <div class="bg-white shadow overflow-hidden sm:rounded-md">
-                        <div v-if="sessionsList.length === 0" class="text-center py-12">
+                        <div v-if="accountsList.length === 0" class="text-center py-12">
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                             </svg>
                             <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $t('No WhatsApp numbers connected') }}</h3>
                             <p class="mt-1 text-sm text-gray-500">{{ $t('Get started by adding your first WhatsApp number.') }}</p>
-                            <div class="mt-6" v-if="canAddSessionComputed">
+                            <div class="mt-6" v-if="canAddAccountComputed">
                                 <button
-                                    @click="addSession"
+                                    @click="addAccount"
                                     class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                 >
                                     <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
@@ -92,10 +92,10 @@
                         </div>
 
                         <div v-else>
-                            <!-- Add Number Button - Shows when there are sessions but limit not reached -->
-                            <div v-if="canAddSessionComputed" class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                            <!-- Add Number Button - Shows when there are accounts but limit not reached -->
+                            <div v-if="canAddAccountComputed" class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                                 <button
-                                    @click="addSession"
+                                    @click="addAccount"
                                     class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                 >
                                     <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
@@ -106,7 +106,7 @@
                             </div>
 
                             <ul class="divide-y divide-gray-200">
-                            <li v-for="session in sessionsList" :key="session.uuid" class="px-6 py-4">
+                            <li v-for="account in accountsList" :key="account.uuid" class="px-6 py-4">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0">
@@ -119,61 +119,61 @@
                                         <div class="ml-4">
                                             <div class="flex items-center">
                                                 <p class="text-sm font-medium text-gray-900">
-                                                    {{ session.formatted_phone_number || session.phone_number || 'Unknown Number' }}
+                                                    {{ account.formatted_phone_number || account.phone_number || account.name || 'Unknown Number' }}
                                                 </p>
-                                                <span v-if="session.is_primary" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                <span v-if="account.is_primary" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                                     {{ $t('Primary') }}
                                                 </span>
                                             </div>
                                             <div class="flex items-center mt-1">
                                                 <span :class="[
                                                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                                                    session.status === 'connected' ? 'bg-green-100 text-green-800' :
-                                                    session.status === 'qr_scanning' ? 'bg-yellow-100 text-yellow-800' :
-                                                    session.status === 'disconnected' ? 'bg-red-100 text-red-800' :
+                                                    account.status === 'connected' ? 'bg-green-100 text-green-800' :
+                                                    account.status === 'qr_scanning' ? 'bg-yellow-100 text-yellow-800' :
+                                                    account.status === 'disconnected' ? 'bg-red-100 text-red-800' :
                                                     'bg-gray-100 text-gray-800'
                                                 ]">
-                                                    {{ $t(session.status) }}
+                                                    {{ $t(account.status) }}
                                                 </span>
                                                 <span class="ml-2 text-sm text-gray-500">
-                                                    {{ $t('Health Score') }}: {{ session.health_score }}%
+                                                    {{ $t('Health Score') }}: {{ account.health_score }}%
                                                 </span>
                                             </div>
                                             <p class="text-sm text-gray-500 mt-1">
-                                                {{ $t('Added') }} {{ formatDate(session.created_at) }}
+                                                {{ $t('Added') }} {{ formatDate(account.created_at) }}
                                             </p>
                                         </div>
                                     </div>
                                     <div class="flex items-center space-x-2">
                                         <button
-                                            v-if="!session.is_primary"
-                                            @click="setPrimary(session.uuid)"
+                                            v-if="!account.is_primary"
+                                            @click="setPrimary(account.uuid)"
                                             class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                         >
                                             {{ $t('Set Primary') }}
                                         </button>
                                         <button
-                                            v-if="session.status === 'disconnected'"
-                                            @click="reconnect(session.uuid)"
-                                            :disabled="!canAddSessionComputed"
+                                            v-if="account.status === 'disconnected'"
+                                            @click="reconnect(account.uuid)"
+                                            :disabled="!canAddAccountComputed"
                                             :class="[
                                                 'inline-flex items-center px-3 py-1.5 border shadow-sm text-sm font-medium rounded',
-                                                canAddSessionComputed
+                                                canAddAccountComputed
                                                     ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
                                                     : 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
                                             ]"
-                                            :title="canAddSessionComputed ? '' : 'Connection limit reached. Disconnect another session first.'"
+                                            :title="canAddAccountComputed ? '' : 'Connection limit reached. Disconnect another account first.'"
                                         >
                                             {{ $t('Reconnect') }}
                                         </button>
                                         <button
-                                            @click="disconnect(session.uuid)"
+                                            @click="disconnect(account.uuid)"
                                             class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                         >
                                             {{ $t('Disconnect') }}
                                         </button>
                                         <button
-                                            @click="deleteSession(session.uuid)"
+                                            @click="deleteAccount(account.uuid)"
                                             class="inline-flex items-center px-3 py-1.5 border border-red-300 shadow-sm text-sm font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                                         >
                                             {{ $t('Delete') }}
@@ -188,7 +188,7 @@
             </div>
         </div>
 
-        <!-- Add Session Modal -->
+        <!-- Add Account Modal -->
         <div v-if="showAddModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
                 <div class="mt-3">
@@ -241,14 +241,14 @@
 
 <script setup>
 import SettingLayout from "./Layout.vue";
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios'
 import { getEchoInstance } from '../../../echo'
 
 const props = defineProps({
-    sessions: Array,
-    canAddSession: Boolean,
+    accounts: Array,
+    canAddAccount: Boolean,
     modules: Array,
     embeddedSignupActive: Boolean,
     graphAPIVersion: String,
@@ -261,76 +261,95 @@ const props = defineProps({
 
 const workspace = computed(() => usePage().props.workspace);
 
-// Computed: dynamically calculate connected sessions count and canAddSession
-const connectedSessionsCount = computed(() => {
-    return sessionsList.value.filter(s => s.status === 'connected').length
+// Computed: dynamically calculate connected accounts count and canAddAccount
+const connectedAccountsCount = computed(() => {
+    return accountsList.value.filter(s => s.status === 'connected').length
 })
 
-const canAddSessionComputed = computed(() => {
-    // Get max sessions limit from workspace settings or default to 10
+const canAddAccountComputed = computed(() => {
+    // Get max accounts limit from workspace settings or default to 10
     // Try multiple sources: workspace subscription plan, or fallback to default 10
-    let maxSessions = 10 // Default fallback
+    let maxAccounts = 10 // Default fallback
 
-    if (workspace.value?.subscription?.plan?.whatsapp_sessions_limit) {
-        maxSessions = workspace.value.subscription.plan.whatsapp_sessions_limit
+    if (workspace.value?.subscription?.plan?.whatsapp_accounts_limit) {
+        maxAccounts = workspace.value.subscription.plan.whatsapp_accounts_limit
     }
 
-    const canAdd = connectedSessionsCount.value < maxSessions
+    const canAdd = connectedAccountsCount.value < maxAccounts
 
-    console.log('🔢 Add Button Visibility Check:', {
-        connectedCount: connectedSessionsCount.value,
-        maxSessions: maxSessions,
-        canAdd: canAdd,
-        totalInList: sessionsList.value.length,
-        sessionStatuses: sessionsList.value.map(s => ({ uuid: s.uuid, status: s.status })),
-        workspace: workspace.value,
-        subscription: workspace.value?.subscription,
-        plan: workspace.value?.subscription?.plan
-    })
+    // Only show detailed debug info in development
+    if (import.meta.env.DEV) {
+        console.log('🔢 Add Button Visibility Check:', {
+            connectedCount: connectedAccountsCount.value,
+            maxAccounts: maxAccounts,
+            canAdd: canAdd,
+            totalInList: accountsList.value.length,
+            accountStatuses: accountsList.value.map(s => ({ uuid: s.uuid, status: s.status })),
+            workspace: workspace.value,
+            subscription: workspace.value?.subscription,
+            plan: workspace.value?.subscription?.plan
+        })
+    }
 
     return canAdd
 })
 
-// Reactive sessions list (instead of using props directly)
-// Filter out qr_scanning and pending sessions - only show connected/disconnected
-const sessionsList = ref([...props.sessions.filter(s => s.status === 'connected' || s.status === 'disconnected')])
+// Reactive accounts list (instead of using props directly)
+// Filter out qr_scanning and pending accounts - only show connected/authenticated/disconnected
+const accountsList = ref([...props.accounts.filter(s => s.status === 'connected' || s.status === 'authenticated' || s.status === 'disconnected')])
 
 const showAddModal = ref(false)
 const qrCode = ref(null)
 const countdown = ref(300) // 5 minutes
-const currentSessionId = ref(null)
+const currentAccountId = ref(null)
 const qrTimeout = ref(null)
+const modalCloseTimeout = ref(null) // Fallback timeout to close modal
 let countdownInterval = null
 let echoChannel = null
 
-// Helper function to update session in list
-const updateSessionInList = (sessionId, updates) => {
-    const index = sessionsList.value.findIndex(s => s.session_id === sessionId || s.uuid === sessionId)
+// Watch modal state for debugging
+watch(showAddModal, (newValue, oldValue) => {
+    console.log('🔄 Modal state changed:', { from: oldValue, to: newValue })
+    if (!newValue && modalCloseTimeout.value) {
+        console.log('🧹 Cleaning up modal timeout after modal closed')
+        clearTimeout(modalCloseTimeout.value)
+        modalCloseTimeout.value = null
+    }
+})
+
+// Helper function to update account in list
+const updateAccountInList = (accountId, updates) => {
+    // accountId can be session_id (string like "webjs_1_...") or uuid
+    const index = accountsList.value.findIndex(s => 
+        s.session_id === accountId || 
+        s.uuid === accountId ||
+        s.id === accountId
+    )
     if (index !== -1) {
-        sessionsList.value[index] = { ...sessionsList.value[index], ...updates }
-        console.log('✅ Session updated in list:', sessionId, updates)
+        accountsList.value[index] = { ...accountsList.value[index], ...updates }
+        console.log('✅ Account updated in list:', accountId, updates)
     } else {
-        console.warn('⚠️ Session not found in list:', sessionId)
+        console.warn('⚠️ Account not found in list:', accountId)
     }
 }
 
-// Helper function to remove session from list
-const removeSessionFromList = (uuid) => {
-    const index = sessionsList.value.findIndex(s => s.uuid === uuid)
+// Helper function to remove account from list
+const removeAccountFromList = (uuid) => {
+    const index = accountsList.value.findIndex(s => s.uuid === uuid)
     if (index !== -1) {
-        sessionsList.value.splice(index, 1)
-        console.log('✅ Session removed from list:', uuid)
+        accountsList.value.splice(index, 1)
+        console.log('✅ Account removed from list:', uuid)
     }
 }
 
-// Helper function to add session to list
-const addSessionToList = (session) => {
-    // Only add if session is connected or disconnected (not qr_scanning/pending)
-    if (session.status === 'connected' || session.status === 'disconnected') {
-        sessionsList.value.unshift(session)
-        console.log('✅ Session added to list:', session)
+// Helper function to add account to list
+const addAccountToList = (account) => {
+    // Only add if account is connected, authenticated, or disconnected (not qr_scanning/pending)
+    if (account.status === 'connected' || account.status === 'authenticated' || account.status === 'disconnected') {
+        accountsList.value.unshift(account)
+        console.log('✅ Account added to list:', account)
     } else {
-        console.log('⏳ Session in qr_scanning/pending state, not adding to list yet:', session)
+        console.log('⏳ Account in qr_scanning/pending state, not adding to list yet:', account)
     }
 }
 
@@ -347,10 +366,14 @@ onMounted(() => {
     const channelName = `workspace.${props.workspaceId}`
 
     console.log('📡 Subscribing to Echo channel:', channelName)
-    console.log('📡 Echo instance:', echo)
     console.log('📡 Workspace ID:', props.workspaceId)
-    console.log('📡 Echo connector:', echo.connector)
-    console.log('📡 Echo socket state:', echo.connector?.pusher?.connection?.state)
+
+    // Only show detailed debug info in development
+    if (import.meta.env.DEV) {
+        console.log('📡 Echo instance:', echo)
+        console.log('📡 Echo connector:', echo.connector)
+        console.log('📡 Echo socket state:', echo.connector?.pusher?.connection?.state)
+    }
 
     // Wait for connection to be ready before subscribing
     const subscribeToChannel = () => {
@@ -364,13 +387,13 @@ onMounted(() => {
             handleQRGenerated(data)
         })
 
-        echoChannel.listen('.session-status-changed', (data) => {
-            console.log('📨 Session Status Changed Event received:', data)
+        echoChannel.listen('.account-status-changed', (data) => {
+            console.log('📨 Account Status Changed Event received:', data)
             handleSessionStatusChanged(data)
         })
 
-        // Listen to Pusher events directly for debugging
-        if (echo.connector?.pusher) {
+        // Listen to Pusher events directly for debugging (only in development)
+        if (echo.connector?.pusher && import.meta.env.DEV) {
             const pusherChannel = echo.connector.pusher.channel(channelName)
             if (pusherChannel) {
                 pusherChannel.bind_global((eventName, data) => {
@@ -422,8 +445,13 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+    // Clear all timers
     if (countdownInterval) {
         clearInterval(countdownInterval)
+    }
+    if (modalCloseTimeout.value) {
+        clearTimeout(modalCloseTimeout.value)
+        modalCloseTimeout.value = null
     }
     if (echoChannel && props.workspaceId) {
         window.Echo.leaveChannel(`workspace.${props.workspaceId}`)
@@ -452,9 +480,9 @@ const handleQRGenerated = (data) => {
     }
 }
 
-const handleSessionStatusChanged = (data) => {
-    console.log('📨 Session Status Changed Event Received:', {
-        event_session_id: data.session_id,
+const handleSessionStatusChanged = async (data) => {
+    console.log('📨 Account Status Changed Event Received:', {
+        event_account_id: data.account_id,
         event_status: data.status,
         event_workspace_id: data.workspace_id,
         current_workspace_id: props.workspaceId,
@@ -462,67 +490,114 @@ const handleSessionStatusChanged = (data) => {
     })
 
     if (data.workspace_id === props.workspaceId) {
-        if (data.status === 'connected') {
-            // Check if this is the first connected session
-            const currentConnectedSessions = sessionsList.value.filter(s => s.status === 'connected')
-            const isFirstSession = currentConnectedSessions.length === 0
+        console.log('🎯 WebSocket event matches workspace, processing status:', data.status)
 
-            // Check if session exists in list
-            const existingSession = sessionsList.value.find(s => s.session_id === data.session_id || s.uuid === data.session_id)
+        if (data.status === 'connected' || data.status === 'authenticated') {
+            console.log('🎯 Processing CONNECTED/AUTHENTICATED event for account:', data.account_id, 'status:', data.status)
+            console.log('🎯 Full event data:', JSON.stringify(data, null, 2))
 
-            if (existingSession) {
-                // Update existing session (was disconnected, now reconnecting)
-                updateSessionInList(data.session_id, {
-                    status: 'connected',
-                    phone_number: data.phone_number || null,
-                    formatted_phone_number: data.phone_number || null,
-                    is_primary: isFirstSession ? true : existingSession.is_primary, // Set as primary if first
-                    updated_at: data.metadata?.timestamp || new Date().toISOString()
-                })
+            // Clear any modal timeout since we got connection event
+            if (modalCloseTimeout.value) {
+                clearTimeout(modalCloseTimeout.value)
+                modalCloseTimeout.value = null
+                console.log('⏰ Cleared modal timeout due to successful connection')
+            }
+
+            // Check if this is the first connected account
+            const currentConnectedAccounts = accountsList.value.filter(s => s.status === 'connected')
+            const isFirstAccount = currentConnectedAccounts.length === 0
+
+            console.log('🔢 Current connected accounts:', currentConnectedAccounts.length)
+            console.log('🆕 Is this first account?', isFirstAccount)
+
+            // Find if account already exists in any state
+            // data.account_id actually contains session_id (string like "webjs_1_...")
+            const existingAccountIndex = accountsList.value.findIndex(s =>
+                s.session_id === data.account_id || 
+                s.uuid === data.metadata?.uuid ||
+                s.id === data.account_id
+            )
+
+            // Extract phone number from various possible sources
+            const phoneNumber = data.metadata?.formatted_phone_number ||
+                              data.metadata?.phone_number ||
+                              data.phone_number ||
+                              'Unknown';
+
+            console.log('📞 Phone number extracted:', {
+                from_formatted: data.metadata?.formatted_phone_number,
+                from_phone: data.metadata?.phone_number,
+                from_data_phone: data.phone_number,
+                final: phoneNumber
+            })
+
+            const newAccount = {
+                id: data.metadata?.id || null,  // Database integer ID if available
+                uuid: data.metadata?.uuid || `temp-${Date.now()}`,
+                session_id: data.account_id,  // data.account_id actually contains session_id string
+                name: phoneNumber,
+                phone_number: phoneNumber,
+                formatted_phone_number: phoneNumber,
+                status: 'connected',
+                health_score: 100,
+                last_activity_at: data.metadata?.timestamp || new Date().toISOString(),
+                last_connected_at: data.metadata?.timestamp || new Date().toISOString(),
+                is_primary: isFirstAccount,
+                is_active: true,
+                provider_type: 'webjs',
+                created_at: data.metadata?.timestamp || new Date().toISOString(),
+                updated_at: data.metadata?.timestamp || new Date().toISOString()
+            }
+
+            if (existingAccountIndex !== -1) {
+                console.log('📝 Updating existing account in list at index:', existingAccountIndex)
+                // Merge with existing data to preserve any fields not in event
+                accountsList.value[existingAccountIndex] = {
+                    ...accountsList.value[existingAccountIndex],
+                    ...newAccount
+                }
+                console.log('✅ Account updated in list!', accountsList.value[existingAccountIndex])
             } else {
-                // Session not in list yet (was qr_scanning), add it now
-                console.log('🆕 Adding newly connected session to list')
-                const newSession = {
-                    session_id: data.session_id,
-                    uuid: data.session_id, // Use session_id as uuid temporarily
-                    status: 'connected',
-                    phone_number: data.phone_number,
-                    formatted_phone_number: data.phone_number,
-                    is_primary: isFirstSession, // Auto set as primary if this is the first session
-                    provider_type: 'webjs',
-                    created_at: new Date().toISOString(),
-                    updated_at: data.metadata?.timestamp || new Date().toISOString()
-                }
-                sessionsList.value.unshift(newSession)
-
-                if (isFirstSession) {
-                    console.log('⭐ First session connected - automatically set as primary!')
-                }
+                console.log('➕ Adding new account to list')
+                // Add new account to the beginning of the list
+                accountsList.value.unshift(newAccount)
+                console.log('✅ New account added to list! Total accounts now:', accountsList.value.length)
             }
 
-            // If this is the first session, also update backend to set as primary
-            if (isFirstSession) {
-                const sessionUuid = data.metadata?.uuid || data.session_id
-                console.log('⭐ Setting first session as primary with UUID:', sessionUuid)
-                setPrimary(sessionUuid)
+            if (isFirstAccount) {
+                console.log('⭐ First account connected - will be set as primary!')
             }
 
-            // Close modal smoothly
+            // Force UI update and then close modal
+            console.log('🔄 Forcing UI update before modal close...')
+
+            // Use nextTick to ensure UI is updated before closing modal
+            await nextTick()
+
+            console.log('🚪 Closing modal immediately...')
             closeAddModal()
 
-            console.log('✅ Session connected seamlessly, no page reload needed!')
-        } else if (data.status === 'disconnected') {
-            console.log('🔌 Handling disconnect event for session_id:', data.session_id)
-            console.log('📋 Current sessions in list:', sessionsList.value.map(s => ({ uuid: s.uuid, session_id: s.session_id, status: s.status })))
+            // If this is the first account, also update backend to set as primary (async, non-blocking)
+            if (isFirstAccount) {
+                const accountUuid = data.metadata?.uuid || data.account_id
+                console.log('⭐ Setting first account as primary with UUID:', accountUuid)
+                // Set primary asynchronously without blocking modal close
+                setPrimary(accountUuid).catch(error => {
+                    console.error('Failed to set primary account:', error)
+                })
+            }
 
-            // Update session status in list
-            updateSessionInList(data.session_id, {
+            console.log('✅ Account connection process completed successfully!')
+        } else if (data.status === 'disconnected') {
+            console.log('🔌 Handling disconnect event for account_id:', data.account_id)
+            // Update account status in list
+            updateAccountInList(data.account_id, {
                 status: 'disconnected',
                 updated_at: data.metadata?.timestamp || new Date().toISOString()
             })
-
-            console.log('✅ Session disconnected seamlessly, list updated!')
-            console.log('📋 Updated sessions in list:', sessionsList.value.map(s => ({ uuid: s.uuid, session_id: s.session_id, status: s.status })))
+            console.log('✅ Account disconnected seamlessly, list updated!')
+        } else {
+            console.log('ℹ️ Received status event with status:', data.status)
         }
     }
 }
@@ -548,14 +623,20 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString()
 }
 
-const addSession = async () => {
+const addAccount = async () => {
     try {
         showAddModal.value = true
         qrCode.value = null
         countdown.value = 300
-        
+
+        // Clear any existing modal close timeout
+        if (modalCloseTimeout.value) {
+            clearTimeout(modalCloseTimeout.value)
+            modalCloseTimeout.value = null
+        }
+
         console.log('🔄 Creating new WhatsApp account...')
-        
+
         const response = await axios.post('/settings/whatsapp-accounts', {
             provider_type: 'webjs'
         }, {
@@ -564,15 +645,40 @@ const addSession = async () => {
                 'Accept': 'application/json'
             }
         })
-        
-        console.log('✅ Session created:', response.data)
+
+        console.log('✅ Account created:', response.data)
 
         if (response.data.success) {
-            currentSessionId.value = response.data.session.uuid
+            currentAccountId.value = response.data.account.uuid
 
-            // Add the new session to the list immediately
-            addSessionToList(response.data.session)
-            console.log('✨ Session added to list seamlessly, no page reload needed!')
+            // Set fallback timeout to close modal after 2 minutes if no connection happens
+            modalCloseTimeout.value = setTimeout(() => {
+                if (showAddModal.value) {
+                    console.log('⏰ Modal timeout reached, closing modal automatically')
+                    closeAddModal()
+                    // Also show user feedback
+                    setTimeout(() => {
+                        alert('QR code scan timed out. Please try again.')
+                    }, 100)
+                }
+            }, 120000) // 2 minutes
+
+            // Additional emergency timeout after 3 minutes
+            setTimeout(() => {
+                if (showAddModal.value) {
+                    console.warn('⚠️ EMERGENCY: Modal still open after timeout, forcing close')
+                    showAddModal.value = false
+                    qrCode.value = null
+                    if (countdownInterval) {
+                        clearInterval(countdownInterval)
+                        countdownInterval = null
+                    }
+                }
+            }, 180000) // 3 minutes
+
+            // Add the new account to the list immediately
+            addAccountToList(response.data.account)
+            console.log('✨ Account added to list seamlessly, no page reload needed!')
 
             // Check if QR code is already available
             if (response.data.qr_code) {
@@ -586,23 +692,53 @@ const addSession = async () => {
             }
         }
     } catch (error) {
-        console.error('❌ Failed to create session:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to create WhatsApp session'
-        alert(`Failed to create WhatsApp session: ${errorMessage}`)
+        console.error('❌ Failed to create account:', error)
+
+        // Provide user-friendly error messages
+        let userMessage = 'Failed to create WhatsApp account. Please try again.'
+        if (error.response?.status === 429) {
+            userMessage = 'Too many requests. Please wait a moment before trying again.'
+        } else if (error.response?.status === 403) {
+            userMessage = 'You do not have permission to add WhatsApp accounts.'
+        } else if (error.response?.data?.message) {
+            userMessage = error.response.data.message
+        }
+
+        alert(userMessage)
         closeAddModal()
     }
 }
 
 const closeAddModal = () => {
+    console.log('🚪 closeAddModal called, current modal state:', showAddModal.value)
+
+    // Force close modal
     showAddModal.value = false
     qrCode.value = null
     countdown.value = 300
-    clearInterval(countdownInterval)
+
+    // Clear all timers
+    if (countdownInterval) {
+        clearInterval(countdownInterval)
+        countdownInterval = null
+    }
+    if (modalCloseTimeout.value) {
+        clearTimeout(modalCloseTimeout.value)
+        modalCloseTimeout.value = null
+    }
+
+    // Double-check modal is closed
+    if (showAddModal.value) {
+        console.warn('⚠️ Modal still open after close attempt, forcing close again')
+        showAddModal.value = false
+    }
+
+    console.log('🚪 Modal closed successfully, state is now:', showAddModal.value)
 }
 
 const setPrimary = async (uuid) => {
     try {
-        console.log('⭐ Setting primary session:', uuid)
+        console.log('⭐ Setting primary account:', uuid)
 
         await axios.post(`/settings/whatsapp-accounts/${uuid}/set-primary`, {}, {
             headers: {
@@ -611,23 +747,33 @@ const setPrimary = async (uuid) => {
             }
         })
 
-        // Update all sessions: remove is_primary from current primary
-        sessionsList.value.forEach(session => {
-            session.is_primary = session.uuid === uuid
+        // Update all accounts: remove is_primary from current primary
+        accountsList.value.forEach(account => {
+            account.is_primary = account.uuid === uuid
         })
 
-        console.log('✅ Primary session updated seamlessly!')
+        console.log('✅ Primary account updated seamlessly!')
     } catch (error) {
         console.error('Failed to set primary session:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to set primary session'
-        alert(`Failed to set primary session: ${errorMessage}`)
+
+        // Provide user-friendly error messages
+        let userMessage = 'Failed to set primary WhatsApp number. Please try again.'
+        if (error.response?.status === 404) {
+            userMessage = 'WhatsApp account not found.'
+        } else if (error.response?.status === 403) {
+            userMessage = 'You do not have permission to modify WhatsApp accounts.'
+        } else if (error.response?.data?.message) {
+            userMessage = error.response.data.message
+        }
+
+        alert(userMessage)
     }
 }
 
 const disconnect = async (uuid) => {
     if (confirm('Are you sure you want to disconnect this WhatsApp number?')) {
         try {
-            console.log('🔌 Disconnecting session with UUID:', uuid)
+            console.log('🔌 Disconnecting account with UUID:', uuid)
 
             const response = await axios.post(`/settings/whatsapp-accounts/${uuid}/disconnect`, {}, {
                 headers: {
@@ -639,7 +785,7 @@ const disconnect = async (uuid) => {
             console.log('✅ Disconnect API response:', response.data)
 
             // Status will be updated via WebSocket event, but update optimistically
-            updateSessionInList(uuid, {
+            updateAccountInList(uuid, {
                 status: 'disconnecting...'
             })
 
@@ -647,10 +793,10 @@ const disconnect = async (uuid) => {
 
             // Fallback: If WebSocket event doesn't arrive in 3 seconds, update status manually
             setTimeout(() => {
-                const session = sessionsList.value.find(s => s.uuid === uuid)
-                if (session && session.status === 'disconnecting...') {
+                const account = accountsList.value.find(s => s.uuid === uuid)
+                if (account && account.status === 'disconnecting...') {
                     console.warn('⚠️ WebSocket event timeout - updating status to disconnected manually')
-                    updateSessionInList(uuid, {
+                    updateAccountInList(uuid, {
                         status: 'disconnected',
                         updated_at: new Date().toISOString()
                     })
@@ -658,16 +804,26 @@ const disconnect = async (uuid) => {
             }, 3000)
         } catch (error) {
             console.error('Failed to disconnect session:', error)
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to disconnect session'
-            alert(`Failed to disconnect session: ${errorMessage}`)
+
+            // Provide user-friendly error messages
+            let userMessage = 'Failed to disconnect WhatsApp number. Please try again.'
+            if (error.response?.status === 404) {
+                userMessage = 'WhatsApp account not found.'
+            } else if (error.response?.status === 403) {
+                userMessage = 'You do not have permission to modify WhatsApp accounts.'
+            } else if (error.response?.data?.message) {
+                userMessage = error.response.data.message
+            }
+
+            alert(userMessage)
         }
     }
 }
 
-const deleteSession = async (uuid) => {
+const deleteAccount = async (uuid) => {
     if (confirm('Are you sure you want to delete this WhatsApp number? This action cannot be undone.')) {
         try {
-            console.log('🗑️ Deleting session:', uuid)
+            console.log('🗑️ Deleting account:', uuid)
 
             const response = await axios.delete(`/settings/whatsapp-accounts/${uuid}`, {
                 headers: {
@@ -679,55 +835,76 @@ const deleteSession = async (uuid) => {
             console.log('✅ Delete response:', response.data)
 
             // Remove from list immediately (seamless!)
-            removeSessionFromList(uuid)
+            removeAccountFromList(uuid)
 
-            console.log('✅ Session deleted seamlessly, no page reload!')
+            console.log('✅ Account deleted seamlessly, no page reload!')
         } catch (error) {
-            console.error('❌ Failed to delete session:', error)
-            console.error('Error response:', error.response)
+            console.error('❌ Failed to delete account:', error)
 
+            // Provide user-friendly error messages
             if (error.response?.status === 404) {
-                // Session not found - remove from list anyway
-                removeSessionFromList(uuid)
-                console.log('⚠️ Session not found on server, removed from list')
-            } else {
-                const errorMessage = error.response?.data?.message || error.message || 'Failed to delete session'
-                alert(`Failed to delete session: ${errorMessage}`)
+                // Account not found - remove from list anyway
+                removeAccountFromList(uuid)
+                console.log('⚠️ Account not found on server, removed from list')
+                return
             }
+
+            let userMessage = 'Failed to delete WhatsApp account. Please try again.'
+            if (error.response?.status === 403) {
+                userMessage = 'You do not have permission to delete WhatsApp accounts.'
+            } else if (error.response?.status === 422) {
+                userMessage = 'Cannot delete account while it has active conversations.'
+            } else if (error.response?.data?.message) {
+                userMessage = error.response.data.message
+            }
+
+            alert(userMessage)
         }
     }
 }
 
 const reconnect = async (uuid) => {
     // Check if limit is already full
-    if (!canAddSessionComputed.value) {
-        alert('Cannot reconnect: You have reached the maximum number of connected WhatsApp sessions for your plan. Please disconnect another session first.')
+    if (!canAddAccountComputed.value) {
+        alert('Cannot reconnect: You have reached the maximum number of connected WhatsApp accounts for your plan. Please disconnect another account first.')
         return
     }
 
     try {
-        console.log('🔄 Reconnecting session:', uuid)
+        console.log('🔄 Reconnecting account:', uuid)
         const response = await axios.post(`/settings/whatsapp-accounts/${uuid}/reconnect`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
             }
         })
-        currentSessionId.value = uuid
+        currentAccountId.value = uuid
         showAddModal.value = true
         qrCode.value = response.data.qr_code
         countdown.value = 300
         startCountdown()
     } catch (error) {
         console.error('Failed to reconnect session:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to reconnect session'
-        alert(`Failed to reconnect session: ${errorMessage}`)
+
+        // Provide user-friendly error messages
+        let userMessage = 'Failed to reconnect WhatsApp number. Please try again.'
+        if (error.response?.status === 404) {
+            userMessage = 'WhatsApp account not found.'
+        } else if (error.response?.status === 403) {
+            userMessage = 'You do not have permission to modify WhatsApp accounts.'
+        } else if (error.response?.status === 429) {
+            userMessage = 'Too many reconnection attempts. Please wait before trying again.'
+        } else if (error.response?.data?.message) {
+            userMessage = error.response.data.message
+        }
+
+        alert(userMessage)
     }
 }
 
 const regenerateQR = async () => {
     try {
-        const response = await axios.post(`/settings/whatsapp-accounts/${currentSessionId.value}/regenerate-qr`, {}, {
+        const response = await axios.post(`/settings/whatsapp-accounts/${currentAccountId.value}/regenerate-qr`, {}, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
@@ -738,8 +915,20 @@ const regenerateQR = async () => {
         startCountdown()
     } catch (error) {
         console.error('Failed to regenerate QR code:', error)
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to regenerate QR code'
-        alert(`Failed to regenerate QR code: ${errorMessage}`)
+
+        // Provide user-friendly error messages
+        let userMessage = 'Failed to regenerate QR code. Please try again.'
+        if (error.response?.status === 404) {
+            userMessage = 'WhatsApp account not found.'
+        } else if (error.response?.status === 429) {
+            userMessage = 'Too many QR generation attempts. Please wait before trying again.'
+        } else if (error.response?.status === 403) {
+            userMessage = 'You do not have permission to modify WhatsApp accounts.'
+        } else if (error.response?.data?.message) {
+            userMessage = error.response.data.message
+        }
+
+        alert(userMessage)
     }
 }
 </script>

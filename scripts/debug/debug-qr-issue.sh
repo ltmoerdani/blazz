@@ -16,7 +16,7 @@ echo ""
 
 # Check network tab
 echo "2️⃣ Check Network Tab (DevTools):"
-echo "   Find: POST /settings/whatsapp-sessions"
+echo "   Find: POST /settings/whatsapp-accounts"
 echo "   Status should be: 200 OK"
 echo "   If 500/404/403: Check Laravel logs"
 echo ""

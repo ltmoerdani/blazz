@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Workspace;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
@@ -13,7 +13,7 @@ class WhatsAppIntegrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const WHATSAPP_SESSIONS_ROUTE = '/settings/whatsapp-sessions';
+    private const WHATSAPP_ACCOUNTS_ROUTE = '/settings/whatsapp-accounts';
 
     private User $user;
     private Workspace $workspace;
@@ -32,11 +32,11 @@ class WhatsAppIntegrationTest extends TestCase
     }
 
     /** @test */
-    public function it_can_create_whatsapp_session()
+    public function it_can_create_whatsapp_account()
     {
         $this->actingAs($this->user);
 
-        $response = $this->postJson(self::WHATSAPP_SESSIONS_ROUTE, [
+        $response = $this->postJson(self::WHATSAPP_ACCOUNTS_ROUTE, [
             'provider_type' => 'webjs',
             'is_primary' => false,
         ]);
@@ -47,7 +47,7 @@ class WhatsAppIntegrationTest extends TestCase
                     'message' => 'WhatsApp session created successfully'
                 ]);
 
-        $this->assertDatabaseHas('whatsapp_sessions', [
+        $this->assertDatabaseHas('whatsapp_accounts', [
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'initializing',
@@ -55,22 +55,22 @@ class WhatsAppIntegrationTest extends TestCase
     }
 
     /** @test */
-    public function it_can_list_whatsapp_sessions()
+    public function it_can_list_whatsapp_accounts()
     {
         $this->actingAs($this->user);
 
         // Create test sessions
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
         ]);
 
-        $response = $this->get(self::WHATSAPP_SESSIONS_ROUTE);
+        $response = $this->get(self::WHATSAPP_ACCOUNTS_ROUTE);
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) =>
-            $page->component('User/Settings/WhatsAppSessions')
+            $page->component('User/Settings/WhatsAppAccounts')
                 ->has('sessions')
         );
     }
@@ -80,7 +80,7 @@ class WhatsAppIntegrationTest extends TestCase
     {
         Event::fake();
 
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'status' => 'qr_scanning',
         ]);
@@ -103,21 +103,21 @@ class WhatsAppIntegrationTest extends TestCase
     {
         Event::fake();
 
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'status' => 'connected',
             'phone_number' => '+6281234567890',
         ]);
 
         // Simulate session status change event
-        event(new \App\Events\WhatsAppSessionStatusChangedEvent(
+        event(new \App\Events\WhatsAppAccountStatusChangedEvent(
             $session->session_id,
             'connected',
             $this->workspace->id,
             $session->phone_number
         ));
 
-        Event::assertDispatched(\App\Events\WhatsAppSessionStatusChangedEvent::class);
+        Event::assertDispatched(\App\Events\WhatsAppAccountStatusChangedEvent::class);
     }
 
     /** @test */
@@ -125,17 +125,17 @@ class WhatsAppIntegrationTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        $session1 = WhatsAppSession::factory()->create([
+        $session1 = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'is_primary' => true,
         ]);
 
-        $session2 = WhatsAppSession::factory()->create([
+        $account2 = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'is_primary' => false,
         ]);
 
-        $response = $this->postJson(self::WHATSAPP_SESSIONS_ROUTE . "/{$session2->uuid}/set-primary");
+        $response = $this->postJson(self::WHATSAPP_ACCOUNTS_ROUTE . "/{$account2->uuid}/set-primary");
 
         $response->assertStatus(200)
                 ->assertJson([
@@ -144,10 +144,10 @@ class WhatsAppIntegrationTest extends TestCase
                 ]);
 
         $session1->refresh();
-        $session2->refresh();
+        $account2->refresh();
 
         $this->assertFalse($session1->is_primary);
-        $this->assertTrue($session2->is_primary);
+        $this->assertTrue($account2->is_primary);
     }
 
     /** @test */
@@ -155,12 +155,12 @@ class WhatsAppIntegrationTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'status' => 'connected',
         ]);
 
-        $response = $this->postJson("/settings/whatsapp-sessions/{$session->uuid}/disconnect");
+        $response = $this->postJson("/settings/whatsapp-accounts/{$session->uuid}/disconnect");
 
         $response->assertStatus(200)
                 ->assertJson([
@@ -180,13 +180,13 @@ class WhatsAppIntegrationTest extends TestCase
             'created_by' => $otherUser->id,
         ]);
 
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $otherWorkspace->id,
         ]);
 
         $this->actingAs($this->user);
 
-        $response = $this->get("/settings/whatsapp-sessions/{$session->uuid}");
+        $response = $this->get("/settings/whatsapp-accounts/{$session->uuid}");
 
         $response->assertStatus(404);
     }
@@ -198,12 +198,12 @@ class WhatsAppIntegrationTest extends TestCase
 
         // Create maximum allowed sessions (5 for testing)
         for ($i = 0; $i < 5; $i++) {
-            WhatsAppSession::factory()->create([
+            WhatsAppAccount::factory()->create([
                 'workspace_id' => $this->workspace->id,
             ]);
         }
 
-        $response = $this->postJson('/settings/whatsapp-sessions', [
+        $response = $this->postJson('/settings/whatsapp-accounts', [
             'provider_type' => 'webjs',
         ]);
 

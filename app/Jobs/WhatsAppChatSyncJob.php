@@ -64,9 +64,9 @@ class WhatsAppChatSyncJob implements ShouldQueue
     }
 
     /**
-     * @var int WhatsApp session ID
+     * @var int WhatsApp account ID
      */
-    protected $sessionId;
+    protected $accountId;
 
     /**
      * @var int Workspace ID
@@ -81,14 +81,14 @@ class WhatsAppChatSyncJob implements ShouldQueue
     /**
      * Create a new job instance.
      *
-     * @param int $sessionId WhatsApp session ID
+     * @param int $accountId WhatsApp account ID
      * @param int $workspaceId Workspace ID
      * @param array $chats Array of chat data from Node.js
      * @return void
      */
-    public function __construct(int $sessionId, int $workspaceId, array $chats)
+    public function __construct(int $accountId, int $workspaceId, array $chats)
     {
-        $this->sessionId = $sessionId;
+        $this->accountId = $accountId;
         $this->workspaceId = $workspaceId;
         $this->chats = $chats;
     }
@@ -103,7 +103,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
         $startTime = microtime(true);
 
         Log::channel('whatsapp')->info('Chat sync job started', [
-            'session_id' => $this->sessionId,
+            'account_id' => $this->accountId,
             'workspace_id' => $this->workspaceId,
             'batch_size' => count($this->chats),
             'attempt' => $this->attempts(),
@@ -156,7 +156,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
         $duration = round((microtime(true) - $startTime) * 1000, 2); // milliseconds
 
         Log::channel('whatsapp')->info('Chat sync job completed', [
-            'session_id' => $this->sessionId,
+            'account_id' => $this->accountId,
             'total_chats' => count($this->chats),
             'processed' => $processedCount,
             'errors' => $errorCount,
@@ -164,8 +164,8 @@ class WhatsAppChatSyncJob implements ShouldQueue
             'attempt' => $this->attempts(),
         ]);
 
-        // Update session metadata with sync status
-        $this->updateSessionMetadata($processedCount, $errorCount);
+        // Update account metadata with sync status
+        $this->updateAccountMetadata($processedCount, $errorCount);
     }
 
     /**
@@ -183,7 +183,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
             $chatData['contact_name'] ?? null,
             $this->workspaceId,
             'webjs',
-            $this->sessionId
+            $this->accountId
         );
 
         // Create chat record
@@ -193,7 +193,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
                 'wam_id' => $chatData['chat_id'] ?? null,
             ],
             [
-                'whatsapp_account_id' => $this->sessionId,
+                'whatsapp_account_id' => $this->accountId,
                 'contact_id' => $contact->id,
                 'group_id' => null,
                 'provider_type' => 'webjs',
@@ -235,7 +235,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
             ],
             [
                 'workspace_id' => $this->workspaceId,
-                'whatsapp_account_id' => $this->sessionId,
+                'whatsapp_account_id' => $this->accountId,
                 'name' => $chatData['group_name'] ?? 'Unknown Group',
                 'description' => $chatData['group_description'] ?? null,
                 'owner_phone' => $chatData['owner_phone'] ?? null,
@@ -253,7 +253,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
                 'wam_id' => $chatData['chat_id'] ?? null,
             ],
             [
-                'whatsapp_account_id' => $this->sessionId,
+                'whatsapp_account_id' => $this->accountId,
                 'contact_id' => null, // Group chats don't have contact_id
                 'group_id' => $group->id,
                 'provider_type' => 'webjs',
@@ -279,16 +279,16 @@ class WhatsAppChatSyncJob implements ShouldQueue
     }
 
     /**
-     * Update session metadata with sync status
+     * Update account metadata with sync status
      *
      * @param int $processedCount
      * @param int $errorCount
      * @return void
      */
-    protected function updateSessionMetadata(int $processedCount, int $errorCount)
+    protected function updateAccountMetadata(int $processedCount, int $errorCount)
     {
         try {
-            $session = WhatsAppAccount::find($this->sessionId);
+            $session = WhatsAppAccount::find($this->accountId);
 
             if ($session) {
                 $metadata = $session->metadata ?? [];
@@ -301,8 +301,8 @@ class WhatsAppChatSyncJob implements ShouldQueue
                 $session->update(['metadata' => $metadata]);
             }
         } catch (\Exception $e) {
-            Log::channel('whatsapp')->warning('Failed to update session metadata', [
-                'session_id' => $this->sessionId,
+            Log::channel('whatsapp')->warning('Failed to update account metadata', [
+                'account_id' => $this->accountId,
                 'error' => $e->getMessage(),
             ]);
         }
@@ -319,7 +319,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
     public function failed(\Throwable $exception)
     {
         Log::channel('whatsapp')->error('Chat sync job failed permanently', [
-            'session_id' => $this->sessionId,
+            'account_id' => $this->accountId,
             'workspace_id' => $this->workspaceId,
             'total_chats' => count($this->chats),
             'error' => $exception->getMessage(),
@@ -327,9 +327,9 @@ class WhatsAppChatSyncJob implements ShouldQueue
             'attempts' => $this->attempts(),
         ]);
 
-        // Update session metadata with failure status
+        // Update account metadata with failure status
         try {
-            $session = WhatsAppAccount::find($this->sessionId);
+            $session = WhatsAppAccount::find($this->accountId);
 
             if ($session) {
                 $metadata = $session->metadata ?? [];

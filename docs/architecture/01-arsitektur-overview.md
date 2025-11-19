@@ -188,7 +188,7 @@ class ChatController extends BaseController
 **Current Services:**
 ```
 app/Services/
-├── AuthService.php              → Authentication & session management
+├── AuthService.php              → Authentication & account management
 ├── WhatsappService.php          → WhatsApp Cloud API integration
 ├── CampaignService.php          → Campaign creation & management
 ├── ChatService.php              → Real-time messaging logic

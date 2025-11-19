@@ -77,7 +77,7 @@ class ChatService
     public function sendMessage(object $request)
     {
         // Current: Always use Meta API via whatsappService
-        // Extension needed: Provider selection based on chat.whatsapp_session_id
+        // Extension needed: Provider selection based on chat.whatsapp_account_id
     }
 }
 ```
@@ -140,7 +140,7 @@ class NewChatEvent implements ShouldBroadcast
 #### 5. **Database Schema (VERIFIED via tinker)**
 ```sql
 -- chats table (15 columns verified)
-id, uuid, workspace_id, whatsapp_session_id, wam_id, contact_id,
+id, uuid, workspace_id, whatsapp_account_id, wam_id, contact_id,
 user_id, type, metadata, media_id, status, is_read, deleted_by,
 deleted_at, created_at
 
@@ -150,7 +150,7 @@ chat_type ENUM('private', 'group') -- For group chat support
 group_id BIGINT UNSIGNED NULL -- FK to whatsapp_groups
 ```
 
-**Evidence:** ✅ Foreign key `chats.whatsapp_session_id` EXISTS  
+**Evidence:** ✅ Foreign key `chats.whatsapp_account_id` EXISTS  
 **Design Decision:** Add 3 columns via migration
 
 ---
@@ -293,13 +293,13 @@ CREATE TABLE chats (
     id BIGINT UNSIGNED PRIMARY KEY,
     uuid CHAR(36) UNIQUE,
     workspace_id BIGINT UNSIGNED,
-    whatsapp_session_id BIGINT UNSIGNED, -- ✅ EXISTS
+    whatsapp_account_id BIGINT UNSIGNED, -- ✅ EXISTS
     contact_id BIGINT UNSIGNED,
     type ENUM('inbound', 'outbound'),
     status VARCHAR(50),
     -- ... other columns
     
-    FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) -- ✅ EXISTS
+    FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) -- ✅ EXISTS
 );
 ```
 
@@ -348,7 +348,7 @@ CREATE TABLE whatsapp_groups (
     
     -- Relationships
     workspace_id BIGINT UNSIGNED NOT NULL,
-    whatsapp_session_id BIGINT UNSIGNED NOT NULL,
+    whatsapp_account_id BIGINT UNSIGNED NOT NULL,
     
     -- WhatsApp identifiers
     group_jid VARCHAR(255) UNIQUE NOT NULL 
@@ -377,13 +377,13 @@ CREATE TABLE whatsapp_groups (
     
     -- Indexes
     INDEX idx_workspace (workspace_id),
-    INDEX idx_session (whatsapp_session_id),
+    INDEX idx_session (whatsapp_account_id),
     INDEX idx_group_jid (group_jid),
-    INDEX idx_workspace_session (workspace_id, whatsapp_session_id),
+    INDEX idx_workspace_session (workspace_id, whatsapp_account_id),
     
     -- Foreign keys
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
-    FOREIGN KEY (whatsapp_session_id) REFERENCES whatsapp_sessions(id) ON DELETE CASCADE
+    FOREIGN KEY (whatsapp_account_id) REFERENCES whatsapp_accounts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -421,7 +421,7 @@ CREATE TABLE whatsapp_groups (
 ALTER TABLE contacts
     ADD COLUMN source_session_id BIGINT UNSIGNED NULL
         AFTER workspace_id
-        COMMENT 'WhatsApp session that first created this contact',
+        COMMENT 'WhatsApp account that first created this contact',
     
     ADD COLUMN source_type ENUM('meta', 'webjs', 'manual') DEFAULT 'manual'
         AFTER source_session_id
@@ -622,7 +622,7 @@ WhatsApp ──► Node.js ──► Laravel ──► Database ──► Broadc
        // Create chat record
        $chat = Chat::create([
            'workspace_id' => $validated['workspace_id'],
-           'whatsapp_session_id' => $validated['session_id'],
+           'whatsapp_account_id' => $validated['session_id'],
            'contact_id' => $contact?->id,
            'group_id' => $groupId,
            'provider_type' => 'webjs',
@@ -699,11 +699,11 @@ class ProviderSelector
     {
         // If specific session requested
         if ($sessionId) {
-            $session = WhatsAppSession::find($sessionId);
+            $session = WhatsAppAccount::find($sessionId);
             
             if (!$session || $session->status !== 'connected') {
                 throw new SessionNotActiveException(
-                    "WhatsApp session #{$sessionId} tidak aktif"
+                    "WhatsApp account #{$sessionId} tidak aktif"
                 );
             }
             
@@ -711,14 +711,14 @@ class ProviderSelector
         }
         
         // Get primary active session
-        $session = WhatsAppSession::where('workspace_id', $workspaceId)
+        $session = WhatsAppAccount::where('workspace_id', $workspaceId)
             ->where('is_primary', true)
             ->where('status', 'connected')
             ->first();
         
         if (!$session) {
             // Fallback to any active session
-            $session = WhatsAppSession::where('workspace_id', $workspaceId)
+            $session = WhatsAppAccount::where('workspace_id', $workspaceId)
                 ->where('status', 'connected')
                 ->orderBy('health_score', 'desc')
                 ->first();
@@ -726,7 +726,7 @@ class ProviderSelector
         
         if (!$session) {
             throw new NoActiveSessionException(
-                "Tidak ada WhatsApp session yang aktif untuk workspace ini"
+                "Tidak ada WhatsApp account yang aktif untuk workspace ini"
             );
         }
         
@@ -736,7 +736,7 @@ class ProviderSelector
     /**
      * Get adapter instance based on provider_type
      */
-    protected function getAdapter(WhatsAppSession $session)
+    protected function getAdapter(WhatsAppAccount $session)
     {
         return match($session->provider_type) {
             'meta' => new MetaAPIAdapter($session),
@@ -753,7 +753,7 @@ class ProviderSelector
     public function failover($workspaceId, $failedProviderId)
     {
         // Get alternative active session
-        $session = WhatsAppSession::where('workspace_id', $workspaceId)
+        $session = WhatsAppAccount::where('workspace_id', $workspaceId)
             ->where('id', '!=', $failedProviderId)
             ->where('status', 'connected')
             ->orderBy('health_score', 'desc')
@@ -791,7 +791,7 @@ class ChatService
             ->latest()
             ->first();
         
-        $sessionId = $chat?->whatsapp_session_id ?? null;
+        $sessionId = $chat?->whatsapp_account_id ?? null;
         
         // Select provider
         try {
@@ -806,7 +806,7 @@ class ChatService
             // Create chat record
             $chat = Chat::create([
                 'workspace_id' => $this->workspaceId,
-                'whatsapp_session_id' => $sessionId,
+                'whatsapp_account_id' => $sessionId,
                 'contact_id' => $request->contact_id,
                 'provider_type' => $provider->getType(), // 'meta' | 'webjs'
                 'chat_type' => 'private',
@@ -944,7 +944,7 @@ import { router } from '@inertiajs/vue3';
 const props = defineProps({
     rows: { type: Object, required: true },
     filters: { type: Object },
-    sessions: { type: Array, default: () => [] }, // NEW: List of WhatsApp sessions
+    sessions: { type: Array, default: () => [] }, // NEW: List of WhatsApp accounts
     ticketingIsEnabled: { type: Boolean },
     status: { type: String },
     chatSortDirection: { type: String }
@@ -1008,7 +1008,7 @@ public function index(Request $request, $uuid = null)
     );
     
     // NEW: Get available sessions for filter dropdown
-    $sessions = WhatsAppSession::where('workspace_id', $this->getWorkspaceId())
+    $sessions = WhatsAppAccount::where('workspace_id', $this->getWorkspaceId())
         ->where('status', 'connected')
         ->select('id', 'phone_number', 'provider_type')
         ->withCount(['chats as unread_count' => function ($q) {
@@ -1093,7 +1093,7 @@ public function getChatList($request, $uuid = null, $searchTerm = null, $session
         // NEW: Filter by session if specified
         ->when($sessionId, function ($q) use ($sessionId) {
             $q->whereHas('chats', function ($chatQuery) use ($sessionId) {
-                $chatQuery->where('whatsapp_session_id', $sessionId);
+                $chatQuery->where('whatsapp_account_id', $sessionId);
             });
         })
         
@@ -1123,8 +1123,8 @@ CREATE INDEX idx_workspace_id ON contacts(workspace_id);
 CREATE INDEX idx_workspace_created ON chats(workspace_id, created_at DESC);
 
 -- NEW indexes needed
-CREATE INDEX idx_chat_type_session ON chats(workspace_id, chat_type, whatsapp_session_id, created_at DESC);
-CREATE INDEX idx_provider_session ON chats(workspace_id, provider_type, whatsapp_session_id);
+CREATE INDEX idx_chat_type_session ON chats(workspace_id, chat_type, whatsapp_account_id, created_at DESC);
+CREATE INDEX idx_provider_session ON chats(workspace_id, provider_type, whatsapp_account_id);
 CREATE INDEX idx_contact_chat ON chats(contact_id, created_at DESC);
 CREATE INDEX idx_group_chat ON chats(group_id, created_at DESC);
 ```
@@ -1362,7 +1362,7 @@ module.exports = WebhookNotifier;
 ```php
 // Webhook validation rules
 $request->validate([
-    'session_id' => 'required|exists:whatsapp_sessions,id',
+    'session_id' => 'required|exists:whatsapp_accounts,id',
     'workspace_id' => 'required|exists:workspaces,id',
     'chat_type' => 'required|in:private,group',
     'contact_phone' => 'required_if:chat_type,private|nullable|string',
@@ -1499,7 +1499,7 @@ Schema::table('chats', function (Blueprint $table) {
 public function syncBatch(Request $request)
 {
     $validated = $request->validate([
-        'session_id' => 'required|exists:whatsapp_sessions,id',
+        'session_id' => 'required|exists:whatsapp_accounts,id',
         'workspace_id' => 'required|exists:workspaces,id',
         'chats' => 'required|array|max:50',
     ]);
@@ -1540,7 +1540,7 @@ public function handle()
             $contact = Contact::where('phone', $chatData['contact_phone'])->first();
             $chatRecords[] = [
                 'workspace_id' => $this->workspaceId,
-                'whatsapp_session_id' => $this->sessionId,
+                'whatsapp_account_id' => $this->sessionId,
                 'contact_id' => $contact->id,
                 'provider_type' => 'webjs',
                 'chat_type' => $chatData['type'],
@@ -1599,7 +1599,7 @@ public function syncGroupChat($groupData, $sessionId)
         ['group_jid' => $groupData['jid']], // Unique key
         [
             'workspace_id' => $groupData['workspace_id'],
-            'whatsapp_session_id' => $sessionId,
+            'whatsapp_account_id' => $sessionId,
             'name' => $groupData['name'],
             'participants' => $groupData['participants'],
             'updated_at' => now(),
@@ -1649,13 +1649,13 @@ public function syncGroupChat($groupData, $sessionId)
 1. **Create Indexes Before Heavy Operations:**
 ```sql
 -- Required indexes (from design.md)
-CREATE INDEX idx_chat_type_session ON chats(workspace_id, chat_type, whatsapp_session_id, created_at DESC);
-CREATE INDEX idx_provider_session ON chats(workspace_id, provider_type, whatsapp_session_id);
+CREATE INDEX idx_chat_type_session ON chats(workspace_id, chat_type, whatsapp_account_id, created_at DESC);
+CREATE INDEX idx_provider_session ON chats(workspace_id, provider_type, whatsapp_account_id);
 CREATE INDEX idx_contact_chat ON chats(contact_id, created_at DESC);
 CREATE INDEX idx_group_chat ON chats(group_id, created_at DESC);
 
 -- Composite index for getChatList query
-CREATE INDEX idx_workspace_session_created ON chats(workspace_id, whatsapp_session_id, created_at DESC);
+CREATE INDEX idx_workspace_session_created ON chats(workspace_id, whatsapp_account_id, created_at DESC);
 ```
 
 2. **Query Optimization with Explain:**
@@ -1689,7 +1689,7 @@ class ProviderSelectorTest extends TestCase
 {
     public function test_selects_webjs_adapter_for_webjs_session()
     {
-        $session = WhatsAppSession::factory()->create([
+        $session = WhatsAppAccount::factory()->create([
             'provider_type' => 'webjs',
             'status' => 'connected',
         ]);
@@ -1702,13 +1702,13 @@ class ProviderSelectorTest extends TestCase
     
     public function test_failover_switches_to_backup_provider()
     {
-        $primarySession = WhatsAppSession::factory()->create([
+        $primarySession = WhatsAppAccount::factory()->create([
             'workspace_id' => 1,
             'provider_type' => 'webjs',
             'status' => 'disconnected',
         ]);
         
-        $backupSession = WhatsAppSession::factory()->create([
+        $backupSession = WhatsAppAccount::factory()->create([
             'workspace_id' => 1,
             'provider_type' => 'meta',
             'status' => 'connected',
@@ -1732,7 +1732,7 @@ class WhatsAppWebhookTest extends TestCase
     {
         Event::fake([NewChatEvent::class]);
         
-        $session = WhatsAppSession::factory()->create();
+        $session = WhatsAppAccount::factory()->create();
         $workspace = $session->workspace;
         
         $payload = [
@@ -1816,7 +1816,7 @@ class AddChatProviderAndGroups extends Migration
             $table->id();
             $table->char('uuid', 36)->unique();
             $table->unsignedBigInteger('workspace_id');
-            $table->unsignedBigInteger('whatsapp_session_id');
+            $table->unsignedBigInteger('whatsapp_account_id');
             $table->string('group_jid')->unique()->comment('WhatsApp group identifier');
             $table->string('name');
             $table->text('description')->nullable();
@@ -1828,11 +1828,11 @@ class AddChatProviderAndGroups extends Migration
             $table->timestamps();
             
             $table->index(['workspace_id']);
-            $table->index(['whatsapp_session_id']);
-            $table->index(['workspace_id', 'whatsapp_session_id']);
+            $table->index(['whatsapp_account_id']);
+            $table->index(['workspace_id', 'whatsapp_account_id']);
             
             $table->foreign('workspace_id')->references('id')->on('workspaces')->onDelete('cascade');
-            $table->foreign('whatsapp_session_id')->references('id')->on('whatsapp_sessions')->onDelete('cascade');
+            $table->foreign('whatsapp_account_id')->references('id')->on('whatsapp_accounts')->onDelete('cascade');
         });
         
         // Step 3: Backfill existing chats (will be done in background job)
@@ -1869,8 +1869,8 @@ class AddChatIndexes extends Migration
         Schema::table('chats', function (Blueprint $table) {
             $table->index(['workspace_id','provider_type','created_at'], 'idx_provider_type');
             $table->index(['workspace_id','chat_type','created_at'], 'idx_chat_type');
-            $table->index(['workspace_id','chat_type','whatsapp_session_id','created_at'], 'idx_chat_type_session');
-            $table->index(['workspace_id','provider_type','whatsapp_session_id'], 'idx_provider_session');
+            $table->index(['workspace_id','chat_type','whatsapp_account_id','created_at'], 'idx_chat_type_session');
+            $table->index(['workspace_id','provider_type','whatsapp_account_id'], 'idx_provider_session');
             $table->index(['contact_id','created_at'], 'idx_contact_chat');
             $table->index(['group_id','created_at'], 'idx_group_chat');
         });
@@ -2015,7 +2015,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
         
         $chat = Chat::create([
             'workspace_id' => $this->workspaceId,
-            'whatsapp_session_id' => $this->sessionId,
+            'whatsapp_account_id' => $this->sessionId,
             'contact_id' => $contact->id,
             'provider_type' => 'webjs',
             'chat_type' => 'private',
@@ -2034,7 +2034,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
             ['group_jid' => $chatData['group_jid']],
             [
                 'workspace_id' => $this->workspaceId,
-                'whatsapp_session_id' => $this->sessionId,
+                'whatsapp_account_id' => $this->sessionId,
                 'name' => $chatData['group_name'],
                 'participants' => $chatData['participants'],
             ]
@@ -2042,7 +2042,7 @@ class WhatsAppChatSyncJob implements ShouldQueue
         
         $chat = Chat::create([
             'workspace_id' => $this->workspaceId,
-            'whatsapp_session_id' => $this->sessionId,
+            'whatsapp_account_id' => $this->sessionId,
             'group_id' => $group->id,
             'provider_type' => 'webjs',
             'chat_type' => 'group',
@@ -2077,7 +2077,7 @@ class WhatsAppSyncController extends Controller
     public function syncBatch(Request $request)
     {
         $validated = $request->validate([
-            'session_id' => 'required|exists:whatsapp_sessions,id',
+            'session_id' => 'required|exists:whatsapp_accounts,id',
             'workspace_id' => 'required|exists:workspaces,id',
             'chats' => 'required|array|max:50',
             'chats.*.type' => 'required|in:private,group',

@@ -4,7 +4,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 // Get connected session
-$session = \App\Models\WhatsAppSession::where('status', 'connected')
+$session = \App\Models\WhatsAppAccount::where('status', 'connected')
     ->where('workspace_id', 1)
     ->first();
 

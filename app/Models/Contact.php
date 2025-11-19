@@ -16,9 +16,36 @@ class Contact extends Model {
     use SoftDeletes;
 
     protected $guarded = [];
-    protected $appends = ['full_name', 'formatted_phone_number'];
+    protected $appends = ['formatted_phone_number'];
     protected $dates = ['deleted_at'];
-    public $timestamps = false;
+    protected $casts = [
+        'group_metadata' => 'array',
+    ];
+    public $timestamps = true;
+
+    public function isGroup(): bool
+    {
+        return $this->type === 'group';
+    }
+
+    public function isIndividual(): bool
+    {
+        return $this->type === 'individual';
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-populate full_name when creating or updating
+        static::saving(function ($contact) {
+            if ($contact->isDirty(['first_name', 'last_name'])) {
+                $firstName = trim($contact->first_name ?? '');
+                $lastName = trim($contact->last_name ?? '');
+                $contact->full_name = trim("$firstName $lastName");
+            }
+        });
+    }
 
     public function getCreatedAtAttribute($value)
     {
@@ -118,7 +145,7 @@ class Contact extends Model {
             })
             ->with(['lastChat', 'lastInboundChat'])
             ->whereNull('contacts.deleted_at')
-            ->select('contacts.*')
+            ->select('contacts.*', 'contacts.type', 'contacts.group_metadata')
             ->selectSub(function ($subquery) use ($workspaceId, $sessionId) {
                 $subquery->from('chats')
                     ->selectRaw('MAX(created_at)')
@@ -159,11 +186,9 @@ class Contact extends Model {
             });
         }
 
-        // Order by the latest chat's created_at
-        $query->orderBy('last_chat_created_at', $sortDirection); // Order contacts by last chat created_at
-
-        // Paginate contacts
-        return $query->paginate(10);
+        // NOTE: orderBy already set above at line 162, no need to duplicate
+        // Using simplePaginate for infinite scroll (efficient, no COUNT query)
+        return $query->simplePaginate(15);
 
     }
 
@@ -267,11 +292,26 @@ class Contact extends Model {
     public function getFormattedPhoneNumberAttribute($value)
     {
         // Use the phone() helper function to format the phone number to international format
-        return phone($this->phone)->formatInternational();
+        if (!$this->phone) {
+            return '';
+        }
+
+        if ($this->isGroup()) {
+            return $this->phone;
+        }
+
+        try {
+            return phone($this->phone)->formatInternational();
+        } catch (\Exception $e) {
+            return $this->phone;
+        }
     }
 
     protected function decodeUnicodeBytes($value)
     {
+        if (!$value) {
+            return '';
+        }
         return preg_replace_callback('/\\\\x([0-9A-F]{2})/i', function ($matches) {
             return chr(hexdec($matches[1]));
         }, $value);

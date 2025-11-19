@@ -9,11 +9,12 @@ use App\Models\Contact;
 use App\Models\workspace;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
-use App\Services\WhatsApp\MessageSendingService;
+use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
@@ -22,7 +23,6 @@ class ChatController extends BaseController
     private ?ChatService $chatService;
     
     public function __construct(
-        private MessageSendingService $messageService,
         private MediaProcessingService $mediaService,
         private TemplateManagementService $templateService
     ) {
@@ -33,9 +33,12 @@ class ChatController extends BaseController
     private function getChatService($workspaceId)
     {
         if (!$this->chatService) {
+            // Create MessageService instance with workspaceId
+            $messageService = new MessageService($workspaceId);
+
             $this->chatService = new ChatService(
                 $workspaceId,
-                $this->messageService,
+                $messageService,
                 $this->mediaService,
                 $this->templateService
             );
@@ -45,13 +48,36 @@ class ChatController extends BaseController
 
     public function index(Request $request, $uuid = null)
     {
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
+
+        // Support AJAX requests untuk SPA navigation (no page reload)
+        // Only return JSON if it's explicitly an AJAX call (not Inertia)
+        // CRITICAL: Don't intercept pagination requests (they have 'page' parameter)
+        $isContactAjax = $request->ajax() && 
+                        $request->header('X-Requested-With') === 'XMLHttpRequest' && 
+                        !$request->header('X-Inertia') &&
+                        !$request->has('page'); // Allow pagination to pass through
+        
+        if ($isContactAjax) {
+            Log::info('ChatController::index - AJAX contact request', [
+                'workspace_id' => $workspaceId,
+                'uuid' => $uuid
+            ]);
+            
+            // Return JSON response untuk individual contact AJAX
+            return $this->getContactChatData($workspaceId, $uuid);
+        }
 
         // DEBUG: Add logging for troubleshooting
-        \Log::info('ChatController::index called', [
+        Log::info('ChatController::index called', [
             'workspace_id' => $workspaceId,
             'uuid' => $uuid,
             'search' => $request->query('search'),
+            'headers' => [
+                'X-Inertia' => $request->header('X-Inertia'),
+                'X-Requested-With' => $request->header('X-Requested-With'),
+                'Accept' => $request->header('Accept')
+            ]
         ]);
 
         // Check data counts for debugging
@@ -63,7 +89,7 @@ class ChatController extends BaseController
             })
             ->count();
 
-        \Log::info('Chat list data counts', [
+        Log::info('Chat list data counts', [
             'total_chats' => $chatCount,
             'contacts_with_chats' => $contactsWithChatsCount,
             'contacts_with_latest_chat' => Contact::where('workspace_id', $workspaceId)
@@ -72,6 +98,51 @@ class ChatController extends BaseController
         ]);
 
         return $this->getChatService($workspaceId)->getChatListWithFilters($request, $uuid, $request->query('search'));
+    }
+    
+    /**
+     * Get contact chat data for AJAX requests (SPA navigation)
+     */
+    private function getContactChatData($workspaceId, $uuid)
+    {
+        if (!$uuid) {
+            return response()->json([
+                'contact' => null,
+                'chatThread' => [],
+                'hasMoreMessages' => false,
+                'nextPage' => 1
+            ]);
+        }
+        
+        $contact = Contact::where('uuid', $uuid)
+            ->where('workspace_id', $workspaceId)
+            ->first();
+            
+        if (!$contact) {
+            return response()->json(['error' => 'Contact not found'], 404);
+        }
+        
+        // CRITICAL: Mark messages as read when opening chat (SPA navigation)
+        $this->getChatService($workspaceId)->markContactMessagesAsRead($contact->id);
+        
+        // Get chat messages
+        $messages = $this->getChatService($workspaceId)->getChatMessages($contact->id, 1);
+        
+        // Refresh contact to get updated unread_messages count
+        $contact->refresh();
+        
+        Log::info('AJAX: Contact chat loaded', [
+            'contact_id' => $contact->id,
+            'unread_before_refresh' => $contact->unread_messages,
+            'messages_count' => count($messages['messages'])
+        ]);
+        
+        return response()->json([
+            'contact' => $contact,
+            'chatThread' => $messages['messages'],
+            'hasMoreMessages' => $messages['hasMoreMessages'],
+            'nextPage' => $messages['nextPage']
+        ]);
     }
 
     public function updateChatSortDirection(Request $request)
@@ -83,13 +154,28 @@ class ChatController extends BaseController
 
     public function sendMessage(Request $request)
     {
-        $workspaceId = Auth::user()->current_workspace_id;
-        return $this->getChatService($workspaceId)->sendMessage($request);
+        $workspaceId = session()->get('current_workspace');
+        $result = $this->getChatService($workspaceId)->sendMessage($request);
+        
+        // Debug logging
+        Log::info('ChatController::sendMessage result', [
+            'success' => $result->success ?? 'null',
+            'message' => $result->message ?? 'null',
+            'has_data' => isset($result->data),
+            'result_type' => gettype($result),
+        ]);
+        
+        // Return JSON for AJAX request
+        return response()->json([
+            'success' => $result->success,
+            'message' => $result->message,
+            'data' => $result->success ? $result->data : null,
+        ], $result->success ? 200 : 400);
     }
 
     public function sendTemplateMessage(Request $request, $uuid)
     {
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
         $res = $this->getChatService($workspaceId)->sendTemplateMessage($request, $uuid);
 
         return Redirect::back()->with(
@@ -103,7 +189,7 @@ class ChatController extends BaseController
 
     public function deleteChats($uuid)
     {
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
         $this->getChatService($workspaceId)->clearContactChat($uuid);
 
         return Redirect::back()->with(
@@ -117,7 +203,7 @@ class ChatController extends BaseController
     public function loadMoreMessages(Request $request, $contactId)
     {
         $page = $request->query('page', 1);
-        $workspaceId = Auth::user()->current_workspace_id;
+        $workspaceId = session()->get('current_workspace');
         $messages = $this->getChatService($workspaceId)->getChatMessages($contactId, $page);
         
         return response()->json($messages);

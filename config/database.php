@@ -58,8 +58,21 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            'pool' => [
+                'min_connections' => 10,
+                'max_connections' => env('DB_MAX_CONNECTIONS', 150), // Scaled for 1K-3K users
+                'connect_timeout' => 5.0,
+                'wait_timeout' => 30.0,
+                'idle_timeout' => 30.0,
+                'max_lifetime' => 1800.0, // 30 minutes
+            ],
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::ATTR_PERSISTENT => true, // Enable persistent connections
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_STRINGIFY_FETCHES => false,
+                PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
             ]) : [],
         ],
 

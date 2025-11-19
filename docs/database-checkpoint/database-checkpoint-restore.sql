@@ -35,7 +35,7 @@ FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'blazz' 
 AND TABLE_NAME IN (
     'organization_channels', 
-    'whatsapp_sessions', 
+    'whatsapp_accounts', 
     'device_activities'
 );
 
@@ -43,7 +43,7 @@ AND TABLE_NAME IN (
 -- WARNING: This will delete all data in these tables!
 -- SET FOREIGN_KEY_CHECKS = 0;
 -- DROP TABLE IF EXISTS device_activities;
--- DROP TABLE IF EXISTS whatsapp_sessions;
+-- DROP TABLE IF EXISTS whatsapp_accounts;
 -- DROP TABLE IF EXISTS organization_channels;
 -- SET FOREIGN_KEY_CHECKS = 1;
 

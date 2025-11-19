@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\WhatsAppChatSyncJob;
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\Workspace;
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,7 +32,7 @@ class WhatsAppSyncControllerTest extends TestCase
         parent::setUp();
 
         $this->workspace = Workspace::factory()->create();
-        $this->session = WhatsAppSession::factory()->create([
+        $this->account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -58,7 +58,7 @@ class WhatsAppSyncControllerTest extends TestCase
     public function test_sync_endpoint_queues_job()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chats' => [
                 [
@@ -81,7 +81,7 @@ class WhatsAppSyncControllerTest extends TestCase
         $response->assertJson(['status' => 'queued']);
 
         Queue::assertPushed(WhatsAppChatSyncJob::class, function ($job) {
-            return $job->sessionId === $this->session->id &&
+            return $job->sessionId === $this->account->id &&
                    $job->workspaceId === $this->workspace->id;
         });
     }
@@ -102,7 +102,7 @@ class WhatsAppSyncControllerTest extends TestCase
         ]);
 
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chats' => $chats,
         ];
@@ -125,7 +125,7 @@ class WhatsAppSyncControllerTest extends TestCase
     public function test_invalid_signature_returns_401()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chats' => [],
         ];
@@ -147,7 +147,7 @@ class WhatsAppSyncControllerTest extends TestCase
     public function test_rate_limiting()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chats' => [],
         ];
@@ -223,7 +223,7 @@ class WhatsAppSyncControllerTest extends TestCase
     public function test_invalid_workspace_returns_error()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => 99999, // Non-existent
             'chats' => [],
         ];
@@ -246,7 +246,7 @@ class WhatsAppSyncControllerTest extends TestCase
     public function test_empty_chats_array_is_valid()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chats' => [], // Empty is okay
         ];
@@ -276,7 +276,7 @@ class WhatsAppSyncControllerTest extends TestCase
         ]);
 
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chats' => $chats,
         ];
@@ -302,7 +302,7 @@ class WhatsAppSyncControllerTest extends TestCase
     public function test_validates_chat_data_structure()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chats' => [
                 [
@@ -332,7 +332,7 @@ class WhatsAppSyncControllerTest extends TestCase
         $workspace2 = Workspace::factory()->create();
 
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $workspace2->id, // Different workspace
             'chats' => [],
         ];
@@ -355,7 +355,7 @@ class WhatsAppSyncControllerTest extends TestCase
     public function test_returns_correct_response_format()
     {
         $payload = [
-            'session_id' => $this->session->id,
+            'session_id' => $this->account->id,
             'workspace_id' => $this->workspace->id,
             'chats' => [
                 [

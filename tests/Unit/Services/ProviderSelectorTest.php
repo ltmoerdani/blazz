@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\WhatsAppSession;
+use App\Models\WhatsAppAccount;
 use App\Models\Workspace;
 use App\Services\ProviderSelector;
 use App\Services\Adapters\MetaAPIAdapter;
@@ -46,7 +46,7 @@ class ProviderSelectorTest extends TestCase
      */
     public function test_selects_webjs_adapter_for_webjs_session()
     {
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -67,7 +67,7 @@ class ProviderSelectorTest extends TestCase
      */
     public function test_selects_meta_adapter_for_meta_session()
     {
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'meta',
             'status' => 'connected',
@@ -90,7 +90,7 @@ class ProviderSelectorTest extends TestCase
     {
         $this->expectException(SessionNotActiveException::class);
 
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'disconnected', // Not connected
@@ -110,7 +110,7 @@ class ProviderSelectorTest extends TestCase
     public function test_selects_primary_session_when_no_session_id_provided()
     {
         // Create non-primary session
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -118,7 +118,7 @@ class ProviderSelectorTest extends TestCase
         ]);
 
         // Create primary session
-        $primarySession = WhatsAppSession::factory()->create([
+        $primaryAccount = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'meta',
             'status' => 'connected',
@@ -137,7 +137,7 @@ class ProviderSelectorTest extends TestCase
      */
     public function test_fallback_to_any_active_session_when_no_primary()
     {
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -160,7 +160,7 @@ class ProviderSelectorTest extends TestCase
         $this->expectException(NoActiveSessionException::class);
         $this->expectExceptionMessage('Tidak ada WhatsApp session yang aktif untuk workspace ini');
 
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'disconnected', // All disconnected
@@ -176,14 +176,14 @@ class ProviderSelectorTest extends TestCase
      */
     public function test_failover_switches_to_backup_provider()
     {
-        $primarySession = WhatsAppSession::factory()->create([
+        $primaryAccount = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected', // Will be failed
             'health_score' => 50,
         ]);
 
-        $backupSession = WhatsAppSession::factory()->create([
+        $backupSession = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'meta',
             'status' => 'connected',
@@ -192,7 +192,7 @@ class ProviderSelectorTest extends TestCase
 
         $adapter = $this->providerSelector->failover(
             $this->workspace->id,
-            $primarySession->id
+            $primaryAccount->id
         );
 
         $this->assertInstanceOf(MetaAPIAdapter::class, $adapter);
@@ -208,7 +208,7 @@ class ProviderSelectorTest extends TestCase
         $this->expectException(NoBackupProviderException::class);
         $this->expectExceptionMessage('Tidak ada backup provider yang tersedia');
 
-        $session = WhatsAppSession::factory()->create([
+        $account = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -225,7 +225,7 @@ class ProviderSelectorTest extends TestCase
      */
     public function test_failover_selects_highest_health_score()
     {
-        $primarySession = WhatsAppSession::factory()->create([
+        $primaryAccount = WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',
@@ -233,7 +233,7 @@ class ProviderSelectorTest extends TestCase
         ]);
 
         // Lower health score backup
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'meta',
             'status' => 'connected',
@@ -241,7 +241,7 @@ class ProviderSelectorTest extends TestCase
         ]);
 
         // Higher health score backup
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'meta',
             'status' => 'connected',
@@ -250,7 +250,7 @@ class ProviderSelectorTest extends TestCase
 
         $adapter = $this->providerSelector->failover(
             $this->workspace->id,
-            $primarySession->id
+            $primaryAccount->id
         );
 
         // Should select the one with highest health score (95)
@@ -265,7 +265,7 @@ class ProviderSelectorTest extends TestCase
     public function test_ignores_disconnected_sessions()
     {
         // Disconnected sessions
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'webjs',
             'status' => 'disconnected',
@@ -273,7 +273,7 @@ class ProviderSelectorTest extends TestCase
         ]);
 
         // Connected session
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $this->workspace->id,
             'provider_type' => 'meta',
             'status' => 'connected',
@@ -296,7 +296,7 @@ class ProviderSelectorTest extends TestCase
         $otherWorkspace = Workspace::factory()->create();
 
         // Session in other workspace
-        WhatsAppSession::factory()->create([
+        WhatsAppAccount::factory()->create([
             'workspace_id' => $otherWorkspace->id,
             'provider_type' => 'webjs',
             'status' => 'connected',

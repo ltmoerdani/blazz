@@ -293,7 +293,7 @@ tail -f storage/logs/laravel.log | grep "WhatsApp"
 - [app/Services/ContactProvisioningService.php](../../app/Services/ContactProvisioningService.php) ✅
 - [app/Models/Contact.php](../../app/Models/Contact.php) ✅
 - [app/Models/Chat.php](../../app/Models/Chat.php) ✅
-- [app/Models/WhatsAppSession.php](../../app/Models/WhatsAppSession.php) ✅
+- [app/Models/WhatsAppAccount.php](../../app/Models/WhatsAppAccount.php) ✅
 
 ### **Previous Bugfixes:**
 - [BUGFIX-MESSAGE-HANDLER.md](./BUGFIX-MESSAGE-HANDLER.md) - Initial implementation (had these errors)

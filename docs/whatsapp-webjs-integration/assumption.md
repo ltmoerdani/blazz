@@ -20,7 +20,7 @@
 - **Impact if Wrong:** Minimal - admin can switch back to Pusher instantly
 
 ### ASM-2: Database Architecture (VERIFIED)
-**Assumption:** New `whatsapp_sessions` table needed for session data storage
+**Assumption:** New `whatsapp_accounts` table needed for session data storage
 - **Evidence:** `workspaces.metadata` JSON field NOT suitable for 5-10MB session data
 - **Decision:** Dedicated table with encrypted session data
 - **Risk Level:** MEDIUM (migration required)
@@ -45,7 +45,7 @@
 - **Evidence:** Existing HMAC_SECRET in Node.js service config
 - **Decision:** HMAC-SHA256 with timestamp validation
 - **Risk Level:** CRITICAL (security vulnerability)
-- **Impact if Wrong:** Unauthorized access to WhatsApp sessions
+- **Impact if Wrong:** Unauthorized access to WhatsApp accounts
 
 ---
 
@@ -77,7 +77,7 @@
 ## ⚡ PERFORMANCE ASSUMPTIONS
 
 ### ASM-9: Concurrent Session Limits
-**Assumption:** 50 concurrent WhatsApp sessions per Node.js instance
+**Assumption:** 50 concurrent WhatsApp accounts per Node.js instance
 - **Evidence:** Puppeteer default limits and memory constraints
 - **Decision:** Session pooling with max limit enforcement
 - **Risk Level:** HIGH (server overload)
@@ -91,7 +91,7 @@
 - **Impact if Wrong:** Campaign failures, poor deliverability
 
 ### ASM-11: Resource Usage
-**Assumption:** ~100MB RAM per WhatsApp session (Chromium instance)
+**Assumption:** ~100MB RAM per WhatsApp account (Chromium instance)
 - **Evidence:** Puppeteer documentation benchmarks
 - **Decision:** Resource monitoring with auto-kill limits
 - **Risk Level:** HIGH (OOM issues)
@@ -129,7 +129,7 @@
 | ID | Category | Status | Priority | Risk | Validation Evidence |
 |----|----------|--------|----------|------|-------------------|
 | ASM-1 | Broadcasting | ✅ VERIFIED | CRITICAL | LOW | Laravel Reverb native Laravel 12, Socket.IO unused in codebase |
-| ASM-2 | Database | ⚠️ REQUIRES ACTION | P0 CRITICAL | HIGH | `whatsapp_sessions` table MISSING dari schema existing |
+| ASM-2 | Database | ⚠️ REQUIRES ACTION | P0 CRITICAL | HIGH | `whatsapp_accounts` table MISSING dari schema existing |
 | ASM-3 | Provider Logic | ✅ VERIFIED | HIGH | HIGH | Existing service layer siap untuk abstraction |
 | ASM-4 | Session Mgmt | ⚠️ REQUIRES MITIGATION | P0 CRITICAL | HIGH | WhatsApp Web.js 8 critical issues perlu dimitigasi |
 | ASM-5 | Security | ✅ VERIFIED | CRITICAL | CRITICAL | HMAC_SECRET sudah ada di Node.js config |
@@ -150,7 +150,7 @@
 ## 🎯 KEY DECISIONS SUMMARY
 
 1. **Broadcasting:** Laravel Reverb as default (free), Pusher as optional
-2. **Database:** New `whatsapp_sessions` table with encrypted data
+2. **Database:** New `whatsapp_accounts` table with encrypted data
 3. **Architecture:** Provider abstraction with automatic failover
 4. **Security:** HMAC authentication + AES-256 encryption
 5. **Performance:** 50 sessions/instance, 1000 msg/minute capacity

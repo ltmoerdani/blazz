@@ -842,7 +842,7 @@ const deleteAutoReply = (uuid) => {
 
 1. **WhatsApp Operations**
    - Send/receive messages
-   - Session management
+   - Account management
    - QR code generation
    - Provider switching
 

@@ -2,7 +2,16 @@
     <AppLayout v-slot:default="slotProps">
         <div class="md:flex md:flex-grow md:overflow-hidden">
             <div class="md:w-[30%] md:flex flex-col h-full bg-white border-r border-l" :class="contact ? 'hidden' : ''">
-                <ChatTable :rows="rows" :filters="props.filters" :rowCount="props.rowCount" :ticketingIsEnabled="ticketingIsEnabled" :status="props?.status" :chatSortDirection="props.chat_sort_direction"/>
+                <ChatTable 
+                    ref="chatTableRef"
+                    :rows="rows" 
+                    :filters="props.filters" 
+                    :rowCount="props.rowCount" 
+                    :ticketingIsEnabled="ticketingIsEnabled" 
+                    :status="props?.status" 
+                    :chatSortDirection="props.chat_sort_direction"
+                    @contact-selected="selectContact"
+                />
             </div>
             <div class="min-w-0 bg-cover flex flex-col chat-bg" :class="contact ? 'h-screen md:w-[70%]' : 'md:h-screen md:w-[70%]'">
                 <ChatHeader 
@@ -17,12 +26,26 @@
                     @closeThread="closeThread"
                 />
                 <div v-if="contact && !displayTemplate" class="flex-1 overflow-y-auto" ref="scrollContainer2">
+                    <!-- Loading Skeleton for instant feedback -->
+                    <div v-if="loadingThread && !displayContactInfo" class="p-4 space-y-3 animate-pulse">
+                        <div v-for="n in 5" :key="n" class="flex" :class="n % 2 === 0 ? 'justify-end' : 'justify-start'">
+                            <div :class="n % 2 === 0 ? 'bg-green-100' : 'bg-gray-100'" class="rounded-lg p-3 max-w-xs">
+                                <div class="h-4 bg-gray-300 rounded w-48 mb-2"></div>
+                                <div class="h-3 bg-gray-300 rounded w-32"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <ChatThread 
                         v-if="!displayContactInfo && !loadingThread && !displayTemplate"
+                        ref="chatThreadRef"
                         :contactId="contact.id"
+                        :workspaceId="props.workspaceId"
                         :initialMessages="chatThread"
                         :hasMoreMessages="hasMoreMessages"
                         :initialNextPage="nextPage"
+                        @message-sent="handleMessageSent"
+                        @retry-message="handleRetryMessage"
                     />
                     <Contact 
                         v-if="displayContactInfo && !displayTemplate" 
@@ -38,6 +61,8 @@
                         :simpleForm="simpleForm" 
                         :chatLimitReached="isChatLimitReached" 
                         @viewTemplate="displayTemplate = true;" 
+                        @optimisticMessageSent="handleOptimisticMessage"
+                        @messageSent="handleMessageSent"
                     />
                 </div>
                 <div v-if="displayTemplate" class="flex-1 overflow-y-hidden">
@@ -68,7 +93,7 @@
     import AppLayout from "./../Layout/App.vue";
     import { default as axios } from 'axios';
     import { router, useForm } from '@inertiajs/vue3';
-    import { defineEmits, ref, onMounted, watch } from 'vue';
+    import { defineEmits, ref, shallowRef, onMounted, watch } from 'vue';
     import CampaignForm from '@/Components/CampaignForm.vue';
     import ChatForm from '@/Components/ChatComponents/ChatForm.vue';
     import ChatHeader from '@/Components/ChatComponents/ChatHeader.vue';
@@ -92,7 +117,7 @@
         chatThread: Array,
         hasMoreMessages: Boolean,
         nextPage: Number,
-        addon: Object,
+        addon: [Boolean, Object], // Accept Boolean from isModuleEnabled() or Object
         contact: Object,
         ticket: Object,
         chat_sort_direction: String,
@@ -103,7 +128,11 @@
         simpleForm: Boolean
     });
 
-    const rows = ref(props.rows);
+    // Ensure rows is reactive and data is always an array
+    const rows = ref({
+        data: props.rows?.data || [],
+        meta: props.rows?.meta || {}
+    });
     const rowCount = ref(props.rowCount);
     const scrollContainer2 = ref(null);
     const loadingThread = ref(false);
@@ -115,11 +144,38 @@
     const config = ref(props.settings?.metadata ?? null);
     const settings = ref(config.value ? JSON.parse(config.value) : null);
     const ticketingIsEnabled = ref(settings.value?.tickets?.active ?? false);
-    const chatThread = ref(props.chatThread);
+    const chatThread = shallowRef(props.chatThread); // Optimized: shallow reactivity for large arrays
     const contact = ref(props.contact);
+    const chatThreadRef = ref(null);
+    const chatTableRef = ref(null); // NEW: Ref for ChatTable component
+    
+    // Cache untuk menyimpan data chat yang sudah di-load
+    const chatCache = new Map();
+    let lastFetchTime = 0;
+    const DEBOUNCE_DELAY = 150; // ms
 
     watch(() => props.rows, (newRows) => {
-        rows.value = newRows;
+        if (newRows) {
+            rows.value = {
+                data: newRows.data || [],
+                meta: newRows.meta || {}
+            };
+        }
+    }, { deep: true });
+    
+    watch(() => props.contact, (newContact) => {
+        if (newContact) {
+            contact.value = newContact;
+            // Don't update chatThread here - let props.chatThread watcher handle it
+        }
+    });
+
+    watch(() => props.chatThread, (newThread) => {
+        // Only update if it's actually different to prevent duplicate renders
+        if (newThread && JSON.stringify(newThread) !== JSON.stringify(chatThread.value)) {
+            console.log('📨 Updating chatThread from props:', newThread.length);
+            chatThread.value = newThread;
+        }
     });
 
     const toggleDropdown = () => {
@@ -150,6 +206,177 @@
         await axios.delete('/chats/' + contact.value.uuid);
     }
 
+    // Handle contact selection without page reload (SPA behavior like WhatsApp Web)
+    const selectContact = async (selectedContact) => {
+        // Debounce: Prevent rapid consecutive requests
+        const now = Date.now();
+        if (now - lastFetchTime < DEBOUNCE_DELAY) {
+            console.log('⏱️ Request debounced');
+            return;
+        }
+        lastFetchTime = now;
+
+        // GLOBAL BADGE & SIDEBAR SYNC:
+        // Check if the contact has unread messages and update immediately
+        // This ensures the global badge is updated even if we load from cache
+        if (selectedContact.unread_messages > 0) {
+            console.log('📖 Contact selected with unread messages:', selectedContact.unread_messages);
+            
+            // 1. Dispatch event to decrement global badge in App.vue
+            window.dispatchEvent(new CustomEvent('chat-read'));
+            console.log('📢 Dispatched chat-read event');
+            
+            // 2. Update internal rows state to reflect read status
+            // This prevents double-counting if updateContactInSidebar runs later
+            if (rows.value?.data) {
+                const index = rows.value.data.findIndex(c => c.id === selectedContact.id);
+                if (index !== -1) {
+                    rows.value.data[index].unread_messages = 0;
+                }
+            }
+        }
+        
+        // INSTANT FEEDBACK: Update contact immediately (optimistic)
+        contact.value = selectedContact;
+        loadingThread.value = true;
+        
+        // Check cache first for instant load
+        const cacheKey = `chat_${selectedContact.uuid}`;
+        if (chatCache.has(cacheKey)) {
+            console.log('💾 Loading from cache:', selectedContact.name);
+            const cachedData = chatCache.get(cacheKey);
+            
+            // IMPORTANT: Create new array reference for shallowRef to detect change
+            chatThread.value = [...cachedData.chatThread];
+            loadingThread.value = false;
+            
+            // Fetch fresh data in background to update cache
+            fetchChatDataInBackground(selectedContact.uuid, cacheKey);
+            return;
+        }
+        
+        try {
+            // Fetch chat thread for selected contact (tanpa update URL)
+            const response = await axios.get(`/chats/${selectedContact.uuid}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.data) {
+                // Update contact and chat thread without page reload
+                contact.value = response.data.contact || selectedContact;
+                
+                // IMPORTANT: Create new array reference for shallowRef to detect change
+                chatThread.value = [...(response.data.chatThread || [])];
+                
+                // CRITICAL: Update rows to reflect zero unread count for this contact
+                updateContactInSidebar(response.data.contact);
+                
+                // Store in cache for future instant access
+                chatCache.set(cacheKey, {
+                    chatThread: response.data.chatThread || [],
+                    timestamp: Date.now()
+                });
+                
+                // Limit cache size to prevent memory bloat (keep last 20 chats)
+                if (chatCache.size > 20) {
+                    const firstKey = chatCache.keys().next().value;
+                    chatCache.delete(firstKey);
+                }
+                
+                console.log('✅ Contact switched & cached:', selectedContact.name);
+                
+                // Close mobile sidebar if open
+                if (window.innerWidth < 768) {
+                    toggleNavbarBtn.value?.click();
+                }
+                
+                // Scroll to bottom after content loads
+                setTimeout(scrollToBottom, 100);
+            }
+        } catch (error) {
+            console.error('Error loading chat:', error);
+            // Revert optimistic update on error
+            contact.value = props.contact;
+        } finally {
+            loadingThread.value = false;
+        }
+    }
+    
+    // Background fetch untuk update cache tanpa blocking UI
+    const fetchChatDataInBackground = async (uuid, cacheKey, force = false) => {
+        try {
+            const response = await axios.get(`/chats/${uuid}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.data && response.data.chatThread) {
+                // Update cache silently
+                chatCache.set(cacheKey, {
+                    chatThread: response.data.chatThread,
+                    timestamp: Date.now()
+                });
+                
+                // If user still viewing this contact, update the UI too
+                if (contact.value && contact.value.uuid === uuid) {
+                    // Check if data actually changed before updating (skip check if forced)
+                    if (force) {
+                        chatThread.value = [...response.data.chatThread];
+                        console.log('🔄 Chat thread force-refreshed from backend');
+                    } else {
+                        const currentData = JSON.stringify(chatThread.value);
+                        const newData = JSON.stringify(response.data.chatThread);
+                        if (currentData !== newData) {
+                            chatThread.value = [...response.data.chatThread];
+                            console.log('🔄 Cache & UI refreshed in background');
+                        } else {
+                            console.log('✅ Cache refreshed, no UI update needed (data unchanged)');
+                        }
+                    }
+                } else {
+                    console.log('🔄 Cache refreshed in background');
+                }
+            }
+        } catch (error) {
+            console.error('Background fetch error:', error);
+        }
+    }
+    
+    // Prefetch contact data untuk instant loading
+    const prefetchContactData = async (uuid) => {
+        const cacheKey = `chat_${uuid}`;
+        
+        // Skip if already cached
+        if (chatCache.has(cacheKey)) {
+            return;
+        }
+        
+        try {
+            const response = await axios.get(`/chats/${uuid}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.data && response.data.chatThread) {
+                chatCache.set(cacheKey, {
+                    chatThread: response.data.chatThread,
+                    timestamp: Date.now()
+                });
+                console.log('🚀 Prefetched contact:', uuid);
+            }
+        } catch (error) {
+            // Silent fail for prefetch
+            console.debug('Prefetch skipped:', uuid);
+        }
+    }
+
     const updateChatThread = (chat) => {
         const wamId = chat[0].value.wam_id;
         const wamIdExists = chatThread.value.some(existingChat => existingChat[0].value.wam_id === wamId);
@@ -159,20 +386,176 @@
             setTimeout(scrollToBottom, 100);
         }
     }
+    
+    // Update contact in sidebar (reset unread count)
+    const updateContactInSidebar = (updatedContact) => {
+        if (!rows.value?.data) return;
+        
+        const index = rows.value.data.findIndex(c => c.id === updatedContact.id);
+        if (index !== -1) {
+            // Check if it had unread messages before reset
+            const previousUnreadCount = rows.value.data[index].unread_messages;
+
+            // Update the contact with fresh data (including unread_messages = 0)
+            rows.value.data[index] = {
+                ...rows.value.data[index],
+                ...updatedContact,
+                unread_messages: 0 // Force zero unread
+            };
+            
+            // If it had unread messages, dispatch event to decrement global counter
+            if (previousUnreadCount > 0) {
+                 window.dispatchEvent(new CustomEvent('chat-read'));
+                 console.log('📖 Dispatched chat-read event (decrement global badge)');
+            }
+            
+            console.log('📭 Sidebar updated: unread reset for', updatedContact.full_name || updatedContact.phone);
+        }
+    }
+    
+    // Handle optimistic message updates from ChatForm
+    const handleOptimisticMessage = (optimisticMessage) => {
+        console.log('📤 Optimistic message received in Index:', optimisticMessage);
+        
+        // Pass to ChatThread component for instant display
+        if (chatThreadRef.value) {
+            chatThreadRef.value.handleOptimisticMessageSent(optimisticMessage);
+        }
+    }
+    
+    // Handle message send confirmation
+    const handleMessageSent = (response) => {
+        console.log('✅ Message confirmed sent:', response);
+        
+        // Replace optimistic message with real message from backend
+        if (response.success && response.data && chatThreadRef.value) {
+            console.log('🔄 Replacing optimistic with real message ID:', response.data.id);
+            
+            // Call ChatThread to replace optimistic with real
+            if (chatThreadRef.value.replaceOptimisticMessage) {
+                chatThreadRef.value.replaceOptimisticMessage(response.data);
+            }
+        }
+        
+        // Update chat list to show latest message
+        refreshSidePanel();
+    }
+    
+    // Handle retry failed message
+    const handleRetryMessage = (failedMessage) => {
+        console.log('🔄 Retrying message:', failedMessage);
+        // Will be handled by ChatForm
+    }
 
     const updateSidePanel = async(chat) => {
-        if(contact.value && contact.value.id == chat[0].value.contact_id){
-            updateChatThread(chat);
+        console.log('📥 updateSidePanel called', {
+            chatStructure: chat,
+            currentContactId: contact.value?.id,
+            incomingContactId: chat?.[0]?.value?.contact_id,
+            messageType: chat?.[0]?.value?.type
+        });
+
+        // Validate chat structure
+        if (!chat || !chat[0] || !chat[0].value) {
+            console.error('❌ Invalid chat structure:', chat);
+            return;
         }
 
-        try {
-            const response = await axios.get('/chats');
-            if (response?.data?.result) {
-                rows.value = response.data.result;
+        const incomingContactId = chat[0].value.contact_id;
+        const isCurrentChat = contact.value && contact.value.id == incomingContactId;
+
+        // 1. Update Thread (if current chat)
+        if (isCurrentChat) {
+            console.log('✅ Message for current chat - updating thread');
+            
+            // Pass new message to ChatThread for real-time display
+            if (chatThreadRef.value && chatThreadRef.value.addNewMessage) {
+                chatThreadRef.value.addNewMessage(chat[0].value);
+                console.log('✅ Message added to current chat thread via WebSocket');
+            } else {
+                console.warn('⚠️ chatThreadRef not available, fallback to updateChatThread');
+                updateChatThread(chat);
             }
-        } catch (error) {
-            console.error('Error updating side panel:', error);
         }
+
+        // 2. Update Sidebar (Badge, Preview, Order)
+        console.log('🔍 Searching for contact in list to update sidebar');
+        // Prepare update data
+        const updateData = {};
+        
+        // Update Badge: Increment unread count if NOT current chat
+        if (!isCurrentChat) {
+            // Find current unread count from rows to know if we need to increment global badge
+            const currentContact = rows.value?.data?.find(c => c.id == incomingContactId);
+            const currentUnread = currentContact?.unread_messages || 0;
+            
+            updateData.unread_messages = currentUnread + 1;
+            
+            // If it was read (0) and now has 1, increment global counter
+            if (currentUnread === 0) {
+                window.dispatchEvent(new CustomEvent('chat-unread'));
+                console.log('📬 Dispatched chat-unread event (increment global badge)');
+            }
+        } else {
+            // If current chat, keep unread as 0 (or reset if it wasn't)
+            updateData.unread_messages = 0;
+        }
+        
+        // Update Preview: Last message content and time
+        const messageContent = chat[0].value.message || 
+                             chat[0].value.body || 
+                             (chat[0].value.metadata ? 
+                                 (typeof chat[0].value.metadata === 'string' ? 
+                                     JSON.parse(chat[0].value.metadata).body : 
+                                     chat[0].value.metadata.body) : 
+                                 'New message');
+        
+        updateData.last_message = messageContent;
+        updateData.last_message_at = chat[0].value.created_at || new Date().toISOString();
+        updateData.latest_chat_created_at = chat[0].value.created_at || new Date().toISOString();
+        
+        // METHOD 1: Call ChatTable method directly (Most Reliable)
+        if (chatTableRef.value && chatTableRef.value.moveContactToTop) {
+            chatTableRef.value.moveContactToTop(incomingContactId, updateData);
+            console.log('✅ Called ChatTable.moveContactToTop');
+        } else {
+            console.warn('⚠️ ChatTable ref not available, falling back to reactive update');
+        }
+        
+        // METHOD 2: Update reactive state (Consistency)
+        if (rows.value?.data) {
+            const contactIndex = rows.value.data.findIndex(c => c.id == incomingContactId);
+            if (contactIndex !== -1) {
+                const newRowsData = [...rows.value.data];
+                const targetContact = { ...newRowsData[contactIndex], ...updateData };
+                newRowsData.splice(contactIndex, 1);
+                newRowsData.unshift(targetContact);
+                rows.value.data = newRowsData;
+                console.log('✅ Updated rows.value.data (backup method)');
+            } else {
+                // Contact not found in current list (New Contact / Group)
+                console.log('🆕 Contact not found in list, fetching fresh data...');
+                // Force refresh immediately to show new contact
+                refreshSidePanel();
+            }
+        }
+
+        // Fetch fresh data from server for accuracy (non-blocking, debounced)
+        if (window.chatListSyncTimeout) {
+            clearTimeout(window.chatListSyncTimeout);
+        }
+        
+        window.chatListSyncTimeout = setTimeout(async () => {
+            try {
+                const response = await axios.get('/chats');
+                if (response?.data?.result) {
+                    rows.value = response.data.result;
+                    console.log('✅ Chat list synced with server');
+                }
+            } catch (error) {
+                console.error('❌ Error updating side panel:', error);
+            }
+        }, 2000);
     }
 
     const onCloseDemoModal = () => {
@@ -180,48 +563,95 @@
     }
 
     onMounted(() => {
-        const echo = getEchoInstance(
-            props.pusherSettings['pusher_app_key'],
-            props.pusherSettings['pusher_app_cluster']
-        );
+        // Listen to custom DOM event from App.vue (to avoid Echo channel subscription collision)
+        // App.vue handles the workspace WebSocket channel and dispatches to Index.vue
+        const handleNewMessage = (event) => {
+            const data = event.detail;
+            console.log('🔔 [Index.vue] New message received via custom event:', data);
+            console.log('🔍 [Index.vue] Message structure:', JSON.stringify(data.message, null, 2));
 
-        echo.channel('chats.ch' + props.workspaceId)
-            .listen('NewChatEvent', (event) => {
-                // ENHANCED: Support for group chats (TASK-FE-3)
-                console.log('New chat received:', event);
+            // Validate event data - support both 'message' (new) and 'chat' (legacy)
+            const messageData = data.message || data.chat;
 
-                // Determine if private or group chat
-                const isGroup = event.chat?.chat_type === 'group';
+            if (!messageData) {
+                console.debug('⚠️ Event data missing message/chat property:', data);
+                return;
+            }
 
-                if (isGroup) {
-                    // For group chats, event.group contains group info
-                    console.log('Group chat received:', event.group);
+            if (!messageData.id) {
+                console.debug('⚠️ Message ID missing, skipping event:', messageData);
+                return;
+            }
 
-                    // Update chat thread if user is viewing this group
-                    if (contact.value && contact.value.group_id === event.group?.id) {
-                        updateChatThread(event.chat);
-                    }
-                } else {
-                    // For private chats, event.contact contains contact info
-                    updateSidePanel(event.chat);
+            // Use the normalized message data
+            // Note: We need to ensure the structure matches what the rest of the code expects
+            // If it was 'chat', it might need transformation, but for now we assume 'message' structure is primary
+            const message = messageData;
+
+            // Convert new message structure to legacy format for compatibility
+            // Note: Single array level, not double!
+            const legacyChat = [{ 
+                type: 'chat', 
+                value: message 
+            }];
+            
+            console.log('🔍 [Index.vue] Legacy chat format:', JSON.stringify(legacyChat, null, 2));
+
+            // Determine if private or group chat
+            const isGroup = message.chat_type === 'group';
+
+            if (isGroup) {
+                console.log('📱 Group chat received:', message);
+                
+                // Update chat thread if user is viewing this group
+                // Note: contact.phone stores the group ID for groups
+                if (contact.value && (contact.value.group_id === message.group_id || contact.value.phone === message.group_id)) {
+                    updateChatThread(legacyChat);
                 }
 
-                // Always refresh side panel to show new chat in list
-                refreshSidePanel();
-            });
+                // Use updateSidePanel for groups too, it handles thread updates and sidebar reordering
+                updateSidePanel(legacyChat);
+            } else {
+                // For private chats, updateSidePanel handles ALL scenarios:
+                // ✅ Scenario 1: No chat active → updates sidebar & badge
+                // ✅ Scenario 2: Same chat active → updates thread + sidebar
+                // ✅ Scenario 3: Different chat active → updates badge + sidebar
+                console.log('💬 Private chat received');
+                updateSidePanel(legacyChat);
+            }
+        };
+        
+        window.addEventListener('new-chat-message', handleNewMessage);
+        console.log('✅ [Index.vue] Listening to custom new-chat-message events from App.vue');
 
         scrollToBottom();
+        
+        // PREFETCH: Load first 3 contacts in background for instant switching
+        if (props.rows?.data && Array.isArray(props.rows.data)) {
+            setTimeout(() => {
+                const topContacts = props.rows.data.slice(0, 3);
+                topContacts.forEach((contact, index) => {
+                    setTimeout(() => {
+                        prefetchContactData(contact.uuid);
+                    }, index * 300); // Stagger requests to avoid overwhelming server
+                });
+            }, 1000); // Wait 1s after page load to avoid blocking initial render
+        }
     });
 
     // NEW: Refresh side panel (for group chats support)
     const refreshSidePanel = async () => {
+        console.log('🔄 Refreshing side panel...');
         try {
             const response = await axios.get('/chats');
             if (response?.data?.result) {
                 rows.value = response.data.result;
+                console.log('✅ Side panel refreshed', {
+                    totalContacts: response.data.result?.data?.length || 0
+                });
             }
         } catch (error) {
-            console.error('Error refreshing side panel:', error);
+            console.error('❌ Error refreshing side panel:', error);
         }
     }
 </script>

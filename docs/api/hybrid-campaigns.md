@@ -42,7 +42,7 @@ Creates a new campaign using either template-based or direct message mode.
 | `campaign_type` | string | Yes | `template` or `direct` |
 | `contacts` | string | Yes | Contact group UUID or 'all' |
 | `preferred_provider` | string | No | `webjs` or `meta_api` (default: `webjs`) |
-| `whatsapp_session_id` | integer | No | Specific WhatsApp session ID |
+| `whatsapp_account_id` | integer | No | Specific WhatsApp account ID |
 | `skip_schedule` | boolean | No | Send immediately (default: false) |
 | `scheduled_at` | string | No | ISO 8601 datetime for scheduled sending |
 | `template` | string | No | Template UUID (required for template campaigns) |
@@ -204,11 +204,11 @@ Creates a new campaign using either template-based or direct message mode.
 
 ## Supporting Endpoints
 
-### Get Available WhatsApp Sessions
+### Get Available WhatsApp accounts
 
 **Endpoint:** `GET /campaigns/available-sessions`
 
-Returns list of active WhatsApp sessions for the workspace.
+Returns list of active WhatsApp accounts for the workspace.
 
 **Response:**
 ```json

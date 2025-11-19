@@ -1,8 +1,7 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { default as axios } from 'axios';
 import ChatBubble from '@/Components/ChatComponents/ChatBubble.vue';
-import MessageStatus from '@/Components/ChatComponents/MessageStatus.vue';
 import { getEchoInstance } from '@/echo.js';
 
 const props = defineProps({
@@ -24,7 +23,8 @@ const props = defineProps({
     },
     initialNextPage: {
         type: Number,
-        required: true
+        required: false,
+        default: 1
     }
 });
 
@@ -35,6 +35,36 @@ const hasMore = ref(props.hasMoreMessages);
 const echo = ref(null);
 const isTyping = ref(false);
 const typingUser = ref(null);
+
+// CRITICAL: Watch for prop changes when switching contacts
+watch(() => props.initialMessages, (newMessages, oldMessages) => {
+    // Only update if messages actually changed to prevent unnecessary re-renders
+    if (!oldMessages || newMessages.length !== oldMessages.length || 
+        JSON.stringify(newMessages) !== JSON.stringify(oldMessages)) {
+        console.log('🔄 ChatThread: Messages updated from parent', newMessages.length);
+        
+        // DEBUG: Check array structure
+        if (newMessages && newMessages.length > 0) {
+            console.log('📊 First message structure:', {
+                chatArrayLength: newMessages[0]?.length,
+                messageId: newMessages[0]?.[0]?.value?.id,
+                fullStructure: newMessages[0]
+            });
+        }
+        
+        messages.value = newMessages;
+    }
+}, { immediate: true, deep: false });
+
+watch(() => props.contactId, (newContactId, oldContactId) => {
+    if (newContactId !== oldContactId) {
+        console.log('👤 ChatThread: Contact changed from', oldContactId, 'to', newContactId);
+        // Reset state when contact changes
+        messages.value = props.initialMessages;
+        nextPage.value = props.initialNextPage;
+        hasMore.value = props.hasMoreMessages;
+    }
+});
 
 const loadMoreMessages = async () => {
     if (loading.value || !hasMore.value) return;
@@ -164,32 +194,50 @@ const handleTypingIndicator = (event) => {
 
 // Add new message to chat in real-time
 const addNewMessage = (messageData) => {
+    console.log('📨 [ChatThread] addNewMessage called with:', messageData);
+    
     // Prevent duplicate messages
-    const exists = messages.value.some(msg =>
-        msg[0]?.value?.id === messageData.id ||
-        msg[0]?.value?.whatsapp_message_id === messageData.whatsapp_message_id
-    );
+    // Note: messages array structure is [[{type: 'chat', value: {...}}]]
+    // Check both id and wam_id (WhatsApp message ID)
+    const exists = messages.value.some(msg => {
+        const msgValue = msg[0]?.value;
+        return msgValue?.id === messageData.id ||
+               msgValue?.wam_id === messageData.wam_id ||
+               msgValue?.whatsapp_message_id === messageData.wam_id;
+    });
 
-    if (!exists) {
-        const newMessage = [{
-            type: 'chat',
-            value: {
-                ...messageData,
-                message_status: messageData.message_status || 'delivered',
-                created_at: messageData.created_at || new Date().toISOString()
-            }
-        }];
+    console.log('🔍 [ChatThread] Duplicate check:', {
+        incomingId: messageData.id,
+        incomingWamId: messageData.wam_id,
+        exists: exists,
+        currentMessagesCount: messages.value.length
+    });
 
-        messages.value.push(newMessage);
-
-        // Scroll to bottom if needed
-        setTimeout(() => {
-            const chatContainer = document.querySelector('.chat-thread-container');
-            if (chatContainer) {
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-        }, 100);
+    if (exists) {
+        console.log('⚠️ [ChatThread] Message already exists, skipping');
+        return;
     }
+
+    const newMessage = [{
+        type: 'chat',
+        value: {
+            ...messageData,
+            message_status: messageData.message_status || 'delivered',
+            created_at: messageData.created_at || new Date().toISOString()
+        }
+    }];
+
+    messages.value.push(newMessage);
+    console.log('✅ [ChatThread] Message added, new count:', messages.value.length);
+
+    // Scroll to bottom if needed
+    setTimeout(() => {
+        const chatContainer = document.querySelector('.chat-thread-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            console.log('📜 [ChatThread] Scrolled to bottom');
+        }
+    }, 100);
 };
 
 // Handle contact presence updates (online/offline, typing status)
@@ -266,22 +314,34 @@ const optimisticMessages = ref(new Map()); // Track optimistic messages by ID
 const handleOptimisticMessageSent = (optimisticMessage) => {
     console.log('🚀 Optimistic message received:', optimisticMessage);
 
-    // Add optimistic message to the UI immediately
-    const messageArray = [{
-        type: 'chat',
-        value: optimisticMessage.value,
-        isOptimistic: true
-    }];
+    // Check if optimisticMessage is already in array format
+    if (Array.isArray(optimisticMessage)) {
+        // Already in correct format - just add it
+        messages.value.push(optimisticMessage);
+        
+        // Store for tracking
+        const messageId = optimisticMessage[0]?.value?.id;
+        if (messageId) {
+            optimisticMessages.value.set(messageId, optimisticMessage);
+        }
+    } else {
+        // Convert to array format
+        const messageArray = [{
+            type: 'chat',
+            value: optimisticMessage.value,
+            isOptimistic: true
+        }];
 
-    messages.value.push(messageArray);
+        messages.value.push(messageArray);
 
-    // Store optimistic message for later replacement
-    optimisticMessages.set(optimisticMessage.id, optimisticMessage);
+        // Store optimistic message for later replacement
+        optimisticMessages.value.set(optimisticMessage.id, optimisticMessage);
+    }
 
     // Auto-scroll to bottom to show new message
     autoScrollToBottom();
 
-    console.log(`✅ Optimistic message added: ${optimisticMessage.id}`);
+    console.log(`✅ Optimistic message added to chat thread`);
 };
 
 // Handle optimistic message failed event
@@ -300,7 +360,7 @@ const handleOptimisticMessageFailed = (errorData) => {
     }
 
     // Remove from tracking map
-    optimisticMessages.delete(errorData.optimisticId);
+    optimisticMessages.value.delete(errorData.optimisticId);
 };
 
 // Replace optimistic message with real message
@@ -325,6 +385,14 @@ const replaceOptimisticMessage = (realMessage) => {
     }
 
     if (messageIndex !== -1) {
+        console.log('📋 Real message structure:', {
+            id: realMessage.id,
+            type: realMessage.type,
+            metadata: realMessage.metadata,
+            has_user: !!realMessage.user,
+            has_logs: !!realMessage.logs
+        });
+        
         // Replace optimistic message with real message
         messages.value[messageIndex] = [{
             type: 'chat',
@@ -337,7 +405,7 @@ const replaceOptimisticMessage = (realMessage) => {
         console.log(`🔄 Replaced optimistic message with real message: ${optimisticId || whatsappMessageId}`);
 
         // Clean up tracking
-        optimisticMessages.delete(optimisticId);
+        optimisticMessages.value.delete(optimisticId);
 
     } else {
         // If not found, add as new message
@@ -377,7 +445,8 @@ defineExpose({
     handleOptimisticMessageSent,
     handleOptimisticMessageFailed,
     replaceOptimisticMessage,
-    autoScrollToBottom
+    autoScrollToBottom,
+    addNewMessage  // ✅ REALTIME FIX: Expose addNewMessage for parent to call
 });
 
 // Setup and cleanup Echo listeners
@@ -435,7 +504,9 @@ onUnmounted(() => {
         <div v-for="(chat, index) in messages"
              :key="index"
              class="flex flex-grow flex-col"
-             :class="chat[0].type === 'ticket' ? 'justify-center' : 'justify-end'">
+             :class="chat[0].type === 'ticket' ? 'justify-center' : 'justify-end'"
+             :data-debug-chat-length="chat.length"
+             :data-debug-msg-id="chat[0]?.value?.id || chat[0]?.value?.wam_id">
 
             <!-- Chat messages with status indicators -->
             <div v-if="chat[0].type === 'chat'"
@@ -459,15 +530,6 @@ onUnmounted(() => {
                         <div class="w-2 h-2 bg-red-500 rounded-full"></div>
                     </div>
                 </div>
-
-                <!-- Message status component for outbound messages -->
-                <MessageStatus
-                    v-if="chat[0].value.type === 'outbound'"
-                    :status="chat[0].value.message_status || 'pending'"
-                    :timestamp="chat[0].value.created_at"
-                    :show-indicators="true"
-                    :show-timestamp="true"
-                    size="small" />
 
                 <!-- Retry button for failed messages -->
                 <button v-if="chat[0].value.message_status === 'failed'"

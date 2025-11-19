@@ -271,7 +271,7 @@ public function failed(Throwable $exception)
     event(new ChatSyncFailed($this->sessionId, $exception));
     
     // Update session metadata with failure status
-    WhatsAppSession::find($this->sessionId)->update([
+    WhatsAppAccount::find($this->sessionId)->update([
         'metadata->sync_status' => 'failed',
         'metadata->last_error' => $exception->getMessage()
     ]);
@@ -332,7 +332,7 @@ curl -X POST http://127.0.0.1:8000/api/whatsapp/chats/sync \
 
 **Changes:**
 - Method signature: `getChatList($request, $uuid, $search, $sessionId = null)`
-- Add query filter: `->when($sessionId, fn($q) => $q->where('whatsapp_session_id', $sessionId))`
+- Add query filter: `->when($sessionId, fn($q) => $q->where('whatsapp_account_id', $sessionId))`
 
 **Dependencies:** TASK-DB-1
 
@@ -341,7 +341,7 @@ curl -X POST http://127.0.0.1:8000/api/whatsapp/chats/sync \
 php artisan tinker
 >>> $service = new ChatService(1);
 >>> $chats = $service->getChatList(request(), null, null, 5);
->>> $chats->every(fn($c) => $c->whatsapp_session_id === 5); // Should be true
+>>> $chats->every(fn($c) => $c->whatsapp_account_id === 5); // Should be true
 ```
 
 ---
