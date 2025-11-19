@@ -152,9 +152,29 @@ class CampaignService
 
                 $campaign = Campaign::create($campaignData);
 
+                // Log campaign creation
+                Log::info('Campaign created', [
+                    'campaign_id' => $campaign->id,
+                    'campaign_uuid' => $campaign->uuid,
+                    'campaign_type' => $campaign->campaign_type,
+                    'skip_schedule' => $request->skip_schedule ?? false,
+                    'status' => $campaign->status
+                ]);
+
                 // Dispatch job for immediate or scheduled processing
                 if ($request->skip_schedule || (!$request->scheduled_at || $request->scheduled_at->isPast())) {
-                    SendCampaignJob::dispatch($campaign->id);
+                    Log::info('Dispatching SendCampaignJob immediately', [
+                        'campaign_id' => $campaign->id,
+                        'reason' => $request->skip_schedule ? 'skip_schedule_enabled' : 'scheduled_time_passed'
+                    ]);
+                    
+                    SendCampaignJob::dispatch($campaign->id)
+                        ->onQueue('whatsapp-campaign');
+                } else {
+                    Log::info('Campaign scheduled for later processing', [
+                        'campaign_id' => $campaign->id,
+                        'scheduled_at' => $campaign->scheduled_at
+                    ]);
                 }
 
                 return $campaign;

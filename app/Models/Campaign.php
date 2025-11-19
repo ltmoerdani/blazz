@@ -198,8 +198,20 @@ class Campaign extends Model {
                 'header_media' => $this->template->header_media,
                 'body_text' => $this->template->body_text,
                 'footer_text' => $this->template->footer_text,
-                'buttons_data' => $this->template->buttons_data
+                'buttons_data' => is_array($this->template->buttons_data) 
+                    ? $this->template->buttons_data 
+                    : (is_string($this->template->buttons_data) 
+                        ? json_decode($this->template->buttons_data, true) ?? [] 
+                        : [])
             ];
+        }
+
+        // Ensure buttons_data is always an array
+        $buttonsData = $this->buttons_data;
+        if (is_string($buttonsData)) {
+            $buttonsData = json_decode($buttonsData, true) ?? [];
+        } elseif (!is_array($buttonsData)) {
+            $buttonsData = [];
         }
 
         return [
@@ -208,7 +220,7 @@ class Campaign extends Model {
             'header_media' => $this->header_media,
             'body_text' => $this->body_text,
             'footer_text' => $this->footer_text,
-            'buttons_data' => $this->buttons_data ?? []
+            'buttons_data' => $buttonsData
         ];
     }
 
