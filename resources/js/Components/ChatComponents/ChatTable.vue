@@ -1,9 +1,8 @@
 <script setup>
     import axios from 'axios';
-    import { ref, watch } from 'vue';
+    import { ref, watch, onMounted, onUnmounted } from 'vue';
     import debounce from 'lodash/debounce';
     import { Link, router } from "@inertiajs/vue3";
-    import Pagination from '@/Components/Pagination.vue';
     import TicketStatusToggle from '@/Components/TicketStatusToggle.vue';
     import SortDirectionToggle from '@/Components/SortDirectionToggle.vue';
 
@@ -37,7 +36,13 @@
 
     const isSearching = ref(false);
     const selectedContact = ref(null);
-    const emit = defineEmits(['view', 'contact-selected']);
+    const isLoadingMore = ref(false);
+    const hasNextPage = ref(true);
+    const currentPage = ref(1);
+    const scrollContainer = ref(null);
+    const loadMoreTrigger = ref(null);
+    const localRows = ref([...props.rows.data]); // Local copy for manipulation
+    const emit = defineEmits(['view', 'contact-selected', 'update-rows']);
 
     function viewChat(contact) {
         selectedContact.value = contact;
@@ -186,6 +191,182 @@
         // Format: +62 812-3456-7890
         return phone.replace(/(\+\d{2})(\d{3})(\d{4})(\d+)/, '$1 $2-$3-$4');
     }
+    
+    // Infinite Scroll Implementation
+    let intersectionObserver = null;
+    
+    const loadMoreContacts = async () => {
+        if (isLoadingMore.value || !hasNextPage.value) {
+            console.log('🚫 Load blocked:', { isLoading: isLoadingMore.value, hasNext: hasNextPage.value });
+            return;
+        }
+        
+        console.log('📥 Starting load more...', { currentPage: currentPage.value });
+        isLoadingMore.value = true;
+        const nextPage = currentPage.value + 1;
+        
+        try {
+            const url = new URL(window.location.pathname, window.location.origin);
+            url.searchParams.set('page', nextPage);
+            
+            // Preserve existing filters
+            if (params.value.search) {
+                url.searchParams.set('search', params.value.search);
+            }
+            if (params.value.account_id) {
+                url.searchParams.set('account_id', params.value.account_id);
+            }
+            
+            const response = await axios.get(url.toString(), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.data?.result?.data) {
+                const newContacts = response.data.result.data;
+                
+                console.log('📦 Received data:', {
+                    newCount: newContacts.length,
+                    hasMorePages: response.data.result.meta?.has_more_pages
+                });
+                
+                // IMPORTANT: Only append if we got new data
+                if (newContacts.length > 0) {
+                    // Append to local copy
+                    localRows.value.push(...newContacts);
+                    
+                    // Update pagination state
+                    currentPage.value = nextPage;
+                    
+                    console.log('✅ Loaded more contacts:', {
+                        newContacts: newContacts.length,
+                        totalNow: localRows.value.length,
+                        currentPage: currentPage.value
+                    });
+                }
+                
+                // CRITICAL: Use backend's has_more_pages if available, otherwise check length
+                if (response.data.result.meta?.has_more_pages !== undefined) {
+                    hasNextPage.value = response.data.result.meta.has_more_pages;
+                } else {
+                    // Fallback: if we got less than perPage, no more data
+                    hasNextPage.value = newContacts.length >= 15;
+                }
+                
+                console.log('📊 Pagination state:', {
+                    hasNextPage: hasNextPage.value,
+                    currentPage: currentPage.value
+                });
+            } else {
+                // No data received, stop pagination
+                hasNextPage.value = false;
+                console.log('⚠️ No data in response, stopping pagination');
+            }
+        } catch (error) {
+            console.error('❌ Error loading more contacts:', error);
+            hasNextPage.value = false; // Stop trying on error
+        } finally {
+            isLoadingMore.value = false;
+        }
+    };
+    
+    const handleScroll = debounce(() => {
+        if (!scrollContainer.value) return;
+        
+        const container = scrollContainer.value;
+        const scrollPosition = container.scrollTop + container.clientHeight;
+        const scrollHeight = container.scrollHeight;
+        
+        // Trigger load when user scrolls to 80% of the content
+        if (scrollPosition >= scrollHeight * 0.8 && !isLoadingMore.value && hasNextPage.value) {
+            loadMoreContacts();
+        }
+    }, 100);
+    
+    // Setup Intersection Observer for more efficient infinite scroll
+    const setupIntersectionObserver = () => {
+        if (!loadMoreTrigger.value) {
+            console.log('⚠️ loadMoreTrigger not available yet');
+            return;
+        }
+        
+        const options = {
+            root: scrollContainer.value,
+            rootMargin: '50px', // Reduced from 100px to prevent premature trigger
+            threshold: 0.01 // Very small threshold
+        };
+        
+        intersectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                console.log('👁️ Intersection:', {
+                    isIntersecting: entry.isIntersecting,
+                    isLoading: isLoadingMore.value,
+                    hasNext: hasNextPage.value
+                });
+                
+                if (entry.isIntersecting && !isLoadingMore.value && hasNextPage.value) {
+                    console.log('🎯 Triggering load from Intersection Observer');
+                    loadMoreContacts();
+                }
+            });
+        }, options);
+        
+        intersectionObserver.observe(loadMoreTrigger.value);
+        console.log('✅ Intersection Observer setup complete');
+    };
+    
+    // Watch for props changes to update local copy
+    watch(() => props.rows.data, (newData) => {
+        if (newData) {
+            localRows.value = [...newData];
+            console.log('🔄 Rows updated from props:', localRows.value.length);
+        }
+    }, { deep: false });
+    
+    // Reset pagination when search or filter changes
+    watch([() => params.value.search, () => params.value.account_id], () => {
+        console.log('🔍 Filter changed, resetting pagination');
+        currentPage.value = 1;
+        hasNextPage.value = true;
+        localRows.value = [...props.rows.data]; // Reset to initial data
+    });
+    
+    onMounted(() => {
+        // Initialize local rows from props
+        localRows.value = [...props.rows.data];
+        
+        // Initialize pagination state from props
+        if (props.rows?.meta) {
+            currentPage.value = props.rows.meta.current_page || 1;
+            
+            // Check has_more_pages from backend if available
+            if (props.rows.meta.has_more_pages !== undefined) {
+                hasNextPage.value = props.rows.meta.has_more_pages;
+            } else {
+                // Fallback: check if we have full page of data
+                hasNextPage.value = props.rows.data.length >= 15;
+            }
+            
+            console.log('📋 Initial state:', {
+                currentPage: currentPage.value,
+                hasNextPage: hasNextPage.value,
+                contactCount: localRows.value.length
+            });
+        }
+        
+        // Setup Intersection Observer with slight delay to ensure DOM is ready
+        setTimeout(() => {
+            setupIntersectionObserver();
+        }, 500);
+    });
+    
+    onUnmounted(() => {
+        if (intersectionObserver) {
+            intersectionObserver.disconnect();
+        }
+    });
 </script>
 <template>
     <div class="px-4 py-4 border-b">
@@ -236,13 +417,13 @@
             </div>
         </div>
     </div>
-    <div class="flex-grow overflow-y-auto h-[65vh]" ref="scrollContainer">
+    <div class="flex-grow overflow-y-auto h-[65vh]" ref="scrollContainer" @scroll="handleScroll">
         <!-- Changed from Link to div for SPA navigation -->
         <div 
             @click="selectContact(contact, $event)" 
             class="block border-b group-hover:pr-0 cursor-pointer" 
             :class="[contact.unread_messages > 0 ? 'bg-green-50' : '', selectedContact?.id === contact.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : '']" 
-            v-for="(contact, index) in rows.data" 
+            v-for="(contact, index) in localRows" 
             :key="contact.id || index">
             <div class="flex space-x-2 hover:bg-gray-50 py-3 px-4">
                 <!-- NEW: Chat Type Icon (TASK-FE-2) -->
@@ -341,9 +522,24 @@
                 </div>
             </div>
         </div>
-    </div>
-    <div class="px-4 pb-4">
-        <Pagination class="mt-3" :pagination="rows.meta"/>
+        
+        <!-- Intersection Observer Target - Must be AFTER all items -->
+        <div v-if="hasNextPage && !isLoadingMore" ref="loadMoreTrigger" class="h-4"></div>
+        
+        <!-- Infinite Scroll Loading Indicator -->
+        <div v-if="isLoadingMore" class="py-4 flex justify-center items-center">
+            <svg class="animate-spin h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="ml-2 text-sm text-gray-500">Loading more chats...</span>
+        </div>
+        
+        <!-- End of List Indicator -->
+        <div v-if="!hasNextPage && localRows.length > 0" class="py-4 text-center text-sm text-gray-400">
+            <p>You've reached the end of your chats</p>
+            <p class="text-xs mt-1">Showing {{ localRows.length }} conversations</p>
+        </div>
     </div>
 </template>
   

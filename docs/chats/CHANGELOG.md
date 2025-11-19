@@ -1,8 +1,83 @@
 # 📋 Changelog - Blazz Chat System
 
-**Last Updated:** November 18, 2025
-**Document Version:** 2.0 - Production Ready Release
+**Last Updated:** November 19, 2025
+**Document Version:** 2.1 - Infinite Scroll Update
 **Implementation Status:** ✅ 100% Complete - Production Ready
+
+---
+
+## 🚀 **v2.1.1 - INFINITE SCROLL BUG FIX - November 19, 2025**
+
+### **🐛 Critical Bug Fixes**
+- **Fixed Infinite Loading Loop**
+  - ✅ Resolved props mutation issue (Vue anti-pattern)
+  - ✅ Fixed Intersection Observer infinite trigger
+  - ✅ Corrected hasNextPage detection logic
+  - ✅ Added empty response guards
+  - ✅ Improved trigger element positioning
+
+### **🔧 Technical Fixes**
+- **ChatTable.vue Improvements**
+  - Changed to local state management (`localRows`)
+  - Fixed props mutation dengan proper reactive pattern
+  - Enhanced pagination logic dengan backend's `has_more_pages`
+  - Added comprehensive console logging untuk debugging
+  - Improved Intersection Observer setup dengan proper guards
+  - Fixed trigger visibility conditions
+
+### **📊 Quality Improvements**
+- Enhanced error handling
+- Better state management
+- Cleaner code structure
+- Comprehensive logging
+- Proper resource cleanup
+
+### **📚 Documentation**
+- ✅ Added: `22-infinite-scroll-bug-fix.md`
+  - Complete root cause analysis
+  - Detailed solution explanation
+  - Before/after comparison
+  - Testing results
+
+---
+
+## 🚀 **v2.1 - INFINITE SCROLL UPDATE - November 19, 2025**
+
+### **✨ New Features**
+- **Infinite Scroll** untuk chat contact list
+  - ✅ Removed traditional pagination dengan tombol halaman
+  - ✅ Auto-load contacts saat scroll ke bawah
+  - ✅ WhatsApp Web-like experience tanpa page reload
+  - ✅ Intersection Observer API untuk optimal performance
+  - ✅ Loading indicators dan end-of-list detection
+
+### **🔧 Technical Improvements**
+- **Backend Optimization**
+  - Changed `paginate(10)` → `simplePaginate(15)` di Contact model
+  - Faster queries (no COUNT needed)
+  - Increased items per load: 10 → 15
+  - Simplified API response structure
+
+- **Frontend Enhancement**
+  - Intersection Observer untuk efficient scroll detection
+  - Debounced scroll handler sebagai fallback
+  - Automatic pagination state management
+  - Memory-efficient observer cleanup
+  - Preserved all existing filters (search, account)
+
+### **📚 Documentation**
+- ✅ Added: `20-infinite-scroll-implementation.md`
+  - Complete technical documentation
+  - Implementation guide
+  - Performance metrics
+  - Testing checklist
+
+### **🎯 User Experience**
+- Zero-click navigation (auto-load)
+- Seamless scrolling tanpa pagination buttons
+- Visual feedback during loading
+- End-of-list indicator
+- Mobile-friendly touch scroll
 
 ---
 

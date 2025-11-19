@@ -35,9 +35,9 @@ pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC
 # Stop nodemon if running
 pkill -f "nodemon" && echo -e "${GREEN}✅ Nodemon stopped${NC}" || echo -e "${RED}❌ Nodemon not running${NC}"
 
-# Stop any remaining Node processes on port 3000
-echo -e "${YELLOW}Checking for remaining processes on port 3000...${NC}"
-lsof -ti:3000 | xargs kill -9 2>/dev/null && echo -e "${GREEN}✅ Port 3000 cleared${NC}" || echo -e "${BLUE}ℹ️  Port 3000 already free${NC}"
+# Stop any remaining Node processes on port 3001
+echo -e "${YELLOW}Checking for remaining processes on port 3001...${NC}"
+lsof -ti:3001 | xargs kill -9 2>/dev/null && echo -e "${GREEN}✅ Port 3001 cleared${NC}" || echo -e "${BLUE}ℹ️  Port 3001 already free${NC}"
 
 # Stop any remaining processes on port 8000
 echo -e "${YELLOW}Checking for remaining processes on port 8000...${NC}"

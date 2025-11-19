@@ -176,8 +176,8 @@ class Contact extends Model {
         // Order by the latest chat's created_at
         $query->orderBy('last_chat_created_at', $sortDirection); // Order contacts by last chat created_at
 
-        // Paginate contacts
-        return $query->paginate(10);
+        // Use simple pagination for infinite scroll (no total count needed)
+        return $query->simplePaginate(15);
 
     }
 

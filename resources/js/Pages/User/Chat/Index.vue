@@ -127,7 +127,11 @@
         simpleForm: Boolean
     });
 
-    const rows = ref(props.rows);
+    // Ensure rows is reactive and data is always an array
+    const rows = ref({
+        data: props.rows?.data || [],
+        meta: props.rows?.meta || {}
+    });
     const rowCount = ref(props.rowCount);
     const scrollContainer2 = ref(null);
     const loadingThread = ref(false);
@@ -149,8 +153,13 @@
     const DEBOUNCE_DELAY = 150; // ms
 
     watch(() => props.rows, (newRows) => {
-        rows.value = newRows;
-    });
+        if (newRows) {
+            rows.value = {
+                data: newRows.data || [],
+                meta: newRows.meta || {}
+            };
+        }
+    }, { deep: true });
     
     watch(() => props.contact, (newContact) => {
         if (newContact) {
