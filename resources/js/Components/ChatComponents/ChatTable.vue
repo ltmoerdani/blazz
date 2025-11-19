@@ -205,93 +205,37 @@
     let intersectionObserver = null;
     
     const loadMoreContacts = async () => {
-        if (isLoadingMore.value || !hasNextPage.value) {
-            console.log('🚫 Load blocked:', { isLoading: isLoadingMore.value, hasNext: hasNextPage.value });
-            return;
-        }
-        
-        console.log('📥 Starting load more...', { currentPage: currentPage.value });
+        if (isLoadingMore.value || !hasNextPage.value) return;
+
         isLoadingMore.value = true;
         const nextPage = currentPage.value + 1;
-        
+
         try {
-            const url = new URL(window.location.pathname, window.location.origin);
-            url.searchParams.set('page', nextPage);
-            
-            // Preserve existing filters
-            if (params.value.search) {
-                url.searchParams.set('search', params.value.search);
-            }
-            if (params.value.account_id) {
-                url.searchParams.set('account_id', params.value.account_id);
-            }
-            
-            console.log('📤 Request URL:', url.toString());
-            
-            const response = await axios.get(url.toString(), {
+            const response = await axios.get(`/chats?page=${nextPage}`, {
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
                 }
             });
-            
-            console.log('📥 Response received:', {
-                status: response.status,
-                hasData: !!response.data,
-                hasResult: !!response.data?.result,
-                resultKeys: response.data?.result ? Object.keys(response.data.result) : []
-            });
-            
+
             if (response.data?.result?.data) {
                 const newContacts = response.data.result.data;
-                
-                console.log('📦 Received data:', {
-                    newCount: newContacts.length,
-                    hasMorePages: response.data.result.meta?.has_more_pages
-                });
-                
-                // IMPORTANT: Only append if we got new data
+
                 if (newContacts.length > 0) {
-                    // Append to local copy
+                    // Instant append - no animation delay
                     localRows.value.push(...newContacts);
-                    
-                    // Update pagination state
                     currentPage.value = nextPage;
-                    
-                    console.log('✅ Loaded more contacts:', {
-                        newContacts: newContacts.length,
-                        totalNow: localRows.value.length,
-                        currentPage: currentPage.value
-                    });
+                    hasNextPage.value = response.data.result.has_more_pages || false;
                 }
-                
-                // CRITICAL: Use backend's has_more_pages if available, otherwise check length
-                if (response.data.result.meta?.has_more_pages !== undefined) {
-                    hasNextPage.value = response.data.result.meta.has_more_pages;
-                } else {
-                    // Fallback: if we got less than perPage, no more data
-                    hasNextPage.value = newContacts.length >= 15;
-                }
-                
-                console.log('📊 Pagination state:', {
-                    hasNextPage: hasNextPage.value,
-                    currentPage: currentPage.value
-                });
-            } else {
-                // No data received, stop pagination
-                hasNextPage.value = false;
-                console.log('⚠️ No data in response, stopping pagination');
             }
         } catch (error) {
-            console.error('❌ Error loading more contacts:', error);
-            hasNextPage.value = false; // Stop trying on error
+            console.error('❌ Load error:', error.message);
+            hasNextPage.value = false;
         } finally {
             isLoadingMore.value = false;
         }
-    };
-    
-    const handleScroll = debounce(() => {
+    };    const handleScroll = debounce(() => {
         if (!scrollContainer.value) return;
         
         const container = scrollContainer.value;
@@ -305,53 +249,33 @@
     }, 100);
     
     // Setup Intersection Observer for more efficient infinite scroll
-    const setupIntersectionObserver = () => {
-        if (!loadMoreTrigger.value) {
-            console.error('❌ loadMoreTrigger ref not available');
-            console.log('Retrying in 1 second...');
-            setTimeout(setupIntersectionObserver, 1000);
+        const setupIntersectionObserver = () => {
+        if (!loadMoreTrigger.value || !hasNextPage.value) {
             return;
         }
-        
-        if (!hasNextPage.value) {
-            console.log('⏸️ Skipping Intersection Observer setup - no more pages');
-            return;
+
+        // Cleanup existing observer
+        if (intersectionObserver) {
+            intersectionObserver.disconnect();
         }
-        
-        console.log('🔧 Setting up Intersection Observer...', {
-            trigger: loadMoreTrigger.value,
-            hasNextPage: hasNextPage.value,
-            scrollContainer: !!scrollContainer.value
-        });
-        
-        const options = {
-            root: scrollContainer.value,
-            rootMargin: '100px', // Load before user reaches bottom
-            threshold: 0.1
-        };
-        
-        intersectionObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                console.log('👁️ Intersection event:', {
-                    isIntersecting: entry.isIntersecting,
-                    intersectionRatio: entry.intersectionRatio,
-                    isLoading: isLoadingMore.value,
-                    hasNext: hasNextPage.value,
-                    targetVisible: entry.target.offsetParent !== null
-                });
-                
+
+        intersectionObserver = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+
                 if (entry.isIntersecting && !isLoadingMore.value && hasNextPage.value) {
-                    console.log('🎯 Triggering load from Intersection Observer');
                     loadMoreContacts();
                 }
-            });
-        }, options);
-        
+            },
+            {
+                root: scrollContainer.value,
+                rootMargin: '500px', // Preload 500px before reaching bottom
+                threshold: 0
+            }
+        );
+
         intersectionObserver.observe(loadMoreTrigger.value);
-        console.log('✅ Intersection Observer setup complete and observing');
-    };
-    
-    // Watch for props changes to update local copy
+    };    // Watch for props changes to update local copy
     watch(() => props.rows.data, (newData) => {
         if (newData) {
             localRows.value = [...newData];
