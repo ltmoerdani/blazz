@@ -33,12 +33,29 @@ pkill -f "php artisan queue:work" && echo -e "${GREEN}✅ Queue Worker stopped${
 echo -e "${YELLOW}Stopping Laravel Scheduler...${NC}"
 pkill -f "php artisan schedule:work" && echo -e "${GREEN}✅ Laravel Scheduler stopped${NC}" || echo -e "${RED}❌ Laravel Scheduler not running${NC}"
 
-# Stop Node.js WhatsApp Service
-echo -e "${YELLOW}Stopping WhatsApp Service...${NC}"
-pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC}" || echo -e "${RED}❌ WhatsApp Service not running${NC}"
+# Stop nodemon first (manages the WhatsApp service)
+echo -e "${YELLOW}Stopping Nodemon...${NC}"
+if pgrep -f "nodemon" > /dev/null 2>&1; then
+    pkill -f "nodemon" && echo -e "${GREEN}✅ Nodemon stopped${NC}" || echo -e "${RED}❌ Failed to stop Nodemon${NC}"
+    sleep 1  # Give nodemon time to clean up child processes
+else
+    echo -e "${BLUE}ℹ️  Nodemon not running${NC}"
+fi
 
-# Stop nodemon if running
-pkill -f "nodemon" && echo -e "${GREEN}✅ Nodemon stopped${NC}" || echo -e "${RED}❌ Nodemon not running${NC}"
+# Stop Node.js WhatsApp Service (in case it's still running)
+echo -e "${YELLOW}Stopping WhatsApp Service...${NC}"
+# Check if service is running on port 3001 before killing
+if lsof -ti:3001 > /dev/null 2>&1; then
+    pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC}" || echo -e "${RED}❌ Failed to stop WhatsApp Service${NC}"
+    sleep 1
+else
+    # Check if there's a process by name (might be crashed/stuck)
+    if pgrep -f "whatsapp-service" > /dev/null 2>&1; then
+        pkill -f "whatsapp-service" && echo -e "${GREEN}✅ Cleaned up crashed WhatsApp Service${NC}" || echo -e "${RED}❌ Failed to stop WhatsApp Service${NC}"
+    else
+        echo -e "${GREEN}✅ WhatsApp Service already stopped${NC}"
+    fi
+fi
 
 # Stop any remaining Node processes on port 3001
 echo -e "${YELLOW}Checking for remaining processes on port 3001...${NC}"

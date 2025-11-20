@@ -61,7 +61,7 @@ class SessionManager {
 
         try {
             this.logger.info('Initializing RemoteAuth with Redis...');
-            
+
             await redisConfig.initialize();
             this.redisStore = redisConfig.getStore();
 
@@ -85,7 +85,7 @@ class SessionManager {
     getAuthStrategy(sessionId, workspaceId) {
         if (this.authStrategy === 'remoteauth' && this.redisStore) {
             this.logger.info('Using RemoteAuth strategy', { sessionId });
-            
+
             return new CustomRemoteAuth({
                 clientId: sessionId,
                 dataPath: './.wwebjs_auth',
@@ -95,7 +95,7 @@ class SessionManager {
         }
 
         this.logger.info('Using LocalAuth strategy', { sessionId });
-        
+
         return new LocalAuth({
             clientId: sessionId,
             dataPath: `./sessions/${workspaceId}/${sessionId}`
@@ -126,11 +126,14 @@ class SessionManager {
             const authStrategy = this.getAuthStrategy(sessionId, workspaceId);
 
             const client = new Client({
-                authStrategy: authStrategy,
+                authStrategy: new LocalAuth({
+                    clientId: sessionId,
+                    dataPath: `./sessions/${workspaceId}/${sessionId}`
+                }),
                 puppeteer: {
                     headless: true,
-                    timeout: 90000, // 90 seconds timeout for browser launch (first launch can be slow)
-                    protocolTimeout: 90000, // 90 seconds for DevTools protocol operations
+                    timeout: 90000,
+                    protocolTimeout: 90000,
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -142,7 +145,7 @@ class SessionManager {
                         '--disable-web-security',
                         '--disable-features=VizDisplayCompositor'
                     ],
-                    executablePath: undefined, // Let puppeteer find chromium automatically
+                    executablePath: undefined,
                 },
                 webVersionCache: {
                     type: 'remote',
@@ -486,11 +489,11 @@ class SessionManager {
                     // Get chat to determine if group and get proper chat ID
                     const chat = await message.getChat();
                     const isGroup = chat.isGroup;
-                    
+
                     // CRITICAL: Use chat.id for "from" to ensure proper contact matching
                     // For groups, this is the group ID, not sender ID
                     const chatId = chat.id._serialized;
-                    
+
                     this.logger.info('Self-sent message detected (from mobile or web)', {
                         sessionId,
                         workspaceId,
@@ -521,7 +524,7 @@ class SessionManager {
                         from_me: true,
                         chat_type: isGroup ? 'group' : 'private'
                     };
-                    
+
                     // Add group-specific data if applicable
                     if (isGroup) {
                         messageData.group_id = chatId;
@@ -537,13 +540,13 @@ class SessionManager {
                         message: messageData,
                         source: 'message_create_event'  // Flag to identify source
                     });
-                    
+
                     this.logger.info('Self-sent message broadcasted to Laravel', {
                         messageId: message.id._serialized,
                         chatId: chatId,
                         isGroup: isGroup
                     });
-                    
+
                 } catch (error) {
                     this.logger.error('Error processing self-sent message', {
                         sessionId,
@@ -773,24 +776,81 @@ class SessionManager {
      */
     async disconnectSession(sessionId) {
         const client = this.sessions.get(sessionId);
+
+        // If session not in memory, it's already disconnected or never existed
+        // This is not an error - just return success
         if (!client) {
-            throw new Error('Session not found');
+            this.logger.info('Session not in memory (already disconnected or not initialized)', { sessionId });
+
+            // Clean up metadata just in case
+            this.metadata.delete(sessionId);
+
+            // Try to cleanup session files on filesystem
+            try {
+                const fs = require('fs').promises;
+                const path = require('path');
+
+                // Try to extract workspace_id from sessionId (format: webjs_{workspaceId}_{timestamp}_{random})
+                const parts = sessionId.split('_');
+                if (parts.length >= 2 && parts[0] === 'webjs') {
+                    const workspaceId = parts[1];
+                    const sessionPath = path.join(process.cwd(), 'sessions', workspaceId, sessionId);
+
+                    // Check if path exists and delete
+                    try {
+                        await fs.access(sessionPath);
+                        await fs.rm(sessionPath, { recursive: true, force: true });
+                        this.logger.info('Cleaned up session files from filesystem', { sessionId, sessionPath });
+                    } catch (err) {
+                        // Path doesn't exist or already deleted - this is fine
+                        this.logger.debug('Session path not found or already deleted', { sessionId, sessionPath });
+                    }
+                }
+            } catch (cleanupError) {
+                // Filesystem cleanup failed but it's not critical
+                this.logger.warn('Failed to cleanup session files', {
+                    sessionId,
+                    error: cleanupError.message
+                });
+            }
+
+            return {
+                success: true,
+                message: 'Session already disconnected or not found in memory',
+                alreadyDisconnected: true
+            };
         }
 
         try {
+            // Destroy the WhatsApp client connection
             await client.destroy();
+
+            // Remove from active sessions
             this.sessions.delete(sessionId);
             this.metadata.delete(sessionId);
 
             this.logger.info('Session disconnected successfully', { sessionId });
 
-            return { success: true };
+            return {
+                success: true,
+                message: 'Session disconnected successfully'
+            };
         } catch (error) {
             this.logger.error('Failed to disconnect session', {
                 sessionId,
                 error: error.message
             });
-            throw error;
+
+            // Even if destroy fails, remove from sessions map
+            this.sessions.delete(sessionId);
+            this.metadata.delete(sessionId);
+
+            // Still return success because we've cleaned up our side
+            return {
+                success: true,
+                message: 'Session removed from memory (destroy may have failed)',
+                warning: error.message
+            };
         }
     }
 

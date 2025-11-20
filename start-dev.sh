@@ -134,13 +134,25 @@ fi
 # Check WhatsApp Service health details
 if [ "$SERVICES_OK" = true ]; then
     echo -e "${BLUE}Checking WhatsApp Service health...${NC}"
-    HEALTH_RESPONSE=$(curl -s http://127.0.0.1:3001/health)
-    AUTH_STRATEGY=$(echo $HEALTH_RESPONSE | grep -o '"authStrategy":"[^"]*"' | cut -d'"' -f4)
     
-    if [ "$AUTH_STRATEGY" = "remoteauth" ]; then
-        echo -e "${GREEN}✅ RemoteAuth enabled (Redis-backed)${NC}"
+    # Query RemoteAuth health endpoint for accurate auth strategy detection
+    HEALTH_RESPONSE=$(curl -s http://127.0.0.1:3001/remoteauth/health 2>/dev/null)
+    
+    if [ $? -eq 0 ] && [ ! -z "$HEALTH_RESPONSE" ]; then
+        AUTH_STRATEGY=$(echo $HEALTH_RESPONSE | grep -o '"authStrategy":"[^"]*"' | cut -d'"' -f4)
+        REDIS_CONNECTED=$(echo $HEALTH_RESPONSE | grep -o '"connected":[^,}]*' | head -1 | cut -d':' -f2)
+        
+        if [ "$AUTH_STRATEGY" = "remoteauth" ] && [ "$REDIS_CONNECTED" = "true" ]; then
+            echo -e "${GREEN}✅ RemoteAuth enabled (Redis-backed)${NC}"
+        elif [ "$AUTH_STRATEGY" = "remoteauth" ] && [ "$REDIS_CONNECTED" = "false" ]; then
+            echo -e "${YELLOW}⚠️  RemoteAuth configured but Redis disconnected${NC}"
+        else
+            echo -e "${YELLOW}⚠️  LocalAuth active (file-based)${NC}"
+        fi
     else
-        echo -e "${YELLOW}⚠️  LocalAuth active (file-based)${NC}"
+        # Fallback: check basic health
+        echo -e "${YELLOW}⚠️  Could not determine auth strategy (using fallback health check)${NC}"
+        AUTH_STRATEGY="unknown"
     fi
 fi
 
