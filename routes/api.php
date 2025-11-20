@@ -48,6 +48,13 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
         ->middleware('whatsapp.throttle');
     Route::get('/accounts/{accountId}/sync-status', [App\Http\Controllers\API\WhatsAppSyncController::class, 'getSyncStatus']);
 
+    // Session Cleanup Endpoints (Week 2 Optional) - HMAC secured
+    Route::get('/accounts-for-cleanup', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getAccountsForCleanup']);
+    Route::get('/accounts/by-session/{sessionId}', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getAccountBySession']);
+    Route::patch('/accounts/{id}/status', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'updateAccountStatus']);
+    Route::post('/cleanup-logs', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'logCleanup']);
+    Route::get('/cleanup-stats', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getCleanupStats']);
+
     // Broadcasting events (for testing) - requires HMAC
     Route::post('/broadcast', function (Request $request) {
         $event = $request->input('event');

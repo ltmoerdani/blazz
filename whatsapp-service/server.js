@@ -68,6 +68,15 @@ try {
     logger.error('❌ Failed to load RemoteAuth health routes:', error.message);
 }
 
+// Session Cleanup routes (Week 2 Optional Enhancement)
+try {
+    const cleanupRoutes = require('./src/routes/cleanupRoutes');
+    app.use('/cleanup', cleanupRoutes);
+    logger.info('✅ Session cleanup routes registered at /cleanup/*');
+} catch (error) {
+    logger.error('❌ Failed to load cleanup routes:', error.message);
+}
+
 // Setup API routes using extracted router (TASK-ARCH-3: Extract routes to dedicated module)
 app.use('/', createRoutes(sessionManager, logger));
 
@@ -128,6 +137,31 @@ app.listen(PORT, async () => {
             stack: error.stack
         });
     }
+
+    // Initialize Session Cleanup Service (Week 2 Optional Enhancement)
+    const SessionCleanupService = require('./src/services/SessionCleanupService');
+    const sessionCleanupService = new SessionCleanupService(sessionManager, logger);
+
+    // Schedule cleanup jobs using node-cron
+    const cron = require('node-cron');
+
+    // Run cleanup every hour at :00
+    cron.schedule('0 * * * *', async () => {
+        logger.info('⏰ Starting scheduled session cleanup');
+        try {
+            const results = await sessionCleanupService.runCleanup();
+            logger.info('✅ Scheduled cleanup completed', results);
+        } catch (error) {
+            logger.error('❌ Scheduled cleanup failed', {
+                error: error.message
+            });
+        }
+    });
+
+    logger.info('✅ Session cleanup scheduler initialized (runs hourly at :00)');
+
+    // Make cleanup service available globally for routes
+    app.set('sessionCleanupService', sessionCleanupService);
 });
 
 module.exports = { app, sessionManager };
