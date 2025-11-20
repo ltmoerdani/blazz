@@ -111,6 +111,8 @@ class CampaignController extends BaseController
             // Get WhatsApp sessions for provider selection
             $data['whatsappAccounts'] = WhatsAppAccount::forWorkspace($workspaceId)
                 ->active()
+                ->whereNotNull('phone_number')
+                ->where('status', 'connected')
                 ->get()
                 ->map(function ($session) {
                     return [
@@ -270,6 +272,8 @@ class CampaignController extends BaseController
 
         $sessions = WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
+            ->whereNotNull('phone_number')
+            ->where('status', 'connected')
             ->get()
             ->map(function ($session) {
                 return [

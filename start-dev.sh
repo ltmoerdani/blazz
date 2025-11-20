@@ -80,7 +80,7 @@ REVERB_PID=$!
 # Start Node.js WhatsApp Service
 echo -e "${BLUE}3. Starting WhatsApp Node.js Service (Port 3001)...${NC}"
 cd whatsapp-service
-nohup npm run dev > ../logs/whatsapp-service.log 2>&1 &
+nohup node_modules/.bin/nodemon server.js > ../logs/whatsapp-service.log 2>&1 &
 WHATSAPP_PID=$!
 cd ..
 
