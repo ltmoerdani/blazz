@@ -39,7 +39,13 @@ class ProxyController extends Controller
 
         try {
             // 2. Forward request to Node.js service
-            $response = Http::timeout(30)->post("{$targetInstanceUrl}/sessions/create", $request->all());
+            // Node.js endpoint: POST /api/sessions (as per SessionController)
+            $response = Http::timeout(60)->post("{$targetInstanceUrl}/api/sessions", [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'account_id' => WhatsAppAccount::where('session_id', $sessionId)->first()?->id,
+                'api_key' => config('whatsapp.node_api_key'),
+            ]);
 
             // 3. Update database with instance assignment if successful
             if ($response->successful()) {
@@ -56,7 +62,12 @@ class ProxyController extends Controller
             return response()->json($response->json(), $response->status());
 
         } catch (\Exception $e) {
-            Log::error("Failed to proxy createSession: " . $e->getMessage());
+            Log::error("Failed to proxy createSession: " . $e->getMessage(), [
+                'workspace_id' => $workspaceId,
+                'session_id' => $sessionId,
+                'target_instance' => $targetInstanceUrl,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json(['error' => 'Failed to communicate with WhatsApp service'], 502);
         }
     }
