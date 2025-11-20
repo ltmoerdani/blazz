@@ -30,6 +30,20 @@ class WhatsAppAccount extends Model
         'last_connected_at',
         'metadata',
         'created_by',
+        // Multi-instance tracking
+        'assigned_instance_index',
+        'assigned_instance_url',
+        'previous_instance_index',
+        'instance_migration_count',
+        'last_instance_migration_at',
+        // Disconnect tracking
+        'disconnected_at',
+        'disconnect_reason',
+        'disconnect_details',
+        // Storage metadata
+        'session_storage_path',
+        'session_file_size_bytes',
+        'session_storage_verified_at',
     ];
 
     protected $casts = [
@@ -39,6 +53,9 @@ class WhatsAppAccount extends Model
         'is_active' => 'boolean',
         'last_activity_at' => 'datetime',
         'last_connected_at' => 'datetime',
+        'disconnected_at' => 'datetime',
+        'session_storage_verified_at' => 'datetime',
+        'last_instance_migration_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -151,6 +168,23 @@ class WhatsAppAccount extends Model
     }
 
     /**
+     * Scope: Sessions on specific instance
+     */
+    public function scopeOnInstance($query, int $instanceIndex)
+    {
+        return $query->where('assigned_instance_index', $instanceIndex);
+    }
+
+    /**
+     * Scope: Recently disconnected
+     */
+    public function scopeRecentlyDisconnected($query, int $hours = 24)
+    {
+        return $query->where('status', 'disconnected')
+            ->where('disconnected_at', '>=', now()->subHours($hours));
+    }
+
+    /**
      * Get the session health score (0-100)
      */
     public function getHealthScoreAttribute(): int
@@ -228,6 +262,33 @@ class WhatsAppAccount extends Model
 
         $this->update([
             'metadata' => array_merge($this->metadata ?? [], $stats)
+        ]);
+    }
+
+    /**
+     * Assign session to a specific instance
+     */
+    public function assignToInstance(int $index, string $url): void
+    {
+        $this->update([
+            'previous_instance_index' => $this->assigned_instance_index,
+            'assigned_instance_index' => $index,
+            'assigned_instance_url' => $url,
+            'instance_migration_count' => ($this->instance_migration_count ?? 0) + 1,
+            'last_instance_migration_at' => now(),
+        ]);
+    }
+
+    /**
+     * Mark session as disconnected with reason
+     */
+    public function markDisconnected(string $reason, ?string $details = null): void
+    {
+        $this->update([
+            'status' => 'disconnected',
+            'disconnected_at' => now(),
+            'disconnect_reason' => $reason,
+            'disconnect_details' => $details,
         ]);
     }
 }

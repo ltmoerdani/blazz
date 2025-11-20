@@ -150,6 +150,13 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
             Route::post('/{accountId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'markDisconnected']);
         });
 
+        // WhatsApp Session Proxy Routes (Multi-Instance)
+        Route::prefix('whatsapp/sessions')->group(function () {
+            Route::post('/create', [App\Http\Controllers\WhatsApp\ProxyController::class, 'createSession']);
+            Route::delete('/{sessionId}', [App\Http\Controllers\WhatsApp\ProxyController::class, 'disconnect']);
+            Route::get('/{sessionId}/status', [App\Http\Controllers\WhatsApp\ProxyController::class, 'getStatus']);
+        });
+
         // WhatsApp Webhook Routes (NEW)
         Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
             Route::post('/webhooks/v2', [App\Http\Controllers\Api\v1\WhatsApp\WebhookController::class, 'webhook']);
