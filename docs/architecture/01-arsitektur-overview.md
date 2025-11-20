@@ -1,8 +1,15 @@
 # 🏗️ Arsitektur Proyek Blazz - Complete Overview
 
+> **⚠️ IMPORTANT**: This document describes the core architectural patterns and components. For **PRODUCTION DEPLOYMENT** and **SCALABILITY** (1,000-3,000 users), please refer to:
+> - **[09-scalable-architecture.md](./09-scalable-architecture.md)** - Multi-instance deployment strategy
+> - **[08-architecture-compliance-analysis.md](./08-architecture-compliance-analysis.md)** - Current architecture limitations
+> - **[06-dual-server-architecture.md](./06-dual-server-architecture.md)** - Updated with multi-instance design
+
 ## Ringkasan Eksekutif
 
 **Blazz** adalah enterprise-grade **multi-tenant WhatsApp Business Platform** yang menggunakan **Hybrid Service-Oriented Architecture with Dual-Server Integration**. Arsitektur ini menggabungkan kekuatan **MVC Pattern** sebagai foundation dengan **Service Layer Pattern** untuk business logic isolation, **Dual-Server WhatsApp Architecture** (Laravel + Node.js), **Multi-Provider WhatsApp Support**, **Job Queue System** untuk asynchronous processing, dan **Modular Architecture** untuk feature extensibility.
+
+**Production Architecture (v2.0)**: For scalability beyond 500 concurrent users, Blazz uses **Workspace-Sharded Multi-Instance** deployment with LocalAuth and shared storage (EFS/NFS). See [09-scalable-architecture.md](./09-scalable-architecture.md) for details.
 
 ---
 

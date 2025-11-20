@@ -29,6 +29,18 @@
   - [ ] NFS/EFS mount points configured
   - [ ] NAT Gateway for outbound WhatsApp connections
 
+- [ ] **Database Preparation** 🔴 **CRITICAL**
+  - [ ] Review database audit: `docs/architecture/13-database-schema-audit-multi-instance.md`
+  - [ ] Backup production database before migrations
+  - [ ] Verify migrations exist in `database/migrations/`:
+    - [ ] `2025_11_20_151825_add_instance_tracking_to_whatsapp_accounts.php`
+    - [ ] `2025_11_20_151833_add_disconnect_tracking_to_whatsapp_accounts.php`
+    - [ ] `2025_11_20_151839_add_storage_metadata_to_whatsapp_accounts.php`
+    - [ ] `2025_11_20_151846_add_failover_tracking_to_whatsapp_accounts.php`
+  - [ ] Test migrations on staging environment
+  - [ ] Verify rollback plan works
+  - [ ] Check for unique constraints on `phone_number` field
+
 ---
 
 ## 🎯 Phase 1: Foundation (Week 1-2)
@@ -80,9 +92,124 @@
 - [ ] Import dashboard templates
 - [ ] Setup basic alerts (email/Slack)
 
-#### Week 2: Laravel Integration
+#### Week 2: Database Preparation & Laravel Integration
 
-**Day 1-2: Instance Router**
+> **📋 Reference**: See `docs/architecture/13-database-schema-audit-multi-instance.md` for complete database requirements analysis.
+
+**Day 1: Database Schema Updates** 🔴 **CRITICAL**
+
+- [ ] **Review Database Audit Report**
+  - [ ] Read `docs/architecture/13-database-schema-audit-multi-instance.md`
+  - [ ] Understand 4 required migrations
+  - [ ] Identify impact on existing code
+
+- [ ] **Run Critical Migration 1: Instance Tracking** (MANDATORY)
+  ```bash
+  # Location: database/migrations/2025_11_20_151825_add_instance_tracking_to_whatsapp_accounts.php
+  php artisan migrate --step
+  ```
+  - [ ] Verify migration success: `php artisan migrate:status`
+  - [ ] Verify backfill: Check all records have `assigned_instance_index`
+    ```bash
+    php artisan tinker
+    # WhatsAppAccount::whereNull('assigned_instance_index')->count()
+    # Should return 0
+    ```
+  - [ ] Test query by instance:
+    ```bash
+    # WhatsAppAccount::where('assigned_instance_index', 0)->count()
+    # Should return number of accounts
+    ```
+
+- [ ] **Run High Priority Migration 2: Disconnect Tracking** (RECOMMENDED)
+  ```bash
+  # Location: database/migrations/2025_11_20_151833_add_disconnect_tracking_to_whatsapp_accounts.php
+  php artisan migrate --step
+  ```
+  - [ ] Verify new columns exist:
+    ```sql
+    DESCRIBE whatsapp_accounts;
+    # Should show: disconnected_at, disconnect_reason, disconnect_details
+    ```
+  - [ ] Verify index created:
+    ```sql
+    SHOW INDEXES FROM whatsapp_accounts WHERE Key_name = 'idx_disconnect_analytics';
+    ```
+
+- [ ] **Optional: Run Migration 3 & 4** (Can defer to later)
+  ```bash
+  # Migration 3: Storage metadata
+  php artisan migrate --step
+  
+  # Migration 4: Failover tracking
+  php artisan migrate --step
+  ```
+
+- [ ] **Update WhatsAppAccount Model**
+  - [ ] Add new fields to `$fillable`:
+    ```php
+    // app/Models/WhatsAppAccount.php
+    'assigned_instance_index',
+    'assigned_instance_url',
+    'previous_instance_index',
+    'disconnected_at',
+    'disconnect_reason',
+    'disconnect_details',
+    // Optional (if migration 3-4 run):
+    'session_storage_path',
+    'session_file_size_bytes',
+    'session_storage_verified_at',
+    'instance_migration_count',
+    'last_instance_migration_at',
+    ```
+  - [ ] Add to `$casts`:
+    ```php
+    'disconnected_at' => 'datetime',
+    'session_storage_verified_at' => 'datetime',
+    'last_instance_migration_at' => 'datetime',
+    ```
+  - [ ] Add helper methods:
+    - [ ] `assignToInstance(int $index, string $url)`
+    - [ ] `markDisconnected(string $reason, ?string $details = null)`
+    - [ ] `scopeOnInstance($query, int $instanceIndex)`
+    - [ ] `scopeRecentlyDisconnected($query, int $hours = 24)`
+
+- [ ] **Verify Database Constraints** (CRITICAL)
+  ```sql
+  -- Check for problematic unique constraints on phone_number
+  SHOW INDEXES FROM whatsapp_accounts WHERE Column_name = 'phone_number';
+  ```
+  - [ ] If unique constraint exists on `(phone_number, workspace_id, status)`:
+    - [ ] Create migration to drop it
+    - [ ] Run and verify
+
+- [ ] **Test Database Changes**
+  ```bash
+  php artisan tinker
+  ```
+  ```php
+  // Test instance assignment
+  $account = WhatsAppAccount::first();
+  $account->assignToInstance(1, 'http://instance-1:3001');
+  
+  // Test disconnect tracking
+  $account->markDisconnected('user_initiated', 'Test disconnect');
+  
+  // Test scopes
+  WhatsAppAccount::onInstance(0)->count();
+  WhatsAppAccount::recentlyDisconnected(24)->count();
+  ```
+
+- [ ] **Rollback Plan Verification**
+  ```bash
+  # Test rollback capability (on dev environment only!)
+  php artisan migrate:rollback --step=1
+  # Verify data intact
+  # Re-run migration
+  php artisan migrate --step
+  ```
+
+**Day 2: Instance Router & Config**
 - [ ] Create `app/Services/WhatsApp/InstanceRouter.php`
   ```php
   public function getInstanceForWorkspace(int $workspaceId): string
@@ -90,6 +217,11 @@
       $instanceCount = config('whatsapp.instance_count');
       $instanceIndex = $workspaceId % $instanceCount;
       return config("whatsapp.instances.{$instanceIndex}");
+  }
+  
+  public function getInstanceIndex(int $workspaceId): int
+  {
+      return $workspaceId % config('whatsapp.instance_count');
   }
   ```
 - [ ] Add config file `config/whatsapp.php`:
@@ -109,28 +241,62 @@
   WHATSAPP_INSTANCE_2=http://whatsapp-instance-2:3001
   ```
 
-**Day 3: Proxy Controller**
+**Day 3: Proxy Controller with Database Integration**
 - [ ] Create `app/Http/Controllers/WhatsApp/ProxyController.php`
   ```php
   public function createSession(Request $request)
   {
       $workspaceId = $request->workspace_id;
+      
+      // Get target instance
+      $instanceIndex = $this->router->getInstanceIndex($workspaceId);
       $targetInstance = $this->router->getInstanceForWorkspace($workspaceId);
       
+      // Create session via Node.js
       $response = Http::post("{$targetInstance}/api/sessions/create", [
           'session_id' => $request->session_id,
           'workspace_id' => $workspaceId,
           'account_id' => $request->account_id,
       ]);
       
+      // Update database with instance assignment
+      if ($response->successful()) {
+          $account = WhatsAppAccount::where('session_id', $request->session_id)->first();
+          if ($account) {
+              $account->assignToInstance($instanceIndex, $targetInstance);
+          }
+      }
+      
+      return $response->json();
+  }
+  
+  public function disconnect(Request $request, string $sessionId)
+  {
+      $account = WhatsAppAccount::where('session_id', $sessionId)->first();
+      
+      if (!$account) {
+          return response()->json(['error' => 'Session not found'], 404);
+      }
+      
+      // Call instance to disconnect
+      $response = Http::delete("{$account->assigned_instance_url}/api/sessions/{$sessionId}");
+      
+      // Update database with disconnect reason
+      if ($response->successful()) {
+          $account->markDisconnected(
+              $request->input('reason', 'user_initiated'),
+              $request->input('details')
+          );
+      }
+      
       return $response->json();
   }
   ```
-- [ ] Implement for all WhatsApp endpoints:
-  - POST `/api/sessions/create`
-  - DELETE `/api/sessions/{id}`
-  - POST `/api/messages/send`
-  - GET `/api/sessions/{id}/status`
+- [ ] Implement for all WhatsApp endpoints with DB tracking:
+  - POST `/api/sessions/create` → Update `assigned_instance_index`
+  - DELETE `/api/sessions/{id}` → Update `disconnect_reason`, `disconnected_at`
+  - POST `/api/messages/send` → Update `last_activity_at`
+  - GET `/api/sessions/{id}/status` → Read from `assigned_instance_url`
 
 **Day 4-5: Testing**
 - [ ] Test workspace sharding logic:
@@ -139,6 +305,40 @@
   - Workspace 3 → Instance 1
   - Workspace 4 → Instance 2
 - [ ] Create 10 test sessions across both instances
+- [ ] **Verify Database Instance Assignment**:
+  ```bash
+  php artisan tinker
+  ```
+  ```php
+  // Verify all sessions have instance assigned
+  WhatsAppAccount::whereNull('assigned_instance_index')->count(); // Should be 0
+  
+  // Check distribution across instances
+  WhatsAppAccount::selectRaw('assigned_instance_index, COUNT(*) as count')
+      ->groupBy('assigned_instance_index')
+      ->get();
+  // Should show roughly equal distribution
+  
+  // Verify instance URLs populated
+  WhatsAppAccount::whereNull('assigned_instance_url')->count(); // Should be 0
+  ```
+- [ ] **Test Disconnect Tracking**:
+  ```php
+  // Create a test account
+  $account = WhatsAppAccount::factory()->create();
+  
+  // Test disconnect via controller
+  $response = $this->deleteJson("/api/sessions/{$account->session_id}", [
+      'reason' => 'testing',
+      'details' => 'Test disconnect tracking'
+  ]);
+  
+  // Verify database updated
+  $account->refresh();
+  assert($account->status === 'disconnected');
+  assert($account->disconnect_reason === 'testing');
+  assert($account->disconnected_at !== null);
+  ```
 - [ ] Verify sessions persist after restart
 - [ ] Test message sending through proxy
 - [ ] Load test: 50 concurrent session creations
@@ -147,6 +347,9 @@
 - [ ] ✅ 2 WhatsApp instances deployed and operational
 - [ ] ✅ Shared storage working (sessions persist)
 - [ ] ✅ Laravel routing to correct instance
+- [ ] ✅ **Database migrations applied successfully** (NEW)
+- [ ] ✅ **Instance assignment tracking functional** (NEW)
+- [ ] ✅ **Disconnect tracking operational** (NEW)
 - [ ] ✅ Monitoring dashboards showing metrics
 - [ ] ✅ 100+ test sessions created successfully
 
@@ -212,7 +415,7 @@
   $schedule->command('whatsapp:health-check')->everyMinute();
   ```
 
-**Day 4-5: Session Migration Tool**
+**Day 4-5: Session Migration Tool with DB Tracking**
 - [ ] Create `whatsapp-service/src/utils/SessionMigration.js`
   ```javascript
   class SessionMigration {
@@ -229,15 +432,39 @@
           // 4. Initialize sessions on target instance
           for (const session of sessions) {
               await this.startSession(toInstance, session.id, workspaceId);
+              
+              // 5. Call Laravel API to update database assignment
+              await this.updateDatabaseAssignment(session.id, toInstance);
           }
           
           return { migrated: sessions.length };
       }
   }
   ```
+- [ ] Create Laravel Endpoint for Migration Update:
+  - POST `/api/internal/session/migrated`
+  - Controller Logic:
+    ```php
+    public function migrated(Request $request)
+    {
+        $account = WhatsAppAccount::where('session_id', $request->session_id)->first();
+        $account->assignToInstance(
+            $request->target_instance_index,
+            $request->target_instance_url
+        );
+        return response()->json(['success' => true]);
+    }
+    ```
 - [ ] Test migration:
   - Migrate workspace 5 from instance-1 to instance-2
   - Verify sessions work on new instance
+  - **Verify Database Updated**:
+    ```php
+    $account = WhatsAppAccount::where('workspace_id', 5)->first();
+    assert($account->assigned_instance_index === 1);
+    assert($account->previous_instance_index === 0);
+    assert($account->instance_migration_count === 1);
+    ```
   - Verify no data loss
 
 #### Week 4: Backup & Reliability
@@ -326,6 +553,17 @@
   - [ ] Stop sessions on old server
   - [ ] Copy session data to shared storage
   - [ ] Start sessions on assigned instance
+  - [ ] **Update Database Assignment**:
+    ```bash
+    # Use the migration tool or API
+    curl -X POST /api/internal/session/migrated \
+      -d "session_id=..." -d "target_instance_index=..."
+    ```
+  - [ ] **Verify Routing**:
+    ```php
+    // Ensure InstanceRouter returns new instance
+    assert($router->getInstanceForWorkspace($wsId) === $newInstanceUrl);
+    ```
   - [ ] Verify QR codes regenerate if needed
   - [ ] Test message sending
   - [ ] Monitor for 1 hour
@@ -335,7 +573,7 @@
 **Day 4-5: Migrate Medium-Traffic Workspaces**
 - [ ] Select next batch (10-20 workspaces)
 - [ ] Schedule during low-traffic hours
-- [ ] Follow migration procedure
+- [ ] Follow migration procedure (including DB update)
 - [ ] Longer monitoring period (4 hours)
 - [ ] Performance comparison (before/after)
 
@@ -349,8 +587,13 @@
   2. Stop new sessions on old server
   3. Migrate existing sessions
   4. Start on new instances
-  5. Verify all sessions operational
-  6. Re-enable new session creation
+  5. **Update Database Assignments** (Batch update)
+  6. Verify all sessions operational
+  7. **Verify Instance Distribution**:
+     ```php
+     WhatsAppAccount::selectRaw('assigned_instance_index, count(*)')->groupBy('assigned_instance_index')->get();
+     ```
+  8. Re-enable new session creation
 - [ ] Extended monitoring (24 hours)
 
 **Day 3: Decommission Old Server**
