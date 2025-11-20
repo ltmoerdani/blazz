@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\v1\WhatsApp;
 use App\Events\WhatsAppQRGeneratedEvent;
 use App\Events\WhatsAppAccountStatusChangedEvent;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessWhatsAppWebhookJob;
 use App\Models\Contact;
 use App\Models\WhatsAppAccount;
 use App\Services\ChatService;
@@ -19,12 +20,12 @@ class WebhookController extends Controller
 {
     /**
      * Handle webhook from Node.js service
+     * OPTIMIZED: Return instantly, process async
      */
     public function webhook(Request $request)
     {
-        // Validate HMAC signature for security
-        $this->validateHmacSignature($request);
-
+        // HMAC validation handled by middleware (VerifyWhatsAppHmac)
+        
         $event = $request->input('event');
         $data = $request->input('data');
 
@@ -34,23 +35,15 @@ class WebhookController extends Controller
             'session_id' => $data['session_id'] ?? null,
         ]);
 
+        // OPTIMIZED: For critical events (QR, auth, ready, disconnect), use job queue
+        // For real-time events (messages, typing), process inline for instant UI update
+        if (in_array($event, ['qr_code_generated', 'session_authenticated', 'session_ready', 'session_disconnected'])) {
+            ProcessWhatsAppWebhookJob::dispatch($event, $data)->onQueue('whatsapp-urgent');
+            return response()->json(['status' => 'queued']);
+        }
+
+        // Process real-time events inline (messages need instant processing)
         switch ($event) {
-            case 'qr_code_generated':
-                $this->handleQRCodeGenerated($data);
-                break;
-
-            case 'session_authenticated':
-                $this->handleSessionAuthenticated($data);
-                break;
-
-            case 'session_ready':
-                $this->handleSessionReady($data);
-                break;
-
-            case 'session_disconnected':
-                $this->handleSessionDisconnected($data);
-                break;
-
             case 'message_received':
                 $this->handleMessageReceived($data);
                 break;
@@ -87,154 +80,9 @@ class WebhookController extends Controller
         return response()->json(['status' => 'received']);
     }
 
-    /**
-     * Handle QR code generated event
-     */
-    private function handleQRCodeGenerated(array $data): void
-    {
-        $workspaceId = $data['workspace_id'];
-        $sessionId = $data['session_id'];
-        $qrCode = $data['qr_code'];
 
-        // Update session in database
-        $session = WhatsAppAccount::where('session_id', $sessionId)
-            ->where('workspace_id', $workspaceId)
-            ->first();
 
-        if ($session) {
-            $session->update([
-                'status' => 'qr_scanning',
-                'qr_code' => $qrCode,
-                'last_activity_at' => now(),
-            ]);
 
-            // Broadcast QR code to frontend
-            Log::info('Broadcasting WhatsAppQRGeneratedEvent', [
-                'workspace_id' => $workspaceId,
-                'session_id' => $sessionId,
-                'qr_code_length' => strlen($qrCode)
-            ]);
-            broadcast(new WhatsAppQRGeneratedEvent($qrCode, 300, $workspaceId, $sessionId));
-            Log::info('WhatsAppQRGeneratedEvent broadcasted');
-        }
-    }
-
-    /**
-     * Handle session authenticated event
-     */
-    private function handleSessionAuthenticated(array $data): void
-    {
-        $workspaceId = $data['workspace_id'];
-        $sessionId = $data['session_id'];
-
-        $session = WhatsAppAccount::where('session_id', $sessionId)
-            ->where('workspace_id', $workspaceId)
-            ->first();
-
-        if ($session) {
-            $session->update([
-                'status' => 'authenticated',
-                'last_activity_at' => now(),
-            ]);
-
-            // Broadcast status change
-            broadcast(new WhatsAppAccountStatusChangedEvent(
-                $sessionId,
-                'authenticated',
-                $workspaceId,
-                $session->phone_number,
-                [
-                    'id' => $session->id,
-                    'uuid' => $session->uuid,
-                    'phone_number' => $session->phone_number,
-                    'formatted_phone_number' => $session->formatted_phone_number,
-                    'timestamp' => now()->toISOString()
-                ]
-            ));
-        }
-    }
-
-    /**
-     * Handle session ready event
-     */
-    private function handleSessionReady(array $data): void
-    {
-        $workspaceId = $data['workspace_id'];
-        $sessionId = $data['session_id'];
-        $phoneNumber = $data['phone_number'] ?? null;
-
-        $session = WhatsAppAccount::where('session_id', $sessionId)
-            ->where('workspace_id', $workspaceId)
-            ->first();
-
-        if ($session) {
-            $session->update([
-                'status' => 'connected',
-                'phone_number' => $phoneNumber,
-                'last_connected_at' => now(),
-                'last_activity_at' => now(),
-            ]);
-
-            // Refresh model to get updated accessor values
-            $session->refresh();
-
-            // Broadcast status change with complete data
-            broadcast(new WhatsAppAccountStatusChangedEvent(
-                $sessionId,
-                'connected',
-                $workspaceId,
-                $phoneNumber,
-                [
-                    'id' => $session->id,
-                    'uuid' => $session->uuid,
-                    'phone_number' => $phoneNumber,
-                    'formatted_phone_number' => $session->formatted_phone_number,
-                    'timestamp' => now()->toISOString()
-                ]
-            ));
-        }
-    }
-
-    /**
-     * Handle session disconnected event
-     */
-    private function handleSessionDisconnected(array $data): void
-    {
-        $workspaceId = $data['workspace_id'];
-        $sessionId = $data['session_id'];
-        $reason = $data['reason'] ?? 'unknown';
-
-        $session = WhatsAppAccount::where('session_id', $sessionId)
-            ->where('workspace_id', $workspaceId)
-            ->first();
-
-        if ($session) {
-            $session->update([
-                'status' => 'disconnected',
-                'last_activity_at' => now(),
-                'metadata' => array_merge($session->metadata ?? [], [
-                    'last_disconnect_reason' => $reason,
-                    'disconnect_timestamp' => now()->toISOString(),
-                ])
-            ]);
-
-            // Broadcast status change
-            broadcast(new WhatsAppAccountStatusChangedEvent(
-                $sessionId,
-                'disconnected',
-                $workspaceId,
-                $session->phone_number,
-                [
-                    'id' => $session->id,
-                    'uuid' => $session->uuid,
-                    'phone_number' => $session->phone_number,
-                    'formatted_phone_number' => $session->formatted_phone_number,
-                    'reason' => $reason,
-                    'timestamp' => now()->toISOString()
-                ]
-            ));
-        }
-    }
 
     /**
      * Handle message received event
@@ -910,36 +758,6 @@ class WebhookController extends Controller
             Log::error('Error handling chat state updated', [
                 'error' => $e->getMessage(),
                 'data_keys' => array_keys($data)
-            ]);
-        }
-    }
-
-    /**
-     * Validate HMAC signature for security
-     */
-    private function validateHmacSignature(Request $request): void
-    {
-        $signature = $request->header('X-Hub-Signature-256');
-        $payload = $request->getContent();
-
-        if (!$signature || !$payload) {
-            Log::warning('Missing HMAC signature or payload');
-            return;
-        }
-
-        // Extract the hash from the signature header
-        $signatureParts = explode('=', $signature);
-        if (count($signatureParts) !== 2) {
-            Log::warning('Invalid HMAC signature format');
-            return;
-        }
-
-        $expectedHash = hash_hmac('sha256', $payload, config('services.whatsapp.webhook_secret', 'default-secret'));
-
-        if (!hash_equals($expectedHash, $signatureParts[1])) {
-            Log::warning('HMAC signature validation failed', [
-                'expected' => $expectedHash,
-                'received' => $signatureParts[1]
             ]);
         }
     }

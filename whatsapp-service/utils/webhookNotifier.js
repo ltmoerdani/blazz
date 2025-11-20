@@ -14,6 +14,7 @@
 
 const crypto = require('crypto');
 const axios = require('axios');
+const http = require('http');
 
 class WebhookNotifier {
     constructor(logger = console) {
@@ -22,6 +23,12 @@ class WebhookNotifier {
         this.laravelUrl = process.env.LARAVEL_URL || 'http://localhost:8000';
         this.maxRetries = parseInt(process.env.WEBHOOK_MAX_RETRIES) || 3;
         this.timeout = parseInt(process.env.WEBHOOK_TIMEOUT) || 10000; // 10 seconds
+        
+        // CRITICAL: Disable keep-alive to prevent connection pooling delays
+        this.httpAgent = new http.Agent({ 
+            keepAlive: false,
+            maxSockets: 10
+        });
 
         if (!this.secret) {
             this.logger.error('[WebhookNotifier] FATAL: HMAC_SECRET not configured in environment');
@@ -82,8 +89,10 @@ class WebhookNotifier {
                     'X-HMAC-Signature': signature,
                     'X-Timestamp': timestamp,
                     'User-Agent': 'WhatsApp-WebJS-Service/1.0',
+                    'Connection': 'close', // Force close connection immediately
                 },
                 timeout: this.timeout,
+                httpAgent: this.httpAgent, // Use agent with keepAlive: false
                 validateStatus: (status) => status < 500, // Don't throw on 4xx errors
             });
 

@@ -377,7 +377,7 @@ onMounted(() => {
 
     // Wait for connection to be ready before subscribing
     const subscribeToChannel = () => {
-        echoChannel = echo.channel(channelName)
+        echoChannel = echo.private(channelName)
         console.log('📡 Channel object:', echoChannel)
         console.log('📡 Subscribed at state:', echo.connector?.pusher?.connection?.state)
 

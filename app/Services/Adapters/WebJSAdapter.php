@@ -180,8 +180,9 @@ class WebJSAdapter implements WhatsAppAdapterInterface
                 'target_instance' => $targetInstanceUrl,
             ]);
 
-            // Increased timeout to 60 seconds for puppeteer initialization
-            $response = Http::timeout(60)->post("{$targetInstanceUrl}/api/sessions", [
+            // OPTIMIZED: Reduced timeout to 10s (QR generation should be <10s)
+            // Webhook will deliver QR asynchronously via WebSocket
+            $response = Http::timeout(10)->post("{$targetInstanceUrl}/api/sessions", [
                 'workspace_id' => $this->workspaceId,
                 'account_id' => $this->session->id,           // INTEGER ID from database
                 'session_id' => $this->session->session_id,   // STRING session identifier
@@ -191,14 +192,13 @@ class WebJSAdapter implements WhatsAppAdapterInterface
             if ($response->successful()) {
                 $data = $response->json();
 
-                // Update session status AND instance assignment
+                // OPTIMIZED: Single combined database update (instead of 2 separate)
                 $this->session->update([
                     'status' => $data['status'] ?? 'qr_scanning',
                     'last_activity_at' => now(),
+                    'assigned_instance_index' => $instanceIndex,
+                    'assigned_instance_url' => $targetInstanceUrl,
                 ]);
-
-                // Assign to instance in database
-                $this->session->assignToInstance($instanceIndex, $targetInstanceUrl);
 
                 Log::info("Session initialized successfully on Instance {$instanceIndex}", [
                     'workspace_id' => $this->workspaceId,

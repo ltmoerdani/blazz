@@ -112,6 +112,9 @@ class SessionManager {
      */
     async createSession(sessionId, workspaceId, options = {}) {
         const { account_id, priority } = options;
+        
+        // PERFORMANCE MONITORING: Track session creation time
+        const performanceStart = Date.now();
 
         this.logger.info('Creating WhatsApp session', {
             sessionId,
@@ -136,24 +139,27 @@ class SessionManager {
                 }),
                 puppeteer: {
                     headless: true,
-                    timeout: 90000,
-                    protocolTimeout: 90000,
+                    timeout: 15000,  // OPTIMIZED: 15s for fast failure detection
+                    protocolTimeout: 15000,  // OPTIMIZED: Faster failure detection
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
                         '--disable-dev-shm-usage',
-                        '--disable-accelerated-2d-canvas',
-                        '--no-first-run',
-                        '--no-zygote',
                         '--disable-gpu',
-                        '--disable-web-security',
-                        '--disable-features=VizDisplayCompositor'
+                        '--single-process',  // OPTIMIZED: Critical for performance
+                        '--disable-extensions',  // OPTIMIZED: Reduce overhead
+                        '--disable-background-timer-throttling',  // OPTIMIZED: Prevent throttling
+                        '--disable-renderer-backgrounding',
+                        '--disable-backgrounding-occluded-windows',
+                        '--no-zygote',
+                        '--no-first-run',
+                        '--disable-web-security'
                     ],
                     executablePath: undefined,
                 },
                 webVersionCache: {
-                    type: 'remote',
-                    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+                    type: 'local',  // OPTIMIZED: Cache locally (no download)
+                    path: './cache/whatsapp-web'
                 }
             });
 
@@ -165,7 +171,8 @@ class SessionManager {
                 status: 'qr_scanning',
                 createdAt: new Date(),
                 phoneNumber: null,
-                lastActivity: new Date()
+                lastActivity: new Date(),
+                performanceStart: performanceStart  // Track for QR perf monitoring
             });
 
             // Set up event handlers
@@ -205,52 +212,80 @@ class SessionManager {
      * @param {number} workspaceId - Workspace ID
      */
     setupClientEventHandlers(client, sessionId, workspaceId) {
-        // QR Code Event
+        // QR Code Event - OPTIMIZED for fast generation
         client.on('qr', async (qr) => {
             try {
-                const sessionMetadata = this.metadata.get(sessionId);
-                const now = new Date();
-
-                // Check if QR code already exists and is still valid (5 minutes)
-                if (sessionMetadata.qrGeneratedAt) {
-                    const timeDiff = (now - sessionMetadata.qrGeneratedAt) / 1000; // in seconds
-                    if (timeDiff < 300) { // 5 minutes = 300 seconds
-                        this.logger.info('QR code already exists and is still valid, skipping regeneration', {
-                            sessionId,
-                            workspaceId,
-                            timeSinceLastQR: timeDiff
-                        });
-                        return;
-                    }
-                }
-
-                this.logger.info('QR code generated', { sessionId, workspaceId });
-
+                // OPTIMIZED: Fast QR generation with medium error correction
                 const qrCodeData = await qrcode.toDataURL(qr, {
                     width: 256,
                     margin: 2,
-                    color: {
-                        dark: '#000000',
-                        light: '#FFFFFF'
-                    }
+                    errorCorrectionLevel: 'M'  // Medium level (faster than default)
                 });
 
+                const sessionMetadata = this.metadata.get(sessionId);
+                const qrGenTime = Date.now() - (sessionMetadata.performanceStart || Date.now());
+                
                 this.metadata.set(sessionId, {
                     ...sessionMetadata,
                     status: 'qr_scanning',
                     qrCode: qrCodeData,
-                    qrGeneratedAt: new Date()
+                    qrGeneratedAt: Date.now()
                 });
 
-                // Send QR code to Laravel using single webhook endpoint
-                await this.sendToLaravel('qr_code_generated', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    qr_code: qrCodeData,
-                    expires_in: 300
+                // PERFORMANCE MONITORING: Log QR generation time
+                this.logger.info('QR code generated', { 
+                    sessionId, 
+                    workspaceId,
+                    timeMs: qrGenTime,
+                    target: 10000,
+                    status: qrGenTime < 10000 ? '✅ PASS' : '❌ FAIL'
                 });
+                
+                // Alert if QR generation is slow
+                if (qrGenTime > 15000) {
+                    this.logger.error('⚠️ QR generation too slow!', {
+                        sessionId,
+                        workspaceId,
+                        timeMs: qrGenTime,
+                        threshold: 15000,
+                        action: 'Please investigate performance bottleneck'
+                    });
+                }
+
+                // OPTIMIZED: Non-blocking webhook (fire-and-forget)
+                setImmediate(async () => {
+                    const webhookStart = Date.now();
+                    try {
+                        await this.sendToLaravel('qr_code_generated', {
+                            workspace_id: workspaceId,
+                            session_id: sessionId,
+                            qr_code: qrCodeData,
+                            expires_in: 300
+                        });
+                        
+                        const webhookTime = Date.now() - webhookStart;
+                        const totalTime = Date.now() - (sessionMetadata.performanceStart || Date.now());
+                        
+                        this.logger.info('QR webhook delivered', {
+                            sessionId,
+                            workspaceId,
+                            webhookTimeMs: webhookTime,
+                            totalTimeMs: totalTime,
+                            status: totalTime < 15000 ? '✅ PASS' : '⚠️ SLOW'
+                        });
+                    } catch (error) {
+                        const webhookTime = Date.now() - webhookStart;
+                        this.logger.error('Webhook notification failed (non-fatal)', {
+                            sessionId,
+                            workspaceId,
+                            webhookTimeMs: webhookTime,
+                            error: error.message
+                        });
+                    }
+                });
+
             } catch (error) {
-                this.logger.error('Error in QR event handler', {
+                this.logger.error('QR generation failed', {
                     sessionId,
                     workspaceId,
                     error: error.message,
@@ -270,10 +305,16 @@ class SessionManager {
                     authenticatedAt: new Date()
                 });
 
-                await this.sendToLaravel('session_authenticated', {
+                // OPTIMIZED: Non-blocking webhook
+                this.sendToLaravel('session_authenticated', {
                     workspace_id: workspaceId,
                     session_id: sessionId,
                     status: 'authenticated'
+                }).catch(error => {
+                    this.logger.error('Webhook failed (non-fatal)', {
+                        sessionId,
+                        error: error.message
+                    });
                 });
             } catch (error) {
                 this.logger.error('Error in authenticated event handler', {
@@ -302,40 +343,26 @@ class SessionManager {
                     connectedAt: new Date()
                 });
 
-                await this.sendToLaravel('session_ready', {
+                // OPTIMIZED: Non-blocking webhook
+                this.sendToLaravel('session_ready', {
                     workspace_id: workspaceId,
                     session_id: sessionId,
                     phone_number: info.wid.user,
                     status: 'connected'
+                }).catch(error => {
+                    this.logger.error('Webhook failed (non-fatal)', {
+                        sessionId,
+                        error: error.message
+                    });
                 });
 
-                // TASK-NODE-2: Trigger initial chat sync after session is ready
-                const sessionMetadata = this.metadata.get(sessionId);
-
-                this.logger.info('Triggering initial chat sync', {
+                // OPTIMIZED: Chat sync disabled for faster connection
+                // User can trigger manually via API: POST /api/sessions/{id}/sync-chats
+                this.logger.info('Session ready. Chat sync available via manual trigger', {
                     sessionId,
                     workspaceId,
-                    accountId: sessionMetadata?.accountId
-                });
-
-                // Run sync in background (non-blocking)
-                this.chatSyncHandler.syncAllChats(client, sessionMetadata?.accountId, workspaceId, {
-                    syncType: 'initial'
-                }).then(result => {
-                    this.logger.info('Initial chat sync completed', {
-                        sessionId,
-                        workspaceId,
-                        accountId: sessionMetadata?.accountId,
-                        result
-                    });
-                }).catch(error => {
-                    this.logger.error('Initial chat sync failed', {
-                        sessionId,
-                        workspaceId,
-                        accountId: sessionMetadata?.accountId,
-                        error: error.message,
-                        stack: error.stack
-                    });
+                    phoneNumber: info.wid.user,
+                    note: 'Auto-sync disabled for performance optimization'
                 });
 
             } catch (error) {
@@ -364,10 +391,16 @@ class SessionManager {
                     disconnectedAt: new Date()
                 });
 
-                await this.sendToLaravel('session_disconnected', {
+                // OPTIMIZED: Non-blocking webhook
+                this.sendToLaravel('session_disconnected', {
                     workspace_id: workspaceId,
                     session_id: sessionId,
                     reason: reason
+                }).catch(error => {
+                    this.logger.error('Webhook failed (non-fatal)', {
+                        sessionId,
+                        error: error.message
+                    });
                 });
 
                 // Trigger auto-reconnect for technical disconnects
@@ -991,6 +1024,7 @@ class SessionManager {
 
     /**
      * Send data to Laravel webhook endpoint
+     * OPTIMIZED: Use WebhookNotifier for consistent HTTP handling
      *
      * @param {string} eventName - Event name
      * @param {Object} data - Event data
@@ -998,39 +1032,19 @@ class SessionManager {
      */
     async sendToLaravel(eventName, data) {
         try {
-            // Use single webhook endpoint with event-wrapped format
-            const endpoint = '/api/whatsapp/webhooks/webjs';
-
-            // Wrap data dengan event type
+            // Use WebhookNotifier for optimized HTTP with keepAlive: false
             const payload = {
                 event: eventName,
                 data: data
             };
 
-            // Use Unix timestamp in seconds (not milliseconds) to match PHP's time()
-            const timestamp = Math.floor(Date.now() / 1000).toString();
-            const payloadString = JSON.stringify(payload);
-            const signature = crypto
-                .createHmac('sha256', process.env.HMAC_SECRET || process.env.API_SECRET)
-                .update(timestamp + payloadString)
-                .digest('hex');
+            await this.webhookNotifier.notify('/api/whatsapp/webhooks/webjs', payload);
 
-            await axios.post(`${process.env.LARAVEL_URL}${endpoint}`, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': process.env.API_KEY || process.env.LARAVEL_API_TOKEN,
-                    'X-Timestamp': timestamp,
-                    'X-HMAC-Signature': signature,  // Fixed: Use X-HMAC-Signature instead of X-Signature
-                },
-                timeout: 10000
-            });
-
-            this.logger.debug('Data sent to Laravel successfully', { event: eventName, endpoint });
+            this.logger.debug('Data sent to Laravel successfully', { event: eventName });
         } catch (error) {
             this.logger.error('Failed to send data to Laravel', {
                 event: eventName,
-                error: error.message,
-                response: error.response?.data
+                error: error.message
             });
         }
     }
