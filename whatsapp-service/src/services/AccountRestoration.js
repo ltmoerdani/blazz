@@ -103,10 +103,21 @@ class SessionRestoration {
         this.logger.debug(`Restoring session: ${session_id}`);
 
         try {
-            // Skip if session already exists
+            // CRITICAL FIX: Check if session already exists and cleanup if needed
             if (this.sessionManager.sessions.has(session_id)) {
-                this.logger.debug(`Session ${session_id} already exists`);
-                return { success: true, skipped: true };
+                this.logger.warning(`⚠️ Session ${session_id} already exists in memory, cleaning up...`);
+                
+                try {
+                    // Force cleanup existing session before restore
+                    await this.sessionManager.forceCleanupSession(session_id);
+                    this.logger.info(`✅ Cleaned up existing session: ${session_id}`);
+                    
+                    // Wait a bit before recreating
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } catch (cleanupError) {
+                    this.logger.error(`Failed to cleanup session ${session_id}:`, cleanupError.message);
+                    // Continue anyway, createSession will handle it
+                }
             }
 
             // Create session using LocalAuth (will restore from disk)
@@ -121,7 +132,8 @@ class SessionRestoration {
 
         } catch (error) {
             this.logger.error(`❌ Failed to restore session: ${session_id}`, {
-                error: error.message
+                error: error.message,
+                stack: error.stack
             });
 
             // Mark as disconnected in Laravel (fire and forget)

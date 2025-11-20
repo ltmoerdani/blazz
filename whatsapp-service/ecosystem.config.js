@@ -18,14 +18,14 @@ module.exports = {
       // Environment configuration
       env: {
         NODE_ENV: 'development',
-        PORT: 3000,
+        PORT: 3001,
         LOG_LEVEL: 'info'
       },
 
       // Production environment
       env_production: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        PORT: 3001,
         LOG_LEVEL: 'warn',
 
         // API Security

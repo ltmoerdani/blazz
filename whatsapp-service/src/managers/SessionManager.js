@@ -53,6 +53,19 @@ class SessionManager {
             priority
         });
 
+        // CLUSTER MODE: Acquire lock before creating session
+        if (this.sessionLock) {
+            const lockAcquired = await this.sessionLock.acquireLock(sessionId, 30000);
+            
+            if (!lockAcquired) {
+                this.logger.error(`Failed to acquire lock for session ${sessionId}, aborting creation`);
+                return {
+                    success: false,
+                    error: 'Failed to acquire session lock (another worker may be handling this session)'
+                };
+            }
+        }
+
         try {
             const client = new Client({
                 authStrategy: new LocalAuth({
@@ -724,6 +737,42 @@ class SessionManager {
             });
             throw error;
         }
+    }
+
+    /**
+     * Force cleanup session (for restoration conflicts)
+     * More aggressive than disconnectSession - doesn't throw if client doesn't exist
+     *
+     * @param {string} sessionId - Session identifier
+     * @returns {Promise<void>}
+     */
+    async forceCleanupSession(sessionId) {
+        this.logger.info('Force cleanup session', { sessionId });
+
+        const client = this.sessions.get(sessionId);
+        
+        if (client) {
+            try {
+                // Try to destroy gracefully first
+                await Promise.race([
+                    client.destroy(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Destroy timeout')), 5000))
+                ]);
+            } catch (error) {
+                this.logger.warning('Client destroy failed or timed out, forcing cleanup', {
+                    sessionId,
+                    error: error.message
+                });
+                // Force cleanup anyway
+            }
+        }
+
+        // Always remove from memory
+        this.sessions.delete(sessionId);
+        this.metadata.delete(sessionId);
+        this.qrCodes.delete(sessionId);
+
+        this.logger.info('Session force cleanup completed', { sessionId });
     }
 
     /**

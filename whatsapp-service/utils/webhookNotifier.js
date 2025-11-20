@@ -21,7 +21,7 @@ class WebhookNotifier {
         this.secret = process.env.HMAC_SECRET || process.env.API_SECRET;
         this.laravelUrl = process.env.LARAVEL_URL || 'http://localhost:8000';
         this.maxRetries = parseInt(process.env.WEBHOOK_MAX_RETRIES) || 3;
-        this.timeout = parseInt(process.env.WEBHOOK_TIMEOUT) || 10000; // 10 seconds
+        this.timeout = parseInt(process.env.WEBHOOK_TIMEOUT) || 30000; // 30 seconds (increased from 10s due to queue processing)
 
         if (!this.secret) {
             this.logger.error('[WebhookNotifier] FATAL: HMAC_SECRET not configured in environment');

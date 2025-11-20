@@ -44,6 +44,12 @@ class Kernel extends ConsoleKernel
         // Monitor queue size
         $schedule->command('monitor:queue-size')
             ->everyFiveMinutes();
+
+        // Sync WhatsApp sessions with Node.js service (auto-reconnect)
+        $schedule->command('whatsapp:sync-sessions --auto-reconnect')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**

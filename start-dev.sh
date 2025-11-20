@@ -61,7 +61,7 @@ pkill -f "php artisan serve"
 pkill -f "php artisan reverb:start"
 pkill -f "php artisan queue:work"
 pkill -f "php artisan schedule:work"
-pkill -f "whatsapp-service"
+pm2 delete whatsapp-service 2>/dev/null || true
 sleep 2
 
 echo -e "${YELLOW}Starting services in background...${NC}"
@@ -77,11 +77,12 @@ echo -e "${BLUE}2. Starting Laravel Reverb (Port 8080)...${NC}"
 nohup php artisan reverb:start --host=127.0.0.1 --port=8080 > logs/reverb.log 2>&1 &
 REVERB_PID=$!
 
-# Start Node.js WhatsApp Service
-echo -e "${BLUE}3. Starting WhatsApp Node.js Service (Port 3001)...${NC}"
+# Start Node.js WhatsApp Service (PM2 Cluster Mode)
+echo -e "${BLUE}3. Starting WhatsApp Node.js Service (PM2 Cluster - Port 3001)...${NC}"
 cd whatsapp-service
-nohup node_modules/.bin/nodemon server.js > ../logs/whatsapp-service.log 2>&1 &
-WHATSAPP_PID=$!
+pm2 delete whatsapp-service 2>/dev/null || true
+pm2 start ecosystem.config.js > /dev/null 2>&1
+WHATSAPP_PID="PM2 Cluster (8 workers)"
 cd ..
 
 # Start Queue Worker

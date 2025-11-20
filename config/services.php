@@ -65,7 +65,7 @@ return [
     // ],
 
     'whatsapp' => [
-        'nodejs_url' => env('WHATSAPP_NODEJS_URL', 'http://127.0.0.1:3000'),
+        'nodejs_url' => env('WHATSAPP_NODEJS_URL', 'http://127.0.0.1:3001'),
         'api_key' => env('WHATSAPP_API_KEY', env('LARAVEL_API_TOKEN')),
         'hmac_secret' => env('WHATSAPP_HMAC_SECRET'),
         'timeout' => env('WHATSAPP_TIMEOUT', 30),

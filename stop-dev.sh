@@ -32,12 +32,13 @@ pkill -f "php artisan queue:work" && echo -e "${GREEN}✅ Queue Worker stopped${
 echo -e "${YELLOW}Stopping Laravel Scheduler...${NC}"
 pkill -f "php artisan schedule:work" && echo -e "${GREEN}✅ Laravel Scheduler stopped${NC}" || echo -e "${RED}❌ Laravel Scheduler not running${NC}"
 
-# Stop Node.js WhatsApp Service
-echo -e "${YELLOW}Stopping WhatsApp Service...${NC}"
-pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC}" || echo -e "${RED}❌ WhatsApp Service not running${NC}"
+# Stop Node.js WhatsApp Service (PM2 Cluster)
+echo -e "${YELLOW}Stopping WhatsApp Service (PM2 Cluster)...${NC}"
+pm2 stop whatsapp-service 2>/dev/null && echo -e "${GREEN}✅ WhatsApp Service (PM2) stopped${NC}" || echo -e "${RED}❌ WhatsApp Service not running${NC}"
+pm2 delete whatsapp-service 2>/dev/null && echo -e "${GREEN}✅ PM2 process removed${NC}" || true
 
-# Stop nodemon if running
-pkill -f "nodemon" && echo -e "${GREEN}✅ Nodemon stopped${NC}" || echo -e "${RED}❌ Nodemon not running${NC}"
+# Stop nodemon if running (legacy cleanup)
+pkill -f "nodemon" 2>/dev/null && echo -e "${GREEN}✅ Nodemon stopped (legacy)${NC}" || true
 
 # Stop any remaining Node processes on port 3001
 echo -e "${YELLOW}Checking for remaining processes on port 3001...${NC}"
