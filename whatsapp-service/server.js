@@ -48,12 +48,25 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Initialize session manager (TASK-ARCH-1: Extracted from server.js)
 const sessionManager = new SessionManager(logger);
 
+// Make sessionManager available to routes
+app.set('sessionManager', sessionManager);
+
 // Initialize essential services only
 const whatsAppRateLimiter = new WhatsAppRateLimiter();
 const timeoutHandler = new TimeoutHandler();
 
 // Apply timeout middleware
 app.use(timeoutHandler.middleware());
+
+// RemoteAuth migration health check routes (MUST be before createRoutes to avoid 404 handler)
+// These routes handle Redis, session storage, and migration monitoring
+try {
+    const remoteAuthHealthRoutes = require('./src/routes/healthRoutes');
+    app.use('/remoteauth', remoteAuthHealthRoutes);
+    logger.info('✅ RemoteAuth health routes registered at /remoteauth/*');
+} catch (error) {
+    logger.error('❌ Failed to load RemoteAuth health routes:', error.message);
+}
 
 // Setup API routes using extracted router (TASK-ARCH-3: Extract routes to dedicated module)
 app.use('/', createRoutes(sessionManager, logger));
@@ -82,6 +95,22 @@ app.listen(PORT, async () => {
     logger.info(`WhatsApp Service started on port ${PORT}`);
     logger.info(`Laravel backend: ${process.env.LARAVEL_URL}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`Auth Strategy: ${process.env.AUTH_STRATEGY || 'localauth'}`);
+
+    // NEW: Initialize RemoteAuth if enabled (Week 3 RemoteAuth Migration)
+    if (process.env.AUTH_STRATEGY === 'remoteauth') {
+        logger.info('🔄 Initializing RemoteAuth with Redis...');
+        try {
+            await sessionManager.initializeRemoteAuth();
+            logger.info('✅ RemoteAuth initialized successfully');
+        } catch (error) {
+            logger.error('❌ RemoteAuth initialization failed:', {
+                error: error.message,
+                stack: error.stack
+            });
+            logger.warn('⚠️ Falling back to LocalAuth');
+        }
+    }
 
     // Restore all active sessions from database on startup
     logger.info('🔄 Initiating session restoration...');

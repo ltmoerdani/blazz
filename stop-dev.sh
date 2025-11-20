@@ -2,6 +2,7 @@
 
 # Blazz Development Server Stop Script
 # This script stops all services started by start-dev.sh
+# Updated for RemoteAuth architecture
 
 echo "🛑 Stopping Blazz Development Environment..."
 echo "=============================================="
@@ -53,7 +54,20 @@ lsof -ti:8080 | xargs kill -9 2>/dev/null && echo -e "${GREEN}✅ Port 8080 clea
 
 sleep 2
 
+# Note about Redis (don't stop it - may be used by other services)
+echo -e "${BLUE}ℹ️  Redis server not stopped (may be used by other services)${NC}"
+echo -e "${BLUE}   To stop Redis manually: redis-cli shutdown${NC}"
+
 echo "=============================================="
-echo -e "${GREEN}🏁 All services stopped successfully!${NC}"
+echo -e "${GREEN}🏁 All development services stopped!${NC}"
+echo ""
+echo -e "${BLUE}Status:${NC}"
+echo "✅ Laravel Backend stopped"
+echo "✅ Reverb Broadcasting stopped"
+echo "✅ WhatsApp Service stopped"
+echo "✅ Queue Worker stopped"
+echo "✅ Laravel Scheduler stopped"
+echo "ℹ️  Redis left running (if started)"
+echo ""
 echo -e "${BLUE}💡 To start services again, run: ./start-dev.sh${NC}"
 echo "=============================================="

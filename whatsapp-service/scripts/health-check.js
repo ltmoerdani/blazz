@@ -12,7 +12,8 @@
 const http = require('http');
 
 // Configuration
-const HEALTH_CHECK_URL = process.env.HEALTH_CHECK_URL || 'http://localhost:3000/health';
+const PORT = process.env.PORT || 3001;
+const HEALTH_CHECK_URL = process.env.HEALTH_CHECK_URL || `http://localhost:${PORT}/health`;
 const CHECK_INTERVAL = parseInt(process.env.HEALTH_CHECK_INTERVAL) || 30000; // 30 seconds
 const TIMEOUT = parseInt(process.env.HEALTH_CHECK_TIMEOUT) || 10000; // 10 seconds
 

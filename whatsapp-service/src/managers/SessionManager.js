@@ -11,6 +11,10 @@ const WebhookNotifier = require('../../utils/webhookNotifier');
 const AccountRestoration = require('../services/AccountRestoration');
 const AutoReconnect = require('../services/AutoReconnect');
 
+// Import RemoteAuth components (NEW - Week 3 RemoteAuth Migration)
+const CustomRemoteAuth = require('../auth/CustomRemoteAuth');
+const redisConfig = require('../../config/redis');
+
 /**
  * Session Manager
  *
@@ -18,6 +22,7 @@ const AutoReconnect = require('../services/AutoReconnect');
  * Extracted from server.js for better separation of concerns.
  *
  * TASK-ARCH-1: Extract WhatsAppAccountManager to dedicated manager class
+ * WEEK-3 UPDATE: Support both LocalAuth and RemoteAuth strategies
  */
 class SessionManager {
     constructor(logger) {
@@ -33,6 +38,68 @@ class SessionManager {
         // Initialize session restoration and auto-reconnect services
         this.accountRestoration = new AccountRestoration(this, logger);
         this.autoReconnect = new AutoReconnect(this, logger);
+
+        // NEW: Auth strategy configuration (Week 3 RemoteAuth Migration)
+        this.authStrategy = process.env.AUTH_STRATEGY || 'localauth';
+        this.redisStore = null;
+
+        this.logger.info('SessionManager initialized', {
+            authStrategy: this.authStrategy,
+            redisEnabled: this.authStrategy === 'remoteauth'
+        });
+    }
+
+    /**
+     * Initialize RemoteAuth (if enabled)
+     * Must be called before creating sessions with RemoteAuth
+     */
+    async initializeRemoteAuth() {
+        if (this.authStrategy !== 'remoteauth') {
+            this.logger.info('RemoteAuth not enabled, skipping Redis initialization');
+            return;
+        }
+
+        try {
+            this.logger.info('Initializing RemoteAuth with Redis...');
+            
+            await redisConfig.initialize();
+            this.redisStore = redisConfig.getStore();
+
+            const health = await redisConfig.getHealthStatus();
+            this.logger.info('RemoteAuth initialized successfully', health);
+
+        } catch (error) {
+            this.logger.error('Failed to initialize RemoteAuth:', error.message);
+            this.logger.warn('Falling back to LocalAuth');
+            this.authStrategy = 'localauth';
+        }
+    }
+
+    /**
+     * Get auth strategy instance for session
+     * 
+     * @param {string} sessionId - Session identifier
+     * @param {number} workspaceId - Workspace ID
+     * @returns {Object} Auth strategy instance
+     */
+    getAuthStrategy(sessionId, workspaceId) {
+        if (this.authStrategy === 'remoteauth' && this.redisStore) {
+            this.logger.info('Using RemoteAuth strategy', { sessionId });
+            
+            return new CustomRemoteAuth({
+                clientId: sessionId,
+                dataPath: './.wwebjs_auth',
+                store: this.redisStore,
+                backupSyncIntervalMs: 60000 // Backup every 1 minute
+            });
+        }
+
+        this.logger.info('Using LocalAuth strategy', { sessionId });
+        
+        return new LocalAuth({
+            clientId: sessionId,
+            dataPath: `./sessions/${workspaceId}/${sessionId}`
+        });
     }
 
     /**
@@ -50,15 +117,16 @@ class SessionManager {
             sessionId,
             workspaceId,
             accountId: account_id,
-            priority
+            priority,
+            authStrategy: this.authStrategy
         });
 
         try {
+            // Get auth strategy (LocalAuth or RemoteAuth)
+            const authStrategy = this.getAuthStrategy(sessionId, workspaceId);
+
             const client = new Client({
-                authStrategy: new LocalAuth({
-                    clientId: sessionId,
-                    dataPath: `./sessions/${workspaceId}/${sessionId}`
-                }),
+                authStrategy: authStrategy,
                 puppeteer: {
                     headless: true,
                     timeout: 90000, // 90 seconds timeout for browser launch (first launch can be slow)

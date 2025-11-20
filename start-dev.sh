@@ -2,6 +2,7 @@
 
 # Blazz Development Server Startup Script
 # This script starts all necessary services for WhatsApp Web.js integration
+# Updated for RemoteAuth architecture with Redis support
 
 echo "🚀 Starting Blazz Development Environment..."
 echo "=============================================="
@@ -62,7 +63,20 @@ pkill -f "php artisan reverb:start"
 pkill -f "php artisan queue:work"
 pkill -f "php artisan schedule:work"
 pkill -f "whatsapp-service"
+pkill -f "nodemon"
 sleep 2
+
+# Check Redis (required for RemoteAuth)
+echo -e "${BLUE}Checking Redis server...${NC}"
+if redis-cli ping > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Redis is running${NC}"
+    REDIS_RUNNING=true
+else
+    echo -e "${YELLOW}⚠️  Redis is not running${NC}"
+    echo -e "${YELLOW}   RemoteAuth will fallback to LocalAuth${NC}"
+    echo -e "${YELLOW}   To enable RemoteAuth: brew services start redis${NC}"
+    REDIS_RUNNING=false
+fi
 
 echo -e "${YELLOW}Starting services in background...${NC}"
 
@@ -117,6 +131,19 @@ if ! wait_for_service "WhatsApp Service" "http://127.0.0.1:3001/health"; then
     SERVICES_OK=false
 fi
 
+# Check WhatsApp Service health details
+if [ "$SERVICES_OK" = true ]; then
+    echo -e "${BLUE}Checking WhatsApp Service health...${NC}"
+    HEALTH_RESPONSE=$(curl -s http://127.0.0.1:3001/health)
+    AUTH_STRATEGY=$(echo $HEALTH_RESPONSE | grep -o '"authStrategy":"[^"]*"' | cut -d'"' -f4)
+    
+    if [ "$AUTH_STRATEGY" = "remoteauth" ]; then
+        echo -e "${GREEN}✅ RemoteAuth enabled (Redis-backed)${NC}"
+    else
+        echo -e "${YELLOW}⚠️  LocalAuth active (file-based)${NC}"
+    fi
+fi
+
 # Final status
 echo "=============================================="
 if [ "$SERVICES_OK" = true ]; then
@@ -127,6 +154,12 @@ if [ "$SERVICES_OK" = true ]; then
     echo "🔄 Reverb Broadcasting: http://127.0.0.1:8080"
     echo "💬 WhatsApp Service: http://127.0.0.1:3001"
     echo ""
+    echo -e "${BLUE}Health Check Endpoints:${NC}"
+    echo "🏥 Overall Health: http://127.0.0.1:3001/health"
+    echo "📊 Redis Health: http://127.0.0.1:3001/health/redis"
+    echo "💾 Sessions: http://127.0.0.1:3001/health/sessions"
+    echo "🔄 Migration: http://127.0.0.1:3001/health/migration"
+    echo ""
     echo -e "${BLUE}Process IDs:${NC}"
     echo "Laravel: $LARAVEL_PID"
     echo "Reverb: $REVERB_PID" 
@@ -134,8 +167,16 @@ if [ "$SERVICES_OK" = true ]; then
     echo "Queue: $QUEUE_PID"
     echo "Scheduler: $SCHEDULER_PID"
     echo ""
+    if [ "$REDIS_RUNNING" = true ]; then
+        echo -e "${GREEN}🔴 Redis: Running${NC}"
+        echo -e "${BLUE}   Auth Strategy: ${AUTH_STRATEGY:-localauth}${NC}"
+    else
+        echo -e "${YELLOW}🔴 Redis: Not Running (LocalAuth fallback active)${NC}"
+    fi
+    echo ""
     echo -e "${YELLOW}💡 To stop all services, run: ./stop-dev.sh${NC}"
     echo -e "${YELLOW}📋 To view logs: tail -f logs/*.log${NC}"
+    echo -e "${YELLOW}🔧 To migrate sessions: cd whatsapp-service && node src/utils/SessionMigration.js${NC}"
 else
     echo -e "${RED}❌ Some services failed to start. Check logs for details.${NC}"
     echo -e "${YELLOW}📋 Check logs: ls -la logs/${NC}"
