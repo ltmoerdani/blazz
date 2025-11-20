@@ -161,5 +161,13 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
         Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
             Route::post('/webhooks/v2', [App\Http\Controllers\Api\v1\WhatsApp\WebhookController::class, 'webhook']);
         });
+
+        // WhatsApp Internal API Routes (for Node.js instance communication)
+        Route::prefix('internal/whatsapp')->group(function () {
+            Route::post('/session/migrated', [App\Http\Controllers\WhatsApp\InternalController::class, 'sessionMigrated']);
+            Route::post('/session/disconnected', [App\Http\Controllers\WhatsApp\InternalController::class, 'sessionDisconnected']);
+            Route::post('/session/activity', [App\Http\Controllers\WhatsApp\InternalController::class, 'updateActivity']);
+            Route::get('/session/{sessionId}/assignment', [App\Http\Controllers\WhatsApp\InternalController::class, 'getSessionAssignment']);
+        });
     });
 });

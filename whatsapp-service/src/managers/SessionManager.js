@@ -125,10 +125,14 @@ class SessionManager {
             // Get auth strategy (LocalAuth or RemoteAuth)
             const authStrategy = this.getAuthStrategy(sessionId, workspaceId);
 
+            // Determine storage path
+            const baseStoragePath = process.env.SESSION_STORAGE_PATH || './sessions';
+            const sessionDataPath = `${baseStoragePath}/workspace_${workspaceId}`;
+
             const client = new Client({
                 authStrategy: new LocalAuth({
                     clientId: sessionId,
-                    dataPath: `./sessions/${workspaceId}/${sessionId}`
+                    dataPath: sessionDataPath
                 }),
                 puppeteer: {
                     headless: true,
