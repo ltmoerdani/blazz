@@ -27,6 +27,19 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ### 🚨 Latest Updates
 
+#### [qr/README.md](./qr/README.md)
+**⚡ QR Generation Performance Investigation** (Nov 21, 2025)
+- **CRITICAL**: QR generation 90s → <10s optimization
+- 6 bottlenecks identified with solutions
+- Quick win implementation (30 minutes)
+- Full investigation report + action plan
+- **Impact**: 9x faster (91% reduction)
+- **Status**: READY FOR IMPLEMENTATION 🚀
+
+**When to read**: **URGENT** - Before production deployment, fixing slow QR generation
+
+---
+
 #### [../fixes/qr-generation-fix-complete.md](../fixes/qr-generation-fix-complete.md)
 **QR Generation Fix - Complete Resolution** (Nov 20, 2025)
 - Fixed hardcoded URLs after multi-instance refactor
