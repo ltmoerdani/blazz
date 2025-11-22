@@ -1584,7 +1584,7 @@ $autoReplies = AutoReply::select(['id', 'uuid', 'keyword', 'status', 'trigger_co
 - [Architecture Overview](./01-arsitektur-overview.md)
 - [Component Connections](./02-component-connections.md)
 - [Folder Structure](./03-folder-structure.md)
-- [Dual-Server Architecture](./06-dual-server-architecture.md)
+- [Dual-Server Architecture](./05-dual-server-architecture.md)
 
 ### **Laravel Resources:**
 - [Laravel Documentation](https://laravel.com/docs)

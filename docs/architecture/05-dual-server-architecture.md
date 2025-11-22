@@ -590,7 +590,7 @@ app.get('/health', async (req, res) => {
 
 ## 🚀 Multi-Instance Deployment (Production Scalability)
 
-> **⭐ NEW (v2.0)**: For production deployments supporting **1,000-3,000 concurrent users**, Blazz uses **Workspace-Sharded Multi-Instance** architecture. See **[09-scalable-architecture.md](./09-scalable-architecture.md)** for complete details.
+> **⭐ NEW (v2.0)**: For production deployments supporting **1,000-3,000 concurrent users**, Blazz uses **Workspace-Sharded Multi-Instance** architecture. See **[08-scalable-architecture.md](./08-scalable-architecture.md)** for complete details.
 
 ### **Architecture Evolution**
 
@@ -817,7 +817,7 @@ class FailoverService
 
 ### **Migration from Single to Multi-Instance**
 
-See **[10-implementation-checklist.md](./10-implementation-checklist.md)** for detailed 6-week migration plan.
+See **[09-executive-summary.md](./09-executive-summary.md)** for detailed 6-week migration plan and implementation timeline.
 
 **High-Level Steps**:
 1. **Week 1-2**: Setup shared storage, deploy 2 test instances

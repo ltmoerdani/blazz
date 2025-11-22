@@ -689,10 +689,11 @@ Route::get('/health/whatsapp', function () {
 
 ### Mid-Term (1-3 months)
 
-1. **Switch to RemoteAuth (>1000 users)**
-   - Store sessions in PostgreSQL
-   - Enable true horizontal scaling
-   - Support 5000+ concurrent users
+1. **Multi-Instance Horizontal Scaling (>1000 users)**
+   - Deploy 4-8 instances with workspace sharding
+   - Shared storage (EFS/NFS) for LocalAuth sessions
+   - Support up to 4,000 concurrent users
+   - InstanceRouter for load distribution
 
 2. **Implement Circuit Breaker**
    - Protect against Node.js service failures

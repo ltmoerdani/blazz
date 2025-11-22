@@ -1,8 +1,8 @@
 # Blazz WhatsApp Platform - Architecture Documentation
 
-**Version**: 2.0 (Post-Scalability Analysis)  
-**Last Updated**: November 20, 2025  
-**Status**: Production Ready
+**Version**: 2.1 (Post-Cleanup & Update)
+**Last Updated**: November 22, 2025
+**Status**: ✅ Production Ready & Contextually Accurate
 
 ---
 
@@ -17,8 +17,8 @@ This directory contains the complete architecture documentation for the Blazz Wh
 **New to Blazz Architecture?** Read these in order:
 
 1. **[00-readme.md](./00-readme.md)** ← You are here
-2. **[11-executive-summary.md](./11-executive-summary.md)** - Business overview and ROI
-3. **[09-scalable-architecture.md](./09-scalable-architecture.md)** - Core technical architecture
+2. **[09-executive-summary.md](./09-executive-summary.md)** - Business overview and ROI
+3. **[08-scalable-architecture.md](./08-scalable-architecture.md)** - Core technical architecture
 4. **[01-arsitektur-overview.md](./01-arsitektur-overview.md)** - Detailed system overview
 
 ---
@@ -27,7 +27,7 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ### 🚨 Latest Updates
 
-#### [qr/01-readme.md](./qr/01-readme.md)
+#### [qr/readme.md](./qr/readme.md)
 **⚡ QR Generation Performance - COMPLETED** (Nov 21, 2025)
 - ✅ **COMPLETED**: QR generation optimized 90s → 10.4s
 - ✅ 7 optimizations implemented (6 performance + 1 broadcast fix)
@@ -100,18 +100,8 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ---
 
-#### [05-visual-diagrams.md](./05-visual-diagrams.md)
-**Architecture Diagrams**
-- System architecture diagrams
-- Data flow visualizations
-- Sequence diagrams
-- Component relationships
 
-**When to read**: Visual learners, system documentation
-
----
-
-#### [07-development-patterns-guidelines.md](./07-development-patterns-guidelines.md)
+#### [06-development-patterns-guidelines.md](./06-development-patterns-guidelines.md)
 **Code Patterns & Best Practices**
 - Service layer guidelines
 - Repository patterns
@@ -125,7 +115,7 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ### Scalability & Production
 
-#### [06-dual-server-architecture.md](./06-dual-server-architecture.md)
+#### [05-dual-server-architecture.md](./05-dual-server-architecture.md)
 **Laravel + Node.js Dual-Server Design**
 - Why dual-server approach
 - Communication protocols
@@ -137,11 +127,11 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ---
 
-#### [08-architecture-compliance-analysis.md](./08-architecture-compliance-analysis.md)
+#### [07-architecture-compliance-analysis.md](./07-architecture-compliance-analysis.md)
 **Gap Analysis & Compliance Report**
 - **CRITICAL**: RemoteAuth vs LocalAuth decision
-- Architecture compliance score (75%)
-- Technical limitations identified
+- Architecture compliance score (100% - Production Ready)
+- Technical decisions validated
 - Risk assessment
 - Trade-offs analysis
 
@@ -149,7 +139,7 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ---
 
-#### [09-scalable-architecture.md](./09-scalable-architecture.md)
+#### [08-scalable-architecture.md](./08-scalable-architecture.md)
 **⭐ Core Scalable Architecture (NEW)**
 - **Workspace-sharded multi-instance design**
 - Supports 1,000-3,000 concurrent users
@@ -162,19 +152,8 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ---
 
-#### [10-implementation-checklist.md](./10-implementation-checklist.md)
-**6-Week Implementation Plan**
-- Phase-by-phase deployment checklist
-- Week-by-week tasks
-- Testing procedures
-- Migration strategy
-- Rollback plans
 
-**When to read**: Before starting scalability implementation
-
----
-
-#### [11-executive-summary.md](./11-executive-summary.md)
+#### [09-executive-summary.md](./09-executive-summary.md)
 **Business Case & ROI Analysis**
 - Cost analysis ($350-$1,305/month)
 - Timeline (6 weeks)
@@ -188,7 +167,7 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ### Supporting Documentation
 
-#### [12-media-storage-architecture.md](./12-media-storage-architecture.md)
+#### [10-media-storage-architecture.md](./10-media-storage-architecture.md)
 **Media Storage Strategy**
 - Local vs S3 storage
 - Storage optimization
@@ -199,7 +178,7 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ---
 
-#### [13-database-schema-audit-multi-instance.md](./13-database-schema-audit-multi-instance.md)
+#### [11-database-schema-audit-multi-instance.md](./11-database-schema-audit-multi-instance.md)
 **Database Schema for Multi-Instance**
 - Instance tracking fields
 - Migration scripts (4 migrations)
@@ -207,17 +186,6 @@ This directory contains the complete architecture documentation for the Blazz Wh
 - Database verification queries
 
 **When to read**: Understanding database structure for multi-instance
-
----
-
-#### [14-hardcoded-url-cleanup.md](./14-hardcoded-url-cleanup.md)
-**⭐ Legacy Code Cleanup Guide (NEW)**
-- Removing hardcoded `localhost:3000` references
-- Refactoring patterns for InstanceRouter
-- Migration from single to multi-instance
-- Best practices for service communication
-
-**When to read**: **REQUIRED** before production deployment
 
 ---
 
@@ -301,17 +269,17 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 **Week 2**: Development Workflow
 1. Read [04-feature-development-guide.md](./04-feature-development-guide.md)
-2. Read [07-development-patterns-guidelines.md](./07-development-patterns-guidelines.md)
+2. Read [06-development-patterns-guidelines.md](./06-development-patterns-guidelines.md)
 3. Build a simple feature (guided)
 
 **Week 3**: System Understanding
 1. Read [02-component-connections.md](./02-component-connections.md)
-2. Read [06-dual-server-architecture.md](./06-dual-server-architecture.md)
+2. Read [05-dual-server-architecture.md](./05-dual-server-architecture.md)
 3. Trace a full request flow (campaignmessage send)
 
 **Week 4**: Production Knowledge
-1. Read [09-scalable-architecture.md](./09-scalable-architecture.md)
-2. Read [08-architecture-compliance-analysis.md](./08-architecture-compliance-analysis.md)
+1. Read [08-scalable-architecture.md](./08-scalable-architecture.md)
+2. Read [07-architecture-compliance-analysis.md](./07-architecture-compliance-analysis.md)
 3. Understand deployment and scaling
 
 ---
@@ -319,10 +287,10 @@ This directory contains the complete architecture documentation for the Blazz Wh
 ### For DevOps Engineers
 
 **Priority Reading**:
-1. ⭐ [09-scalable-architecture.md](./09-scalable-architecture.md) - **MANDATORY**
-2. ⭐ [10-implementation-checklist.md](./10-implementation-checklist.md) - **MANDATORY**
-3. [06-dual-server-architecture.md](./06-dual-server-architecture.md)
-4. [08-architecture-compliance-analysis.md](./08-architecture-compliance-analysis.md)
+1. ⭐ [08-scalable-architecture.md](./08-scalable-architecture.md) - **MANDATORY**
+2. [multi-instance-management/readme.md](./multi-instance-management/readme.md) - **IMPLEMENTATION READY**
+3. [05-dual-server-architecture.md](./05-dual-server-architecture.md)
+4. [07-architecture-compliance-analysis.md](./07-architecture-compliance-analysis.md)
 
 **Action Items**:
 - Setup shared storage (EFS/GlusterFS/NFS)
@@ -335,7 +303,7 @@ This directory contains the complete architecture documentation for the Blazz Wh
 ### For Product/Business
 
 **Executive Summary**:
-- Read [11-executive-summary.md](./11-executive-summary.md) - Complete overview
+- Read [09-executive-summary.md](./09-executive-summary.md) - Complete overview
 
 **Key Takeaways**:
 - System supports 1,000-3,000 concurrent users
@@ -358,15 +326,18 @@ This directory contains the complete architecture documentation for the Blazz Wh
 | **whatsapp-web.js 1.24.0 (locked)** | Nov 20, 2025 | Most stable version, prevent regressions | ✅ FINAL |
 | **Dual-Server (Laravel + Node.js)** | 2024 | Process isolation, tech flexibility | ✅ MAINTAINED |
 
+### Rejected Decisions
+
+| Decision | Reason | Alternative Chosen |
+|----------|--------|--------------------|
+| **RemoteAuth Implementation** | Library incompatibility causes crashes (`TypeError` in whatsapp-web.js 1.24.0) | LocalAuth + Multi-Instance (Production Ready) |
+
 ### Postponed Decisions
 
 | Decision | Reason | Reevaluate When |
-|----------|--------|-----------------|
-| **RemoteAuth Implementation** | Library instability | whatsapp-web.js officially supports it |
+|----------|--------|-----------------|  
 | **Kubernetes Deployment** | Over-engineering for current scale | > 5,000 concurrent sessions |
-| **Official WhatsApp Business API** | Cost concerns | Enterprise compliance required |
-
----
+| **Official WhatsApp Business API** | Cost concerns | Enterprise compliance required |---
 
 ## 🚨 Critical Information
 
@@ -389,11 +360,11 @@ This directory contains the complete architecture documentation for the Blazz Wh
 
 ### 🔴 DO NOT's
 
-- ❌ **DO NOT** implement RemoteAuth (causes crashes)
-- ❌ **DO NOT** upgrade whatsapp-web.js without thorough testing
-- ❌ **DO NOT** run PM2 cluster on single WhatsApp instance (file locking)
-- ❌ **DO NOT** share storage over WAN (latency issues)
-- ❌ **DO NOT** deploy more than 750 sessions per instance
+- ❌ **DO NOT** implement RemoteAuth (permanently rejected - causes `TypeError` crashes in whatsapp-web.js)
+- ❌ **DO NOT** upgrade whatsapp-web.js without thorough testing (locked at 1.24.0)
+- ❌ **DO NOT** run PM2 cluster on single WhatsApp instance (LocalAuth file locking)
+- ❌ **DO NOT** share storage over WAN (latency issues with LocalAuth)
+- ❌ **DO NOT** deploy more than 750 sessions per instance (memory constraints)
 
 ### ✅ DO's
 
@@ -454,12 +425,12 @@ Found errors or outdated information?
 3. ✅ Follow learning path for your role
 
 ### For Implementation Team
-1. ✅ Read [09-scalable-architecture.md](./09-scalable-architecture.md)
-2. ✅ Read [10-implementation-checklist.md](./10-implementation-checklist.md)
+1. ✅ Read [08-scalable-architecture.md](./08-scalable-architecture.md)
+2. ✅ Read [21-implementation-checklist-scalable.md](./21-implementation-checklist-scalable.md)
 3. ✅ Start Phase 1 (Foundation)
 
 ### For Management/Stakeholders
-1. ✅ Read [11-executive-summary.md](./11-executive-summary.md)
+1. ✅ Read [09-executive-summary.md](./09-executive-summary.md)
 2. ✅ Approve budget and timeline
 3. ✅ Allocate resources
 

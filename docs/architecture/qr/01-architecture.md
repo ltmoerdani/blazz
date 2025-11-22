@@ -463,10 +463,11 @@ Error states:
 - **Storage:** Local filesystem (`.wwebjs_auth/`)
 
 **Future Scaling (>1000 users):**
-- Switch to RemoteAuth (MongoDB/Redis)
-- Multi-instance deployment with load balancer
-- Shared session storage (NFS/S3)
-- Database read replicas
+- Deploy additional instances (4-8 instances = 2,000-4,000 users)
+- Workspace-sharded architecture with InstanceRouter
+- Shared session storage (EFS/NFS/GlusterFS)
+- Database read replicas for query optimization
+- For >3,000 users: Consider Official WhatsApp Business API
 
 ---
 
