@@ -42,24 +42,41 @@ else
     echo -e "${BLUE}ℹ️  Nodemon not running${NC}"
 fi
 
-# Stop Node.js WhatsApp Service (in case it's still running)
+# Stop WhatsApp Service (single or multi-instance)
 echo -e "${YELLOW}Stopping WhatsApp Service...${NC}"
-# Check if service is running on port 3001 before killing
-if lsof -ti:3001 > /dev/null 2>&1; then
-    pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC}" || echo -e "${RED}❌ Failed to stop WhatsApp Service${NC}"
-    sleep 1
+
+# Check if PM2 is running and has WhatsApp instances
+if command -v pm2 &> /dev/null && pm2 list | grep -q "whatsapp-instance"; then
+    echo -e "${GREEN}🛑 Stopping Multi-Instance WhatsApp Service...${NC}"
+    pm2 stop ecosystem.multi-instance.config.js 2>/dev/null || pm2 stop all
+    pm2 delete ecosystem.multi-instance.config.js 2>/dev/null || pm2 delete all
+    pm2 save
+    echo -e "${GREEN}✅ Multi-Instance WhatsApp Service stopped${NC}"
 else
-    # Check if there's a process by name (might be crashed/stuck)
-    if pgrep -f "whatsapp-service" > /dev/null 2>&1; then
-        pkill -f "whatsapp-service" && echo -e "${GREEN}✅ Cleaned up crashed WhatsApp Service${NC}" || echo -e "${RED}❌ Failed to stop WhatsApp Service${NC}"
+    # Single instance mode
+    # Check if service is running on port 3001 before killing
+    if lsof -ti:3001 > /dev/null 2>&1; then
+        pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC}" || echo -e "${RED}❌ Failed to stop WhatsApp Service${NC}"
+        sleep 1
     else
-        echo -e "${GREEN}✅ WhatsApp Service already stopped${NC}"
+        # Check if there's a process by name (might be crashed/stuck)
+        if pgrep -f "whatsapp-service" > /dev/null 2>&1; then
+            pkill -f "whatsapp-service" && echo -e "${GREEN}✅ Cleaned up crashed WhatsApp Service${NC}" || echo -e "${RED}❌ Failed to stop WhatsApp Service${NC}"
+        else
+            echo -e "${GREEN}✅ WhatsApp Service already stopped${NC}"
+        fi
     fi
 fi
 
-# Stop any remaining Node processes on port 3001
-echo -e "${YELLOW}Checking for remaining processes on port 3001...${NC}"
-lsof -ti:3001 | xargs kill -9 2>/dev/null && echo -e "${GREEN}✅ Port 3001 cleared${NC}" || echo -e "${BLUE}ℹ️  Port 3001 already free${NC}"
+# Stop any remaining processes on WhatsApp ports (3001-3004)
+echo -e "${YELLOW}Checking for remaining WhatsApp processes...${NC}"
+for port in 3001 3002 3003 3004; do
+    if lsof -ti:$port > /dev/null 2>&1; then
+        lsof -ti:$port | xargs kill -9 2>/dev/null && echo -e "${GREEN}✅ Port $port cleared${NC}"
+    else
+        echo -e "${BLUE}ℹ️  Port $port already free${NC}"
+    fi
+done
 
 # Stop any remaining processes on port 8000
 echo -e "${YELLOW}Checking for remaining processes on port 8000...${NC}"

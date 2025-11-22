@@ -5,6 +5,7 @@ namespace App\Services\Adapters;
 use App\Contracts\WhatsAppAdapterInterface;
 use App\Models\Contact;
 use App\Models\WhatsAppAccount;
+use App\Services\WhatsApp\InstanceRouter;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -20,12 +21,21 @@ class WebJSAdapter implements WhatsAppAdapterInterface
     private WebJSMessageSender $messageSender;
     private WebJSHealthChecker $healthChecker;
     private WebJSUtility $utility;
+    private InstanceRouter $router;
 
     public function __construct(int $workspaceId, ?WhatsAppAccount $session = null)
     {
         $this->workspaceId = $workspaceId;
         $this->session = $session;
-        $this->nodeServiceUrl = config('whatsapp.node_service_url', 'http://localhost:3000');
+        $this->router = app(InstanceRouter::class);
+        
+        // MULTI-INSTANCE: Use router to get correct instance URL
+        // If session already assigned, use that. Otherwise, route based on workspace.
+        if ($this->session && $this->session->assigned_instance_url) {
+            $this->nodeServiceUrl = $this->session->assigned_instance_url;
+        } else {
+            $this->nodeServiceUrl = $this->router->getInstanceForWorkspace($workspaceId);
+        }
 
         // Initialize helper classes
         if ($this->session) {
@@ -150,14 +160,29 @@ class WebJSAdapter implements WhatsAppAdapterInterface
     /**
      * Initialize a new session with Node.js service
      *
+     * MULTI-INSTANCE ARCHITECTURE:
+     * Uses InstanceRouter to determine correct instance based on workspace_id.
+     * This ensures workspace-based sharding and proper load distribution.
+     *
      * Note: QR code will be sent via webhook event (qr_code_generated),
      * not in the response. Frontend should listen to Echo/Reverb events.
      */
     public function initializeSession(): array
     {
         try {
-            // Increased timeout to 60 seconds for puppeteer initialization
-            $response = Http::timeout(60)->post("{$this->nodeServiceUrl}/api/sessions", [
+            // MULTI-INSTANCE: Route to correct instance based on workspace
+            $instanceIndex = $this->router->getInstanceIndex($this->workspaceId);
+            $targetInstanceUrl = $this->router->getInstanceUrl($instanceIndex);
+
+            Log::info("Initializing session on Instance {$instanceIndex}", [
+                'workspace_id' => $this->workspaceId,
+                'session_id' => $this->session->session_id,
+                'target_instance' => $targetInstanceUrl,
+            ]);
+
+            // OPTIMIZED: Reduced timeout to 10s (QR generation should be <10s)
+            // Webhook will deliver QR asynchronously via WebSocket
+            $response = Http::timeout(10)->post("{$targetInstanceUrl}/api/sessions", [
                 'workspace_id' => $this->workspaceId,
                 'account_id' => $this->session->id,           // INTEGER ID from database
                 'session_id' => $this->session->session_id,   // STRING session identifier
@@ -167,10 +192,17 @@ class WebJSAdapter implements WhatsAppAdapterInterface
             if ($response->successful()) {
                 $data = $response->json();
 
-                // Update session status
+                // OPTIMIZED: Single combined database update (instead of 2 separate)
                 $this->session->update([
                     'status' => $data['status'] ?? 'qr_scanning',
                     'last_activity_at' => now(),
+                    'assigned_instance_index' => $instanceIndex,
+                    'assigned_instance_url' => $targetInstanceUrl,
+                ]);
+
+                Log::info("Session initialized successfully on Instance {$instanceIndex}", [
+                    'workspace_id' => $this->workspaceId,
+                    'session_id' => $this->session->session_id,
                 ]);
 
                 return [
@@ -182,6 +214,13 @@ class WebJSAdapter implements WhatsAppAdapterInterface
                     'qr_code' => null,
                 ];
             }
+
+            Log::error('Node.js service returned error', [
+                'workspace_id' => $this->workspaceId,
+                'session_id' => $this->session->session_id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
 
             return [
                 'success' => false,

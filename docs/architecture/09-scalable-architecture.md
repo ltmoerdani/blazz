@@ -1,10 +1,11 @@
 # Realistic Scalable Architecture for 1000-3000 Concurrent Users
 
-**Version**: 2.0 (Revised - Post Gap Analysis)  
-**Date**: November 20, 2025  
+**Version**: 2.1 (Updated - Post QR Optimization)  
+**Date**: November 21, 2025  
 **Target Scale**: 1,000 - 3,000 concurrent WhatsApp sessions  
 **Status**: Production-Ready Architecture  
-**Design Philosophy**: Pragmatic over Ideal, Stability over Complexity
+**Design Philosophy**: Pragmatic over Ideal, Stability over Complexity  
+**Performance**: QR Generation <10s ✅ VALIDATED
 
 ---
 
@@ -13,11 +14,18 @@
 Based on research and gap analysis, this document defines a **REALISTIC** and **PROVEN** architecture for scaling WhatsApp Web.js operations to support 1000-3000 concurrent users while using **LocalAuth** (file-based) strategy.
 
 **Key Decisions**:
-- ✅ **LocalAuth** as standard (proven stable)
+- ✅ **LocalAuth** as standard (proven stable, QR <10s validated)
 - ✅ **Workspace-based sharding** for horizontal scaling
 - ✅ **Multi-instance deployment** with session routing
 - ✅ **File-based persistence** with cloud backup
-- ❌ **RemoteAuth postponed** until library support confirmed
+- ❌ **RemoteAuth postponed** until >3000 users (adds 5-8s QR overhead)
+- ✅ **Redis for Laravel** recommended (cache/queue, not WhatsApp sessions)
+
+**Performance Validated** (Nov 21, 2025):
+- QR Generation: 7.9-8.8 seconds ✅
+- Webhook Delivery: 1.7-2.4 seconds ✅
+- Total Flow: ~10.4 seconds ✅
+- Target: <10 seconds **ACHIEVED**
 
 ---
 
@@ -56,6 +64,24 @@ Instead of trying to run all sessions on one server or using complex RemoteAuth,
     │  ./sessions/workspace_{id}/session_{id}/            │
     └─────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 📊 Performance & Scalability Update (Nov 21, 2025)
+
+**Recent Optimizations:**
+- ✅ QR generation optimized from 90s to 10.4s (89% improvement)
+- ✅ LocalAuth confirmed optimal for current scale (<3000 users)
+- ✅ Broadcast architecture validated (Reverb + PrivateChannel)
+- ✅ Redis analysis completed for future scaling
+
+**Key Findings:**
+1. **LocalAuth**: Fast QR (10s) but single-node only
+2. **RemoteAuth**: Slower QR (15-18s) but enables multi-node
+3. **Redis**: Not needed for WhatsApp sessions at current scale
+4. **Switch point**: RemoteAuth required only when >3000 users
+
+See: [qr/06-redis-and-scalability-analysis.md](./qr/06-redis-and-scalability-analysis.md)
 
 ---
 

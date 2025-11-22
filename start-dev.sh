@@ -91,11 +91,44 @@ echo -e "${BLUE}2. Starting Laravel Reverb (Port 8080)...${NC}"
 nohup php artisan reverb:start --host=127.0.0.1 --port=8080 > logs/reverb.log 2>&1 &
 REVERB_PID=$!
 
-# Start Node.js WhatsApp Service
-echo -e "${BLUE}3. Starting WhatsApp Node.js Service (Port 3001)...${NC}"
+# Start WhatsApp Service (Multi-Instance Ready)
+echo -e "${BLUE}3. Starting WhatsApp Service...${NC}"
 cd whatsapp-service
-nohup node_modules/.bin/nodemon server.js > ../logs/whatsapp-service.log 2>&1 &
-WHATSAPP_PID=$!
+
+# Check if running in multi-instance mode
+if [ "$WHATSAPP_MULTI_INSTANCE" = "true" ] || [ -f "ecosystem.multi-instance.config.js" ]; then
+    echo -e "${GREEN}🚀 Starting Multi-Instance WhatsApp Service (4 instances)...${NC}"
+
+    # Check if PM2 is installed
+    if ! command -v pm2 &> /dev/null; then
+        echo -e "${YELLOW}⚠️  PM2 not found. Installing PM2...${NC}"
+        npm install -g pm2
+    fi
+
+    # Create logs directory
+    mkdir -p logs
+
+    # Start multi-instance deployment
+    pm2 start ecosystem.multi-instance.config.js
+    pm2 save
+
+    echo -e "${GREEN}✅ Multi-Instance WhatsApp Service started${NC}"
+    echo -e "   Instance 1: http://localhost:3001"
+    echo -e "   Instance 2: http://localhost:3002"
+    echo -e "   Instance 3: http://localhost:3003"
+    echo -e "   Instance 4: http://localhost:3004"
+    echo -e "   Total Capacity: 2,000 concurrent sessions"
+
+    # Get PM2 process info
+    WHATSAPP_PID="pm2_multi_instance"
+
+else
+    # Single instance development mode (default)
+    echo -e "${BLUE}💬 Starting Single Instance WhatsApp Service (Port 3001)...${NC}"
+    nohup node_modules/.bin/nodemon server.js > ../logs/whatsapp-service.log 2>&1 &
+    WHATSAPP_PID=$!
+fi
+
 cd ..
 
 # Start Queue Worker
@@ -127,8 +160,27 @@ if ! wait_for_service "Laravel Reverb" "http://127.0.0.1:8080"; then
     SERVICES_OK=false
 fi
 
-if ! wait_for_service "WhatsApp Service" "http://127.0.0.1:3001/health"; then
-    SERVICES_OK=false
+# Check WhatsApp Service health (single or multi-instance)
+if [ "$WHATSAPP_PID" = "pm2_multi_instance" ]; then
+    # Multi-instance mode: check all instances
+    MULTI_INSTANCE_OK=true
+    echo -e "${BLUE}Checking Multi-Instance WhatsApp Service...${NC}"
+
+    for port in 3001 3002 3003 3004; do
+        if ! wait_for_service "WhatsApp Instance $port" "http://127.0.0.1:$port/health"; then
+            MULTI_INSTANCE_OK=false
+        fi
+    done
+
+    if [ "$MULTI_INSTANCE_OK" = false ]; then
+        SERVICES_OK=false
+    fi
+
+else
+    # Single instance mode
+    if ! wait_for_service "WhatsApp Service" "http://127.0.0.1:3001/health"; then
+        SERVICES_OK=false
+    fi
 fi
 
 # Check WhatsApp Service health details
@@ -164,13 +216,28 @@ if [ "$SERVICES_OK" = true ]; then
     echo -e "${BLUE}Service URLs:${NC}"
     echo "📱 Laravel App: http://127.0.0.1:8000"
     echo "🔄 Reverb Broadcasting: http://127.0.0.1:8080"
-    echo "💬 WhatsApp Service: http://127.0.0.1:3001"
-    echo ""
-    echo -e "${BLUE}Health Check Endpoints:${NC}"
-    echo "🏥 Overall Health: http://127.0.0.1:3001/health"
-    echo "📊 Redis Health: http://127.0.0.1:3001/health/redis"
-    echo "💾 Sessions: http://127.0.0.1:3001/health/sessions"
-    echo "🔄 Migration: http://127.0.0.1:3001/health/migration"
+
+    if [ "$WHATSAPP_PID" = "pm2_multi_instance" ]; then
+        echo "💬 WhatsApp Multi-Instance:"
+        echo "   • Instance 1: http://127.0.0.1:3001"
+        echo "   • Instance 2: http://127.0.0.1:3002"
+        echo "   • Instance 3: http://127.0.0.1:3003"
+        echo "   • Instance 4: http://127.0.0.1:3004"
+        echo "   • Total Capacity: 2,000 concurrent sessions"
+        echo ""
+        echo -e "${BLUE}Health Check Endpoints:${NC}"
+        echo "🏥 Laravel Health: php artisan whatsapp:health-check"
+        echo "💬 Instance Health: http://127.0.0.1:3001/health"
+        echo "📊 Management: pm2 status | pm2 logs | pm2 monit"
+    else
+        echo "💬 WhatsApp Single Instance: http://127.0.0.1:3001"
+        echo ""
+        echo -e "${BLUE}Health Check Endpoints:${NC}"
+        echo "🏥 Overall Health: http://127.0.0.1:3001/health"
+        echo "📊 Redis Health: http://127.0.0.1:3001/health/redis"
+        echo "💾 Sessions: http://127.0.0.1:3001/health/sessions"
+        echo "🔄 Migration: http://127.0.0.1:3001/health/migration"
+    fi
     echo ""
     echo -e "${BLUE}Process IDs:${NC}"
     echo "Laravel: $LARAVEL_PID"
