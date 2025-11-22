@@ -727,9 +727,14 @@ const startStatusPolling = async (accountId, sessionId) => {
                 // Increment counter for authenticated/connected state without phone number
                 authWithoutPhoneAttempts.value++
                 
-                // If we've been in this state for > 6 seconds (2 attempts * 3s), force close
-                if (authWithoutPhoneAttempts.value >= 2) {
-                    console.log('⚠️ Phone number fetch timed out, forcing close with Unknown Number')
+                // BUGFIX: Increase timeout from 6s to 18s to allow time for:
+                // - Phone extraction (2.5s initial + retries ~3-4s)
+                // - Webhook processing (~1s)
+                // - Database update (~1s)
+                // - Network latency buffer (~2-3s)
+                // Total: ~10s needed, set to 18s (6 attempts * 3s) for safety margin
+                if (authWithoutPhoneAttempts.value >= 6) {
+                    console.log('⚠️ Phone number fetch timed out after 18 seconds, forcing close with Unknown Number')
                     
                     // Create account object with available data
                     const newAccount = {

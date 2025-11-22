@@ -336,40 +336,112 @@ class SessionManager {
         // Ready Event
         client.on('ready', async () => {
             try {
+                // CRITICAL FIX: Use optimized phone extraction with retry strategy
+                const phoneNumber = await this.extractPhoneNumberSafely(client, sessionId);
+                
+                if (!phoneNumber) {
+                    this.logger.error('❌ CRITICAL: Failed to extract phone number after all retries', {
+                        sessionId,
+                        workspaceId,
+                        clientInfoExists: !!client.info,
+                        widExists: !!client.info?.wid,
+                        timestamp: Date.now()
+                    });
+                    
+                    // Update metadata with error state
+                    this.metadata.set(sessionId, {
+                        ...this.metadata.get(sessionId),
+                        status: 'error',
+                        error: 'phone_extraction_failed',
+                        lastError: 'Unable to extract phone number'
+                    });
+                    
+                    // Notify Laravel about extraction failure
+                    this.sendToLaravel('session_error', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        error: 'phone_extraction_failed',
+                        message: 'Failed to extract phone number after retries'
+                    }).catch(err => {
+                        this.logger.error('Failed to send error webhook', { error: err.message });
+                    });
+                    
+                    return;
+                }
+                
                 const info = client.info;
-                this.logger.info('WhatsApp session ready', {
+                this.logger.info('✅ WhatsApp session ready with phone number', {
                     sessionId,
                     workspaceId,
-                    phoneNumber: info.wid.user
+                    phoneNumber: phoneNumber,
+                    platform: info?.platform,
+                    extractionMethod: this.lastExtractionMethod || 'client.info.wid'
                 });
 
                 this.metadata.set(sessionId, {
                     ...this.metadata.get(sessionId),
                     status: 'connected',
-                    phoneNumber: info.wid.user,
-                    platform: info.platform,
-                    connectedAt: new Date()
+                    phoneNumber: phoneNumber,
+                    platform: info?.platform,
+                    connectedAt: new Date(),
+                    phoneExtractionMethod: this.lastExtractionMethod
                 });
 
-                // OPTIMIZED: Non-blocking webhook
-                this.sendToLaravel('session_ready', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    phone_number: info.wid.user,
-                    status: 'connected'
-                }).catch(error => {
-                    this.logger.error('Webhook failed (non-fatal)', {
-                        sessionId,
-                        error: error.message
-                    });
+                // CRITICAL FIX: Synchronous webhook with retry and detailed logging
+                this.logger.info('📤 Sending session_ready webhook to Laravel', {
+                    sessionId,
+                    workspaceId,
+                    phoneNumber,
+                    platform: info?.platform,
+                    extractionMethod: this.lastExtractionMethod
                 });
+                
+                try {
+                    await this.sendToLaravel('session_ready', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        phone_number: phoneNumber,
+                        status: 'connected',
+                        platform: info?.platform,
+                        extraction_method: this.lastExtractionMethod
+                    });
+                    
+                    this.logger.info('✅ session_ready webhook sent successfully', {
+                        sessionId,
+                        phoneNumber
+                    });
+                } catch (error) {
+                    this.logger.error('❌ CRITICAL: session_ready webhook failed', {
+                        sessionId,
+                        phoneNumber,
+                        error: error.message,
+                        stack: error.stack,
+                        laravelUrl: process.env.LARAVEL_URL,
+                        webhookEndpoint: '/api/whatsapp/webhooks/webjs'
+                    });
+                    
+                    // Send error notification as fallback
+                    try {
+                        await this.sendToLaravel('session_error', {
+                            workspace_id: workspaceId,
+                            session_id: sessionId,
+                            error: 'webhook_send_failed',
+                            message: `Failed to send session_ready: ${error.message}`,
+                            phone_number: phoneNumber
+                        });
+                    } catch (fallbackError) {
+                        this.logger.error('❌ Fallback error webhook also failed', {
+                            error: fallbackError.message
+                        });
+                    }
+                }
 
                 // OPTIMIZED: Chat sync disabled for faster connection
                 // User can trigger manually via API: POST /api/sessions/{id}/sync-chats
                 this.logger.info('Session ready. Chat sync available via manual trigger', {
                     sessionId,
                     workspaceId,
-                    phoneNumber: info.wid.user,
+                    phoneNumber: phoneNumber,
                     note: 'Auto-sync disabled for performance optimization'
                 });
 
@@ -377,7 +449,8 @@ class SessionManager {
                 this.logger.error('Error in ready event handler', {
                     sessionId,
                     workspaceId,
-                    error: error.message
+                    error: error.message,
+                    stack: error.stack
                 });
             }
         });
@@ -1031,6 +1104,133 @@ class SessionManager {
     }
 
     /**
+     * Extract phone number safely with optimized retry strategy
+     * Based on WhatsApp Web.js production best practices (v1.33.2+)
+     * 
+     * Strategy:
+     * - Initial 2.5s delay (aligns with library's internal 2s initialization)
+     * - 15 retries × 500ms = 7.5s total retry window
+     * - Fast fallback to window.Store.Conn.me if primary fails
+     * - No contact scanning (performance optimization)
+     * 
+     * @param {Object} client - WhatsApp Web.js client
+     * @param {string} sessionId - Session identifier for logging
+     * @returns {Promise<string|null>} Phone number or null if extraction fails
+     */
+    async extractPhoneNumberSafely(client, sessionId) {
+        const extractionStart = Date.now();
+        const attempts = [];
+        
+        this.logger.info('🔍 Starting phone number extraction', {
+            sessionId,
+            clientInfoExists: !!client.info,
+            widExists: !!client.info?.wid,
+            timestamp: extractionStart
+        });
+        
+        // METHOD 1: Primary - client.info.wid.user with optimized retry
+        // Initial delay: 2.5s (aligns with library's hardcoded 2s internal delay)
+        this.logger.debug('⏱️ Initial delay: 2.5s for library initialization');
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        
+        // Retry loop: 15 attempts × 500ms intervals = 7.5s
+        for (let i = 0; i < 15; i++) {
+            const checkTime = Date.now();
+            const isAvailable = !!(client.info?.wid?.user);
+            
+            attempts.push({
+                attempt: i + 1,
+                timestamp: checkTime,
+                elapsed: checkTime - extractionStart,
+                available: isAvailable,
+                value: client.info?.wid?.user || null
+            });
+            
+            if (isAvailable) {
+                const phoneNumber = client.info.wid.user;
+                const totalTime = Date.now() - extractionStart;
+                
+                this.logger.info('✅ Phone number extracted successfully', {
+                    sessionId,
+                    phoneNumber,
+                    method: 'client.info.wid',
+                    attempt: i + 1,
+                    totalTimeMs: totalTime,
+                    attempts: attempts
+                });
+                
+                this.lastExtractionMethod = 'client.info.wid';
+                return phoneNumber;
+            }
+            
+            // Wait 500ms before next attempt
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        this.logger.warn('⚠️ Primary method failed, trying fallback', {
+            sessionId,
+            attempts: attempts.length,
+            elapsedMs: Date.now() - extractionStart
+        });
+        
+        // METHOD 2: Fallback - Direct Store.Conn.me lookup
+        try {
+            this.logger.debug('🔄 Attempting Store.Conn.me fallback', { sessionId });
+            
+            const phoneNumber = await client.pupPage.evaluate(() => {
+                try {
+                    const me = window.Store?.Conn?.me;
+                    if (me && me.user) {
+                        return me.user;
+                    }
+                    
+                    // Alternative: Try User store
+                    const user = window.Store?.User?.getMaybeMeUser?.();
+                    if (user && user.user) {
+                        return user.user;
+                    }
+                    
+                    return null;
+                } catch (error) {
+                    return null;
+                }
+            });
+            
+            if (phoneNumber) {
+                const totalTime = Date.now() - extractionStart;
+                
+                this.logger.info('✅ Phone number extracted via fallback', {
+                    sessionId,
+                    phoneNumber,
+                    method: 'Store.Conn.me',
+                    totalTimeMs: totalTime
+                });
+                
+                this.lastExtractionMethod = 'Store.Conn.me';
+                return phoneNumber;
+            }
+        } catch (error) {
+            this.logger.error('❌ Fallback method failed', {
+                sessionId,
+                error: error.message,
+                stack: error.stack
+            });
+        }
+        
+        // All methods failed
+        const totalTime = Date.now() - extractionStart;
+        this.logger.error('❌ All phone extraction methods failed', {
+            sessionId,
+            totalTimeMs: totalTime,
+            attempts: attempts,
+            recommendation: 'Session initialization may have failed - consider restarting'
+        });
+        
+        this.lastExtractionMethod = 'failed';
+        return null;
+    }
+
+    /**
      * Send data to Laravel webhook endpoint
      * OPTIMIZED: Use WebhookNotifier for consistent HTTP handling
      *
@@ -1046,14 +1246,30 @@ class SessionManager {
                 data: data
             };
 
+            this.logger.info('🌐 sendToLaravel called', {
+                event: eventName,
+                dataKeys: Object.keys(data),
+                phoneNumber: data.phone_number,
+                sessionId: data.session_id,
+                laravelUrl: process.env.LARAVEL_URL,
+                endpoint: '/api/whatsapp/webhooks/webjs'
+            });
+
             await this.webhookNotifier.notify('/api/whatsapp/webhooks/webjs', payload);
 
-            this.logger.debug('Data sent to Laravel successfully', { event: eventName });
-        } catch (error) {
-            this.logger.error('Failed to send data to Laravel', {
+            this.logger.info('✅ sendToLaravel completed', { 
                 event: eventName,
-                error: error.message
+                success: true 
             });
+        } catch (error) {
+            this.logger.error('❌ sendToLaravel FAILED', {
+                event: eventName,
+                error: error.message,
+                stack: error.stack,
+                errorCode: error.code,
+                errorResponse: error.response?.data
+            });
+            throw error; // Re-throw to let caller handle it
         }
     }
 

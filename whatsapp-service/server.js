@@ -80,6 +80,39 @@ try {
 // Setup API routes using extracted router (TASK-ARCH-3: Extract routes to dedicated module)
 app.use('/', createRoutes(sessionManager, logger));
 
+// CRITICAL FIX: Global error handler for Protocol/Session errors
+// Prevents entire Node.js process crash when WhatsApp Web.js encounters Protocol errors
+// Issue #3904: Protocol errors after client.destroy() cause cascade failures
+process.on('unhandledRejection', (error, promise) => {
+    // Protocol errors from Puppeteer after session disconnect
+    if (error.message && error.message.includes('Protocol error') && error.message.includes('Session closed')) {
+        logger.error('🛡️ Suppressed Protocol error after disconnect (preventing crash)', {
+            error: error.message,
+            type: 'protocol_error_suppressed',
+            timestamp: Date.now()
+        });
+        return; // Suppress error - don't crash process
+    }
+    
+    // Target frame detached errors
+    if (error.message && error.message.includes('Execution context was destroyed')) {
+        logger.error('🛡️ Suppressed execution context error (preventing crash)', {
+            error: error.message,
+            type: 'context_error_suppressed'
+        });
+        return;
+    }
+    
+    // Log other unhandled rejections but don't suppress
+    logger.error('❌ Unhandled rejection detected', {
+        error: error.message,
+        stack: error.stack,
+        promise: promise
+    });
+    
+    // Don't throw - just log for monitoring
+});
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
     logger.info('SIGTERM received, shutting down gracefully');

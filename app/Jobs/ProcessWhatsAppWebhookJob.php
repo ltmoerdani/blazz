@@ -61,6 +61,10 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
                     $this->handleSessionDisconnected();
                     break;
 
+                case 'session_error':
+                    $this->handleSessionError();
+                    break;
+
                 default:
                     Log::warning('Unknown webhook event in job', ['event' => $this->event]);
                     break;
@@ -245,6 +249,55 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
                     'phone_number' => $session->phone_number,
                     'formatted_phone_number' => $session->formatted_phone_number,
                     'reason' => $reason,
+                    'timestamp' => now()->toISOString()
+                ]
+            ));
+        }
+    }
+
+    /**
+     * Handle session error event
+     * Process errors from Node.js service (e.g., phone extraction failures)
+     */
+    private function handleSessionError(): void
+    {
+        $workspaceId = $this->data['workspace_id'];
+        $sessionId = $this->data['session_id'];
+        $error = $this->data['error'] ?? 'unknown_error';
+        $message = $this->data['message'] ?? 'Unknown error occurred';
+
+        Log::error('Session error event processed', [
+            'workspace_id' => $workspaceId,
+            'session_id' => $sessionId,
+            'error' => $error,
+            'message' => $message
+        ]);
+
+        $session = WhatsAppAccount::where('session_id', $sessionId)
+            ->where('workspace_id', $workspaceId)
+            ->first();
+
+        if ($session) {
+            $session->update([
+                'status' => 'error',
+                'last_activity_at' => now(),
+                'metadata' => array_merge($session->metadata ?? [], [
+                    'last_error' => $error,
+                    'error_message' => $message,
+                    'error_timestamp' => now()->toISOString()
+                ])
+            ]);
+
+            broadcast(new WhatsAppAccountStatusChangedEvent(
+                $sessionId,
+                'error',
+                $workspaceId,
+                $session->phone_number,
+                [
+                    'id' => $session->id,
+                    'uuid' => $session->uuid,
+                    'error' => $error,
+                    'message' => $message,
                     'timestamp' => now()->toISOString()
                 ]
             ));
