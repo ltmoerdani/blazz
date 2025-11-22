@@ -231,7 +231,9 @@
 
                     <div v-else class="text-center py-8">
                         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                        <p class="mt-2 text-sm text-gray-600">{{ $t('Generating QR code...') }}</p>
+                        <p class="mt-2 text-sm text-gray-600">
+                            {{ authWithoutPhoneAttempts > 0 ? $t('Connecting... Please wait') : $t('Generating QR code...') }}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -302,8 +304,11 @@ const showAddModal = ref(false)
 const qrCode = ref(null)
 const countdown = ref(300) // 5 minutes
 const currentAccountId = ref(null)
+const currentSessionId = ref(null)
 const qrTimeout = ref(null)
 const modalCloseTimeout = ref(null) // Fallback timeout to close modal
+const pollingInterval = ref(null)
+const authWithoutPhoneAttempts = ref(0)
 let countdownInterval = null
 let echoChannel = null
 
@@ -449,6 +454,9 @@ onUnmounted(() => {
     if (countdownInterval) {
         clearInterval(countdownInterval)
     }
+    if (pollingInterval.value) {
+        clearInterval(pollingInterval.value)
+    }
     if (modalCloseTimeout.value) {
         clearTimeout(modalCloseTimeout.value)
         modalCloseTimeout.value = null
@@ -464,7 +472,19 @@ const handleQRGenerated = (data) => {
     console.log('🔍 Event workspace ID:', data.workspace_id)
 
     if (data.workspace_id === props.workspaceId) {
+        // Check if session ID matches current session
+        // Event sends 'account_id' which contains the session_id string
+        const eventSessionId = data.session_id || data.account_id
+        
+        if (currentSessionId.value && eventSessionId !== currentSessionId.value) {
+            console.log('⚠️ QR Code received for different session, ignoring:', eventSessionId)
+            return
+        }
+
         console.log('✅ QR Code data matches workspace, displaying...')
+
+        // Reset auth attempts on new QR
+        authWithoutPhoneAttempts.value = 0
 
         // Clear timeout if set
         if (qrTimeout.value) {
@@ -623,6 +643,146 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString()
 }
 
+const startStatusPolling = async (accountId, sessionId) => {
+    // Clear existing polling
+    if (pollingInterval.value) {
+        clearInterval(pollingInterval.value)
+    }
+
+    console.log('🔄 Starting status polling for session:', sessionId)
+    
+    let attempts = 0
+    const maxAttempts = 40 // 2 minutes (3s interval)
+    authWithoutPhoneAttempts.value = 0 // Reset counter
+
+    pollingInterval.value = setInterval(async () => {
+        attempts++
+        
+        // Stop if max attempts reached
+        if (attempts > maxAttempts) {
+            console.log('🛑 Polling timeout reached')
+            clearInterval(pollingInterval.value)
+            pollingInterval.value = null
+            return
+        }
+
+        // Stop if modal is closed
+        if (!showAddModal.value) {
+            console.log('🛑 Modal closed, stopping polling')
+            clearInterval(pollingInterval.value)
+            pollingInterval.value = null
+            return
+        }
+
+        try {
+            // Use the correct endpoint structure
+            const response = await axios.get(`/api/whatsapp/accounts/${sessionId}/status`, {
+                params: {
+                    workspace_id: props.workspaceId
+                }
+            })
+
+            const data = response.data
+            console.log('📊 Polling status check:', data)
+
+            if ((data.status === 'connected' || data.status === 'authenticated') && data.phone_number) {
+                console.log('✅ Account connected with phone number! Closing modal...')
+                
+                // Update list
+                const newAccount = {
+                    id: data.id || null,
+                    uuid: data.uuid || accountId, // Use accountId (uuid) if data.uuid missing
+                    session_id: sessionId,
+                    name: data.phone_number,
+                    phone_number: data.phone_number,
+                    formatted_phone_number: data.formatted_phone_number || data.phone_number,
+                    status: 'connected',
+                    health_score: 100,
+                    last_activity_at: new Date().toISOString(),
+                    last_connected_at: new Date().toISOString(),
+                    is_primary: accountsList.value.length === 0,
+                    is_active: true,
+                    provider_type: 'webjs',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }
+
+                // Update or add to list
+                const index = accountsList.value.findIndex(s => s.session_id === sessionId || s.uuid === accountId)
+                if (index !== -1) {
+                    accountsList.value[index] = { ...accountsList.value[index], ...newAccount }
+                } else {
+                    accountsList.value.unshift(newAccount)
+                }
+
+                // Close modal
+                closeAddModal()
+                
+                // Stop polling
+                clearInterval(pollingInterval.value)
+                pollingInterval.value = null
+            } else if (data.status === 'connected' || data.status === 'authenticated') {
+                console.log(`⏳ Status is ${data.status} but phone number is missing...`)
+                
+                // Increment counter for authenticated/connected state without phone number
+                authWithoutPhoneAttempts.value++
+                
+                // BUGFIX: Increase timeout from 6s to 18s to allow time for:
+                // - Phone extraction (2.5s initial + retries ~3-4s)
+                // - Webhook processing (~1s)
+                // - Database update (~1s)
+                // - Network latency buffer (~2-3s)
+                // Total: ~10s needed, set to 18s (6 attempts * 3s) for safety margin
+                if (authWithoutPhoneAttempts.value >= 6) {
+                    console.log('⚠️ Phone number fetch timed out after 18 seconds, forcing close with Unknown Number')
+                    
+                    // Create account object with available data
+                    const newAccount = {
+                        id: data.id || null,
+                        uuid: data.uuid || accountId,
+                        session_id: sessionId,
+                        name: 'Unknown Number',
+                        phone_number: null,
+                        formatted_phone_number: 'Unknown Number',
+                        status: data.status,
+                        health_score: 100,
+                        last_activity_at: new Date().toISOString(),
+                        last_connected_at: new Date().toISOString(),
+                        is_primary: accountsList.value.length === 0,
+                        is_active: true,
+                        provider_type: 'webjs',
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    }
+
+                    // Update or add to list
+                    const index = accountsList.value.findIndex(s => s.session_id === sessionId || s.uuid === accountId)
+                    if (index !== -1) {
+                        accountsList.value[index] = { ...accountsList.value[index], ...newAccount }
+                    } else {
+                        accountsList.value.unshift(newAccount)
+                    }
+
+                    // Close modal
+                    closeAddModal()
+                    
+                    // Stop polling
+                    clearInterval(pollingInterval.value)
+                    pollingInterval.value = null
+                    
+                    // Show toast/alert to user
+                    // alert('Account connected but phone number could not be retrieved yet. It will update automatically.')
+                }
+            }
+        } catch (error) {
+            // Ignore 404s as session might not be ready yet
+            if (error.response && error.response.status !== 404) {
+                console.error('❌ Polling error:', error)
+            }
+        }
+    }, 3000)
+}
+
 const addAccount = async () => {
     try {
         showAddModal.value = true
@@ -650,6 +810,7 @@ const addAccount = async () => {
 
         if (response.data.success) {
             currentAccountId.value = response.data.account.uuid
+            currentSessionId.value = response.data.account.session_id
 
             // Set fallback timeout to close modal after 2 minutes if no connection happens
             modalCloseTimeout.value = setTimeout(() => {
@@ -680,6 +841,9 @@ const addAccount = async () => {
             addAccountToList(response.data.account)
             console.log('✨ Account added to list seamlessly, no page reload needed!')
 
+            // Start polling for status updates
+            startStatusPolling(response.data.account.uuid, response.data.account.session_id)
+
             // Check if QR code is already available
             if (response.data.qr_code) {
                 console.log('📱 QR code received directly from response')
@@ -690,6 +854,9 @@ const addAccount = async () => {
                 console.log('📱 No QR code in response, waiting for WebSocket event...')
                 // QR code will come via WebSocket event
             }
+
+            // Start polling for status
+            startStatusPolling(response.data.account.uuid, response.data.account.session_id)
         }
     } catch (error) {
         console.error('❌ Failed to create account:', error)
@@ -709,8 +876,28 @@ const addAccount = async () => {
     }
 }
 
-const closeAddModal = () => {
+const closeAddModal = async () => {
     console.log('🚪 closeAddModal called, current modal state:', showAddModal.value)
+
+    // If we have a current pending account (and it's not connected yet), delete it to clean up
+    if (currentAccountId.value) {
+        const accountInList = accountsList.value.find(s => s.uuid === currentAccountId.value)
+        
+        // If account is not in list (meaning it's still qr_scanning) or status is not connected/authenticated
+        if (!accountInList || (accountInList.status !== 'connected' && accountInList.status !== 'authenticated')) {
+             console.log('🧹 Cleaning up pending session:', currentAccountId.value)
+             try {
+                 // Use axios directly to avoid confirmation dialog in deleteAccount
+                 await axios.delete(`/settings/whatsapp-accounts/${currentAccountId.value}`)
+                 removeAccountFromList(currentAccountId.value)
+             } catch (e) {
+                 console.error('Failed to cleanup pending session:', e)
+             }
+        }
+    }
+
+    currentAccountId.value = null
+    currentSessionId.value = null
 
     // Force close modal
     showAddModal.value = false
@@ -721,6 +908,10 @@ const closeAddModal = () => {
     if (countdownInterval) {
         clearInterval(countdownInterval)
         countdownInterval = null
+    }
+    if (pollingInterval.value) {
+        clearInterval(pollingInterval.value)
+        pollingInterval.value = null
     }
     if (modalCloseTimeout.value) {
         clearTimeout(modalCloseTimeout.value)
@@ -883,6 +1074,11 @@ const reconnect = async (uuid) => {
         qrCode.value = response.data.qr_code
         countdown.value = 300
         startCountdown()
+
+        // Start polling for status updates
+        // Note: reconnect response might not include session_id, so we might need to fetch it or use uuid if they are same/mapped
+        // Assuming session_id is available or we can use uuid as fallback for polling if backend supports it
+        startStatusPolling(uuid, response.data.session_id || uuid) 
     } catch (error) {
         console.error('Failed to reconnect session:', error)
 
