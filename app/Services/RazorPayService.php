@@ -27,19 +27,22 @@ if (!class_exists('Razorpay\Api\Api')) {
 class RazorPayService
 {
     private $config;
+    private $workspaceId;
     /**
      * @var mixed RazorPay API instance
      */
     private $razorpay;
 
-    public function __construct()
+    public function __construct($workspaceId = null)
     {
-        // Get RazorPay integration for current workspace (or global if no workspace)
-        $workspaceId = session('current_workspace');
-        $razorpayInfo = Integration::getActive($workspaceId, 'RazorPay');
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+        
+        // Get RazorPay integration for workspace
+        $razorpayInfo = Integration::getActive($this->workspaceId, 'RazorPay');
         
         if (!$razorpayInfo) {
-            Log::warning('RazorPay integration not found for workspace', ['workspace_id' => $workspaceId]);
+            Log::warning('RazorPay integration not found for workspace', ['workspace_id' => $this->workspaceId]);
             $this->razorpay = null;
             return;
         }

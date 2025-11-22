@@ -9,6 +9,14 @@ use App\Services\StripeService;
 
 class TaxService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Get all tax rates based on the provided request filters.
      *
@@ -39,7 +47,7 @@ class TaxService
         $stripe = PaymentGateway::where('name', 'Stripe')->first();
 
         if($stripe->is_active == '1'){
-            (new StripeService)->updateProductPrices();
+            (new StripeService($this->workspaceId))->updateProductPrices();
         }
 
         return $taxrate;
@@ -62,7 +70,7 @@ class TaxService
         $stripe = PaymentGateway::where('name', 'Stripe')->first();
 
         if($stripe->is_active == '1'){
-            (new StripeService)->updateProductPrices();
+            (new StripeService($this->workspaceId))->updateProductPrices();
         }
 
         return $taxrate;

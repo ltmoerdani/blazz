@@ -14,6 +14,14 @@ use Illuminate\Support\Facades\Log;
  */
 class SimpleLoadBalancer
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Available WhatsApp instances
      */

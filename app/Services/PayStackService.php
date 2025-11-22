@@ -20,16 +20,18 @@ use App\Traits\ConsumesExternalServices;
 class PayStackService
 {
     private $config;
+    private $workspaceId;
     private $baseUri;
     private $secretKey;
 
-    public function __construct()
+    public function __construct($workspaceId = null)
     {
-        $workspaceId = session('current_workspace');
-        $paystackInfo = Integration::getActive($workspaceId, 'PayStack');
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+        $paystackInfo = Integration::getActive($this->workspaceId, 'PayStack');
         
         if (!$paystackInfo) {
-            Log::warning('PayStack integration not found for workspace', ['workspace_id' => $workspaceId]);
+            Log::warning('PayStack integration not found for workspace', ['workspace_id' => $this->workspaceId]);
             return;
         }
         

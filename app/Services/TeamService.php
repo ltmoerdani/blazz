@@ -18,15 +18,23 @@ use Illuminate\Support\Facades\Validator;
 
 class TeamService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     public function invite(object $request)
     {
         //check if invite already exists
         $invite = TeamInvite::where('email', $request->email)->first();
 
         if(!$invite){
-            $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_workspace') . Str::random(32));
+            $inviteCode = md5(Carbon::now()->timestamp . $this->workspaceId . Str::random(32));
             $invite = TeamInvite::create([
-                'workspace_id' => session()->get('current_workspace'),
+                'workspace_id' => $this->workspaceId,
                 'email' => $request->email,
                 'code' => $inviteCode,
                 'role' => $request->role,
@@ -36,7 +44,7 @@ class TeamService
         } else  {
             $inviteCode = $invite->code;
             if($invite->expire_at <= now()){
-                $inviteCode = md5(Carbon::now()->timestamp . session()->get('current_workspace') . Str::random(32));
+                $inviteCode = md5(Carbon::now()->timestamp . $this->workspaceId . Str::random(32));
                 $invite->code = $inviteCode;
                 $invite->expire_at = now()->addDay();
                 $invite->invited_by = Auth::user()->id;

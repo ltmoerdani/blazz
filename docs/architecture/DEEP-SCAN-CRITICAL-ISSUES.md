@@ -892,7 +892,7 @@ public function failed(\Throwable $exception): void
 | **Services missing workspace context** | **38** ✅ | 🔴 Critical | No scoping | 🔴 **BLOCKED** |
 | **Models using $fillable** | ~~13~~ | 🟡 Medium | Maintainability | ✅ **FIXED** |
 
-**Progress**: **33/95 violations fixed (34.7%)** | **Compliance: 89%** (up from 87.4%)
+**Progress**: **40/95 violations fixed (42.1%)** | **Compliance: 91%** (up from 89%)
 
 ---
 
@@ -946,7 +946,7 @@ Converted 3 DB::table() calls to Eloquent models (already had workspace_id):
 
 ---
 
-### ✅ Phase 2 & 3: Database Migrations + Service Fixes (17 violations fixed)
+### ✅ Phase 2 & 3 & 4.1: Database Migrations + Service Fixes (24 violations fixed)
 
 **Duration**: 3.5 hours (1.5h migrations + 2h service fixes)  
 **Status**: ✅ COMPLETED  

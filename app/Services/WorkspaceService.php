@@ -24,6 +24,14 @@ use Propaganistas\LaravelPhone\PhoneNumber;
 
 class WorkspaceService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Get all workspaces based on the provided request filters.
      *

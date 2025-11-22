@@ -12,10 +12,13 @@ use Illuminate\Support\Str;
 class AuthService
 {
     private $user;
+    private $workspaceId;
 
-    public function __construct($user)
+    public function __construct($user, $workspaceId = null)
     {
         $this->user = $user;
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
     }
 
     public function authenticateSession($request)

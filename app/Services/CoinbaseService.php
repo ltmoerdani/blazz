@@ -20,16 +20,18 @@ use App\Traits\ConsumesExternalServices;
 class CoinbaseService
 {
     private $config;
+    private $workspaceId;
     private $baseUri;
     private $secretKey;
 
-    public function __construct()
+    public function __construct($workspaceId = null)
     {
-        $workspaceId = session('current_workspace');
-        $coinbaseInfo = Integration::getActive($workspaceId, 'Coinbase');
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+        $coinbaseInfo = Integration::getActive($this->workspaceId, 'Coinbase');
         
         if (!$coinbaseInfo) {
-            Log::warning('Coinbase integration not found for workspace', ['workspace_id' => $workspaceId]);
+            Log::warning('Coinbase integration not found for workspace', ['workspace_id' => $this->workspaceId]);
             return;
         }
         
