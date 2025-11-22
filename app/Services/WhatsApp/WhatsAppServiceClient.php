@@ -70,7 +70,7 @@ class WhatsAppServiceClient
         // Convert contact UUID to actual phone number
         $contactPhone = $this->getContactPhone($contactUuid, $workspaceId);
         
-        // CRITICAL FIX: Get actual session_id from WhatsAppAccount (not UUID)
+        // CRITICAL FIX: Get actual session_id AND assigned_instance_url from WhatsAppAccount
         $account = \App\Models\WhatsAppAccount::where('uuid', $accountUuid)
             ->where('workspace_id', $workspaceId)
             ->first();
@@ -80,6 +80,9 @@ class WhatsAppServiceClient
         }
         
         $sessionId = $account->session_id;  // e.g., webjs_1_1763300356_ot6RUaMF
+        
+        // ✅ CRITICAL FIX: Use assigned_instance_url from account instead of static baseUrl
+        $instanceUrl = $account->assigned_instance_url ?: $this->baseUrl;
 
         // Build correct payload for Node.js service
         if ($type === 'text') {
@@ -105,7 +108,8 @@ class WhatsAppServiceClient
             ];
         }
 
-        return $this->makeRequest('POST', $endpoint, $payload);
+        // ✅ CRITICAL FIX: Use dynamic instance URL instead of static baseUrl
+        return $this->makeRequest('POST', $endpoint, $payload, $instanceUrl);
     }
 
     /**
@@ -421,10 +425,22 @@ class WhatsAppServiceClient
      * @param array $payload
      * @return array
      */
-    protected function makeRequest($method, $endpoint, $payload = [])
+    protected function makeRequest($method, $endpoint, $payload = [], $customBaseUrl = null)
     {
         $attempt = 0;
         $lastException = null;
+
+        // ✅ CRITICAL FIX: Use custom base URL if provided (for multi-instance support)
+        $client = $customBaseUrl ? new Client([
+            'base_uri' => $customBaseUrl,
+            'timeout' => $this->timeout,
+            'connect_timeout' => 10,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+                'User-Agent' => 'Laravel-WhatsApp-Service/1.0',
+            ],
+        ]) : $this->client;
 
         while ($attempt < $this->retryAttempts) {
             try {
@@ -447,11 +463,12 @@ class WhatsAppServiceClient
                 $this->logger->debug('WhatsApp service request', [
                     'method' => $method,
                     'endpoint' => $endpoint,
+                    'base_url' => $customBaseUrl ?: $this->baseUrl,
                     'payload' => $payload,
                     'attempt' => $attempt + 1,
                 ]);
 
-                $response = $this->client->request($method, $endpoint, $options);
+                $response = $client->request($method, $endpoint, $options);
                 $data = json_decode($response->getBody()->getContents(), true);
 
                 $this->logger->debug('WhatsApp service response', [

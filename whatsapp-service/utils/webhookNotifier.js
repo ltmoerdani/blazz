@@ -83,11 +83,16 @@ class WebhookNotifier {
         });
 
         try {
+            // ✅ PREVENTION FIX: Add instance URL to headers for auto-sync
+            const instancePort = process.env.PORT || 3001;
+            const instanceUrl = `http://localhost:${instancePort}`;
+            
             const response = await axios.post(url, body, {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-HMAC-Signature': signature,
                     'X-Timestamp': timestamp,
+                    'X-Instance-Url': instanceUrl, // ✅ Send instance URL for Laravel auto-sync
                     'User-Agent': 'WhatsApp-WebJS-Service/1.0',
                     'Connection': 'close', // Force close connection immediately
                 },

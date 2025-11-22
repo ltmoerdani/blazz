@@ -71,27 +71,53 @@ class SessionRestoration {
     }
 
     /**
-     * Get active sessions from Laravel
+     * Get active sessions from Laravel with retry mechanism
+     * Handles ECONNREFUSED when Laravel is still booting
      */
-    async getActiveSessions() {
-        try {
-            const response = await axios.get(
-                `${this.laravelUrl}/api/whatsapp/accounts/active`,
-                {
-                    headers: {
-                        'X-API-Key': this.apiKey,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: this.timeout
+    async getActiveSessions(retries = 3, delay = 1000) {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                const response = await axios.get(
+                    `${this.laravelUrl}/api/whatsapp/accounts/active`,
+                    {
+                        headers: {
+                            'X-API-Key': this.apiKey,
+                            'Content-Type': 'application/json'
+                        },
+                        timeout: this.timeout
+                    }
+                );
+
+                // Success - return sessions
+                if (attempt > 1) {
+                    this.logger.info(`✅ Connected to Laravel on attempt ${attempt}`);
                 }
-            );
+                return response.data?.sessions || [];
 
-            return response.data?.sessions || [];
+            } catch (error) {
+                const isConnRefused = error.code === 'ECONNREFUSED' || 
+                                     error.message.includes('ECONNREFUSED');
 
-        } catch (error) {
-            this.logger.error('Failed to fetch active sessions', { error: error.message });
-            return [];
+                if (isConnRefused && attempt < retries) {
+                    // Laravel not ready yet - wait and retry
+                    this.logger.warn(`⏳ Laravel not ready (attempt ${attempt}/${retries}), retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2; // Exponential backoff
+                    continue;
+                }
+
+                // Final attempt failed or non-connection error
+                this.logger.error('Failed to fetch active sessions', { 
+                    error: error.message,
+                    code: error.code,
+                    attempt: attempt,
+                    retries: retries
+                });
+                return [];
+            }
         }
+
+        return [];
     }
 
     /**

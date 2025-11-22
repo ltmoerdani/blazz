@@ -200,9 +200,12 @@ class WebhookController extends Controller
 
         $isPrimary = !$hasPrimaryAccount;
 
-        // Update session with phone number
+        // ✅ PREVENTION FIX: Extract instance URL from request header for auto-sync
+        $requestInstanceUrl = request()->header('X-Instance-Url');
+        
+        // Update session with phone number AND assigned_instance_url
         try {
-            $session->update([
+            $updateData = [
                 'status' => 'connected',
                 'phone_number' => $phoneNumber,
                 'is_primary' => $isPrimary, // Auto-set as primary if first connected account
@@ -214,7 +217,19 @@ class WebhookController extends Controller
                     'connected_timestamp' => now()->toISOString(),
                     'auto_set_primary' => $isPrimary // Track if auto-set as primary
                 ])
-            ]);
+            ];
+            
+            // ✅ AUTO-SYNC: Update assigned_instance_url if provided in request
+            if ($requestInstanceUrl) {
+                $updateData['assigned_instance_url'] = $requestInstanceUrl;
+                Log::info('🔄 Auto-syncing assigned_instance_url from webhook header', [
+                    'session_id' => $sessionId,
+                    'old_url' => $session->assigned_instance_url,
+                    'new_url' => $requestInstanceUrl
+                ]);
+            }
+            
+            $session->update($updateData);
 
             Log::info('✅ Session updated successfully', [
                 'session_id' => $sessionId,
