@@ -18,14 +18,7 @@ class UserAdmin extends Authenticatable
      *
      * @var array<int, string>
      */
-    protected $fillable = [
-        'first_name',
-        'last_name',
-        'email',
-        'phone',
-        'password',
-        'status',
-    ];
+    protected $guarded = [];
 
     /**
      * The attributes that should be hidden for serialization.

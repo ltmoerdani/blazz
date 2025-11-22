@@ -15,36 +15,7 @@ class WhatsAppAccount extends Model
 
     protected $table = 'whatsapp_accounts';
 
-    protected $fillable = [
-        'uuid',
-        'workspace_id',
-        'session_id',
-        'phone_number',
-        'provider_type',
-        'status',
-        'qr_code',
-        'session_data',
-        'is_primary',
-        'is_active',
-        'last_activity_at',
-        'last_connected_at',
-        'metadata',
-        'created_by',
-        // Multi-instance tracking
-        'assigned_instance_index',
-        'assigned_instance_url',
-        'previous_instance_index',
-        'instance_migration_count',
-        'last_instance_migration_at',
-        // Disconnect tracking
-        'disconnected_at',
-        'disconnect_reason',
-        'disconnect_details',
-        // Storage metadata
-        'session_storage_path',
-        'session_file_size_bytes',
-        'session_storage_verified_at',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'session_data' => 'encrypted:array',

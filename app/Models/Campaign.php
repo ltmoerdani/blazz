@@ -16,35 +16,6 @@ class Campaign extends Model {
     protected $guarded = [];
     public $timestamps = false;
 
-    protected $fillable = [
-        'uuid',
-        'workspace_id',
-        'name',
-        'campaign_type',
-        'template_id',
-        'contact_group_id',
-        'message_content',
-        'header_type',
-        'header_text',
-        'header_media',
-        'body_text',
-        'footer_text',
-        'buttons_data',
-        'preferred_provider',
-        'whatsapp_account_id',
-        'status',
-        'scheduled_at',
-        'started_at',
-        'completed_at',
-        'messages_sent',
-        'messages_delivered',
-        'messages_read',
-        'messages_failed',
-        'error_message',
-        'metadata',
-        'created_by'
-    ];
-
     protected $casts = [
         'buttons_data' => 'array',
         'metadata' => 'array',

@@ -11,19 +11,7 @@ class SecurityIncident extends Model
 
     protected $table = 'security_incidents';
 
-    protected $fillable = [
-        'audit_id',
-        'workspace_id',
-        'incident_type',
-        'severity',
-        'ip_address',
-        'user_id',
-        'endpoint',
-        'details',
-        'resolved',
-        'resolution_notes',
-        'resolved_at',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'details' => 'json',
