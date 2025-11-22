@@ -348,4 +348,16 @@ class Campaign extends Model {
     {
         return $query->where('status', 'completed');
     }
+
+    /**
+     * Scope query to specific workspace
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $workspaceId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
 }

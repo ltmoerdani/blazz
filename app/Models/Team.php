@@ -28,4 +28,16 @@ class Team extends Model {
     {
         return $this->hasMany(ChatTicket::class, 'assigned_to', 'user_id');
     }
+
+    /**
+     * Scope query to specific workspace
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $workspaceId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
 }

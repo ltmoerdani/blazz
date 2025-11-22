@@ -27,8 +27,10 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
     private $workspaceId;
     private MessageSendingService $messageService;
 
-    public $timeout = 300; // 5 minutes timeout for single message
+    public $timeout = 300; // 5 minutes
     public $tries = 3;
+    public $backoff = [15, 45, 120]; // Progressive backoff: 15s, 45s, 2m
+    public $retryAfter = 30; // Rate limiting
 
     public function __construct(
         CampaignLog $campaignLog,

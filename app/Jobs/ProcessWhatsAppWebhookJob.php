@@ -20,8 +20,10 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 30;
+    public $timeout = 30; // 30 seconds
     public $tries = 2;
+    public $backoff = [5, 15]; // Progressive backoff: 5s, 15s
+    public $retryAfter = 15; // Rate limiting
 
     /**
      * Create a new job instance.

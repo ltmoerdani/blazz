@@ -18,8 +18,10 @@ class CreateCampaignLogsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 3600;
+    public $timeout = 3600; // 1 hour
     public $tries = 3;
+    public $backoff = [60, 180, 600]; // Progressive backoff: 1m, 3m, 10m
+    public $retryAfter = 60; // Rate limiting
 
     public function handle()
     {
