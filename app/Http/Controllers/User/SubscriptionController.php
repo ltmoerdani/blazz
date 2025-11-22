@@ -32,8 +32,8 @@ class SubscriptionController extends BaseController
     }
 
     public function index(Request $request){
-        $workspaceId = session()->get('current_workspace');
-        $data['subscription'] = Subscription::with('plan')->where('workspace_id', session()->get('current_workspace'))->first();
+        $workspaceId = $this->getWorkspaceId();
+        $data['subscription'] = Subscription::with('plan')->where('workspace_id', $this->getWorkspaceId())->first();
         $data['taxes'] = TaxRate::where('status', 'active')->where('deleted_at', null)->get();
         $data['plans'] = SubscriptionPlanResource::collection(
             SubscriptionPlan::whereNull('deleted_at')
@@ -56,7 +56,7 @@ class SubscriptionController extends BaseController
     public function store(Request $request){
         $userId = Auth::id();
         $planId = $request->plan;
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $response = $this->subscriptionService->store($request, $workspaceId, $planId, $userId);
 
@@ -83,7 +83,7 @@ class SubscriptionController extends BaseController
 
     public function show($id)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         return Redirect::back()->with('response_data', [
             'data' => $this->subscriptionService->calculateSubscriptionBillingDetails($workspaceId, $id),
@@ -93,7 +93,7 @@ class SubscriptionController extends BaseController
     public function applyCoupon(CouponRequest $request, $id)
     {
         session()->put('applied_coupon', $request->input('coupon'));
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         return Redirect::back()->with('response_data', [
             'data' => $this->subscriptionService->calculateSubscriptionBillingDetails($workspaceId, $id),
@@ -103,7 +103,7 @@ class SubscriptionController extends BaseController
     public function removeCoupon(Request $request, $id)
     {
         session()->forget('applied_coupon');
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         return Redirect::back()->with('response_data', [
             'data' => $this->subscriptionService->calculateSubscriptionBillingDetails($workspaceId, $id),

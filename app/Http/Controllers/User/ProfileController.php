@@ -82,7 +82,7 @@ class ProfileController extends BaseController
 
     public function updateWorkspace(StoreProfileAddress $request)
     {
-        $workspaceId = session('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspaceConfig = workspace::where('id', $workspaceId)->first();
         $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 

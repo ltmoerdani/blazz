@@ -45,7 +45,7 @@ class CannedReplyController extends BaseController
     public function create(){
         $data['title'] = __(self::CANNED_REPLIES_TITLE);
         $placeholders = config('formats.placeholders');
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $additionalFields = DB::table('contact_fields')
             ->where('workspace_id', $workspaceId)
             ->where('deleted_at', null)
@@ -80,7 +80,7 @@ class CannedReplyController extends BaseController
         $data['title'] = __(self::CANNED_REPLIES_TITLE);
         $data['autoreply'] = AutoReply::where('uuid', $uuid)->first();
         $placeholders = config('formats.placeholders');
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $additionalFields = DB::table('contact_fields')
             ->where('workspace_id', $workspaceId)
             ->where('deleted_at', null)
