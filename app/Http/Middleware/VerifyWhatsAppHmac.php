@@ -130,7 +130,7 @@ class VerifyWhatsAppHmac
     private function checkRateLimit(Request $request): void
     {
         $key = 'whatsapp_hmac_rate_limit:' . $request->ip();
-        $maxAttempts = 100; // 100 requests per minute
+        $maxAttempts = 1000; // 1000 requests per minute
         $decayMinutes = 1;
 
         $attempts = cache()->get($key, 0);

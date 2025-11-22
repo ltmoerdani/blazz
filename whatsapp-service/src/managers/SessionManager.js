@@ -385,7 +385,7 @@ class SessionManager {
         // Disconnected Event
         client.on('disconnected', async (reason) => {
             try {
-                this.logger.warning('WhatsApp session disconnected', {
+                this.logger.warn('WhatsApp session disconnected', {
                     sessionId,
                     workspaceId,
                     reason
