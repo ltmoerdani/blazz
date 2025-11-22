@@ -15,3 +15,4 @@ reverb-verbose.log
 .DS_Store
 public/build/manifest.json
 whatsapp-service/sessions-shared/
+whatsapp-service/cache/
