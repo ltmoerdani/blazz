@@ -225,11 +225,15 @@ class SessionManager {
                 const sessionMetadata = this.metadata.get(sessionId);
                 const qrGenTime = Date.now() - (sessionMetadata.performanceStart || Date.now());
                 
+                // Track QR regeneration count
+                const qrCount = (sessionMetadata.qrCount || 0) + 1;
+                
                 this.metadata.set(sessionId, {
                     ...sessionMetadata,
                     status: 'qr_scanning',
                     qrCode: qrCodeData,
-                    qrGeneratedAt: Date.now()
+                    qrGeneratedAt: Date.now(),
+                    qrCount: qrCount  // Track how many times QR regenerated
                 });
 
                 // PERFORMANCE MONITORING: Log QR generation time
@@ -238,7 +242,9 @@ class SessionManager {
                     workspaceId,
                     timeMs: qrGenTime,
                     target: 10000,
-                    status: qrGenTime < 10000 ? '✅ PASS' : '❌ FAIL'
+                    status: qrGenTime < 10000 ? '✅ PASS' : '❌ FAIL',
+                    qrCount: qrCount,  // Show regeneration count
+                    isRegeneration: qrCount > 1  // Flag if this is a regeneration
                 });
                 
                 // Alert if QR generation is slow
@@ -260,7 +266,9 @@ class SessionManager {
                             workspace_id: workspaceId,
                             session_id: sessionId,
                             qr_code: qrCodeData,
-                            expires_in: 300
+                            expires_in: 60,  // QR expires in 60s (WhatsApp regenerates it)
+                            qr_count: qrCount,  // Track regeneration count
+                            is_regeneration: qrCount > 1  // Flag for frontend
                         });
                         
                         const webhookTime = Date.now() - webhookStart;

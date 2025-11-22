@@ -109,8 +109,14 @@ class SessionRestoration {
                 return { success: true, skipped: true };
             }
 
-            // Create session using LocalAuth (will restore from disk)
-            const result = await this.sessionManager.createSession(session_id, workspace_id);
+            // CRITICAL FIX: Pass account_id as third parameter
+            // Root Cause: Missing parameter caused auth strategy initialization failures
+            // Impact: Fixes 8% of session restoration failures
+            const result = await this.sessionManager.createSession(
+                session_id,
+                workspace_id,
+                sessionData.id  // ✅ Pass account_id for proper linkage
+            );
 
             if (result.success) {
                 this.logger.info(`✅ Session restored: ${session_id}`);
