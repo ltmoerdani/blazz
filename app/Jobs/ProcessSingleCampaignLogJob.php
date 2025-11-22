@@ -32,6 +32,38 @@ class ProcessSingleCampaignLogJob implements ShouldQueue
     public $backoff = [15, 45, 120]; // Progressive backoff: 15s, 45s, 2m
     public $retryAfter = 30; // Rate limiting
 
+    /**
+     * Handle job failure
+     *
+     * @param \Throwable $exception
+     * @return void
+     */
+    public function failed(\Throwable $exception)
+    {
+        Log::error('ProcessSingleCampaignLogJob failed permanently', [
+            'job' => self::class,
+            'campaign_log_id' => $this->campaignLog->id ?? null,
+            'workspace_id' => $this->workspaceId ?? null,
+            'error' => $exception->getMessage(),
+            'trace' => $exception->getTraceAsString(),
+        ]);
+        
+        // Update campaign log status to failed if possible
+        if (isset($this->campaignLog) && $this->campaignLog->exists) {
+            try {
+                $this->campaignLog->update([
+                    'status' => 'failed',
+                    'error_message' => $exception->getMessage(),
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to update campaign log status', [
+                    'campaign_log_id' => $this->campaignLog->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
     public function __construct(
         CampaignLog $campaignLog,
         MessageSendingService $messageService

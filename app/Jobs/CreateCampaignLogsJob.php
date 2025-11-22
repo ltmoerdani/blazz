@@ -23,6 +23,21 @@ class CreateCampaignLogsJob implements ShouldQueue
     public $backoff = [60, 180, 600]; // Progressive backoff: 1m, 3m, 10m
     public $retryAfter = 60; // Rate limiting
 
+    /**
+     * Handle job failure
+     *
+     * @param \Throwable $exception
+     * @return void
+     */
+    public function failed(\Throwable $exception)
+    {
+        Log::error('CreateCampaignLogsJob failed permanently', [
+            'job' => self::class,
+            'error' => $exception->getMessage(),
+            'trace' => $exception->getTraceAsString(),
+        ]);
+    }
+
     public function handle()
     {
         try {
