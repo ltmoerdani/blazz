@@ -1,8 +1,13 @@
 # Blazz WhatsApp Platform - Architecture Documentation
 
-**Version**: 2.1 (Post-Cleanup & Update)
-**Last Updated**: November 22, 2025
-**Status**: ✅ Production Ready & Contextually Accurate
+> ⚠️ **DEPRECATION NOTICE**: This file (00-readme.md) is the legacy index.  
+> **Please use [readme.md](./readme.md) instead** for the latest navigation and structure (v3.0).  
+> This file is kept for backward compatibility but will not be updated.
+
+**Version**: 2.1 (Post-Cleanup & Update)  
+**Last Updated**: November 22, 2025  
+**Status**: ✅ Production Ready & Contextually Accurate  
+**Superseded By**: [readme.md](./readme.md) v3.0
 
 ---
 
