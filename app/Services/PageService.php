@@ -8,6 +8,14 @@ use Illuminate\Support\Facades\Log;
 
 class PageService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Get all rows based on the provided request filters.
      *

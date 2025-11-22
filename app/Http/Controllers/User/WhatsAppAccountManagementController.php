@@ -21,7 +21,7 @@ class WhatsAppAccountManagementController extends Controller
      */
     public function index()
     {
-        $workspaceId = session('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $accounts = WhatsAppAccount::forWorkspace($workspaceId)
             ->orderBy('is_primary', 'desc')
@@ -67,7 +67,7 @@ class WhatsAppAccountManagementController extends Controller
      */
     public function store(Request $request)
     {
-        $workspaceId = session('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $response = null;
 
         // Validate request and check session limits
@@ -195,7 +195,7 @@ class WhatsAppAccountManagementController extends Controller
      */
     public function show(string $uuid)
     {
-        $workspaceId = session('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         try {
             $session = WhatsAppAccount::forWorkspace($workspaceId)
@@ -276,7 +276,7 @@ class WhatsAppAccountManagementController extends Controller
      */
     public function destroy(string $uuid)
     {
-        $workspaceId = session('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         try {
             $session = WhatsAppAccount::forWorkspace($workspaceId)

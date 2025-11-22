@@ -2,6 +2,7 @@
 
 # Blazz Development Server Stop Script
 # This script stops all services started by start-dev.sh
+# Updated for RemoteAuth architecture
 
 echo "🛑 Stopping Blazz Development Environment..."
 echo "=============================================="
@@ -32,16 +33,50 @@ pkill -f "php artisan queue:work" && echo -e "${GREEN}✅ Queue Worker stopped${
 echo -e "${YELLOW}Stopping Laravel Scheduler...${NC}"
 pkill -f "php artisan schedule:work" && echo -e "${GREEN}✅ Laravel Scheduler stopped${NC}" || echo -e "${RED}❌ Laravel Scheduler not running${NC}"
 
-# Stop Node.js WhatsApp Service
+# Stop nodemon first (manages the WhatsApp service)
+echo -e "${YELLOW}Stopping Nodemon...${NC}"
+if pgrep -f "nodemon" > /dev/null 2>&1; then
+    pkill -f "nodemon" && echo -e "${GREEN}✅ Nodemon stopped${NC}" || echo -e "${RED}❌ Failed to stop Nodemon${NC}"
+    sleep 1  # Give nodemon time to clean up child processes
+else
+    echo -e "${BLUE}ℹ️  Nodemon not running${NC}"
+fi
+
+# Stop WhatsApp Service (single or multi-instance)
 echo -e "${YELLOW}Stopping WhatsApp Service...${NC}"
-pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC}" || echo -e "${RED}❌ WhatsApp Service not running${NC}"
 
-# Stop nodemon if running
-pkill -f "nodemon" && echo -e "${GREEN}✅ Nodemon stopped${NC}" || echo -e "${RED}❌ Nodemon not running${NC}"
+# Check if PM2 is running and has WhatsApp instances
+if command -v pm2 &> /dev/null && pm2 list | grep -q "whatsapp-instance"; then
+    echo -e "${GREEN}🛑 Stopping Multi-Instance WhatsApp Service...${NC}"
+    pm2 stop ecosystem.multi-instance.config.js 2>/dev/null || pm2 stop all
+    pm2 delete ecosystem.multi-instance.config.js 2>/dev/null || pm2 delete all
+    pm2 save
+    echo -e "${GREEN}✅ Multi-Instance WhatsApp Service stopped${NC}"
+else
+    # Single instance mode
+    # Check if service is running on port 3001 before killing
+    if lsof -ti:3001 > /dev/null 2>&1; then
+        pkill -f "whatsapp-service" && echo -e "${GREEN}✅ WhatsApp Service stopped${NC}" || echo -e "${RED}❌ Failed to stop WhatsApp Service${NC}"
+        sleep 1
+    else
+        # Check if there's a process by name (might be crashed/stuck)
+        if pgrep -f "whatsapp-service" > /dev/null 2>&1; then
+            pkill -f "whatsapp-service" && echo -e "${GREEN}✅ Cleaned up crashed WhatsApp Service${NC}" || echo -e "${RED}❌ Failed to stop WhatsApp Service${NC}"
+        else
+            echo -e "${GREEN}✅ WhatsApp Service already stopped${NC}"
+        fi
+    fi
+fi
 
-# Stop any remaining Node processes on port 3001
-echo -e "${YELLOW}Checking for remaining processes on port 3001...${NC}"
-lsof -ti:3001 | xargs kill -9 2>/dev/null && echo -e "${GREEN}✅ Port 3001 cleared${NC}" || echo -e "${BLUE}ℹ️  Port 3001 already free${NC}"
+# Stop any remaining processes on WhatsApp ports (3001-3004)
+echo -e "${YELLOW}Checking for remaining WhatsApp processes...${NC}"
+for port in 3001 3002 3003 3004; do
+    if lsof -ti:$port > /dev/null 2>&1; then
+        lsof -ti:$port | xargs kill -9 2>/dev/null && echo -e "${GREEN}✅ Port $port cleared${NC}"
+    else
+        echo -e "${BLUE}ℹ️  Port $port already free${NC}"
+    fi
+done
 
 # Stop any remaining processes on port 8000
 echo -e "${YELLOW}Checking for remaining processes on port 8000...${NC}"
@@ -53,7 +88,20 @@ lsof -ti:8080 | xargs kill -9 2>/dev/null && echo -e "${GREEN}✅ Port 8080 clea
 
 sleep 2
 
+# Note about Redis (don't stop it - may be used by other services)
+echo -e "${BLUE}ℹ️  Redis server not stopped (may be used by other services)${NC}"
+echo -e "${BLUE}   To stop Redis manually: redis-cli shutdown${NC}"
+
 echo "=============================================="
-echo -e "${GREEN}🏁 All services stopped successfully!${NC}"
+echo -e "${GREEN}🏁 All development services stopped!${NC}"
+echo ""
+echo -e "${BLUE}Status:${NC}"
+echo "✅ Laravel Backend stopped"
+echo "✅ Reverb Broadcasting stopped"
+echo "✅ WhatsApp Service stopped"
+echo "✅ Queue Worker stopped"
+echo "✅ Laravel Scheduler stopped"
+echo "ℹ️  Redis left running (if started)"
+echo ""
 echo -e "${BLUE}💡 To start services again, run: ./start-dev.sh${NC}"
 echo "=============================================="

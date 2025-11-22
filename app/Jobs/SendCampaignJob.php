@@ -26,6 +26,11 @@ class SendCampaignJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, TemplateTrait, SerializesModels;
 
+    public $timeout = 3600; // 1 hour
+    public $tries = 3;
+    public $backoff = [60, 180, 600]; // Progressive backoff: 1m, 3m, 10m
+    public $retryAfter = 60; // Rate limiting
+
     private $workspaceId;
     private MessageService $messageService;
     private ProviderSelectionService $providerService;
@@ -40,6 +45,18 @@ class SendCampaignJob implements ShouldQueue
     ) {
         $this->providerService = $providerService ?? app(ProviderSelectionService::class);
         $this->onQueue('whatsapp-campaign');
+    }
+
+    /**
+     * Handle failed job
+     */
+    public function failed(\Throwable $exception)
+    {
+        Log::error('SendCampaignJob failed permanently', [
+            'job' => self::class,
+            'campaign_id' => $this->campaign instanceof Campaign ? $this->campaign->id : $this->campaign,
+            'error' => $exception->getMessage()
+        ]);
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\WhatsAppAccount;
+use App\Services\WhatsApp\InstanceRouter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -23,12 +24,19 @@ class SyncWhatsAppAccountPhone extends Command
      */
     protected $description = 'Sync phone numbers from Node.js service for authenticated/connected accounts';
 
+    protected InstanceRouter $router;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->router = app(InstanceRouter::class);
+    }
+
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $nodeServiceUrl = config('whatsapp.node_service_url', 'http://localhost:3000');
         $apiKey = config('whatsapp.node_api_key');
 
         $this->info('🔄 Starting WhatsApp phone number sync...');
@@ -59,8 +67,14 @@ class SyncWhatsAppAccountPhone extends Command
             $this->info("🔍 Processing: {$account->session_id}");
 
             try {
+                // MULTI-INSTANCE: Use assigned instance URL or route by workspace
+                $instanceUrl = $account->assigned_instance_url 
+                    ?? $this->router->getInstanceForWorkspace($account->workspace_id);
+
+                $this->info("   → Instance: {$instanceUrl}");
+
                 // Get session status from Node.js service
-                $response = Http::timeout(10)->get("{$nodeServiceUrl}/api/sessions/{$account->session_id}/status", [
+                $response = Http::timeout(10)->get("{$instanceUrl}/api/sessions/{$account->session_id}/status", [
                     'api_key' => $apiKey,
                 ]);
 

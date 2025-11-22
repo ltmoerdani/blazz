@@ -28,6 +28,20 @@ class UpdateCampaignStatisticsJob implements ShouldQueue
     public $timeout = 60;
 
     /**
+     * The number of seconds to wait before retrying the job.
+     *
+     * @var array
+     */
+    public $backoff = [10, 30, 60]; // Progressive backoff: 10s, 30s, 1m
+
+    /**
+     * The number of seconds after which the job should be made available again if it fails.
+     *
+     * @var int
+     */
+    public $retryAfter = 30; // Rate limiting
+
+    /**
      * The maximum number of unhandled exceptions to allow before failing.
      *
      * @var int

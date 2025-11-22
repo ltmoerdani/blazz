@@ -25,6 +25,27 @@ class UpdateMessageStatusJob implements ShouldQueue
     public $tries = 3;
 
     /**
+     * The number of seconds the job can run before timing out.
+     *
+     * @var int
+     */
+    public $timeout = 120; // 2 minutes
+
+    /**
+     * The number of seconds to wait before retrying the job.
+     *
+     * @var array
+     */
+    public $backoff = [5, 15, 45]; // Progressive backoff: 5s, 15s, 45s
+
+    /**
+     * The number of seconds after which the job should be made available again if it fails.
+     *
+     * @var int
+     */
+    public $retryAfter = 15; // Rate limiting
+
+    /**
      * The maximum number of unhandled exceptions to allow before failing.
      *
      * @var int

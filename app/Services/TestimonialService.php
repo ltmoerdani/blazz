@@ -7,6 +7,14 @@ use App\Models\Review;
 
 class TestimonialService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Get all Reviews based on the provided request filters.
      *

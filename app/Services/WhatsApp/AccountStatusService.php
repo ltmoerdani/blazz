@@ -3,6 +3,7 @@
 namespace App\Services\WhatsApp;
 
 use App\Models\WhatsAppAccount;
+use App\Services\WhatsApp\InstanceRouter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -14,19 +15,40 @@ use Carbon\Carbon;
  * Extracted business logic from WhatsAppAccountStatusController
  * Handles status operations, connection management, and health monitoring
  *
+ * MULTI-INSTANCE ARCHITECTURE:
+ * Uses assigned_instance_url from WhatsAppAccount model for existing sessions.
+ * This ensures requests are routed to the correct instance where the session is running.
+ *
  * TASK-SERVICE-2: Extract business logic from WhatsAppAccountStatusController
  */
 class AccountStatusService
 {
     protected $workspaceId;
     protected $logger;
-    protected $nodeServiceUrl;
+    protected InstanceRouter $router;
 
     public function __construct($workspaceId)
     {
         $this->workspaceId = $workspaceId;
         $this->logger = Log::channel('whatsapp');
-        $this->nodeServiceUrl = config('whatsapp.node_service_url', 'http://localhost:3000');
+        $this->router = app(InstanceRouter::class);
+    }
+
+    /**
+     * Get Node.js instance URL for a specific account
+     *
+     * @param WhatsAppAccount $account
+     * @return string
+     */
+    protected function getInstanceUrl(WhatsAppAccount $account): string
+    {
+        // MULTI-INSTANCE: Use assigned URL if available, otherwise route by workspace
+        if ($account->assigned_instance_url) {
+            return $account->assigned_instance_url;
+        }
+
+        // Fallback: Route based on workspace (for accounts created before instance assignment)
+        return $this->router->getInstanceForWorkspace($account->workspace_id);
     }
 
     /**
@@ -104,32 +126,59 @@ class AccountStatusService
                 ->where('workspace_id', $this->workspaceId)
                 ->firstOrFail();
 
-            // Only disconnect if currently connected
-            if (!in_array($account->status, ['connected', 'ready'])) {
+            // Skip if already disconnected
+            if ($account->status === 'disconnected') {
                 return (object) [
-                    'success' => false,
-                    'message' => 'Account is not connected',
+                    'success' => true,
+                    'data' => $account,
+                    'message' => 'Account is already disconnected',
                 ];
             }
 
             // Call Node.js service to disconnect session
+            // MULTI-INSTANCE: Route to assigned instance
+            // This will gracefully handle sessions not in memory
+            $instanceUrl = $this->getInstanceUrl($account);
+            
+            $this->logger->info('Disconnecting session on instance', [
+                'workspace_id' => $this->workspaceId,
+                'session_id' => $account->session_id,
+                'instance_url' => $instanceUrl,
+            ]);
+
             $response = Http::timeout(30)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-API-Key' => config('whatsapp.node_api_key'),
                 ])
-                ->delete("{$this->nodeServiceUrl}/api/sessions/{$account->session_id}", [
+                ->delete("{$instanceUrl}/api/sessions/{$account->session_id}", [
                     'workspace_id' => $this->workspaceId,
                     'api_key' => config('whatsapp.node_api_key'),
                 ]);
 
-            if (!$response->successful()) {
-                throw new \Exception('Node.js service disconnect failed: ' . $response->body());
+            // Check response
+            $responseData = $response->json();
+            $nodeSuccess = $response->successful() && isset($responseData['success']) && $responseData['success'];
+
+            if (!$nodeSuccess) {
+                // Log warning but continue - we'll still mark as disconnected in DB
+                $this->logger->warning('Node.js disconnect returned error, but continuing with DB update', [
+                    'workspace_id' => $this->workspaceId,
+                    'account_id' => $account->id,
+                    'session_id' => $account->session_id,
+                    'node_response' => $responseData ?? $response->body(),
+                ]);
             }
 
-            // Update account status
+            // Update account status to disconnected regardless of Node.js response
+            // This ensures DB state is consistent even if session was already gone
+            // 
+            // IMPORTANT: Clear phone_number when disconnecting to avoid unique constraint violation
+            // The unique constraint is (phone_number, workspace_id, status)
+            // Multiple disconnected accounts with same phone_number would violate this
             $account->update([
                 'status' => 'disconnected',
+                'phone_number' => null, // Clear phone to allow multiple disconnected sessions
                 'disconnected_at' => now(),
                 'last_activity_at' => now(),
                 'updated_at' => now(),
@@ -139,6 +188,7 @@ class AccountStatusService
                 'workspace_id' => $this->workspaceId,
                 'account_id' => $account->id,
                 'session_id' => $account->session_id,
+                'was_in_memory' => !($responseData['alreadyDisconnected'] ?? false),
             ]);
 
             return (object) [
@@ -188,12 +238,15 @@ class AccountStatusService
             }
 
             // Call Node.js service to reconnect session
+            // MULTI-INSTANCE: Route to assigned instance
+            $instanceUrl = $this->getInstanceUrl($account);
+            
             $response = Http::timeout(60)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-API-Key' => config('whatsapp.node_api_key'),
                 ])
-                ->post("{$this->nodeServiceUrl}/api/sessions/{$account->session_id}/reconnect", [
+                ->post("{$instanceUrl}/api/sessions/{$account->session_id}/reconnect", [
                     'workspace_id' => $this->workspaceId,
                     'account_id' => $account->id,
                     'api_key' => config('whatsapp.node_api_key'),
@@ -257,12 +310,15 @@ class AccountStatusService
                 ->firstOrFail();
 
             // Call Node.js service to regenerate QR
+            // MULTI-INSTANCE: Route to assigned instance
+            $instanceUrl = $this->getInstanceUrl($account);
+            
             $response = Http::timeout(30)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-API-Key' => config('whatsapp.node_api_key'),
                 ])
-                ->post("{$this->nodeServiceUrl}/api/sessions/{$account->session_id}/regenerate-qr", [
+                ->post("{$instanceUrl}/api/sessions/{$account->session_id}/regenerate-qr", [
                     'workspace_id' => $this->workspaceId,
                     'account_id' => $account->id,
                     'api_key' => config('whatsapp.node_api_key'),
@@ -330,12 +386,15 @@ class AccountStatusService
                 ->firstOrFail();
 
             // Call Node.js service to check session status
+            // MULTI-INSTANCE: Route to assigned instance
+            $instanceUrl = $this->getInstanceUrl($account);
+            
             $response = Http::timeout(10)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-API-Key' => config('whatsapp.node_api_key'),
                 ])
-                ->get("{$this->nodeServiceUrl}/api/sessions/{$account->session_id}/status", [
+                ->get("{$instanceUrl}/api/sessions/{$account->session_id}/status", [
                     'workspace_id' => $this->workspaceId,
                     'api_key' => config('whatsapp.node_api_key'),
                 ]);

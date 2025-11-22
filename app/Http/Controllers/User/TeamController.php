@@ -23,14 +23,14 @@ class TeamController extends BaseController
 
     public function index(Request $request){
         $rows = TeamResource::collection(
-            Team::with('user')->where('workspace_id', session()->get('current_workspace'))
+            Team::with('user')->where('workspace_id', $this->getWorkspaceId())
                 ->latest()->paginate(10)
         );
 
         if($request->expectsJson()){
             $rows = DB::table('users')
                 ->join('teams', 'users.id', '=', 'teams.user_id')
-                ->where('teams.Workspace_id', '=', session()->get('current_workspace'))
+                ->where('teams.Workspace_id', '=', $this->getWorkspaceId())
                 ->whereNull('teams.deleted_at')
                 ->select('users.*')
                 ->get();

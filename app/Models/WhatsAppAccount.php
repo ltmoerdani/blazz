@@ -15,22 +15,7 @@ class WhatsAppAccount extends Model
 
     protected $table = 'whatsapp_accounts';
 
-    protected $fillable = [
-        'uuid',
-        'workspace_id',
-        'session_id',
-        'phone_number',
-        'provider_type',
-        'status',
-        'qr_code',
-        'session_data',
-        'is_primary',
-        'is_active',
-        'last_activity_at',
-        'last_connected_at',
-        'metadata',
-        'created_by',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'session_data' => 'encrypted:array',
@@ -39,6 +24,9 @@ class WhatsAppAccount extends Model
         'is_active' => 'boolean',
         'last_activity_at' => 'datetime',
         'last_connected_at' => 'datetime',
+        'disconnected_at' => 'datetime',
+        'session_storage_verified_at' => 'datetime',
+        'last_instance_migration_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -48,6 +36,23 @@ class WhatsAppAccount extends Model
         static::creating(function ($model) {
             if (empty($model->uuid)) {
                 $model->uuid = Str::uuid()->toString();
+            }
+        });
+        
+        // ✅ PHASE 1: Auto-invalidate cache when instance URL changes
+        static::updated(function ($model) {
+            if ($model->isDirty('assigned_instance_url')) {
+                // Invalidate cache for this account
+                \Illuminate\Support\Facades\Cache::forget("whatsapp_instance:{$model->uuid}");
+                \Illuminate\Support\Facades\Cache::forget("whatsapp_instance:{$model->session_id}");
+                
+                \Illuminate\Support\Facades\Log::info('Cache invalidated due to instance URL change', [
+                    'account_id' => $model->id,
+                    'phone_number' => $model->phone_number,
+                    'session_id' => $model->session_id,
+                    'old_url' => $model->getOriginal('assigned_instance_url'),
+                    'new_url' => $model->assigned_instance_url,
+                ]);
             }
         });
     }
@@ -151,6 +156,23 @@ class WhatsAppAccount extends Model
     }
 
     /**
+     * Scope: Sessions on specific instance
+     */
+    public function scopeOnInstance($query, int $instanceIndex)
+    {
+        return $query->where('assigned_instance_index', $instanceIndex);
+    }
+
+    /**
+     * Scope: Recently disconnected
+     */
+    public function scopeRecentlyDisconnected($query, int $hours = 24)
+    {
+        return $query->where('status', 'disconnected')
+            ->where('disconnected_at', '>=', now()->subHours($hours));
+    }
+
+    /**
      * Get the session health score (0-100)
      */
     public function getHealthScoreAttribute(): int
@@ -228,6 +250,33 @@ class WhatsAppAccount extends Model
 
         $this->update([
             'metadata' => array_merge($this->metadata ?? [], $stats)
+        ]);
+    }
+
+    /**
+     * Assign session to a specific instance
+     */
+    public function assignToInstance(int $index, string $url): void
+    {
+        $this->update([
+            'previous_instance_index' => $this->assigned_instance_index,
+            'assigned_instance_index' => $index,
+            'assigned_instance_url' => $url,
+            'instance_migration_count' => ($this->instance_migration_count ?? 0) + 1,
+            'last_instance_migration_at' => now(),
+        ]);
+    }
+
+    /**
+     * Mark session as disconnected with reason
+     */
+    public function markDisconnected(string $reason, ?string $details = null): void
+    {
+        $this->update([
+            'status' => 'disconnected',
+            'disconnected_at' => now(),
+            'disconnect_reason' => $reason,
+            'disconnect_details' => $details,
         ]);
     }
 }

@@ -32,7 +32,7 @@ class CampaignController extends BaseController
     }
 
     public function index(Request $request, $uuid = null){
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         if($uuid == null){
             $searchTerm = $request->query('search');
             $campaignType = $request->query('campaign_type');
@@ -245,7 +245,7 @@ class CampaignController extends BaseController
      */
     public function statistics($uuid): JsonResponse
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $campaign = Campaign::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->first();
@@ -268,7 +268,7 @@ class CampaignController extends BaseController
      */
     public function availableSessions(): JsonResponse
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $sessions = WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
@@ -307,7 +307,7 @@ class CampaignController extends BaseController
             'provider' => 'required|in:webjs,meta_api'
         ]);
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $template = Template::where('uuid', $request->template_uuid)
             ->where('workspace_id', $workspaceId)
@@ -354,7 +354,7 @@ class CampaignController extends BaseController
         ]);
 
         try {
-            $workspaceId = session()->get('current_workspace');
+            $workspaceId = $this->getWorkspaceId();
 
             if ($request->campaign_type === 'template') {
                 $template = Template::where('uuid', $request->template_uuid)

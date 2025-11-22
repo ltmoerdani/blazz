@@ -22,6 +22,14 @@ use Illuminate\Support\Facades\Log;
  */
 class ContactProvisioningService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Get or create contact with phone normalization
      *
@@ -42,7 +50,7 @@ class ContactProvisioningService
     public function getOrCreateContact(
         string $phone,
         ?string $name,
-        int $workspaceId,
+        ?int $workspaceId = null,
         string $sourceType = 'webjs',
         ?int $sessionId = null,
         bool $isGroup = false,
@@ -54,6 +62,9 @@ class ContactProvisioningService
             // This is a heuristic fallback
             // $isGroup = true; // Commented out to avoid false positives, relying on explicit flag for now
         }
+        // Use instance workspaceId if parameter not provided
+        $workspaceId = $workspaceId ?? $this->workspaceId;
+
         // Step 1: Format phone (skip for groups)
         $formattedPhone = $phone;
         if (!$isGroup) {

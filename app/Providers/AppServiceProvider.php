@@ -44,7 +44,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(MediaService::class, function ($app) {
-            return new MediaService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new MediaService($workspace->id);
         });
 
         // TemplateService moved to BusinessServiceProvider to eliminate duplication

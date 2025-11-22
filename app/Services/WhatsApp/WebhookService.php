@@ -24,7 +24,6 @@ class WebhookService
 {
     protected $workspaceId;
     protected $logger;
-    protected $nodeServiceUrl;
     protected $webhookSecret;
     protected $queuePrefix = 'whatsapp_webhooks';
 
@@ -32,8 +31,11 @@ class WebhookService
     {
         $this->workspaceId = $workspaceId;
         $this->logger = Log::channel('whatsapp');
-        $this->nodeServiceUrl = config('whatsapp.node_service_url', 'http://localhost:3000');
         $this->webhookSecret = config('whatsapp.webhook_secret');
+        
+        // NOTE: WebhookService handles INCOMING webhooks from Node.js instances.
+        // No outbound URL needed - webhooks come TO us, not FROM us.
+        // If outbound calls are needed, use WhatsAppAccount->assigned_instance_url
     }
 
     /**
@@ -836,17 +838,21 @@ class WebhookService
                 return;
             }
 
-            Http::timeout(5)
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                    'X-API-Key' => config('whatsapp.node_api_key'),
-                ])
-                ->post("{$this->nodeServiceUrl}/api/webhooks/ack", [
-                    'event' => $event,
-                    'workspace_id' => $this->workspaceId,
-                    'success' => $result->success,
-                    'timestamp' => now()->toISOString(),
-                ]);
+            // NOTE: Webhook acknowledgment is disabled in multi-instance architecture
+            // If needed in the future, use WhatsAppAccount->assigned_instance_url
+            // to route acknowledgment to the correct instance that sent the webhook
+            
+            // Http::timeout(5)
+            //     ->withHeaders([
+            //         'Content-Type' => 'application/json',
+            //         'X-API-Key' => config('whatsapp.node_api_key'),
+            //     ])
+            //     ->post("{$instanceUrl}/api/webhooks/ack", [
+            //         'event' => $event,
+            //         'workspace_id' => $this->workspaceId,
+            //         'success' => $result->success,
+            //         'timestamp' => now()->toISOString(),
+            //     ]);
 
         } catch (\Exception $e) {
             $this->logger->warning('Failed to send webhook acknowledgment', [

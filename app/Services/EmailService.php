@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\Log;
 
 class EmailService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Get all emails based on the provided request filters.
      *

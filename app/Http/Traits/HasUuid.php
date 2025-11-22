@@ -6,6 +6,12 @@ use Ramsey\Uuid\Uuid;
 
 trait HasUuid
 {
+    /**
+     * The name of the UUID column.
+     *
+     * @var string|null
+     */
+    protected static $uuidColumn = null;
 
     protected static function bootHasUuid()
     {

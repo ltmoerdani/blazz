@@ -27,7 +27,7 @@ class WhatsAppAccountController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            $workspaceId = session('current_workspace');
+            $workspaceId = $this->getWorkspaceId();
             $this->accountService = new AccountService($workspaceId);
             $this->accountStatusService = new AccountStatusService($workspaceId);
             return $next($request);
@@ -39,7 +39,7 @@ class WhatsAppAccountController extends Controller
      */
     public function index(Request $request)
     {
-        $workspaceId = session('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $perPage = $request->get('per_page', 15);
         $filters = $request->only(['status', 'provider_type', 'search']);
 
@@ -232,7 +232,7 @@ class WhatsAppAccountController extends Controller
             broadcast(new WhatsAppAccountStatusChangedEvent(
                 $result->data->session_id,
                 'disconnected',
-                session('current_workspace'),
+                $this->getWorkspaceId(),
                 $result->data->phone_number,
                 [
                     'action' => 'disconnect',
@@ -300,7 +300,7 @@ class WhatsAppAccountController extends Controller
             event(new WhatsAppQRGeneratedEvent(
                 $result->data->qr_code,
                 300, // 5 minutes in seconds
-                session('current_workspace'),
+                $this->getWorkspaceId(),
                 $result->data->session_id
             ));
 

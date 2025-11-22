@@ -70,16 +70,10 @@ class WhatsAppServiceClient
         // Convert contact UUID to actual phone number
         $contactPhone = $this->getContactPhone($contactUuid, $workspaceId);
         
-        // CRITICAL FIX: Get actual session_id from WhatsAppAccount (not UUID)
-        $account = \App\Models\WhatsAppAccount::where('uuid', $accountUuid)
-            ->where('workspace_id', $workspaceId)
-            ->first();
-        
-        if (!$account || !$account->session_id) {
-            throw new \Exception('WhatsApp account not found or session_id missing');
-        }
-        
-        $sessionId = $account->session_id;  // e.g., webjs_1_1763300356_ot6RUaMF
+        // ✅ PHASE 1: Use cached instance data
+        $instanceData = $this->getInstanceUrlCached($accountUuid, $workspaceId);
+        $sessionId = $instanceData['session_id'];
+        $instanceUrl = $instanceData['url'];
 
         // Build correct payload for Node.js service
         if ($type === 'text') {
@@ -105,7 +99,8 @@ class WhatsAppServiceClient
             ];
         }
 
-        return $this->makeRequest('POST', $endpoint, $payload);
+        // ✅ PHASE 1: Use failover mechanism with automatic session rediscovery
+        return $this->sendMessageWithFailover($sessionId, $endpoint, $payload, $instanceUrl);
     }
 
     /**
@@ -421,10 +416,22 @@ class WhatsAppServiceClient
      * @param array $payload
      * @return array
      */
-    protected function makeRequest($method, $endpoint, $payload = [])
+    protected function makeRequest($method, $endpoint, $payload = [], $customBaseUrl = null)
     {
         $attempt = 0;
         $lastException = null;
+
+        // ✅ CRITICAL FIX: Use custom base URL if provided (for multi-instance support)
+        $client = $customBaseUrl ? new Client([
+            'base_uri' => $customBaseUrl,
+            'timeout' => $this->timeout,
+            'connect_timeout' => 10,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+                'User-Agent' => 'Laravel-WhatsApp-Service/1.0',
+            ],
+        ]) : $this->client;
 
         while ($attempt < $this->retryAttempts) {
             try {
@@ -447,11 +454,12 @@ class WhatsAppServiceClient
                 $this->logger->debug('WhatsApp service request', [
                     'method' => $method,
                     'endpoint' => $endpoint,
+                    'base_url' => $customBaseUrl ?: $this->baseUrl,
                     'payload' => $payload,
                     'attempt' => $attempt + 1,
                 ]);
 
-                $response = $this->client->request($method, $endpoint, $options);
+                $response = $client->request($method, $endpoint, $options);
                 $data = json_decode($response->getBody()->getContents(), true);
 
                 $this->logger->debug('WhatsApp service response', [
@@ -572,6 +580,211 @@ class WhatsAppServiceClient
         return null;
     }
 
+    /**
+     * Rediscover session across all available instances
+     * 
+     * @param string $sessionId
+     * @return string|null Instance URL where session was found
+     */
+    protected function rediscoverSession($sessionId)
+    {
+        $instances = config('services.whatsapp.nodejs_instances', [
+            'http://localhost:3001',
+            'http://localhost:3002',
+            'http://localhost:3003',
+            'http://localhost:3004',
+        ]);
+        
+        $this->logger->info('Starting session rediscovery', [
+            'session_id' => $sessionId,
+            'instances' => $instances,
+        ]);
+        
+        foreach ($instances as $instanceUrl) {
+            try {
+                // Check if session exists in this instance
+                $client = new Client([
+                    'base_uri' => $instanceUrl,
+                    'timeout' => 5,
+                    'connect_timeout' => 3,
+                    'headers' => [
+                        'Content-Type' => 'application/json',
+                    ],
+                ]);
+                
+                // Node.js expects api_key as query parameter, not header
+                $response = $client->get("/api/sessions/{$sessionId}/status", [
+                    'query' => ['api_key' => $this->apiKey]
+                ]);
+                
+                if ($response->getStatusCode() === 200) {
+                    $data = json_decode($response->getBody()->getContents(), true);
+                    $status = $data['status'] ?? $data['data']['status'] ?? null;
+                    
+                    // Verify session is in working/connected state
+                    if (in_array($status, ['WORKING', 'connected', 'SCAN_QR_CODE', 'ready'])) {
+                        $this->logger->info('Session found in instance', [
+                            'session_id' => $sessionId,
+                            'instance_url' => $instanceUrl,
+                            'status' => $status,
+                        ]);
+                        return $instanceUrl;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Instance might be down or session doesn't exist, continue to next
+                $this->logger->debug('Instance check failed during rediscovery', [
+                    'session_id' => $sessionId,
+                    'instance_url' => $instanceUrl,
+                    'error' => $e->getMessage(),
+                ]);
+                continue;
+            }
+        }
+        
+        $this->logger->warning('Session not found in any instance', [
+            'session_id' => $sessionId,
+        ]);
+        
+        return null;
+    }
+    
+    /**
+     * Check if exception indicates instance is unavailable
+     * 
+     * @param \Exception $exception
+     * @return bool
+     */
+    protected function isInstanceUnavailable($exception)
+    {
+        // Connection refused or timeout
+        if ($exception instanceof ConnectException) {
+            return true;
+        }
+        
+        // 404 Not Found or 502/503 errors
+        if ($exception instanceof RequestException && $exception->hasResponse()) {
+            $statusCode = $exception->getResponse()->getStatusCode();
+            return in_array($statusCode, [404, 502, 503]);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Send message with automatic failover and rediscovery
+     * 
+     * @param string $sessionId
+     * @param string $endpoint
+     * @param array $payload
+     * @param string $assignedUrl
+     * @return array
+     */
+    protected function sendMessageWithFailover($sessionId, $endpoint, $payload, $assignedUrl)
+    {
+        // Try assigned instance first
+        try {
+            $response = $this->makeRequest('POST', $endpoint, $payload, $assignedUrl);
+            
+            // Check if response indicates success
+            if ($response['success'] === true) {
+                return $response;
+            }
+            
+            // If response has error status, try rediscovery
+            if (isset($response['status_code']) && in_array($response['status_code'], [404, 502, 503])) {
+                throw new \Exception("Instance unavailable: {$response['status_code']}");
+            }
+            
+            return $response;
+            
+        } catch (\Exception $e) {
+            // Check if error is recoverable (instance unavailable)
+            if ($this->isInstanceUnavailable($e)) {
+                $this->logger->warning('Instance unavailable, starting rediscovery', [
+                    'session_id' => $sessionId,
+                    'assigned_url' => $assignedUrl,
+                    'error' => $e->getMessage(),
+                ]);
+                
+                // Attempt rediscovery
+                $newInstanceUrl = $this->rediscoverSession($sessionId);
+                
+                if ($newInstanceUrl && $newInstanceUrl !== $assignedUrl) {
+                    $this->logger->info('Session rediscovered, updating database', [
+                        'session_id' => $sessionId,
+                        'old_url' => $assignedUrl,
+                        'new_url' => $newInstanceUrl,
+                    ]);
+                    
+                    // Update database
+                    \App\Models\WhatsAppAccount::where('session_id', $sessionId)
+                        ->update(['assigned_instance_url' => $newInstanceUrl]);
+                    
+                    // Clear cache
+                    \Illuminate\Support\Facades\Cache::forget("whatsapp_instance:{$sessionId}");
+                    
+                    // Retry with new URL
+                    $this->logger->info('Retrying message send with new instance', [
+                        'session_id' => $sessionId,
+                        'new_url' => $newInstanceUrl,
+                    ]);
+                    
+                    return $this->makeRequest('POST', $endpoint, $payload, $newInstanceUrl);
+                }
+                
+                // Rediscovery failed
+                $this->logger->error('Session rediscovery failed', [
+                    'session_id' => $sessionId,
+                    'assigned_url' => $assignedUrl,
+                ]);
+            }
+            
+            // Re-throw if not recoverable or rediscovery failed
+            throw $e;
+        }
+    }
+    
+    /**
+     * Get instance URL for account with caching
+     * 
+     * @param string $accountUuid
+     * @param int $workspaceId
+     * @return array
+     */
+    protected function getInstanceUrlCached($accountUuid, $workspaceId)
+    {
+        $cacheKey = "whatsapp_instance:{$accountUuid}";
+        $cacheTtl = 300; // 5 minutes
+        
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, $cacheTtl, function () use ($accountUuid, $workspaceId) {
+            $account = \App\Models\WhatsAppAccount::where('uuid', $accountUuid)
+                ->where('workspace_id', $workspaceId)
+                ->first();
+            
+            if (!$account) {
+                throw new \Exception("Account not found: {$accountUuid}");
+            }
+            
+            return [
+                'url' => $account->assigned_instance_url ?: $this->baseUrl,
+                'session_id' => $account->session_id,
+                'phone' => $account->phone_number,
+            ];
+        });
+    }
+    
+    /**
+     * Invalidate cache for account
+     * 
+     * @param string $accountUuid
+     * @return void
+     */
+    public function invalidateCache($accountUuid)
+    {
+        \Illuminate\Support\Facades\Cache::forget("whatsapp_instance:{$accountUuid}");
+    }
+    
     /**
      * Get contact phone number by UUID
      *

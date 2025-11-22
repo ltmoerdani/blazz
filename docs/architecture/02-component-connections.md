@@ -946,4 +946,4 @@ $dashboardStats = Cache::remember(
 **Next Steps:**
 - 📁 [03-folder-structure.md](./03-folder-structure.md) - Recommended folder organization
 - 🚀 [04-feature-development-guide.md](./04-feature-development-guide.md) - Adding new features
-- 🎨 [05-service-pattern-guidelines.md](./05-service-pattern-guidelines.md) - Service best practices
+- 🎨 [06-development-patterns-guidelines.md](./06-development-patterns-guidelines.md) - Service best practices
