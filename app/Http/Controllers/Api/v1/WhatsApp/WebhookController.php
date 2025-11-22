@@ -191,24 +191,37 @@ class WebhookController extends Controller
             ]);
         }
 
+        // Check if this should be the primary number (first connected account in workspace)
+        $hasPrimaryAccount = WhatsAppAccount::where('workspace_id', $workspaceId)
+            ->where('is_primary', true)
+            ->where('status', 'connected')
+            ->where('id', '!=', $session->id)
+            ->exists();
+
+        $isPrimary = !$hasPrimaryAccount;
+
         // Update session with phone number
         try {
             $session->update([
                 'status' => 'connected',
                 'phone_number' => $phoneNumber,
+                'is_primary' => $isPrimary, // Auto-set as primary if first connected account
                 'last_connected_at' => now(),
                 'last_activity_at' => now(),
                 'metadata' => array_merge($session->metadata ?? [], [
                     'extraction_method' => $data['extraction_method'] ?? 'unknown',
                     'platform' => $data['platform'] ?? 'unknown',
-                    'connected_timestamp' => now()->toISOString()
+                    'connected_timestamp' => now()->toISOString(),
+                    'auto_set_primary' => $isPrimary // Track if auto-set as primary
                 ])
             ]);
 
             Log::info('✅ Session updated successfully', [
                 'session_id' => $sessionId,
                 'phone_number' => $phoneNumber,
-                'status' => 'connected'
+                'status' => 'connected',
+                'is_primary' => $isPrimary,
+                'auto_set_primary' => $isPrimary
             ]);
 
             // Broadcast status change event
@@ -223,13 +236,15 @@ class WebhookController extends Controller
                     'uuid' => $session->uuid,
                     'phone_number' => $phoneNumber,
                     'formatted_phone_number' => $session->formatted_phone_number,
+                    'is_primary' => $session->is_primary,
                     'timestamp' => now()->toISOString()
                 ]
             ));
 
             Log::info('📤 Status change event broadcasted', [
                 'session_id' => $sessionId,
-                'phone_number' => $phoneNumber
+                'phone_number' => $phoneNumber,
+                'is_primary' => $session->is_primary
             ]);
 
         } catch (\Exception $e) {
