@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Integration;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use App\Helpers\CustomHelper;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
@@ -23,10 +25,17 @@ class PayStackService
 
     public function __construct()
     {
-        $paystackInfo = DB::table('integrations')->where('name', 'PayStack')->first();
-        $this->config = unserialize($paystackInfo->data);
+        $workspaceId = session('current_workspace');
+        $paystackInfo = Integration::getActive($workspaceId, 'PayStack');
+        
+        if (!$paystackInfo) {
+            Log::warning('PayStack integration not found for workspace', ['workspace_id' => $workspaceId]);
+            return;
+        }
+        
+        $this->config = $paystackInfo->credentials;
         $this->baseUri = 'https://api.paystack.co';
-        $this->secretKey = $this->config['secret_key'];
+        $this->secretKey = $this->config['secret_key'] ?? null;
     }
 
     public function makeRequest($method, $url, $body)

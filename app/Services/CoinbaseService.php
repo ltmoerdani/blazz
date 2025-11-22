@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Integration;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use App\Helpers\CustomHelper;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
@@ -23,10 +25,17 @@ class CoinbaseService
 
     public function __construct()
     {
-        $coinbaseInfo = DB::table('integrations')->where('name', 'Coinbase')->first();
-        $this->config = unserialize($coinbaseInfo->data);
+        $workspaceId = session('current_workspace');
+        $coinbaseInfo = Integration::getActive($workspaceId, 'Coinbase');
+        
+        if (!$coinbaseInfo) {
+            Log::warning('Coinbase integration not found for workspace', ['workspace_id' => $workspaceId]);
+            return;
+        }
+        
+        $this->config = $coinbaseInfo->credentials;
         $this->baseUri = 'https://api.commerce.coinbase.com';
-        $this->secretKey = $this->config['api_key'];
+        $this->secretKey = $this->config['api_key'] ?? null;
     }
 
     public function makeRequest($method, $url, $body)

@@ -35,6 +35,22 @@ class SecurityIncident extends Model
     }
 
     /**
+     * Scope for workspace-specific incidents (optional workspace_id after migration)
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
+
+    /**
+     * Scope for system-wide incidents (no workspace)
+     */
+    public function scopeSystemWide($query)
+    {
+        return $query->whereNull('workspace_id');
+    }
+
+    /**
      * Scope for unresolved incidents
      */
     public function scopeUnresolved($query)

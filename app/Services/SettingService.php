@@ -17,7 +17,7 @@ class SettingService
     /**
      * Update the settings based on the request data.
      *
-     * @param array $request The data from the request.
+     * @param Request $request The data from the request.
      * @return bool Indicates whether the operation was successful.
      */
     public function updateSettings(Request $request)
@@ -31,7 +31,7 @@ class SettingService
     /**
      * Update individual setting entries based on the request data.
      *
-     * @param array $request The data from the request.
+     * @param Request $request The data from the request.
      * @return void
      */
     private function updateSettingEntries(Request $request)
@@ -47,12 +47,10 @@ class SettingService
                         }
 
                         try {
-                            DB::table('settings')
-                                ->updateOrInsert([
-                                    'key' => $key
-                                ], [
-                                    'value' =>$filePath,
-                                ]);
+                            Setting::updateOrCreate(
+                                ['key' => $key],
+                                ['value' => $filePath]
+                            );
                         } catch (\Exception $e) {
                             Log::error($e->getMessage());
                         }
@@ -80,12 +78,10 @@ class SettingService
                     $trial_limits = $request->all()['trial_limits'];
 
                     try {
-                        DB::table('settings')
-                            ->updateOrInsert([
-                                'key' => 'trial_limits'
-                            ],[
-                                'value' => json_encode($trial_limits),
-                            ]);
+                        Setting::updateOrCreate(
+                            ['key' => 'trial_limits'],
+                            ['value' => json_encode($trial_limits)]
+                        );
                     } catch (\Exception $e) {
                         //dd($e->getMessage());
                         Log::error($e->getMessage());
@@ -111,12 +107,10 @@ class SettingService
 
                     $value = json_encode($value);
 
-                    DB::table('settings')
-                        ->updateOrInsert([
-                            'key' => $key
-                        ],[
-                            'value' => $value,
-                        ]);
+                    Setting::updateOrCreate(
+                        ['key' => $key],
+                        ['value' => $value]
+                    );
                 } else {
                     if($key == 'mail_config'){
                         if($value['driver'] == 'smtp'){
@@ -167,33 +161,33 @@ class SettingService
 
                         $value = json_encode($value);
 
-                        DB::table('settings')
-                            ->updateOrInsert([
-                                'key' => $key
-                            ],[
-                                'value' => $value,
-                            ]);
+                        Setting::updateOrCreate(
+                            ['key' => $key],
+                            ['value' => $value]
+                        );
                     } else if($key == 'is_tax_inclusive'){
                         try {
-                            DB::table('settings')->updateOrInsert(['key' => $key],['value' => $value,]);
+                            Setting::updateOrCreate(
+                                ['key' => $key],
+                                ['value' => $value]
+                            );
                         } catch (\Exception $e) {
                             Log::error($e->getMessage());
                         }
 
                         $stripe = PaymentGateway::where('name', 'Stripe')->first();
 
-                        if($stripe->is_active == '1'){
-                            (new StripeService)->updateProductPrices();
+                        if($stripe && $stripe->is_active == '1'){
+                            $subscriptionService = app(\App\Services\SubscriptionService::class);
+                            (new StripeService($subscriptionService))->updateProductPrices();
                         }
                     } else {
                         if($key != 'logo' && $key != 'favicon'){
                             try {
-                                DB::table('settings')
-                                    ->updateOrInsert([
-                                        'key' => $key
-                                    ],[
-                                        'value' => $value,
-                                    ]);
+                                Setting::updateOrCreate(
+                                    ['key' => $key],
+                                    ['value' => $value]
+                                );
                             } catch (\Exception $e) {
                                 //dd($e->getMessage());
                                 Log::error($e->getMessage());
@@ -208,7 +202,7 @@ class SettingService
     /**
      * Update the 'socials' setting based on the request data.
      *
-     * @param array $request The data from the request.
+     * @param Request $request The data from the request.
      * @return void
      */
     private function updateSocials(Request $request)
@@ -216,12 +210,10 @@ class SettingService
         if (isset($request->all()['socials'])) {
             $socials = $request->all()['socials'];
             try {
-                DB::table('settings')
-                    ->updateOrInsert([
-                        'key' => 'socials'
-                    ],[
-                        'value' => json_encode($socials),
-                    ]);
+                Setting::updateOrCreate(
+                    ['key' => 'socials'],
+                    ['value' => json_encode($socials)]
+                );
             } catch (\Exception $e) {
                 //dd($e->getMessage());
                 Log::error($e->getMessage());
