@@ -67,6 +67,23 @@ class WhatsAppAccount extends Model
                 $model->uuid = Str::uuid()->toString();
             }
         });
+        
+        // ✅ PHASE 1: Auto-invalidate cache when instance URL changes
+        static::updated(function ($model) {
+            if ($model->isDirty('assigned_instance_url')) {
+                // Invalidate cache for this account
+                \Illuminate\Support\Facades\Cache::forget("whatsapp_instance:{$model->uuid}");
+                \Illuminate\Support\Facades\Cache::forget("whatsapp_instance:{$model->session_id}");
+                
+                \Illuminate\Support\Facades\Log::info('Cache invalidated due to instance URL change', [
+                    'account_id' => $model->id,
+                    'phone_number' => $model->phone_number,
+                    'session_id' => $model->session_id,
+                    'old_url' => $model->getOriginal('assigned_instance_url'),
+                    'new_url' => $model->assigned_instance_url,
+                ]);
+            }
+        });
     }
 
     /**
