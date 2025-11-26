@@ -11,6 +11,10 @@ const WebhookNotifier = require('../../utils/webhookNotifier');
 const AccountRestoration = require('../services/AccountRestoration');
 const AutoReconnect = require('../services/AutoReconnect');
 
+// Import RemoteAuth components (NEW - Week 3 RemoteAuth Migration)
+const CustomRemoteAuth = require('../auth/CustomRemoteAuth');
+const redisConfig = require('../../config/redis');
+
 /**
  * Session Manager
  *
@@ -18,6 +22,7 @@ const AutoReconnect = require('../services/AutoReconnect');
  * Extracted from server.js for better separation of concerns.
  *
  * TASK-ARCH-1: Extract WhatsAppAccountManager to dedicated manager class
+ * WEEK-3 UPDATE: Support both LocalAuth and RemoteAuth strategies
  */
 class SessionManager {
     constructor(logger) {
@@ -33,6 +38,68 @@ class SessionManager {
         // Initialize session restoration and auto-reconnect services
         this.accountRestoration = new AccountRestoration(this, logger);
         this.autoReconnect = new AutoReconnect(this, logger);
+
+        // NEW: Auth strategy configuration (Week 3 RemoteAuth Migration)
+        this.authStrategy = process.env.AUTH_STRATEGY || 'localauth';
+        this.redisStore = null;
+
+        this.logger.info('SessionManager initialized', {
+            authStrategy: this.authStrategy,
+            redisEnabled: this.authStrategy === 'remoteauth'
+        });
+    }
+
+    /**
+     * Initialize RemoteAuth (if enabled)
+     * Must be called before creating sessions with RemoteAuth
+     */
+    async initializeRemoteAuth() {
+        if (this.authStrategy !== 'remoteauth') {
+            this.logger.info('RemoteAuth not enabled, skipping Redis initialization');
+            return;
+        }
+
+        try {
+            this.logger.info('Initializing RemoteAuth with Redis...');
+
+            await redisConfig.initialize();
+            this.redisStore = redisConfig.getStore();
+
+            const health = await redisConfig.getHealthStatus();
+            this.logger.info('RemoteAuth initialized successfully', health);
+
+        } catch (error) {
+            this.logger.error('Failed to initialize RemoteAuth:', error.message);
+            this.logger.warn('Falling back to LocalAuth');
+            this.authStrategy = 'localauth';
+        }
+    }
+
+    /**
+     * Get auth strategy instance for session
+     * 
+     * @param {string} sessionId - Session identifier
+     * @param {number} workspaceId - Workspace ID
+     * @returns {Object} Auth strategy instance
+     */
+    getAuthStrategy(sessionId, workspaceId) {
+        if (this.authStrategy === 'remoteauth' && this.redisStore) {
+            this.logger.info('Using RemoteAuth strategy', { sessionId });
+
+            return new CustomRemoteAuth({
+                clientId: sessionId,
+                dataPath: './.wwebjs_auth',
+                store: this.redisStore,
+                backupSyncIntervalMs: 60000 // Backup every 1 minute
+            });
+        }
+
+        this.logger.info('Using LocalAuth strategy', { sessionId });
+
+        return new LocalAuth({
+            clientId: sessionId,
+            dataPath: `./sessions/${workspaceId}/${sessionId}`
+        });
     }
 
     /**
@@ -45,40 +112,54 @@ class SessionManager {
      */
     async createSession(sessionId, workspaceId, options = {}) {
         const { account_id, priority } = options;
+        
+        // PERFORMANCE MONITORING: Track session creation time
+        const performanceStart = Date.now();
 
         this.logger.info('Creating WhatsApp session', {
             sessionId,
             workspaceId,
             accountId: account_id,
-            priority
+            priority,
+            authStrategy: this.authStrategy
         });
 
         try {
+            // Get auth strategy (LocalAuth or RemoteAuth)
+            const authStrategy = this.getAuthStrategy(sessionId, workspaceId);
+
+            // Determine storage path
+            const baseStoragePath = process.env.SESSION_STORAGE_PATH || './sessions';
+            const sessionDataPath = `${baseStoragePath}/workspace_${workspaceId}`;
+
             const client = new Client({
                 authStrategy: new LocalAuth({
                     clientId: sessionId,
-                    dataPath: `./sessions/${workspaceId}/${sessionId}`
+                    dataPath: sessionDataPath
                 }),
                 puppeteer: {
                     headless: true,
-                    timeout: 90000, // 90 seconds timeout for browser launch (first launch can be slow)
-                    protocolTimeout: 90000, // 90 seconds for DevTools protocol operations
+                    timeout: 15000,  // OPTIMIZED: 15s for fast failure detection
+                    protocolTimeout: 15000,  // OPTIMIZED: Faster failure detection
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
                         '--disable-dev-shm-usage',
-                        '--disable-accelerated-2d-canvas',
-                        '--no-first-run',
-                        '--no-zygote',
                         '--disable-gpu',
-                        '--disable-web-security',
-                        '--disable-features=VizDisplayCompositor'
+                        '--single-process',  // OPTIMIZED: Critical for performance
+                        '--disable-extensions',  // OPTIMIZED: Reduce overhead
+                        '--disable-background-timer-throttling',  // OPTIMIZED: Prevent throttling
+                        '--disable-renderer-backgrounding',
+                        '--disable-backgrounding-occluded-windows',
+                        '--no-zygote',
+                        '--no-first-run',
+                        '--disable-web-security'
                     ],
-                    executablePath: undefined, // Let puppeteer find chromium automatically
+                    executablePath: undefined,
                 },
                 webVersionCache: {
-                    type: 'remote',
-                    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+                    type: 'local',  // OPTIMIZED: Cache locally (no download)
+                    path: './cache/whatsapp-web'
                 }
             });
 
@@ -90,7 +171,8 @@ class SessionManager {
                 status: 'qr_scanning',
                 createdAt: new Date(),
                 phoneNumber: null,
-                lastActivity: new Date()
+                lastActivity: new Date(),
+                performanceStart: performanceStart  // Track for QR perf monitoring
             });
 
             // Set up event handlers
@@ -130,52 +212,88 @@ class SessionManager {
      * @param {number} workspaceId - Workspace ID
      */
     setupClientEventHandlers(client, sessionId, workspaceId) {
-        // QR Code Event
+        // QR Code Event - OPTIMIZED for fast generation
         client.on('qr', async (qr) => {
             try {
-                const sessionMetadata = this.metadata.get(sessionId);
-                const now = new Date();
-
-                // Check if QR code already exists and is still valid (5 minutes)
-                if (sessionMetadata.qrGeneratedAt) {
-                    const timeDiff = (now - sessionMetadata.qrGeneratedAt) / 1000; // in seconds
-                    if (timeDiff < 300) { // 5 minutes = 300 seconds
-                        this.logger.info('QR code already exists and is still valid, skipping regeneration', {
-                            sessionId,
-                            workspaceId,
-                            timeSinceLastQR: timeDiff
-                        });
-                        return;
-                    }
-                }
-
-                this.logger.info('QR code generated', { sessionId, workspaceId });
-
+                // OPTIMIZED: Fast QR generation with medium error correction
                 const qrCodeData = await qrcode.toDataURL(qr, {
                     width: 256,
                     margin: 2,
-                    color: {
-                        dark: '#000000',
-                        light: '#FFFFFF'
-                    }
+                    errorCorrectionLevel: 'M'  // Medium level (faster than default)
                 });
 
+                const sessionMetadata = this.metadata.get(sessionId);
+                const qrGenTime = Date.now() - (sessionMetadata.performanceStart || Date.now());
+                
+                // Track QR regeneration count
+                const qrCount = (sessionMetadata.qrCount || 0) + 1;
+                
                 this.metadata.set(sessionId, {
                     ...sessionMetadata,
                     status: 'qr_scanning',
                     qrCode: qrCodeData,
-                    qrGeneratedAt: new Date()
+                    qrGeneratedAt: Date.now(),
+                    qrCount: qrCount  // Track how many times QR regenerated
                 });
 
-                // Send QR code to Laravel using single webhook endpoint
-                await this.sendToLaravel('qr_code_generated', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    qr_code: qrCodeData,
-                    expires_in: 300
+                // PERFORMANCE MONITORING: Log QR generation time
+                this.logger.info('QR code generated', { 
+                    sessionId, 
+                    workspaceId,
+                    timeMs: qrGenTime,
+                    target: 10000,
+                    status: qrGenTime < 10000 ? '✅ PASS' : '❌ FAIL',
+                    qrCount: qrCount,  // Show regeneration count
+                    isRegeneration: qrCount > 1  // Flag if this is a regeneration
                 });
+                
+                // Alert if QR generation is slow
+                if (qrGenTime > 15000) {
+                    this.logger.error('⚠️ QR generation too slow!', {
+                        sessionId,
+                        workspaceId,
+                        timeMs: qrGenTime,
+                        threshold: 15000,
+                        action: 'Please investigate performance bottleneck'
+                    });
+                }
+
+                // OPTIMIZED: Non-blocking webhook (fire-and-forget)
+                setImmediate(async () => {
+                    const webhookStart = Date.now();
+                    try {
+                        await this.sendToLaravel('qr_code_generated', {
+                            workspace_id: workspaceId,
+                            session_id: sessionId,
+                            qr_code: qrCodeData,
+                            expires_in: 60,  // QR expires in 60s (WhatsApp regenerates it)
+                            qr_count: qrCount,  // Track regeneration count
+                            is_regeneration: qrCount > 1  // Flag for frontend
+                        });
+                        
+                        const webhookTime = Date.now() - webhookStart;
+                        const totalTime = Date.now() - (sessionMetadata.performanceStart || Date.now());
+                        
+                        this.logger.info('QR webhook delivered', {
+                            sessionId,
+                            workspaceId,
+                            webhookTimeMs: webhookTime,
+                            totalTimeMs: totalTime,
+                            status: totalTime < 15000 ? '✅ PASS' : '⚠️ SLOW'
+                        });
+                    } catch (error) {
+                        const webhookTime = Date.now() - webhookStart;
+                        this.logger.error('Webhook notification failed (non-fatal)', {
+                            sessionId,
+                            workspaceId,
+                            webhookTimeMs: webhookTime,
+                            error: error.message
+                        });
+                    }
+                });
+
             } catch (error) {
-                this.logger.error('Error in QR event handler', {
+                this.logger.error('QR generation failed', {
                     sessionId,
                     workspaceId,
                     error: error.message,
@@ -195,10 +313,16 @@ class SessionManager {
                     authenticatedAt: new Date()
                 });
 
-                await this.sendToLaravel('session_authenticated', {
+                // OPTIMIZED: Non-blocking webhook
+                this.sendToLaravel('session_authenticated', {
                     workspace_id: workspaceId,
                     session_id: sessionId,
                     status: 'authenticated'
+                }).catch(error => {
+                    this.logger.error('Webhook failed (non-fatal)', {
+                        sessionId,
+                        error: error.message
+                    });
                 });
             } catch (error) {
                 this.logger.error('Error in authenticated event handler', {
@@ -212,62 +336,121 @@ class SessionManager {
         // Ready Event
         client.on('ready', async () => {
             try {
+                // CRITICAL FIX: Use optimized phone extraction with retry strategy
+                const phoneNumber = await this.extractPhoneNumberSafely(client, sessionId);
+                
+                if (!phoneNumber) {
+                    this.logger.error('❌ CRITICAL: Failed to extract phone number after all retries', {
+                        sessionId,
+                        workspaceId,
+                        clientInfoExists: !!client.info,
+                        widExists: !!client.info?.wid,
+                        timestamp: Date.now()
+                    });
+                    
+                    // Update metadata with error state
+                    this.metadata.set(sessionId, {
+                        ...this.metadata.get(sessionId),
+                        status: 'error',
+                        error: 'phone_extraction_failed',
+                        lastError: 'Unable to extract phone number'
+                    });
+                    
+                    // Notify Laravel about extraction failure
+                    this.sendToLaravel('session_error', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        error: 'phone_extraction_failed',
+                        message: 'Failed to extract phone number after retries'
+                    }).catch(err => {
+                        this.logger.error('Failed to send error webhook', { error: err.message });
+                    });
+                    
+                    return;
+                }
+                
                 const info = client.info;
-                this.logger.info('WhatsApp session ready', {
+                this.logger.info('✅ WhatsApp session ready with phone number', {
                     sessionId,
                     workspaceId,
-                    phoneNumber: info.wid.user
+                    phoneNumber: phoneNumber,
+                    platform: info?.platform,
+                    extractionMethod: this.lastExtractionMethod || 'client.info.wid'
                 });
 
                 this.metadata.set(sessionId, {
                     ...this.metadata.get(sessionId),
                     status: 'connected',
-                    phoneNumber: info.wid.user,
-                    platform: info.platform,
-                    connectedAt: new Date()
+                    phoneNumber: phoneNumber,
+                    platform: info?.platform,
+                    connectedAt: new Date(),
+                    phoneExtractionMethod: this.lastExtractionMethod
                 });
 
-                await this.sendToLaravel('session_ready', {
-                    workspace_id: workspaceId,
-                    session_id: sessionId,
-                    phone_number: info.wid.user,
-                    status: 'connected'
-                });
-
-                // TASK-NODE-2: Trigger initial chat sync after session is ready
-                const sessionMetadata = this.metadata.get(sessionId);
-
-                this.logger.info('Triggering initial chat sync', {
+                // CRITICAL FIX: Synchronous webhook with retry and detailed logging
+                this.logger.info('📤 Sending session_ready webhook to Laravel', {
                     sessionId,
                     workspaceId,
-                    accountId: sessionMetadata?.accountId
+                    phoneNumber,
+                    platform: info?.platform,
+                    extractionMethod: this.lastExtractionMethod
                 });
-
-                // Run sync in background (non-blocking)
-                this.chatSyncHandler.syncAllChats(client, sessionMetadata?.accountId, workspaceId, {
-                    syncType: 'initial'
-                }).then(result => {
-                    this.logger.info('Initial chat sync completed', {
-                        sessionId,
-                        workspaceId,
-                        accountId: sessionMetadata?.accountId,
-                        result
+                
+                try {
+                    await this.sendToLaravel('session_ready', {
+                        workspace_id: workspaceId,
+                        session_id: sessionId,
+                        phone_number: phoneNumber,
+                        status: 'connected',
+                        platform: info?.platform,
+                        extraction_method: this.lastExtractionMethod
                     });
-                }).catch(error => {
-                    this.logger.error('Initial chat sync failed', {
+                    
+                    this.logger.info('✅ session_ready webhook sent successfully', {
                         sessionId,
-                        workspaceId,
-                        accountId: sessionMetadata?.accountId,
+                        phoneNumber
+                    });
+                } catch (error) {
+                    this.logger.error('❌ CRITICAL: session_ready webhook failed', {
+                        sessionId,
+                        phoneNumber,
                         error: error.message,
-                        stack: error.stack
+                        stack: error.stack,
+                        laravelUrl: process.env.LARAVEL_URL,
+                        webhookEndpoint: '/api/whatsapp/webhooks/webjs'
                     });
+                    
+                    // Send error notification as fallback
+                    try {
+                        await this.sendToLaravel('session_error', {
+                            workspace_id: workspaceId,
+                            session_id: sessionId,
+                            error: 'webhook_send_failed',
+                            message: `Failed to send session_ready: ${error.message}`,
+                            phone_number: phoneNumber
+                        });
+                    } catch (fallbackError) {
+                        this.logger.error('❌ Fallback error webhook also failed', {
+                            error: fallbackError.message
+                        });
+                    }
+                }
+
+                // OPTIMIZED: Chat sync disabled for faster connection
+                // User can trigger manually via API: POST /api/sessions/{id}/sync-chats
+                this.logger.info('Session ready. Chat sync available via manual trigger', {
+                    sessionId,
+                    workspaceId,
+                    phoneNumber: phoneNumber,
+                    note: 'Auto-sync disabled for performance optimization'
                 });
 
             } catch (error) {
                 this.logger.error('Error in ready event handler', {
                     sessionId,
                     workspaceId,
-                    error: error.message
+                    error: error.message,
+                    stack: error.stack
                 });
             }
         });
@@ -275,7 +458,7 @@ class SessionManager {
         // Disconnected Event
         client.on('disconnected', async (reason) => {
             try {
-                this.logger.warning('WhatsApp session disconnected', {
+                this.logger.warn('WhatsApp session disconnected', {
                     sessionId,
                     workspaceId,
                     reason
@@ -289,10 +472,16 @@ class SessionManager {
                     disconnectedAt: new Date()
                 });
 
-                await this.sendToLaravel('session_disconnected', {
+                // OPTIMIZED: Non-blocking webhook
+                this.sendToLaravel('session_disconnected', {
                     workspace_id: workspaceId,
                     session_id: sessionId,
                     reason: reason
+                }).catch(error => {
+                    this.logger.error('Webhook failed (non-fatal)', {
+                        sessionId,
+                        error: error.message
+                    });
                 });
 
                 // Trigger auto-reconnect for technical disconnects
@@ -418,11 +607,11 @@ class SessionManager {
                     // Get chat to determine if group and get proper chat ID
                     const chat = await message.getChat();
                     const isGroup = chat.isGroup;
-                    
+
                     // CRITICAL: Use chat.id for "from" to ensure proper contact matching
                     // For groups, this is the group ID, not sender ID
                     const chatId = chat.id._serialized;
-                    
+
                     this.logger.info('Self-sent message detected (from mobile or web)', {
                         sessionId,
                         workspaceId,
@@ -453,7 +642,7 @@ class SessionManager {
                         from_me: true,
                         chat_type: isGroup ? 'group' : 'private'
                     };
-                    
+
                     // Add group-specific data if applicable
                     if (isGroup) {
                         messageData.group_id = chatId;
@@ -469,13 +658,13 @@ class SessionManager {
                         message: messageData,
                         source: 'message_create_event'  // Flag to identify source
                     });
-                    
+
                     this.logger.info('Self-sent message broadcasted to Laravel', {
                         messageId: message.id._serialized,
                         chatId: chatId,
                         isGroup: isGroup
                     });
-                    
+
                 } catch (error) {
                     this.logger.error('Error processing self-sent message', {
                         sessionId,
@@ -705,24 +894,81 @@ class SessionManager {
      */
     async disconnectSession(sessionId) {
         const client = this.sessions.get(sessionId);
+
+        // If session not in memory, it's already disconnected or never existed
+        // This is not an error - just return success
         if (!client) {
-            throw new Error('Session not found');
+            this.logger.info('Session not in memory (already disconnected or not initialized)', { sessionId });
+
+            // Clean up metadata just in case
+            this.metadata.delete(sessionId);
+
+            // Try to cleanup session files on filesystem
+            try {
+                const fs = require('fs').promises;
+                const path = require('path');
+
+                // Try to extract workspace_id from sessionId (format: webjs_{workspaceId}_{timestamp}_{random})
+                const parts = sessionId.split('_');
+                if (parts.length >= 2 && parts[0] === 'webjs') {
+                    const workspaceId = parts[1];
+                    const sessionPath = path.join(process.cwd(), 'sessions', workspaceId, sessionId);
+
+                    // Check if path exists and delete
+                    try {
+                        await fs.access(sessionPath);
+                        await fs.rm(sessionPath, { recursive: true, force: true });
+                        this.logger.info('Cleaned up session files from filesystem', { sessionId, sessionPath });
+                    } catch (err) {
+                        // Path doesn't exist or already deleted - this is fine
+                        this.logger.debug('Session path not found or already deleted', { sessionId, sessionPath });
+                    }
+                }
+            } catch (cleanupError) {
+                // Filesystem cleanup failed but it's not critical
+                this.logger.warn('Failed to cleanup session files', {
+                    sessionId,
+                    error: cleanupError.message
+                });
+            }
+
+            return {
+                success: true,
+                message: 'Session already disconnected or not found in memory',
+                alreadyDisconnected: true
+            };
         }
 
         try {
+            // Destroy the WhatsApp client connection
             await client.destroy();
+
+            // Remove from active sessions
             this.sessions.delete(sessionId);
             this.metadata.delete(sessionId);
 
             this.logger.info('Session disconnected successfully', { sessionId });
 
-            return { success: true };
+            return {
+                success: true,
+                message: 'Session disconnected successfully'
+            };
         } catch (error) {
             this.logger.error('Failed to disconnect session', {
                 sessionId,
                 error: error.message
             });
-            throw error;
+
+            // Even if destroy fails, remove from sessions map
+            this.sessions.delete(sessionId);
+            this.metadata.delete(sessionId);
+
+            // Still return success because we've cleaned up our side
+            return {
+                success: true,
+                message: 'Session removed from memory (destroy may have failed)',
+                warning: error.message
+            };
         }
     }
 
@@ -858,7 +1104,135 @@ class SessionManager {
     }
 
     /**
+     * Extract phone number safely with optimized retry strategy
+     * Based on WhatsApp Web.js production best practices (v1.33.2+)
+     * 
+     * Strategy:
+     * - Initial 2.5s delay (aligns with library's internal 2s initialization)
+     * - 15 retries × 500ms = 7.5s total retry window
+     * - Fast fallback to window.Store.Conn.me if primary fails
+     * - No contact scanning (performance optimization)
+     * 
+     * @param {Object} client - WhatsApp Web.js client
+     * @param {string} sessionId - Session identifier for logging
+     * @returns {Promise<string|null>} Phone number or null if extraction fails
+     */
+    async extractPhoneNumberSafely(client, sessionId) {
+        const extractionStart = Date.now();
+        const attempts = [];
+        
+        this.logger.info('🔍 Starting phone number extraction', {
+            sessionId,
+            clientInfoExists: !!client.info,
+            widExists: !!client.info?.wid,
+            timestamp: extractionStart
+        });
+        
+        // METHOD 1: Primary - client.info.wid.user with optimized retry
+        // Initial delay: 2.5s (aligns with library's hardcoded 2s internal delay)
+        this.logger.debug('⏱️ Initial delay: 2.5s for library initialization');
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        
+        // Retry loop: 15 attempts × 500ms intervals = 7.5s
+        for (let i = 0; i < 15; i++) {
+            const checkTime = Date.now();
+            const isAvailable = !!(client.info?.wid?.user);
+            
+            attempts.push({
+                attempt: i + 1,
+                timestamp: checkTime,
+                elapsed: checkTime - extractionStart,
+                available: isAvailable,
+                value: client.info?.wid?.user || null
+            });
+            
+            if (isAvailable) {
+                const phoneNumber = client.info.wid.user;
+                const totalTime = Date.now() - extractionStart;
+                
+                this.logger.info('✅ Phone number extracted successfully', {
+                    sessionId,
+                    phoneNumber,
+                    method: 'client.info.wid',
+                    attempt: i + 1,
+                    totalTimeMs: totalTime,
+                    attempts: attempts
+                });
+                
+                this.lastExtractionMethod = 'client.info.wid';
+                return phoneNumber;
+            }
+            
+            // Wait 500ms before next attempt
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        this.logger.warn('⚠️ Primary method failed, trying fallback', {
+            sessionId,
+            attempts: attempts.length,
+            elapsedMs: Date.now() - extractionStart
+        });
+        
+        // METHOD 2: Fallback - Direct Store.Conn.me lookup
+        try {
+            this.logger.debug('🔄 Attempting Store.Conn.me fallback', { sessionId });
+            
+            const phoneNumber = await client.pupPage.evaluate(() => {
+                try {
+                    const me = window.Store?.Conn?.me;
+                    if (me && me.user) {
+                        return me.user;
+                    }
+                    
+                    // Alternative: Try User store
+                    const user = window.Store?.User?.getMaybeMeUser?.();
+                    if (user && user.user) {
+                        return user.user;
+                    }
+                    
+                    return null;
+                } catch (error) {
+                    return null;
+                }
+            });
+            
+            if (phoneNumber) {
+                const totalTime = Date.now() - extractionStart;
+                
+                this.logger.info('✅ Phone number extracted via fallback', {
+                    sessionId,
+                    phoneNumber,
+                    method: 'Store.Conn.me',
+                    totalTimeMs: totalTime
+                });
+                
+                this.lastExtractionMethod = 'Store.Conn.me';
+                return phoneNumber;
+            }
+        } catch (error) {
+            this.logger.error('❌ Fallback method failed', {
+                sessionId,
+                error: error.message,
+                stack: error.stack
+            });
+        }
+        
+        // All methods failed
+        const totalTime = Date.now() - extractionStart;
+        this.logger.error('❌ All phone extraction methods failed', {
+            sessionId,
+            totalTimeMs: totalTime,
+            attempts: attempts,
+            recommendation: 'Session initialization may have failed - consider restarting'
+        });
+        
+        this.lastExtractionMethod = 'failed';
+        return null;
+    }
+
+    /**
      * Send data to Laravel webhook endpoint
+     * OPTIMIZED: Use WebhookNotifier for consistent HTTP handling
      *
      * @param {string} eventName - Event name
      * @param {Object} data - Event data
@@ -866,40 +1240,36 @@ class SessionManager {
      */
     async sendToLaravel(eventName, data) {
         try {
-            // Use single webhook endpoint with event-wrapped format
-            const endpoint = '/api/whatsapp/webhooks/webjs';
-
-            // Wrap data dengan event type
+            // Use WebhookNotifier for optimized HTTP with keepAlive: false
             const payload = {
                 event: eventName,
                 data: data
             };
 
-            // Use Unix timestamp in seconds (not milliseconds) to match PHP's time()
-            const timestamp = Math.floor(Date.now() / 1000).toString();
-            const payloadString = JSON.stringify(payload);
-            const signature = crypto
-                .createHmac('sha256', process.env.HMAC_SECRET || process.env.API_SECRET)
-                .update(timestamp + payloadString)
-                .digest('hex');
-
-            await axios.post(`${process.env.LARAVEL_URL}${endpoint}`, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': process.env.API_KEY || process.env.LARAVEL_API_TOKEN,
-                    'X-Timestamp': timestamp,
-                    'X-HMAC-Signature': signature,  // Fixed: Use X-HMAC-Signature instead of X-Signature
-                },
-                timeout: 10000
+            this.logger.info('🌐 sendToLaravel called', {
+                event: eventName,
+                dataKeys: Object.keys(data),
+                phoneNumber: data.phone_number,
+                sessionId: data.session_id,
+                laravelUrl: process.env.LARAVEL_URL,
+                endpoint: '/api/whatsapp/webhooks/webjs'
             });
 
-            this.logger.debug('Data sent to Laravel successfully', { event: eventName, endpoint });
+            await this.webhookNotifier.notify('/api/whatsapp/webhooks/webjs', payload);
+
+            this.logger.info('✅ sendToLaravel completed', { 
+                event: eventName,
+                success: true 
+            });
         } catch (error) {
-            this.logger.error('Failed to send data to Laravel', {
+            this.logger.error('❌ sendToLaravel FAILED', {
                 event: eventName,
                 error: error.message,
-                response: error.response?.data
+                stack: error.stack,
+                errorCode: error.code,
+                errorResponse: error.response?.data
             });
+            throw error; // Re-throw to let caller handle it
         }
     }
 

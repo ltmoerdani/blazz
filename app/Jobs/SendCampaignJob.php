@@ -26,6 +26,11 @@ class SendCampaignJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, TemplateTrait, SerializesModels;
 
+    public $timeout = 3600; // 1 hour
+    public $tries = 3;
+    public $backoff = [60, 180, 600]; // Progressive backoff: 1m, 3m, 10m
+    public $retryAfter = 60; // Rate limiting
+
     private $workspaceId;
     private MessageService $messageService;
     private ProviderSelectionService $providerService;
@@ -35,12 +40,23 @@ class SendCampaignJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        private Campaign $campaign,
-        ?MessageService $messageService = null,
+        private Campaign|int $campaign,
         ?ProviderSelectionService $providerService = null
     ) {
-        $this->messageService = $messageService ?? app(MessageService::class);
         $this->providerService = $providerService ?? app(ProviderSelectionService::class);
+        $this->onQueue('whatsapp-campaign');
+    }
+
+    /**
+     * Handle failed job
+     */
+    public function failed(\Throwable $exception)
+    {
+        Log::error('SendCampaignJob failed permanently', [
+            'job' => self::class,
+            'campaign_id' => $this->campaign instanceof Campaign ? $this->campaign->id : $this->campaign,
+            'error' => $exception->getMessage()
+        ]);
     }
 
     /**
@@ -49,15 +65,44 @@ class SendCampaignJob implements ShouldQueue
     public function handle(): void
     {
         try {
+            Log::info('SendCampaignJob started', [
+                'campaign_input' => is_int($this->campaign) ? "ID: {$this->campaign}" : "Object: {$this->campaign->id}",
+                'queue' => $this->queue
+            ]);
+
+            // Resolve campaign if passed as ID
+            if (is_int($this->campaign)) {
+                $this->campaign = Campaign::find($this->campaign);
+                
+                if (!$this->campaign) {
+                    Log::error('Campaign not found', ['campaign_id' => $this->campaign]);
+                    return;
+                }
+            }
+
+            Log::info('Campaign resolved', [
+                'campaign_id' => $this->campaign->id,
+                'campaign_uuid' => $this->campaign->uuid,
+                'status' => $this->campaign->status,
+                'campaign_type' => $this->campaign->campaign_type
+            ]);
+
             // Handle both single campaign and batch processing
             if (isset($this->campaign)) {
                 $this->processSingleCampaign($this->campaign);
             } else {
                 $this->processBatchCampaigns();
             }
+
+            Log::info('SendCampaignJob completed', [
+                'campaign_id' => $this->campaign->id
+            ]);
         } catch (\Exception $e) {
             Log::error('Error in campaign job: ' . $e->getMessage(), [
                 'campaign_id' => $this->campaign?->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
 
@@ -137,6 +182,15 @@ class SendCampaignJob implements ShouldQueue
     protected function processCampaign(Campaign $campaign)
     {
         try {
+            Log::info('Processing campaign', [
+                'campaign_id' => $campaign->id,
+                'status' => $campaign->status,
+                'workspace_id' => $campaign->workspace_id
+            ]);
+
+            // Initialize MessageService with campaign's workspace ID
+            $this->messageService = new MessageService($campaign->workspace_id);
+
             // Select the best WhatsApp session for this campaign
             $this->selectedAccount = $this->providerService->selectBestAccount($campaign);
 
@@ -151,21 +205,38 @@ class SendCampaignJob implements ShouldQueue
                 return;
             }
 
+            Log::info('WhatsApp session selected', [
+                'campaign_id' => $campaign->id,
+                'session_id' => $this->selectedAccount->id,
+                'session_phone' => $this->selectedAccount->phone_number,
+                'provider_type' => $this->selectedAccount->provider_type
+            ]);
+
             // Update campaign with selected session
             $campaign->update([
                 'whatsapp_account_id' => $this->selectedAccount->id
             ]);
 
             if ($campaign->status === 'scheduled') {
+                Log::info('Campaign is scheduled, creating logs', ['campaign_id' => $campaign->id]);
                 $this->processPendingCampaign($campaign);
             } elseif ($campaign->status === 'ongoing') {
+                Log::info('Campaign is ongoing, sending messages', ['campaign_id' => $campaign->id]);
                 $this->sendOngoingCampaignMessages($campaign);
+            } else {
+                Log::warning('Campaign has unexpected status', [
+                    'campaign_id' => $campaign->id,
+                    'status' => $campaign->status
+                ]);
             }
 
         } catch (\Exception $e) {
             Log::error('Failed to process campaign: ' . $e->getMessage(), [
                 'campaign_id' => $campaign->id,
                 'session_id' => $this->selectedAccount?->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
 
@@ -177,9 +248,34 @@ class SendCampaignJob implements ShouldQueue
     {
         $contacts = $this->getContactsForCampaign($campaign);
 
-        if($this->createCampaignLogs($campaign, $contacts) && $this->updateCampaignStatus($campaign, 'ongoing')){
+        // Create campaign logs for new contacts (if any)
+        $newLogsCreated = $this->createCampaignLogs($campaign, $contacts);
+        
+        Log::info('Campaign logs check', [
+            'campaign_id' => $campaign->id,
+            'new_logs_created' => $newLogsCreated,
+            'total_contacts' => $contacts->count()
+        ]);
+
+        // Check if there are any logs (new or existing)
+        $hasLogs = CampaignLog::where('campaign_id', $campaign->id)->exists();
+        
+        if ($hasLogs) {
+            // Update campaign status to ongoing
+            $this->updateCampaignStatus($campaign, 'ongoing');
+            
+            // Reload campaign with fresh data
             $campaign = Campaign::find($campaign->id);
+            
+            // Process the campaign to send messages
             $this->processCampaign($campaign);
+        } else {
+            Log::warning('No contacts found for campaign', [
+                'campaign_id' => $campaign->id,
+                'contact_group_id' => $campaign->contact_group_id
+            ]);
+            
+            $campaign->markAsFailed('No contacts found for campaign');
         }
     }
 
@@ -487,6 +583,7 @@ class SendCampaignJob implements ShouldQueue
 
                     // NEW: Use injected service
                     $this->workspaceId = $campaignLog->campaign->workspace_id;
+                    $this->messageService = new MessageService($this->workspaceId);
                     $template = $this->buildTemplateRequest($campaignLog->campaign_id, $campaignLog->contact);
                     $responseObject = $this->messageService->sendTemplateMessage($campaignLog->contact->uuid, $template, $campaign_user_id, $campaignLog->campaign_id);
                     $successStatus = ($responseObject->success === true) ? 'success' : 'failed';

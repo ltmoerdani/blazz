@@ -37,7 +37,7 @@ class SettingController extends BaseController
 
     public function index(Request $request, $display = null){
         if ($request->isMethod('get')) {
-            $workspaceId = session()->get('current_workspace');
+            $workspaceId = $this->getWorkspaceId();
             $data['title'] = __('Settings');
             $data['settings'] = workspace::where('id', $workspaceId)->first();
             $data['timezones'] = config('formats.timezones');
@@ -53,15 +53,15 @@ class SettingController extends BaseController
 
     public function mobileView(Request $request){
         $data['title'] = __('Settings');
-        $data['settings'] = workspace::where('id', session()->get('current_workspace'))->first();
+        $data['settings'] = workspace::where('id', $this->getWorkspaceId())->first();
         return Inertia::render('User/Settings/Main', $data);
     }
 
     public function viewGeneralSettings(Request $request){
         $contactModel = new Contact;
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $data['title'] = __('Settings');
-        $data['settings'] = workspace::where('id', session()->get('current_workspace'))->first();
+        $data['settings'] = workspace::where('id', $this->getWorkspaceId())->first();
         $data['modules'] = Addon::get();
         $data['contactGroups'] = $contactModel->getAllContactGroups($workspaceId);
         
@@ -77,7 +77,7 @@ class SettingController extends BaseController
             'graphAPIVersion' => config('graph.api_version'),
             'appId' => $settings->get('whatsapp_client_id', null),
             'configId' => $settings->get('whatsapp_config_id', null),
-            'settings' => workspace::where('id', session()->get('current_workspace'))->first(),
+            'settings' => workspace::where('id', $this->getWorkspaceId())->first(),
             'modules' => Addon::get(),
             'title' => __('Settings'),
         ];
@@ -103,7 +103,7 @@ class SettingController extends BaseController
             return $response;
         }
         
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $config = workspace::findOrFail($workspaceId)->metadata;
         $config = $config ? json_decode($config, true) : [];
 
@@ -116,7 +116,7 @@ class SettingController extends BaseController
     }
     
     public function refreshWhatsappData() {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $config = workspace::findOrFail($workspaceId)->metadata;
         $config = $config ? json_decode($config, true) : [];
 
@@ -135,7 +135,7 @@ class SettingController extends BaseController
 
     public function contacts(Request $request){
         if ($request->isMethod('get')) {
-            $settings = workspace::where('id', session()->get('current_workspace'))->first();
+            $settings = workspace::where('id', $this->getWorkspaceId())->first();
 
             return Inertia::render('User/Settings/Contact', [
                 'title' => __('Settings'),
@@ -145,7 +145,7 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } elseif($request->isMethod('post')) {
-            $currentworkspaceId = session()->get('current_workspace');
+            $currentworkspaceId = $this->getWorkspaceId();
             $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
@@ -168,7 +168,7 @@ class SettingController extends BaseController
 
     public function tickets(Request $request){
         if ($request->isMethod('get')) {
-            $settings = workspace::where('id', session()->get('current_workspace'))->first();
+            $settings = workspace::where('id', $this->getWorkspaceId())->first();
 
             return Inertia::render('User/Settings/Ticket', [
                 'title' => __('Settings'),
@@ -178,7 +178,7 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } elseif($request->isMethod('post')) {
-            $currentworkspaceId = session()->get('current_workspace');
+            $currentworkspaceId = $this->getWorkspaceId();
             $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
@@ -197,7 +197,7 @@ class SettingController extends BaseController
 
     public function automation(Request $request){
         if ($request->isMethod('get')) {
-            $settings = workspace::where('id', session()->get('current_workspace'))->first();
+            $settings = workspace::where('id', $this->getWorkspaceId())->first();
 
             return Inertia::render('User/Settings/Automation', [
                 'title' => __('Settings'),
@@ -205,7 +205,7 @@ class SettingController extends BaseController
                 'modules' => Addon::get(),
             ]);
         } elseif($request->isMethod('post')) {
-            $currentworkspaceId = session()->get('current_workspace');
+            $currentworkspaceId = $this->getWorkspaceId();
             $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
     
             $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
@@ -222,7 +222,7 @@ class SettingController extends BaseController
             return $response;
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspace = workspace::where('id', $workspaceId)->first();
         $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
@@ -267,14 +267,14 @@ class SettingController extends BaseController
         }
 
         $embeddedSignupActive = Setting::where('key', 'is_embedded_signup_active')->value('value');
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspaceConfig = workspace::where('id', $workspaceId)->first();
         $config = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
 
         if(isset($config['whatsapp'])){
             if($embeddedSignupActive == 1){
                 //Unsubscribe webhook
-                $workspaceId = session()->get('current_workspace');
+                $workspaceId = $this->getWorkspaceId();
                 $apiVersion = config('graph.api_version');
 
                 $accessToken = $config['whatsapp']['access_token'] ?? null;
@@ -328,7 +328,7 @@ class SettingController extends BaseController
      * @return \Illuminate\Http\RedirectResponse
      */
     private function saveWhatsappSettings($accessToken, $appId, $phoneNumberId, $wabaId) {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $apiVersion = config('graph.api_version');
     
         // Use injected service
@@ -455,7 +455,7 @@ class SettingController extends BaseController
     }
 
     protected function abortIfDemo(){
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         if (app()->environment('demo') && $workspaceId == 1) {
             return back()->with(

@@ -10,6 +10,14 @@ use Illuminate\Support\Facades\Redirect;
 
 class ModuleService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Install addon - Disabled for security
      * External addon installation has been disabled for security reasons

@@ -1118,5 +1118,5 @@ app/Services/
 
 **Next Steps:**
 - 🚀 [04-feature-development-guide.md](./04-feature-development-guide.md) - Step-by-step new feature guide
-- 🎨 [05-service-pattern-guidelines.md](./05-service-pattern-guidelines.md) - Service layer best practices
-- 🔧 [06-model-treatment-guide.md](./06-model-treatment-guide.md) - Model design patterns
+- 🎨 [06-development-patterns-guidelines.md](./06-development-patterns-guidelines.md) - Service layer & development best practices
+- 🔧 [04-feature-development-guide.md](./04-feature-development-guide.md) - Feature development workflow

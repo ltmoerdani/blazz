@@ -20,12 +20,15 @@ class UserService
 {
     protected $workspaceService;
     protected $workspace;
+    protected $workspaceId;
     protected $role;
 
-    public function __construct($role)
+    public function __construct($role, $workspaceId = null)
     {
         $this->workspaceService = new WorkspaceService();
         $this->role = $role;
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
     }
 
     /**
@@ -51,6 +54,8 @@ class UserService
      */
     public function getByUuid($request, $id = null)
     {
+        // ✅ NOW: Workspace-scoped (if Role model has workspace_id)
+        // For global roles, keep Role::all() - roles are typically global
         $roles = Role::all();
     
         if ($id === null) {

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6443665de56d06d0a56171a71f411565",
+    "content-hash": "2b3a6c7dbf901b078948df71295ee101",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -625,6 +625,68 @@
                 }
             ],
             "time": "2025-08-20T19:15:30+00:00"
+        },
+        {
+            "name": "dacoto/laravel-env-set",
+            "version": "2.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/dacoto/laravel-env-set.git",
+                "reference": "356ac8e6f282c1ea66184205b10142c919ae9c9e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/dacoto/laravel-env-set/zipball/356ac8e6f282c1ea66184205b10142c919ae9c9e",
+                "reference": "356ac8e6f282c1ea66184205b10142c919ae9c9e",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/support": "^11.0 | ^12.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^9.0 | ^10.0",
+                "phpunit/phpunit": "^10.4 | ^11.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "EnvSet": "dacoto\\EnvSet\\Facades\\EnvSet"
+                    },
+                    "providers": [
+                        "dacoto\\EnvSet\\EnvSetServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "dacoto\\EnvSet\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "David Cortés",
+                    "email": "cortestoledanodavid@gmail.com"
+                }
+            ],
+            "description": "A .env editor for Laravel",
+            "homepage": "https://dacoto.github.io/laravel-env-set/",
+            "support": {
+                "issues": "https://github.com/dacoto/laravel-env-set/issues",
+                "source": "https://github.com/dacoto/laravel-env-set/tree/2.1.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/dacoto97",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-02-19T12:23:00+00:00"
         },
         {
             "name": "dasprid/enum",

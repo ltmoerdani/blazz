@@ -12,19 +12,7 @@ class WhatsAppGroup extends Model
 
     protected $table = 'whatsapp_groups';
 
-    protected $fillable = [
-        'uuid',
-        'workspace_id',
-        'whatsapp_account_id',
-        'group_jid',
-        'name',
-        'description',
-        'owner_phone',
-        'participants',
-        'invite_code',
-        'settings',
-        'group_created_at',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'participants' => 'array', // JSON cast untuk participants

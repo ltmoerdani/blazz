@@ -152,9 +152,29 @@ class CampaignService
 
                 $campaign = Campaign::create($campaignData);
 
+                // Log campaign creation
+                Log::info('Campaign created', [
+                    'campaign_id' => $campaign->id,
+                    'campaign_uuid' => $campaign->uuid,
+                    'campaign_type' => $campaign->campaign_type,
+                    'skip_schedule' => $request->skip_schedule ?? false,
+                    'status' => $campaign->status
+                ]);
+
                 // Dispatch job for immediate or scheduled processing
                 if ($request->skip_schedule || (!$request->scheduled_at || $request->scheduled_at->isPast())) {
-                    SendCampaignJob::dispatch($campaign->id);
+                    Log::info('Dispatching SendCampaignJob immediately', [
+                        'campaign_id' => $campaign->id,
+                        'reason' => $request->skip_schedule ? 'skip_schedule_enabled' : 'scheduled_time_passed'
+                    ]);
+                    
+                    SendCampaignJob::dispatch($campaign->id)
+                        ->onQueue('whatsapp-campaign');
+                } else {
+                    Log::info('Campaign scheduled for later processing', [
+                        'campaign_id' => $campaign->id,
+                        'scheduled_at' => $campaign->scheduled_at
+                    ]);
                 }
 
                 return $campaign;
@@ -223,6 +243,8 @@ class CampaignService
      */
     private function prepareDirectCampaignData(object $request, array $baseData): array
     {
+        $buttons = $request->buttons ?? [];
+        
         $campaignData = array_merge($baseData, [
             'template_id' => null, // Not required for direct campaigns
             'message_content' => $request->message_content ?? null,
@@ -231,7 +253,7 @@ class CampaignService
             'header_media' => $this->handleDirectMediaUpload($request) ?? null,
             'body_text' => $request->body_text,
             'footer_text' => $request->footer_text ?? null,
-            'buttons_data' => $this->parseButtonsData($request->buttons ?? []),
+            'buttons_data' => is_array($buttons) && count($buttons) > 0 ? $this->parseButtonsData($buttons) : null,
             'metadata' => $this->buildDirectMetadata($request)
         ]);
 
@@ -285,6 +307,8 @@ class CampaignService
      */
     private function buildDirectMetadata(object $request): string
     {
+        $buttons = $request->buttons ?? [];
+        
         $metadata = [
             'campaign_type' => 'direct',
             'header' => [
@@ -294,7 +318,7 @@ class CampaignService
             ],
             'body' => ['text' => $request->body_text],
             'footer' => ['text' => $request->footer_text ?? null],
-            'buttons' => $request->buttons ?? [],
+            'buttons' => is_array($buttons) && count($buttons) > 0 ? $this->parseButtonsData($buttons) : [],
         ];
 
         return json_encode($metadata);
@@ -370,12 +394,32 @@ class CampaignService
         $parsedButtons = [];
 
         foreach ($buttons as $button) {
-            $parsedButtons[] = [
+            $buttonData = [
                 'type' => $button['type'] ?? 'reply',
                 'text' => $button['text'] ?? '',
-                'url' => $button['url'] ?? null,
-                'phone_number' => $button['phone_number'] ?? null,
             ];
+
+            // Add URL for URL buttons
+            if (isset($button['url']) && !empty($button['url'])) {
+                $buttonData['url'] = $button['url'];
+            }
+
+            // Add phone number for phone buttons
+            if (isset($button['phone_number']) && !empty($button['phone_number'])) {
+                $buttonData['phone_number'] = $button['phone_number'];
+                
+                // Add country code if provided
+                if (isset($button['country']) && !empty($button['country'])) {
+                    $buttonData['country'] = $button['country'];
+                }
+            }
+
+            // Add example for copy code buttons
+            if (isset($button['example']) && !empty($button['example'])) {
+                $buttonData['example'] = $button['example'];
+            }
+
+            $parsedButtons[] = $buttonData;
         }
 
         return $parsedButtons;

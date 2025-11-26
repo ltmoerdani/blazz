@@ -58,18 +58,20 @@ class BusinessServiceProvider extends ServiceProvider
 
         // User Service - with role support
         $this->app->bind(UserService::class, function ($app) {
-            return new UserService('user'); // default role
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new UserService('user', $workspace->id); // default role
         });
 
         // Admin User Service
         $this->app->bind('App\Services\AdminUserService', function ($app) {
-            return new UserService('admin');
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new UserService('admin', $workspace->id);
         });
 
         // Billing Service
         $this->app->singleton(BillingService::class, function ($app) {
             $workspace = WorkspaceHelper::getCurrentWorkspace();
-            return new BillingService($app->make(SubscriptionService::class));
+            return new BillingService($app->make(SubscriptionService::class), $workspace->id);
         });
 
         // Team Service
@@ -90,7 +92,8 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Workspace Service
         $this->app->singleton(WorkspaceService::class, function ($app) {
-            return new WorkspaceService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new WorkspaceService($workspace->id);
         });
 
         // Contact Provisioning Service
@@ -107,7 +110,8 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Chat Note Service
         $this->app->singleton(ChatNoteService::class, function ($app) {
-            return new ChatNoteService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new ChatNoteService($workspace->id);
         });
 
         // Performance Cache Service
@@ -117,69 +121,82 @@ class BusinessServiceProvider extends ServiceProvider
 
         // Notification Service
         $this->app->singleton(NotificationService::class, function ($app) {
-            return new NotificationService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new NotificationService($workspace->id);
         });
 
         // Lang Service
         $this->app->singleton(LangService::class, function ($app) {
-            return new LangService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new LangService($workspace->id);
         });
 
         // Page Service
         $this->app->singleton(PageService::class, function ($app) {
-            return new PageService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new PageService($workspace->id);
         });
 
         // Auth Service
         $this->app->singleton(AuthService::class, function ($app) {
-            return new AuthService($app->make('App\Models\Role'));
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new AuthService($app->make('App\Models\Role'), $workspace->id);
         });
 
         // Role Service
         $this->app->singleton(RoleService::class, function ($app) {
-            return new RoleService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new RoleService($workspace->id);
         });
 
         // Coupon Service
         $this->app->singleton(CouponService::class, function ($app) {
-            return new CouponService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new CouponService($workspace->id);
         });
 
         // Tax Service
         $this->app->singleton(TaxService::class, function ($app) {
-            return new TaxService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new TaxService($workspace->id);
         });
 
         // Ticket Service
         $this->app->singleton(TicketService::class, function ($app) {
-            return new TicketService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new TicketService($workspace->id);
         });
 
         // Email Service
         $this->app->singleton(EmailService::class, function ($app) {
-            return new EmailService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new EmailService($workspace->id);
         });
 
         // Password Reset Service
         $this->app->singleton(PasswordResetService::class, function ($app) {
-            return new PasswordResetService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new PasswordResetService($workspace->id);
         });
 
         // Social Login Service
         $this->app->singleton(SocialLoginService::class, function ($app) {
-            return new SocialLoginService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new SocialLoginService($workspace->id);
         });
 
         // Module Service
         $this->app->singleton(ModuleService::class, function ($app) {
-            return new ModuleService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new ModuleService($workspace->id);
         });
 
         // Subscription Service moved to SubscriptionServiceProvider to avoid duplication
 
         // Subscription Plan Service
         $this->app->singleton(SubscriptionPlanService::class, function ($app) {
-            return new SubscriptionPlanService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new SubscriptionPlanService($workspace->id);
         });
 
         // Template Service moved to UtilityServiceProvider to avoid duplication

@@ -32,7 +32,7 @@ class CampaignController extends BaseController
     }
 
     public function index(Request $request, $uuid = null){
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         if($uuid == null){
             $searchTerm = $request->query('search');
             $campaignType = $request->query('campaign_type');
@@ -111,6 +111,8 @@ class CampaignController extends BaseController
             // Get WhatsApp sessions for provider selection
             $data['whatsappAccounts'] = WhatsAppAccount::forWorkspace($workspaceId)
                 ->active()
+                ->whereNotNull('phone_number')
+                ->where('status', 'connected')
                 ->get()
                 ->map(function ($session) {
                     return [
@@ -223,28 +225,19 @@ class CampaignController extends BaseController
     /**
      * Store hybrid campaign (template or direct message)
      */
-    public function storeHybrid(HybridCampaignRequest $request): JsonResponse
+    /**
+     * Store hybrid campaign (template or direct message)
+     */
+    public function storeHybrid(HybridCampaignRequest $request)
     {
-        try {
-            $campaign = $this->campaignService->createHybridCampaign($request);
+        $this->campaignService->createHybridCampaign($request);
 
-            return response()->json([
-                'success' => true,
-                'message' => __('Campaign created successfully!'),
-                'campaign' => [
-                    'uuid' => $campaign->uuid,
-                    'name' => $campaign->name,
-                    'type' => $campaign->campaign_type,
-                    'status' => $campaign->status,
-                    'provider' => $campaign->preferred_provider
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => __('Failed to create campaign: ') . $e->getMessage()
-            ], 500);
-        }
+        return Redirect::route('campaigns')->with(
+            'status', [
+                'type' => 'success',
+                'message' => __('Campaign created successfully!')
+            ]
+        );
     }
 
     /**
@@ -252,7 +245,7 @@ class CampaignController extends BaseController
      */
     public function statistics($uuid): JsonResponse
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $campaign = Campaign::where('uuid', $uuid)
             ->where('workspace_id', $workspaceId)
             ->first();
@@ -275,10 +268,12 @@ class CampaignController extends BaseController
      */
     public function availableSessions(): JsonResponse
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $sessions = WhatsAppAccount::forWorkspace($workspaceId)
             ->active()
+            ->whereNotNull('phone_number')
+            ->where('status', 'connected')
             ->get()
             ->map(function ($session) {
                 return [
@@ -312,7 +307,7 @@ class CampaignController extends BaseController
             'provider' => 'required|in:webjs,meta_api'
         ]);
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $template = Template::where('uuid', $request->template_uuid)
             ->where('workspace_id', $workspaceId)
@@ -359,7 +354,7 @@ class CampaignController extends BaseController
         ]);
 
         try {
-            $workspaceId = session()->get('current_workspace');
+            $workspaceId = $this->getWorkspaceId();
 
             if ($request->campaign_type === 'template') {
                 $template = Template::where('uuid', $request->template_uuid)

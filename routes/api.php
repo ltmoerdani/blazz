@@ -48,6 +48,13 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
         ->middleware('whatsapp.throttle');
     Route::get('/accounts/{accountId}/sync-status', [App\Http\Controllers\API\WhatsAppSyncController::class, 'getSyncStatus']);
 
+    // Session Cleanup Endpoints (Week 2 Optional) - HMAC secured
+    Route::get('/accounts-for-cleanup', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getAccountsForCleanup']);
+    Route::get('/accounts/by-session/{sessionId}', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getAccountBySession']);
+    Route::patch('/accounts/{id}/status', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'updateAccountStatus']);
+    Route::post('/cleanup-logs', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'logCleanup']);
+    Route::get('/cleanup-stats', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getCleanupStats']);
+
     // Broadcasting events (for testing) - requires HMAC
     Route::post('/broadcast', function (Request $request) {
         $event = $request->input('event');
@@ -143,9 +150,24 @@ Route::middleware([AuthenticateBearerToken::class])->group(function () {
             Route::post('/{accountId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'markDisconnected']);
         });
 
+        // WhatsApp Session Proxy Routes (Multi-Instance)
+        Route::prefix('whatsapp/sessions')->group(function () {
+            Route::post('/create', [App\Http\Controllers\WhatsApp\ProxyController::class, 'createSession']);
+            Route::delete('/{sessionId}', [App\Http\Controllers\WhatsApp\ProxyController::class, 'disconnect']);
+            Route::get('/{sessionId}/status', [App\Http\Controllers\WhatsApp\ProxyController::class, 'getStatus']);
+        });
+
         // WhatsApp Webhook Routes (NEW)
         Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
             Route::post('/webhooks/v2', [App\Http\Controllers\Api\v1\WhatsApp\WebhookController::class, 'webhook']);
+        });
+
+        // WhatsApp Internal API Routes (for Node.js instance communication)
+        Route::prefix('internal/whatsapp')->group(function () {
+            Route::post('/session/migrated', [App\Http\Controllers\WhatsApp\InternalController::class, 'sessionMigrated']);
+            Route::post('/session/disconnected', [App\Http\Controllers\WhatsApp\InternalController::class, 'sessionDisconnected']);
+            Route::post('/session/activity', [App\Http\Controllers\WhatsApp\InternalController::class, 'updateActivity']);
+            Route::get('/session/{sessionId}/assignment', [App\Http\Controllers\WhatsApp\InternalController::class, 'getSessionAssignment']);
         });
     });
 });

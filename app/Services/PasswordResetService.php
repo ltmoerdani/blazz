@@ -14,6 +14,14 @@ use App\Models\User;
 
 class PasswordResetService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     public function generateResetLink(string $email): string
     {
         $token = Str::random(60);

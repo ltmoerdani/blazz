@@ -9,6 +9,14 @@ use Illuminate\Support\Collection;
 
 class ProviderSelectionService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Select the best WhatsApp account for sending campaign messages
      *

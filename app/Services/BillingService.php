@@ -15,10 +15,13 @@ use Illuminate\Support\Facades\DB;
 class BillingService
 {
     private $subscriptionService;
+    private $workspaceId;
 
-    public function __construct(SubscriptionService $subscriptionService = null)
+    public function __construct(?SubscriptionService $subscriptionService = null, ?int $workspaceId = null)
     {
         $this->subscriptionService = $subscriptionService ?: new SubscriptionService();
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
     }
     /**
      * Get all billing history based on the provided request filters.

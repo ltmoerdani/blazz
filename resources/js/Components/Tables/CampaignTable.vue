@@ -114,7 +114,8 @@
                 </TableBodyRowItem>
                 <TableBodyRowItem class="hidden md:table-cell">
                     <Link :href="'/campaigns/' + item.uuid" class="block w-full">
-                        {{ item.template.name }}
+                        <span v-if="item.template">{{ item.template.name }}</span>
+                        <span v-else class="italic text-gray-500">{{ $t('Direct Message') }}</span>
                     </Link>
                 </TableBodyRowItem>
                 <TableBodyRowItem class="hidden sm:table-cell">

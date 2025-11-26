@@ -21,7 +21,7 @@ class ContactGroupController extends BaseController
 {
     private function getCurrentworkspaceId()
     {
-        return session()->get('current_workspace');
+        return $this->getWorkspaceId();
     }
 
     public function index(Request $request, $uuid = null)
@@ -134,7 +134,7 @@ class ContactGroupController extends BaseController
     public function delete(Request $request)
     {
         $uuids = $request->input('uuids', []);
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $deletedGroups = [];
 
         if (empty($uuids)) {

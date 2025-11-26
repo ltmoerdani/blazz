@@ -18,6 +18,16 @@ class HybridCampaignRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'skip_schedule' => $this->boolean('skip_schedule'),
+        ]);
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -330,19 +340,5 @@ class HybridCampaignRequest extends FormRequest
                 $validator->errors()->add('scheduled_at', 'Schedule time cannot be more than 30 days in the future');
             }
         }
-    }
-
-    /**
-     * Handle a failed validation attempt.
-     */
-    protected function failedValidation(Validator $validator)
-    {
-        throw new HttpResponseException(
-            response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422)
-        );
     }
 }

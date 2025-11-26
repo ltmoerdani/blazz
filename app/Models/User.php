@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Mail\CustomEmailVerification;
+use App\Models\Team;
+use App\Models\Role;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,17 +24,7 @@ class User extends Authenticatable implements MustVerifyEmail
      *
      * @var array<int, string>
      */
-    protected $fillable = [
-        'first_name',
-        'last_name',
-        'email',
-        'password',
-        'avatar',
-        'role',
-        'phone',
-        'address',
-        'deleted_at'
-    ];
+    protected $guarded = [];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -87,19 +79,39 @@ class User extends Authenticatable implements MustVerifyEmail
         return $query->paginate(10);
     }
 
+    /**
+     * Get the teams associated with the user
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function teams()
     {
         return $this->hasMany(Team::class);
     }
 
+    /**
+     * Get the teams with their associated workspaces
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function teamsWithWorkspaces(){
         return $this->teams()->with('workspace');
     }
 
+    /**
+     * Get the role associated with the user
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function role(){
         return $this->belongsTo(Role::class, 'role', 'name');
     }
 
+    /**
+     * Send email verification notification to the user
+     *
+     * @return void
+     */
     public function sendEmailVerificationNotification(){
         try {
             Mail::to($this->email)->send(new CustomEmailVerification($this));
@@ -113,6 +125,11 @@ class User extends Authenticatable implements MustVerifyEmail
      *
      * @return bool
      */
+    /**
+     * Determine if the user has verified their email address
+     *
+     * @return bool
+     */
     public function hasVerifiedEmail()
     {
         return ! is_null($this->email_verified_at);
@@ -120,6 +137,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Mark the given user's email as verified.
+     *
+     * @return bool
+     */
+    /**
+     * Mark the given user's email as verified
      *
      * @return bool
      */
@@ -132,6 +154,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Get the email address that should be used for verification.
+     *
+     * @return string
+     */
+    /**
+     * Get the email address that should be used for verification
      *
      * @return string
      */

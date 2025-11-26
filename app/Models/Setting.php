@@ -12,7 +12,7 @@ class Setting extends Model
     protected $primaryKey = 'key';
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $fillable = ['key', 'value'];
+    protected $guarded = [];
     public $timestamps = false;
 
     public static function getValueByKey($key, $default = null)

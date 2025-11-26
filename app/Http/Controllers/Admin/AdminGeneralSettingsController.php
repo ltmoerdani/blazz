@@ -26,7 +26,7 @@ class AdminGeneralSettingsController extends BaseController
     public function index(Request $request, $display = null)
     {
         if ($request->isMethod('get')) {
-            $workspaceId = session()->get('current_workspace');
+            $workspaceId = $this->getWorkspaceId();
             $data['title'] = __('Settings');
             $data['settings'] = workspace::where('id', $workspaceId)->first();
             $data['timezones'] = config('formats.timezones');
@@ -46,7 +46,7 @@ class AdminGeneralSettingsController extends BaseController
     public function mobileView(Request $request)
     {
         $data['title'] = __('Settings');
-        $data['settings'] = workspace::where('id', session()->get('current_workspace'))->first();
+        $data['settings'] = workspace::where('id', $this->getWorkspaceId())->first();
         return Inertia::render('User/Settings/Main', $data);
     }
 
@@ -56,9 +56,9 @@ class AdminGeneralSettingsController extends BaseController
     public function viewGeneralSettings(Request $request)
     {
         $contactModel = new Contact;
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $data['title'] = __('Settings');
-        $data['settings'] = workspace::where('id', session()->get('current_workspace'))->first();
+        $data['settings'] = workspace::where('id', $this->getWorkspaceId())->first();
         $data['modules'] = Addon::get();
         $data['contactGroups'] = $contactModel->getAllContactGroups($workspaceId);
 
@@ -70,7 +70,7 @@ class AdminGeneralSettingsController extends BaseController
      */
     public function contacts(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $contactModel = new Contact;
 
         $data = [
@@ -91,7 +91,7 @@ class AdminGeneralSettingsController extends BaseController
      */
     public function tickets(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $data = [
             'title' => __('Ticket Settings'),
@@ -108,7 +108,7 @@ class AdminGeneralSettingsController extends BaseController
      */
     public function automation(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $data = [
             'title' => __('Automation Settings'),
@@ -124,7 +124,7 @@ class AdminGeneralSettingsController extends BaseController
      */
     public function updateGeneralSettings(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
@@ -168,7 +168,7 @@ class AdminGeneralSettingsController extends BaseController
      */
     public function updateNotificationSettings(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $validator = Validator::make($request->all(), [
             'email_notifications' => 'boolean',
@@ -214,7 +214,7 @@ class AdminGeneralSettingsController extends BaseController
      */
     public function updateContactFieldSettings(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         $validator = Validator::make($request->all(), [
             'custom_fields' => 'array',
@@ -252,7 +252,7 @@ class AdminGeneralSettingsController extends BaseController
      */
     public function getSettings(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         try {
             $workspace = workspace::findOrFail($workspaceId);

@@ -32,7 +32,7 @@ class BillingController extends BaseController
     }
     
     public function index(Request $request){
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspace = workspace::where('id', $workspaceId)->first();
         $data['subscription'] = Subscription::with('plan')->where('workspace_id', $workspaceId)->first();
         $data['subscriptionIsActive'] = $this->subscriptionService->isSubscriptionActive($workspaceId);

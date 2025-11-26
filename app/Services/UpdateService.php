@@ -14,6 +14,14 @@ use Illuminate\Support\Facades\DB;
 
 class UpdateService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     public function migrate(Request $request, $version){
         Artisan::call('db:seed');
 

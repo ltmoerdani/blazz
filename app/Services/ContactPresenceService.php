@@ -12,6 +12,14 @@ use Carbon\Carbon;
 
 class ContactPresenceService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Update contact online status
      */
@@ -19,7 +27,10 @@ class ContactPresenceService
     {
         try {
             DB::transaction(function () use ($contactId, $isOnline, $userId) {
-                $contact = Contact::find($contactId);
+                // ✅ NOW: Workspace-scoped query
+                $contact = Contact::where('workspace_id', $this->workspaceId)
+                    ->where('id', $contactId)
+                    ->first();
                 if (!$contact) {
                     Log::warning('Contact not found for presence update', ['contact_id' => $contactId]);
                     return;
@@ -59,7 +70,10 @@ class ContactPresenceService
     {
         try {
             DB::transaction(function () use ($contactId, $typingStatus, $userId) {
-                $contact = Contact::find($contactId);
+                // ✅ NOW: Workspace-scoped query
+                $contact = Contact::where('workspace_id', $this->workspaceId)
+                    ->where('id', $contactId)
+                    ->first();
                 if (!$contact) {
                     Log::warning('Contact not found for typing update', ['contact_id' => $contactId]);
                     return;
@@ -99,7 +113,10 @@ class ContactPresenceService
     {
         try {
             DB::transaction(function () use ($contactId, $messageId) {
-                $contact = Contact::find($contactId);
+                // ✅ NOW: Workspace-scoped query
+                $contact = Contact::where('workspace_id', $this->workspaceId)
+                    ->where('id', $contactId)
+                    ->first();
                 if (!$contact) {
                     return;
                 }
@@ -139,7 +156,10 @@ class ContactPresenceService
                 return $cached;
             }
 
-            $contact = Contact::find($contactId);
+            // ✅ NOW: Workspace-scoped query
+            $contact = Contact::where('workspace_id', $this->workspaceId)
+                ->where('id', $contactId)
+                ->first();
             if (!$contact) {
                 return ['is_online' => false, 'typing_status' => 'idle', 'last_activity' => null];
             }
@@ -293,7 +313,10 @@ class ContactPresenceService
      */
     public function shouldMarkOffline(int $contactId): bool
     {
-        $contact = Contact::find($contactId);
+        // ✅ NOW: Workspace-scoped query
+        $contact = Contact::where('workspace_id', $this->workspaceId)
+            ->where('id', $contactId)
+            ->first();
         if (!$contact || !$contact->is_online) {
             return false;
         }

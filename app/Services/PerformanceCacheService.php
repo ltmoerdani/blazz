@@ -67,8 +67,7 @@ class PerformanceCacheService
                     ->distinct('contact_id')
                     ->whereDate('created_at', '>=', now()->subDays(7))
                     ->count('contact_id'),
-                'team_members' => DB::table('teams')
-                    ->where('workspace_id', $workspaceId)
+                'team_members' => \App\Models\Team::where('workspace_id', $workspaceId)
                     ->count(),
                 'response_time_avg' => $this->calculateAverageResponseTime($workspaceId),
             ];
@@ -111,8 +110,7 @@ class PerformanceCacheService
             return json_decode($cached, true);
         }
 
-        $results = DB::table('contacts')
-            ->where('workspace_id', $workspaceId)
+        $results = \App\Models\Contact::where('workspace_id', $workspaceId)
             ->where(function($q) use ($searchTerm) {
                 $q->where('name', 'like', "%{$searchTerm}%")
                   ->orWhere('phone', 'like', "%{$searchTerm}%");
@@ -210,8 +208,7 @@ class PerformanceCacheService
     {
         // Simplified calculation - in production, this would use more sophisticated metrics
         return Cache::remember("response_time:{$workspaceId}", self::CACHE_LONG, function() use ($workspaceId) {
-            return DB::table('chats')
-                ->where('workspace_id', $workspaceId)
+            return Chat::where('workspace_id', $workspaceId)
                 ->whereNotNull('metadata->response_time')
                 ->avg(DB::raw('JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.response_time"))')) ?? 0;
         });

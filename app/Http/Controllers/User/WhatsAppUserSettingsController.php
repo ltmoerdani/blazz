@@ -7,6 +7,7 @@ use App\Http\Requests\StoreWhatsappSettings;
 use App\Helpers\CustomHelper;
 use App\Http\Requests\StoreWhatsappProfile;
 use App\Models\Addon;
+use App\Models\User;
 use App\Models\workspace;
 use App\Models\Setting;
 use App\Models\Template;
@@ -15,6 +16,7 @@ use App\Services\WhatsApp\TemplateManagementService;
 use App\Services\WhatsApp\BusinessProfileService;
 use App\Services\WhatsApp\WhatsAppHealthService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +47,7 @@ class WhatsAppUserSettingsController extends BaseController
             'graphAPIVersion' => config('graph.api_version'),
             'appId' => $settings->get('whatsapp_client_id', null),
             'configId' => $settings->get('whatsapp_config_id', null),
-            'settings' => workspace::where('id', session()->get('current_workspace'))->first(),
+            'settings' => workspace::where('id', $this->getWorkspaceId())->first(),
             'modules' => Addon::get(),
             'title' => __('Settings'),
         ];
@@ -79,7 +81,7 @@ class WhatsAppUserSettingsController extends BaseController
             return $this->demoModeResponse();
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $accessToken = $request->input('access_token');
 
         if (!$accessToken) {
@@ -129,7 +131,7 @@ class WhatsAppUserSettingsController extends BaseController
             return $this->demoModeResponse();
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspace = workspace::where('id', $workspaceId)->first();
         $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
@@ -183,7 +185,7 @@ class WhatsAppUserSettingsController extends BaseController
             return $this->demoModeResponse();
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspace = workspace::where('id', $workspaceId)->first();
         $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
@@ -235,7 +237,7 @@ class WhatsAppUserSettingsController extends BaseController
             return $this->demoModeResponse();
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $embeddedSignupActive = Setting::where('key', 'is_embedded_signup_active')->value('value');
 
         try {
@@ -308,7 +310,7 @@ class WhatsAppUserSettingsController extends BaseController
      */
     public function getWhatsAppStatus(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         try {
             $workspace = workspace::findOrFail($workspaceId);
@@ -361,7 +363,7 @@ class WhatsAppUserSettingsController extends BaseController
      */
     public function getWhatsAppTemplates(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         try {
             $templates = Template::where('workspace_id', $workspaceId)
@@ -391,7 +393,7 @@ class WhatsAppUserSettingsController extends BaseController
             return $this->demoModeResponse();
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $apiVersion = config('graph.api_version');
 
         try {
@@ -470,7 +472,8 @@ class WhatsAppUserSettingsController extends BaseController
     private function canUpdateBusinessProfile($workspace)
     {
         // User can update if they are the owner or have admin role
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::user();
         if (!$user) return false;
 
         if ($workspace->owner_id === $user->id) return true;
@@ -490,7 +493,8 @@ class WhatsAppUserSettingsController extends BaseController
     private function canDeleteWhatsAppIntegration($workspace)
     {
         // User can delete if they are the owner or have admin role
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::user();
         if (!$user) return false;
 
         if ($workspace->owner_id === $user->id) return true;
