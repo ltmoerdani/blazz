@@ -148,7 +148,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 20 20"><path fill="currentColor" fill-rule="evenodd" d="M5 2.643v14.765c.092.32.299.511.619.572c.32.061.633-.024.94-.255l8.107-6.993A.944.944 0 0 0 15 10a.94.94 0 0 0-.334-.73L6.58 2.295c-.232-.197-.639-.383-1.061-.253c-.282.087-.455.287-.519.6"/></svg>
                     </span>
                 </div>
-                <div @click="isOpenWorkspaceModal = true" class="flex gap-x-8 bg-slate-50 hover:bg-slate-200 rounded-lg py-1 justify-between items-center w-full cursor-pointer border border-slate-100 pl-1 pr-2 py-3">
+                <div @click="isOpenWorkspaceModal = true" class="flex gap-x-8 bg-slate-50 hover:bg-slate-200 rounded-lg justify-between items-center w-full cursor-pointer border border-slate-100 px-2 py-3">
                     <div class="w-full">
                         <h3 class="text-center">Create workspace</h3>
                     </div>

@@ -111,7 +111,7 @@ class HealthController {
                 // Environment information
                 environment: {
                     node_env: process.env.NODE_ENV || 'development',
-                    port: process.env.PORT || 3000,
+                    port: parseInt(process.env.PORT) || 3001,
                     laravel_url: process.env.LARAVEL_URL ? 'configured' : 'not_configured'
                 }
             });

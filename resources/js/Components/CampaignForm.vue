@@ -405,33 +405,29 @@
                 },
             });
         } else {
+            // Normalize button types for backend validation
+            const normalizedButtons = form.buttons.map(button => ({
+                type: button.type === 'PHONE_NUMBER' ? 'phone_number' : 
+                      button.type === 'URL' ? 'url' : 
+                      button.type === 'QUICK_REPLY' ? 'reply' : 
+                      button.type === 'copy_code' ? 'reply' : button.type.toLowerCase(),
+                text: button.text,
+                url: button.url || null,
+                phone_number: button.phone_number || null,
+                country: button.country || null,
+                example: button.example || null,
+            }));
+
+            // Update form buttons with normalized data
+            form.buttons = normalizedButtons;
+            
+            // Map 'time' field to 'scheduled_at' for backend
+            if (form.time && !form.skip_schedule) {
+                form.scheduled_at = form.time;
+            }
+
             // Use hybrid campaign endpoint for direct messages
-            const formData = new FormData();
-
-            // Add all form fields to FormData
-            Object.keys(form.data()).forEach(key => {
-                if (key === 'buttons' && Array.isArray(form.data()[key])) {
-                    formData.append(key, JSON.stringify(form.data()[key]));
-                } else if (form.data()[key] !== null && form.data()[key] !== undefined) {
-                    formData.append(key, form.data()[key]);
-                }
-            });
-
-            // Convert FormData to JSON for the hybrid endpoint
-            const jsonData = {};
-            formData.forEach((value, key) => {
-                if (key === 'buttons') {
-                    try {
-                        jsonData[key] = JSON.parse(value);
-                    } catch (e) {
-                        jsonData[key] = value;
-                    }
-                } else {
-                    jsonData[key] = value;
-                }
-            });
-
-            form.transform(() => jsonData).post('/campaigns/hybrid', {
+            form.post('/campaigns/hybrid', {
                 onFinish: () => {
                     isLoading.value = false;
                 },
@@ -440,6 +436,9 @@
                     form.reset();
                     form.campaign_type = 'direct'; // Reset to default
                     form.preferred_provider = 'webjs'; // Reset to default
+                },
+                onError: (errors) => {
+                    console.error('Campaign creation failed:', errors);
                 }
             });
         }

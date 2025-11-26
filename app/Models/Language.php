@@ -9,12 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Language extends Model {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = [
-        'name',
-        'code',
-        'status',
-        'is_rtl'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'is_rtl' => 'boolean',

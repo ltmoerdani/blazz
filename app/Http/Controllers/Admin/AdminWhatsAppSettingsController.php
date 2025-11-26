@@ -45,7 +45,7 @@ class AdminWhatsAppSettingsController extends BaseController
             'graphAPIVersion' => config('graph.api_version'),
             'appId' => $settings->get('whatsapp_client_id', null),
             'configId' => $settings->get('whatsapp_config_id', null),
-            'settings' => workspace::where('id', session()->get('current_workspace'))->first(),
+            'settings' => workspace::where('id', $this->getWorkspaceId())->first(),
             'modules' => Addon::get(),
             'title' => __('Settings'),
         ];
@@ -79,7 +79,7 @@ class AdminWhatsAppSettingsController extends BaseController
             return $response;
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $accessToken = $request->input('access_token');
 
         if (!$accessToken) {
@@ -129,7 +129,7 @@ class AdminWhatsAppSettingsController extends BaseController
             return $response;
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspace = workspace::where('id', $workspaceId)->first();
         $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
@@ -183,7 +183,7 @@ class AdminWhatsAppSettingsController extends BaseController
             return $response;
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspace = workspace::where('id', $workspaceId)->first();
         $config = $workspace && $workspace->metadata ? json_decode($workspace->metadata, true) : [];
 
@@ -225,7 +225,7 @@ class AdminWhatsAppSettingsController extends BaseController
             return $response;
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $embeddedSignupActive = Setting::where('key', 'is_embedded_signup_active')->value('value');
 
         try {
@@ -292,7 +292,7 @@ class AdminWhatsAppSettingsController extends BaseController
             return $response;
         }
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $apiVersion = config('graph.api_version');
 
         try {
@@ -386,7 +386,7 @@ class AdminWhatsAppSettingsController extends BaseController
      */
     public function getWhatsAppStatus(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         try {
             $workspace = workspace::findOrFail($workspaceId);

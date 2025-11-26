@@ -29,7 +29,7 @@ class ContactController extends BaseController
 
     private function getCurrentworkspaceId()
     {
-        return session()->get('current_workspace');
+        return $this->getWorkspaceId();
     }
 
     public function index(Request $request, $uuid = null){
@@ -154,7 +154,7 @@ class ContactController extends BaseController
 
     private function getLocationSettings(){
         // Retrieve the settings for the current workspace
-        $settings = workspace::where('id', session()->get('current_workspace'))->first();
+        $settings = workspace::where('id', $this->getWorkspaceId())->first();
 
         if ($settings) {
             // Decode the JSON metadata column into an associative array

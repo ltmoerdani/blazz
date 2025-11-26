@@ -13,6 +13,14 @@ use Laravel\Socialite\Facades\Socialite;
 
 class SocialLoginService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     public static function makeGoogleDriver()
     {
         $metadata = Setting::where('key', 'google_login')->first()->value;

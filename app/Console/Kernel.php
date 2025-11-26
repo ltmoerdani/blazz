@@ -44,6 +44,14 @@ class Kernel extends ConsoleKernel
         // Monitor queue size
         $schedule->command('monitor:queue-size')
             ->everyFiveMinutes();
+        
+        // ✅ PHASE 1: Sync WhatsApp instance URLs proactively
+        $schedule->command('whatsapp:sync-instance-urls')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->onFailure(function () {
+                \Illuminate\Support\Facades\Log::error('whatsapp:sync-instance-urls command failed');
+            });
     }
 
     /**

@@ -62,7 +62,7 @@ class ChatTicketController extends BaseController
     public function assign(Request $request, $uuid)
     {
         $contact = Contact::where('uuid', $uuid)->first();
-        $team = Team::where('workspace_id', session()->get('current_workspace'))->where('user_id', $request->id)->first();
+        $team = Team::where('workspace_id', $this->getWorkspaceId())->where('user_id', $request->id)->first();
         $user = User::where('id', $request->id)->first();
         
         if($team && $user){

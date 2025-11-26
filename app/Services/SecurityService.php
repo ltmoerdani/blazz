@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\SecurityIncident;
+use App\Models\RateLimitViolation;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -84,7 +86,7 @@ class SecurityService
     protected function isKnownThreatIp(string $ip): bool
     {
         return Cache::remember("threat_ip:{$ip}", 3600, function () use ($ip) {
-            return DB::table('security_incidents')
+            return SecurityIncident::systemWide()
                 ->where('ip_address', $ip)
                 ->where('severity', 'high')
                 ->where('created_at', '>=', now()->subDays(7))
@@ -140,14 +142,14 @@ class SecurityService
     public function logSecurityIncident(string $type, array $data = []): void
     {
         try {
-            DB::table('security_incidents')->insert([
+            SecurityIncident::create([
                 'incident_type' => $type,
                 'ip_address' => request()->ip(),
                 'user_id' => Auth::id(),
                 'workspace_id' => session('current_workspace'),
                 'severity' => $this->determineSeverity($type),
-                'incident_data' => json_encode($data),
-                'created_at' => now(),
+                'details' => $data,
+                'resolved' => false,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to log security incident', [
@@ -196,8 +198,7 @@ class SecurityService
      */
     protected function getIncidentCount(int $workspaceId, Carbon $startDate): int
     {
-        return DB::table('security_incidents')
-            ->where('workspace_id', $workspaceId)
+        return SecurityIncident::inWorkspace($workspaceId)
             ->where('created_at', '>=', $startDate)
             ->count();
     }
@@ -207,8 +208,7 @@ class SecurityService
      */
     protected function getBlockedRequestCount(int $workspaceId, Carbon $startDate): int
     {
-        return DB::table('rate_limit_violations')
-            ->where('workspace_id', $workspaceId)
+        return RateLimitViolation::inWorkspace($workspaceId)
             ->where('created_at', '>=', $startDate)
             ->count();
     }
@@ -218,8 +218,7 @@ class SecurityService
      */
     protected function getThreatLevelDistribution(int $workspaceId, Carbon $startDate): array
     {
-        return DB::table('security_incidents')
-            ->where('workspace_id', $workspaceId)
+        return SecurityIncident::inWorkspace($workspaceId)
             ->where('created_at', '>=', $startDate)
             ->groupBy('severity')
             ->selectRaw('severity, count(*) as count')

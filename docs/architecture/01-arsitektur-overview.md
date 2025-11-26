@@ -1,8 +1,19 @@
 # 🏗️ Arsitektur Proyek Blazz - Complete Overview
 
+> **⚠️ IMPORTANT**: This document describes the core architectural patterns and components. For **PRODUCTION DEPLOYMENT** and **SCALABILITY** (1,000-3,000 users), please refer to:
+> - **[20-realistic-scalable-architecture-v2.md](./20-realistic-scalable-architecture-v2.md)** - ✅ **PRODUCTION READY** - Workspace-sharded multi-instance strategy
+> - **[19-architecture-compliance-analysis.md](./19-architecture-compliance-analysis.md)** - Current architecture gap analysis (75% compliant)
+> - **[multi-instance-management/](./multi-instance-management/)** - Complete multi-instance implementation guides
+> - **[qr/](./qr/)** - ✅ **COMPLETE** - QR code integration (7-9s generation)
+
 ## Ringkasan Eksekutif
 
 **Blazz** adalah enterprise-grade **multi-tenant WhatsApp Business Platform** yang menggunakan **Hybrid Service-Oriented Architecture with Dual-Server Integration**. Arsitektur ini menggabungkan kekuatan **MVC Pattern** sebagai foundation dengan **Service Layer Pattern** untuk business logic isolation, **Dual-Server WhatsApp Architecture** (Laravel + Node.js), **Multi-Provider WhatsApp Support**, **Job Queue System** untuk asynchronous processing, dan **Modular Architecture** untuk feature extensibility.
+
+**Production Architecture (v2.0)**: ✅ **IMPLEMENTED** - For scalability beyond 500 concurrent users, Blazz uses **Workspace-Sharded Multi-Instance** deployment with LocalAuth and shared storage (EFS/NFS).
+- **QR Generation**: 7-9 seconds ✅
+- **Status**: Production-ready with 75% architecture compliance
+- See [20-realistic-scalable-architecture-v2.md](./20-realistic-scalable-architecture-v2.md) for complete details.
 
 ---
 
@@ -749,4 +760,4 @@ Struktur ini provides **excellent balance** antara:
 - 📋 [02-component-connections.md](./02-component-connections.md) - Detailed component interaction
 - 📁 [03-folder-structure.md](./03-folder-structure.md) - Recommended folder organization
 - 🚀 [04-feature-development-guide.md](./04-feature-development-guide.md) - How to add new features
-- 🎨 [05-service-pattern-guidelines.md](./05-service-pattern-guidelines.md) - Service layer best practices
+- 🎨 [06-development-patterns-guidelines.md](./06-development-patterns-guidelines.md) - Service layer best practices

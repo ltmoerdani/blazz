@@ -18,6 +18,10 @@
         <link rel="icon" href="{{ url($favicon) }}">
         @endif
 
+        <!-- Preload Critical Fonts -->
+        <link rel="preload" href="{{ asset('build/assets/Outfit-Regular-7dd6d797.ttf') }}" as="font" type="font/ttf" crossorigin>
+        <link rel="preload" href="{{ asset('build/assets/Outfit-Medium-33e6b2d4.ttf') }}" as="font" type="font/ttf" crossorigin>
+
         @vite(['resources/js/app.js', 'resources/css/app.css'])
         @inertiaHead
         @if (!empty($google_analytics))

@@ -23,14 +23,17 @@ use Illuminate\Support\Facades\Log;
 class FlutterwaveService
 {
     protected $subscriptionService;
+    protected $workspaceId;
     protected $config;
     protected $baseUri;
     protected $publicKey;
     protected $secretKey;
 
-    public function __construct(SubscriptionService $subscriptionService)
+    public function __construct(SubscriptionService $subscriptionService, $workspaceId = null)
     {
         $this->subscriptionService = $subscriptionService;
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
 
         $methodInfo = PaymentGateway::where('name', 'Flutterwave')->first();
 

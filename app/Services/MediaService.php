@@ -18,18 +18,31 @@ use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Storage;
+use Illuminate\Support\Facades\Storage;
 
 class MediaService
 {
-    public static function upload($image)
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
+    public static function upload($image, $contact = null)
     {
         if(config('settings.use_s3_as_storage',false)){
-            $path = $image->storePublicly('uploads/media/send/'.$contact->company_id,'s3');
-            $imageUrl = Storage::disk('s3')->url($path);
+            $companyId = $contact ? $contact->company_id : 'default';
+            $path = $image->storePublicly('uploads/media/send/'.$companyId,'s3');
+            /** @var \Illuminate\Contracts\Filesystem\Cloud $storage */
+            $storage = Storage::disk('s3');
+            $imageUrl = $storage->url($path);
         } else {
             $path = $image->store(null,'public',);
-            $imageUrl = Storage::disk('public')->url($path);
+            /** @var \Illuminate\Contracts\Filesystem\Cloud $storage */
+            $storage = Storage::disk('public');
+            $imageUrl = $storage->url($path);
         }
 
         $name = basename($path);
@@ -69,13 +82,17 @@ class MediaService
             if (config('settings.use_s3_as_storage', false)) {
                 // Store to S3
                 $path = $directory . '/' . $filename;
-                Storage::disk('s3')->put($path, $fileData, 'public');
-                $fileUrl = Storage::disk('s3')->url($path);
+                /** @var \Illuminate\Contracts\Filesystem\Cloud $storage */
+                $storage = Storage::disk('s3');
+                $storage->put($path, $fileData, 'public');
+                $fileUrl = $storage->url($path);
             } else {
                 // Store to local public disk
                 $path = $directory . '/' . $filename;
-                Storage::disk('public')->put($path, $fileData);
-                $fileUrl = Storage::disk('public')->url($path);
+                /** @var \Illuminate\Contracts\Filesystem\Cloud $storage */
+                $storage = Storage::disk('public');
+                $storage->put($path, $fileData);
+                $fileUrl = $storage->url($path);
             }
 
             return [

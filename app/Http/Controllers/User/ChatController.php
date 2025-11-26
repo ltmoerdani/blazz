@@ -48,7 +48,7 @@ class ChatController extends BaseController
 
     public function index(Request $request, $uuid = null)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
 
         // Support AJAX requests untuk SPA navigation (no page reload)
         // Only return JSON if it's explicitly an AJAX call (not Inertia)
@@ -154,7 +154,7 @@ class ChatController extends BaseController
 
     public function sendMessage(Request $request)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $result = $this->getChatService($workspaceId)->sendMessage($request);
         
         // Debug logging
@@ -175,7 +175,7 @@ class ChatController extends BaseController
 
     public function sendTemplateMessage(Request $request, $uuid)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $res = $this->getChatService($workspaceId)->sendTemplateMessage($request, $uuid);
 
         return Redirect::back()->with(
@@ -189,7 +189,7 @@ class ChatController extends BaseController
 
     public function deleteChats($uuid)
     {
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $this->getChatService($workspaceId)->clearContactChat($uuid);
 
         return Redirect::back()->with(
@@ -203,7 +203,7 @@ class ChatController extends BaseController
     public function loadMoreMessages(Request $request, $contactId)
     {
         $page = $request->query('page', 1);
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $messages = $this->getChatService($workspaceId)->getChatMessages($contactId, $page);
         
         return response()->json($messages);

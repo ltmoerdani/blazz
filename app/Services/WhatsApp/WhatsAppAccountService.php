@@ -73,6 +73,10 @@ class WhatsAppAccountService
         }
 
         try {
+            // Get next instance from load balancer (Phase 2 implementation)
+            $loadBalancer = app(\App\Services\WhatsApp\SimpleLoadBalancer::class);
+            $assignedInstance = $loadBalancer->getNextInstance();
+
             $account = WhatsAppAccount::create([
                 'uuid' => Str::uuid()->toString(),
                 'workspace_id' => $this->workspaceId,
@@ -82,6 +86,7 @@ class WhatsAppAccountService
                 'is_primary' => $validated['is_primary'] ?? false,
                 'status' => 'disconnected',
                 'is_active' => false,
+                'assigned_instance_url' => $assignedInstance, // Load balancing
             ]);
 
             // If setting as primary, unset other primary accounts
@@ -91,6 +96,12 @@ class WhatsAppAccountService
                     ->where('is_primary', true)
                     ->update(['is_primary' => false]);
             }
+
+            Log::info('WhatsApp account created with load balancing', [
+                'account_uuid' => $account->uuid,
+                'assigned_instance' => $assignedInstance,
+                'workspace_id' => $this->workspaceId,
+            ]);
 
             return (object) [
                 'success' => true,

@@ -83,12 +83,14 @@ class UtilityServiceProvider extends ServiceProvider
 
         // Testimonial Service
         $this->app->singleton(TestimonialService::class, function ($app) {
-            return new TestimonialService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new TestimonialService($workspace->id);
         });
 
         // FAQ Service
         $this->app->singleton(FaqService::class, function ($app) {
-            return new FaqService();
+            $workspace = WorkspaceHelper::getCurrentWorkspace();
+            return new FaqService($workspace->id);
         });
 
         // Subscription Plan Service

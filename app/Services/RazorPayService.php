@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Integration;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -26,15 +27,27 @@ if (!class_exists('Razorpay\Api\Api')) {
 class RazorPayService
 {
     private $config;
+    private $workspaceId;
     /**
      * @var mixed RazorPay API instance
      */
     private $razorpay;
 
-    public function __construct()
+    public function __construct($workspaceId = null)
     {
-        $razorpayInfo = DB::table('integrations')->where('name', 'RazorPay')->first();
-        $this->config = unserialize($razorpayInfo->data);
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+        
+        // Get RazorPay integration for workspace
+        $razorpayInfo = Integration::getActive($this->workspaceId, 'RazorPay');
+        
+        if (!$razorpayInfo) {
+            Log::warning('RazorPay integration not found for workspace', ['workspace_id' => $this->workspaceId]);
+            $this->razorpay = null;
+            return;
+        }
+        
+        $this->config = $razorpayInfo->credentials;
 
         // Initialize RazorPay API if the class exists
         if (class_exists('Razorpay\Api\Api')) {

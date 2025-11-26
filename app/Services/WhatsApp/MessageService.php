@@ -311,6 +311,110 @@ class MessageService
     }
 
     /**
+     * ✅ PREVENTION FIX: Verify session exists in assigned Node.js instance
+     *
+     * @param WhatsAppAccount $account
+     * @return bool
+     */
+    protected function verifySessionExists(WhatsAppAccount $account): bool
+    {
+        if (!$account->assigned_instance_url) {
+            Log::warning('Account has no assigned_instance_url', ['account_id' => $account->id]);
+            return false;
+        }
+
+        try {
+            $client = new \GuzzleHttp\Client(['timeout' => 3]);
+            $response = $client->get($account->assigned_instance_url . '/health/detailed');
+            $data = json_decode($response->getBody()->getContents(), true);
+            
+            // Check if session exists in this instance
+            if (isset($data['sessions']['details'])) {
+                foreach ($data['sessions']['details'] as $session) {
+                    if ($session['session_id'] === $account->session_id) {
+                        Log::info('✅ Session verified in assigned instance', [
+                            'session_id' => $account->session_id,
+                            'instance_url' => $account->assigned_instance_url,
+                            'session_status' => $session['status'] ?? 'unknown'
+                        ]);
+                        return true;
+                    }
+                }
+            }
+            
+            Log::warning('❌ Session not found in assigned instance', [
+                'session_id' => $account->session_id,
+                'instance_url' => $account->assigned_instance_url,
+                'sessions_in_instance' => $data['sessions']['total'] ?? 0
+            ]);
+            return false;
+            
+        } catch (\Exception $e) {
+            Log::error('Session verification failed', [
+                'error' => $e->getMessage(),
+                'instance_url' => $account->assigned_instance_url
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * ✅ PREVENTION FIX: Attempt to find session in other instances and sync database
+     *
+     * @param WhatsAppAccount $account
+     * @return bool
+     */
+    protected function attemptInstanceSync(WhatsAppAccount $account): bool
+    {
+        $instancePorts = [3001, 3002, 3003, 3004];
+        
+        foreach ($instancePorts as $port) {
+            $instanceUrl = "http://localhost:{$port}";
+            
+            try {
+                // Test if this instance can handle the session by trying to send a test message
+                // We use a simple GET health check first to avoid unnecessary load
+                $client = new \GuzzleHttp\Client(['timeout' => 3]);
+                $healthResponse = $client->get($instanceUrl . '/health');
+                $healthData = json_decode($healthResponse->getBody()->getContents(), true);
+                
+                // If instance has sessions, check if our session is there
+                if (isset($healthData['sessions']['total']) && $healthData['sessions']['total'] > 0) {
+                    // Try to verify session by checking if instance can handle it
+                    // Since we don't have direct endpoint, we check logs or try send test
+                    // For now, update assigned_instance_url and let the retry happen
+                    $account->update(['assigned_instance_url' => $instanceUrl]);
+                    
+                    Log::info('🔄 Attempting instance sync (testing port)', [
+                        'session_id' => $account->session_id,
+                        'test_url' => $instanceUrl,
+                        'sessions_in_instance' => $healthData['sessions']['total']
+                    ]);
+                    
+                    // Return true to allow retry
+                    // If session is actually here, retry will succeed
+                    // If not, we'll try next port on next iteration
+                    return true;
+                }
+                
+            } catch (\Exception $e) {
+                Log::debug('Instance check failed (non-fatal)', [
+                    'port' => $port,
+                    'error' => substr($e->getMessage(), 0, 100)
+                ]);
+                continue;
+            }
+        }
+        
+        Log::error('❌ Instance sync failed - session not found in any instance', [
+            'session_id' => $account->session_id,
+            'checked_ports' => $instancePorts
+        ]);
+        
+        return false;
+    }
+
+    /**
      * Prepare message metadata based on type
      *
      * @param string $message

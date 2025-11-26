@@ -54,6 +54,20 @@ class WhatsAppChatSyncJob implements ShouldQueue
     public $tries = 3;
 
     /**
+     * Progressive backoff intervals
+     *
+     * @var array
+     */
+    public $backoff = [20, 60, 180]; // Progressive backoff: 20s, 1m, 3m
+
+    /**
+     * Rate limiting
+     *
+     * @var int
+     */
+    public $retryAfter = 30;
+
+    /**
      * Calculate retry backoff in seconds (exponential)
      *
      * @return array

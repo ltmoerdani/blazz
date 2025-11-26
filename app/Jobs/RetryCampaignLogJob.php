@@ -21,7 +21,11 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, TemplateTrait;
 
-    public $timeout = 300;
+    public $timeout = 300; // 5 minutes
+    public $tries = 3;
+    public $backoff = [20, 60, 180]; // Progressive backoff: 20s, 1m, 3m
+    public $retryAfter = 30; // Rate limiting
+    
     private $workspaceId;
     private $campaignLogId;
     protected $retryIndex;
@@ -42,6 +46,20 @@ class RetryCampaignLogJob implements ShouldQueue, ShouldBeUnique
     public function uniqueId()
     {
         return $this->campaignLogId . '-' . $this->retryIndex;
+    }
+
+    /**
+     * Handle failed job
+     */
+    public function failed(\Throwable $exception)
+    {
+        Log::error('RetryCampaignLogJob failed permanently', [
+            'job' => self::class,
+            'workspace_id' => $this->workspaceId,
+            'campaign_log_id' => $this->campaignLogId,
+            'retry_index' => $this->retryIndex,
+            'error' => $exception->getMessage()
+        ]);
     }
 
     public function handle()

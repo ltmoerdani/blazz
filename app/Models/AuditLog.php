@@ -16,26 +16,7 @@ class AuditLog extends Model
     protected $keyType = 'string';
     protected $primaryKey = 'id';
 
-    protected $fillable = [
-        'id',
-        'request_id',
-        'event_type',
-        'endpoint',
-        'method',
-        'url',
-        'ip_address',
-        'user_agent',
-        'user_id',
-        'workspace_id',
-        'session_id',
-        'request_data',
-        'status_code',
-        'response_size',
-        'execution_time',
-        'memory_usage',
-        'success',
-        'event_result',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'request_data' => 'json',

@@ -12,13 +12,7 @@ class ContactAccount extends Model
 
     protected $table = 'contact_accounts';
 
-    protected $fillable = [
-        'contact_id',
-        'whatsapp_account_id',
-        'first_interaction_at',
-        'last_interaction_at',
-        'total_messages',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'first_interaction_at' => 'datetime',
