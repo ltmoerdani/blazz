@@ -498,6 +498,33 @@ class SessionManager {
         // Message Event (TASK-NODE-3: Enhanced with group support)
         client.on('message', async (message) => {
             try {
+                // CRITICAL FIX: Skip non-user messages (notification_template, e2e_notification, etc.)
+                // These are WhatsApp system messages that appear when:
+                // 1. End-to-end encryption is established with a new contact
+                // 2. Chat encryption key changes
+                // 3. Other internal WhatsApp notifications
+                // See: https://github.com/pedroslopez/whatsapp-web.js/issues/3723
+                const systemMessageTypes = [
+                    'notification_template',  // E2E encryption setup notification
+                    'e2e_notification',        // End-to-end notification
+                    'gp2',                     // Group participant add/remove
+                    'call_log',                // Call history entry
+                    'ciphertext',              // Encrypted message placeholder (not decrypted)
+                    'protocol',                // WhatsApp protocol message
+                    'revoked'                  // Deleted/revoked message
+                ];
+
+                if (systemMessageTypes.includes(message.type)) {
+                    this.logger.debug('Skipping system message', {
+                        sessionId,
+                        workspaceId,
+                        from: message.from,
+                        type: message.type,
+                        reason: 'system_message_filtered'
+                    });
+                    return; // Skip processing - don't send to Laravel
+                }
+
                 // Get chat to detect if it's a group
                 const chat = await message.getChat();
                 const isGroup = chat.isGroup;
