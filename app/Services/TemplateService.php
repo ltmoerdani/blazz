@@ -108,6 +108,7 @@ class TemplateService
 
         $data['languages'] = config('languages');
         $data['template'] = Template::where('uuid', $uuid)->first();
+        $data['settings'] = workspace::where('id', $this->workspaceId)->first();
         $data['title'] = 'Edit Template';
         return Inertia::render('User/Templates/Edit', $data);
     }
