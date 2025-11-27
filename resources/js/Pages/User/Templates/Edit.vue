@@ -761,7 +761,55 @@
         isLoading.value = true;
         loadingAction.value = 'draft';
         
-        axios.put('/templates/draft/' + props.template.uuid, form.value, {
+        // Create FormData for proper multipart handling with PUT method spoofing
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('name', form.value.name);
+        formData.append('category', form.value.category);
+        formData.append('language', form.value.language);
+        formData.append('header[format]', form.value.header?.format || 'TEXT');
+        formData.append('header[text]', form.value.header?.text || '');
+        
+        // Handle header example (could be file or text)
+        if (form.value.header?.example) {
+            if (form.value.header.example instanceof File) {
+                formData.append('header[example]', form.value.header.example);
+            } else if (Array.isArray(form.value.header.example)) {
+                form.value.header.example.forEach((val, idx) => {
+                    formData.append(`header[example][${idx}]`, val);
+                });
+            } else {
+                formData.append('header[example]', form.value.header.example);
+            }
+        }
+        
+        formData.append('body[text]', form.value.body?.text || '');
+        if (form.value.body?.example) {
+            if (Array.isArray(form.value.body.example)) {
+                form.value.body.example.forEach((val, idx) => {
+                    formData.append(`body[example][${idx}]`, val);
+                });
+            } else {
+                formData.append('body[example]', form.value.body.example);
+            }
+        }
+        formData.append('body[add_security_recommendation]', form.value.body?.add_security_recommendation || false);
+        
+        formData.append('footer[text]', form.value.footer?.text || '');
+        if (form.value.footer?.code_expiration_minutes) {
+            formData.append('footer[code_expiration_minutes]', form.value.footer.code_expiration_minutes);
+        }
+        
+        // Handle buttons
+        if (form.value.buttons && Array.isArray(form.value.buttons)) {
+            form.value.buttons.forEach((btn, idx) => {
+                Object.keys(btn).forEach(key => {
+                    formData.append(`buttons[${idx}][${key}]`, btn[key] ?? '');
+                });
+            });
+        }
+        
+        axios.post('/templates/draft/' + props.template.uuid, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -794,8 +842,54 @@
         loadingAction.value = 'meta';
         isModalOpen.value = true;
         
+        // Create FormData for proper multipart handling with PUT method spoofing
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('name', form.value.name);
+        formData.append('category', form.value.category);
+        formData.append('language', form.value.language);
+        formData.append('header[format]', form.value.header?.format || 'TEXT');
+        formData.append('header[text]', form.value.header?.text || '');
+        
+        if (form.value.header?.example) {
+            if (form.value.header.example instanceof File) {
+                formData.append('header[example]', form.value.header.example);
+            } else if (Array.isArray(form.value.header.example)) {
+                form.value.header.example.forEach((val, idx) => {
+                    formData.append(`header[example][${idx}]`, val);
+                });
+            } else {
+                formData.append('header[example]', form.value.header.example);
+            }
+        }
+        
+        formData.append('body[text]', form.value.body?.text || '');
+        if (form.value.body?.example) {
+            if (Array.isArray(form.value.body.example)) {
+                form.value.body.example.forEach((val, idx) => {
+                    formData.append(`body[example][${idx}]`, val);
+                });
+            } else {
+                formData.append('body[example]', form.value.body.example);
+            }
+        }
+        formData.append('body[add_security_recommendation]', form.value.body?.add_security_recommendation || false);
+        
+        formData.append('footer[text]', form.value.footer?.text || '');
+        if (form.value.footer?.code_expiration_minutes) {
+            formData.append('footer[code_expiration_minutes]', form.value.footer.code_expiration_minutes);
+        }
+        
+        if (form.value.buttons && Array.isArray(form.value.buttons)) {
+            form.value.buttons.forEach((btn, idx) => {
+                Object.keys(btn).forEach(key => {
+                    formData.append(`buttons[${idx}][${key}]`, btn[key] ?? '');
+                });
+            });
+        }
+        
         // First update the draft, then publish
-        axios.put('/templates/draft/' + props.template.uuid, form.value, {
+        axios.post('/templates/draft/' + props.template.uuid, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
