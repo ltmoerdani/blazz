@@ -23,10 +23,11 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping();
         
-        // Monitor queue health
-        $schedule->command('queue:restart')
-            ->hourly()
-            ->evenInMaintenanceMode();
+        // Monitor queue health - removed queue:restart as it stops workers
+        // Note: queue:restart should only be used after deployments, not scheduled
+        // $schedule->command('queue:restart')
+        //     ->hourly()
+        //     ->evenInMaintenanceMode();
         
         // Clean failed jobs table
         $schedule->command('queue:prune-failed --hours=24')

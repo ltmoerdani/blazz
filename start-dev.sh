@@ -131,10 +131,10 @@ fi
 
 cd ..
 
-# Start Queue Worker
-echo -e "${BLUE}4. Starting Queue Worker...${NC}"
-nohup php artisan queue:work --queue=messaging,campaign-stats,whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign --tries=3 --timeout=300 > logs/queue.log 2>&1 &
-QUEUE_PID=$!
+# Start Queue Worker (using watchdog script for auto-restart)
+echo -e "${BLUE}4. Starting Queue Worker with Watchdog...${NC}"
+./queue-worker.sh start
+QUEUE_PID=$(cat logs/queue.pid 2>/dev/null || echo "unknown")
 
 # Start Laravel Scheduler
 echo -e "${BLUE}5. Starting Laravel Scheduler...${NC}"
