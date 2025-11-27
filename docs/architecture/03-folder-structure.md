@@ -33,7 +33,21 @@ blazz/
 │   ├── Resolvers/            → Custom resolvers
 │   ├── Rules/                → Custom validation rules
 │   ├── Services/             → Business logic services
+│   │   └── WhatsApp/         → WhatsApp integration services
+│   │       ├── Adapters/     → Provider adapters (Meta, WebJS)
+│   │       ├── Http/         → WhatsApp HTTP client
+│   │       └── Webhook/      → Webhook handlers
 │   └── Traits/               → Reusable traits
+├── whatsapp-service/         → Node.js WhatsApp service
+│   ├── src/
+│   │   ├── adapters/         → Provider adapters
+│   │   ├── services/         → WhatsApp services
+│   │   ├── models/           → Data models
+│   │   └── utils/            → Utility functions
+│   ├── config/               → Service configuration
+│   ├── dist/                 → Compiled JavaScript
+│   ├── package.json          → Node.js dependencies
+│   └── tsconfig.json         → TypeScript configuration
 ├── bootstrap/
 ├── config/                   → Configuration files
 ├── database/
@@ -1104,5 +1118,5 @@ app/Services/
 
 **Next Steps:**
 - 🚀 [04-feature-development-guide.md](./04-feature-development-guide.md) - Step-by-step new feature guide
-- 🎨 [05-service-pattern-guidelines.md](./05-service-pattern-guidelines.md) - Service layer best practices
-- 🔧 [06-model-treatment-guide.md](./06-model-treatment-guide.md) - Model design patterns
+- 🎨 [06-development-patterns-guidelines.md](./06-development-patterns-guidelines.md) - Service layer & development best practices
+- 🔧 [04-feature-development-guide.md](./04-feature-development-guide.md) - Feature development workflow

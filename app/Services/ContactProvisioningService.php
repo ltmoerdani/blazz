@@ -1,0 +1,293 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Contact;
+use Propaganistas\LaravelPhone\PhoneNumber;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * Contact Provisioning Service
+ *
+ * Handles automatic contact creation and updates for WhatsApp integrations.
+ * Extracted pattern from WebhookController.php for reusability.
+ *
+ * Features:
+ * - E164 phone normalization
+ * - Workspace isolation
+ * - Soft delete awareness
+ * - Name update on subsequent interactions
+ *
+ * @package App\Services
+ */
+class ContactProvisioningService
+{
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
+    /**
+     * Get or create contact with phone normalization
+     *
+     * Strategy:
+     * 1. Normalize phone to E164 format
+     * 2. Find existing contact by workspace + phone
+     * 3. Create if not exists
+     * 4. Update name if currently null
+     *
+     * @param string $phone Raw phone number (with or without +)
+     * @param string|null $name Contact name from WhatsApp
+     * @param int $workspaceId Workspace ID for isolation
+     * @param string $sourceType Source: 'meta' | 'webjs' | 'manual'
+     * @param int|null $sessionId WhatsApp session ID (optional tracking)
+     * @return Contact
+     * @throws \Exception If phone formatting fails
+     */
+    public function getOrCreateContact(
+        string $phone,
+        ?string $name,
+        ?int $workspaceId = null,
+        string $sourceType = 'webjs',
+        ?int $sessionId = null,
+        bool $isGroup = false,
+        array $groupMetadata = []
+    ): Contact {
+        // Auto-detect group from phone number if not explicitly set
+        if (!$isGroup && (strpos($phone, '-') !== false || strlen($phone) > 15)) {
+            // WhatsApp Group IDs are usually longer or contain hyphens (old format)
+            // This is a heuristic fallback
+            // $isGroup = true; // Commented out to avoid false positives, relying on explicit flag for now
+        }
+        // Use instance workspaceId if parameter not provided
+        $workspaceId = $workspaceId ?? $this->workspaceId;
+
+        // Step 1: Format phone (skip for groups)
+        $formattedPhone = $phone;
+        if (!$isGroup) {
+            $formattedPhone = $this->formatPhone($phone);
+
+            if (!$formattedPhone) {
+                Log::channel('whatsapp')->error('Phone formatting failed', [
+                    'phone' => $phone,
+                    'workspace_id' => $workspaceId,
+                ]);
+
+                throw new \Exception("Invalid phone number format: {$phone}");
+            }
+        }
+
+        // Step 2: Find existing contact (with soft delete awareness)
+        $query = Contact::where('workspace_id', $workspaceId)
+            ->whereNull('deleted_at');
+
+        if ($isGroup) {
+            // For groups, check both raw ID and ID with suffix to avoid duplicates
+            $query->where(function($q) use ($formattedPhone) {
+                $q->where('phone', $formattedPhone)
+                  ->orWhere('phone', $formattedPhone . '@g.us');
+            });
+            // Prioritize contact with a set name (not just the phone number)
+            $query->orderByRaw("CASE WHEN first_name != phone THEN 1 ELSE 2 END");
+        } else {
+            $query->where('phone', $formattedPhone);
+        }
+
+        $contact = $query->first();
+
+        // If found with suffix, we'll normalize it in the update step below
+
+        // Handle legacy group contacts (previously formatted as E164)
+        if (!$contact && $isGroup) {
+            $legacyFormattedPhone = $this->formatPhone($phone);
+            if ($legacyFormattedPhone) {
+                $contact = Contact::where('workspace_id', $workspaceId)
+                    ->where('phone', $legacyFormattedPhone)
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                if ($contact) {
+                    // Migrate legacy contact to new format
+                    $contact->update([
+                        'phone' => $formattedPhone, // Update to raw group ID
+                        'type' => 'group',
+                        'updated_at' => now()
+                    ]);
+                    
+                    Log::channel('whatsapp')->info('Migrated legacy group contact', [
+                        'contact_id' => $contact->id,
+                        'old_phone' => $legacyFormattedPhone,
+                        'new_phone' => $formattedPhone
+                    ]);
+                }
+            }
+        }
+
+        $isNewContact = false;
+
+        // Step 3: Create contact if not exists
+        if (!$contact) {
+            $contact = Contact::create([
+                'first_name' => $name,
+                'last_name' => null,
+                'email' => null,
+                'phone' => $formattedPhone,
+                'workspace_id' => $workspaceId,
+                'type' => $isGroup ? 'group' : 'individual',
+                'group_metadata' => $isGroup ? $groupMetadata : null,
+                'created_by' => 0, // System-created
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $isNewContact = true;
+
+            Log::channel('whatsapp')->info('Contact created', [
+                'contact_id' => $contact->id,
+                'phone' => $formattedPhone,
+                'name' => $name,
+                'type' => $isGroup ? 'group' : 'individual',
+                'workspace_id' => $workspaceId,
+            ]);
+        }
+
+        // Step 4: Update name if currently null (enrich from incoming data)
+        // For groups, always update name if provided
+        if (($contact->first_name === null && $name) || ($isGroup && $name && $contact->first_name !== $name)) {
+            $updateData = [
+                'first_name' => $name,
+                'updated_at' => now(),
+            ];
+
+            if ($isGroup && !empty($groupMetadata)) {
+                $updateData['group_metadata'] = array_merge($contact->group_metadata ?? [], $groupMetadata);
+            }
+
+            // Ensure type is updated to group if it was previously individual (e.g. created before migration)
+            if ($isGroup && $contact->type !== 'group') {
+                $updateData['type'] = 'group';
+            }
+
+            // Normalize group phone number (remove @g.us suffix if present)
+            if ($isGroup && strpos($contact->phone, '@g.us') !== false) {
+                $updateData['phone'] = $formattedPhone; // $formattedPhone is raw ID for groups
+            }
+
+            if (!empty($updateData)) {
+                $contact->update($updateData);
+            }
+
+            Log::channel('whatsapp')->debug('Contact updated', [
+                'contact_id' => $contact->id,
+                'new_name' => $name,
+            ]);
+        }
+
+        return $contact;
+    }
+
+    /**
+     * Format phone number to E164 standard
+     *
+     * Handles:
+     * - Numbers with + prefix: +6281234567890
+     * - Numbers without + prefix: 6281234567890
+     * - Normalizes to E164: +6281234567890
+     *
+     * @param string $phone Raw phone number
+     * @return string|null Formatted E164 phone or null if invalid
+     */
+    public function formatPhone(string $phone): ?string
+    {
+        try {
+            // Add + prefix if not present
+            if (substr($phone, 0, 1) !== '+') {
+                $phone = '+' . $phone;
+            }
+
+            // Use Laravel Phone package for E164 formatting
+            $phoneObject = new PhoneNumber($phone);
+            $formatted = $phoneObject->formatE164();
+
+            return $formatted;
+
+        } catch (\Exception $e) {
+            Log::channel('whatsapp')->warning('Phone formatting error', [
+                'phone' => $phone,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Bulk create or update contacts
+     *
+     * Optimized for initial sync when processing many contacts at once.
+     * Uses firstOrCreate pattern with chunking for memory efficiency.
+     *
+     * @param array $contactsData Array of [phone, name, sessionId]
+     * @param int $workspaceId Workspace ID
+     * @param string $sourceType Source type
+     * @return array Created/updated contact IDs
+     */
+    public function bulkProvision(array $contactsData, int $workspaceId, string $sourceType = 'webjs'): array
+    {
+        $createdIds = [];
+        $chunkSize = 50;
+
+        foreach (array_chunk($contactsData, $chunkSize) as $chunk) {
+            foreach ($chunk as $data) {
+                try {
+                    $contact = $this->getOrCreateContact(
+                        $data['phone'],
+                        $data['name'] ?? null,
+                        $workspaceId,
+                        $sourceType,
+                        $data['session_id'] ?? null
+                    );
+
+                    $createdIds[] = $contact->id;
+
+                } catch (\Exception $e) {
+                    Log::channel('whatsapp')->error('Bulk provision failed for contact', [
+                        'phone' => $data['phone'],
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    // Continue processing other contacts
+                    continue;
+                }
+            }
+        }
+
+        Log::channel('whatsapp')->info('Bulk contact provision completed', [
+            'workspace_id' => $workspaceId,
+            'total_processed' => count($contactsData),
+            'total_created' => count($createdIds),
+        ]);
+
+        return $createdIds;
+    }
+
+    /**
+     * Update contact's latest activity timestamp
+     *
+     * Called when new chat is created for contact.
+     *
+     * @param Contact $contact
+     * @param \Carbon\Carbon $timestamp
+     * @return bool
+     */
+    public function updateLatestActivity(Contact $contact, $timestamp): bool
+    {
+        return $contact->update([
+            'latest_chat_created_at' => $timestamp,
+            'updated_at' => now(),
+        ]);
+    }
+}

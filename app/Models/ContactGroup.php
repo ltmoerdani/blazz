@@ -50,4 +50,16 @@ class ContactGroup extends Model {
     {
         return $this->where('workspace_id', $workspaceId)->where('deleted_at', null)->count();
     }
+
+    /**
+     * Scope query to specific workspace
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $workspaceId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
 }

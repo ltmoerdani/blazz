@@ -1,0 +1,105 @@
+╔════════════════════════════════════════════════════════════════╗
+║         QUEUE WORKER - QUICK REFERENCE CARD                    ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  ❓ PERTANYAAN: Apakah Queue Worker Otomatis Start?           ║
+║                                                                ║
+║  ✅ JAWABAN: YA, OTOMATIS!                                    ║
+║                                                                ║
+║  Queue worker sudah AUTO-START ketika menjalankan:            ║
+║  $ ./start-dev.sh                                             ║
+║                                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║  📋 CHECKLIST                                                  ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  ✅ Sudah running ./start-dev.sh?                             ║
+║     └─> Queue worker OTOMATIS jalan                          ║
+║                                                                ║
+║  ✅ Campaign dengan "Skip schedule" otomatis diproses         ║
+║                                                                ║
+║  ✅ TIDAK perlu start manual kecuali:                         ║
+║     • Queue worker crash                                      ║
+║     • Setelah code changes                                    ║
+║     • Worker stuck                                            ║
+║                                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║  🚀 QUICK COMMANDS                                            ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  # Start all services (termasuk queue worker)                 ║
+║  $ ./start-dev.sh                                             ║
+║                                                                ║
+║  # Check status queue worker                                  ║
+║  $ ./manage-queue-worker.sh status                            ║
+║                                                                ║
+║  # Restart queue worker (setelah code changes)                ║
+║  $ ./manage-queue-worker.sh restart                           ║
+║                                                                ║
+║  # Monitor logs real-time                                     ║
+║  $ ./manage-queue-worker.sh monitor                           ║
+║                                                                ║
+║  # Stop all services                                          ║
+║  $ ./stop-dev.sh                                              ║
+║                                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║  🔍 TROUBLESHOOTING                                           ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  Problem: Campaign tidak diproses                             ║
+║  Solution:                                                     ║
+║    1. $ ./manage-queue-worker.sh status                       ║
+║    2. Jika NOT running: $ ./manage-queue-worker.sh start      ║
+║                                                                ║
+║  Problem: Setelah edit code, campaign pakai code lama         ║
+║  Solution:                                                     ║
+║    $ ./manage-queue-worker.sh restart                         ║
+║                                                                ║
+║  Problem: Queue worker tidak muncul di process list           ║
+║  Solution:                                                     ║
+║    $ ./start-dev.sh    (akan auto-start semua)               ║
+║                                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║  📊 FLOW CAMPAIGN                                             ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  1. User: ./start-dev.sh                                      ║
+║     └─> Queue worker AUTO START ✅                           ║
+║                                                                ║
+║  2. User: Create campaign + "Skip schedule" ✅               ║
+║                                                                ║
+║  3. System: Dispatch job to queue                             ║
+║                                                                ║
+║  4. Queue Worker: Process job IMMEDIATELY                     ║
+║                                                                ║
+║  5. WhatsApp: Send message ✅                                ║
+║                                                                ║
+║  6. Campaign: Status = completed ✅                          ║
+║                                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║  ⚙️  QUEUE CONFIGURATION                                      ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  Queues (priority order):                                     ║
+║    1. whatsapp-urgent    (highest)                           ║
+║    2. whatsapp-high                                           ║
+║    3. whatsapp-normal                                         ║
+║    4. whatsapp-campaign  (lowest - campaigns here)           ║
+║                                                                ║
+║  Settings:                                                     ║
+║    • Max Tries: 3                                             ║
+║    • Timeout: 300 seconds (5 min)                            ║
+║    • Log: logs/queue.log                                     ║
+║                                                                ║
+╠════════════════════════════════════════════════════════════════╣
+║  📝 SUMMARY                                                    ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  ✅ Queue worker OTOMATIS START dengan ./start-dev.sh        ║
+║  ✅ Campaign "Skip schedule" LANGSUNG DIPROSES               ║
+║  ✅ TIDAK perlu start manual untuk normal usage              ║
+║  ⚠️  Restart queue worker setelah CODE CHANGES               ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+Print this card and keep it handy! 📋

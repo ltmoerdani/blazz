@@ -52,16 +52,33 @@ return [
         'class' => App\Services\FlutterwaveService::class,
     ],
 
-    'clickpay' => [
-        'class' => Modules\Clickpaysa\Controllers\ProcessPayment::class,
-    ],
+    // 'clickpay' => [
+    //     'class' => Modules\Clickpaysa\Controllers\ProcessPayment::class,
+    // ],
 
     'razorpay' => [
         'class' => Modules\Razorpay\Controllers\ProcessPayment::class,
     ],
 
-    'pabbly subscriptions' => [
-        'class' => Modules\Pabbly\Controllers\ProcessPayment::class,
+    // 'pabbly subscriptions' => [
+    //     'class' => Modules\Pabbly\Controllers\ProcessPayment::class,
+    // ],
+
+    'whatsapp' => [
+        'nodejs_url' => env('WHATSAPP_NODEJS_URL', 'http://127.0.0.1:3000'),
+        'api_key' => env('WHATSAPP_API_KEY', env('LARAVEL_API_TOKEN')),
+        'hmac_secret' => env('WHATSAPP_HMAC_SECRET'),
+        'timeout' => env('WHATSAPP_TIMEOUT', 30),
+        'retry_attempts' => env('WHATSAPP_RETRY_ATTEMPTS', 3),
+        'retry_delay' => env('WHATSAPP_RETRY_DELAY', 1000),
+        
+        // ✅ PHASE 1: Multi-instance configuration for session distribution and failover
+        'nodejs_instances' => [
+            env('WHATSAPP_INSTANCE_1', 'http://localhost:3001'),
+            env('WHATSAPP_INSTANCE_2', 'http://localhost:3002'),
+            env('WHATSAPP_INSTANCE_3', 'http://localhost:3003'),
+            env('WHATSAPP_INSTANCE_4', 'http://localhost:3004'),
+        ],
     ],
 ];
 

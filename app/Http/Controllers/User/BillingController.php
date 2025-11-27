@@ -22,27 +22,24 @@ class BillingController extends BaseController
 {
     // Constants for repeated string literals
     const BILLING_ROUTE = '/billing';
-    
-    protected $billingService;
-    protected $subscriptionService;
-    protected $paymentPlatformResolver;
 
-    public function __construct()
-    {
-        $this->billingService = new BillingService();
-        $this->subscriptionService = new SubscriptionService();
-        $this->paymentPlatformResolver = new PaymentPlatformResolver();
+    public function __construct(
+        private BillingService $billingService,
+        private SubscriptionService $subscriptionService,
+        private PaymentPlatformResolver $paymentPlatformResolver
+    ) {
+        // Constructor injection - no manual instantiation
     }
     
     public function index(Request $request){
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspace = workspace::where('id', $workspaceId)->first();
         $data['subscription'] = Subscription::with('plan')->where('workspace_id', $workspaceId)->first();
-        $data['subscriptionIsActive'] = SubscriptionService::isSubscriptionActive($workspaceId);
+        $data['subscriptionIsActive'] = $this->subscriptionService->isSubscriptionActive($workspaceId);
         $data['rows'] = $this->billingService->get($request, $workspace->uuid);
         $data['filters'] = $request->all();
         $data['methods'] = $this->paymentMethods();
-        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
+        $data['subscriptionDetails'] = $this->subscriptionService->calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
         $data['title'] = __('Billing');
         $data['isPaymentLoading'] = false;
         $data['pusherSettings'] = Setting::whereIn('key', [

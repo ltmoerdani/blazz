@@ -15,6 +15,7 @@ use App\Models\Template;
 use App\Services\ContactFieldService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Validator;
@@ -22,10 +23,17 @@ use Validator;
 class PluginController extends BaseController
 {
     public function index(Request $request){
+        // Only allow admin users to access plugins
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        if ($user && $user->role === 'user') {
+            return redirect()->route('dashboard');
+        }
+
         if ($request->isMethod('get')) {
             $data['title'] = __('Plugin Settings');
             $data['modules'] = Addon::get();
-            
+
             return Inertia::render('User/Settings/Plugins/Index', $data);
         }
     }

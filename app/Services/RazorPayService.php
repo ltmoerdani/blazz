@@ -2,30 +2,70 @@
 
 namespace App\Services;
 
+use App\Models\Integration;
 use Carbon\Carbon;
-use DB;
-use Helper;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use App\Helpers\CustomHelper;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
-use App\Models\BillingHistory;
+use App\Models\BillingPayment;
 use App\Models\Coupon;
 use App\Models\User;
-use App\Models\UserSubscription;
+use App\Models\Subscription;
 use App\Traits\ConsumesExternalServices;
+
+// RazorPay API will be loaded via autoloader if installed
+
+// Include stub class if RazorPay API is not installed
+if (!class_exists('Razorpay\Api\Api')) {
+    require_once __DIR__ . '/RazorPayStub.php';
+}
 
 class RazorPayService
 {
-    public function __construct()
+    private $config;
+    private $workspaceId;
+    /**
+     * @var mixed RazorPay API instance
+     */
+    private $razorpay;
+
+    public function __construct($workspaceId = null)
     {
-        $razorpayInfo = DB::table('integrations')->where('name', 'RazorPay')->first();
-        $this->config = unserialize($razorpayInfo->data);
-        $this->razorpay = new \Razorpay\Api\Api($this->config['public_key'], $this->config['secret_key']);
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+        
+        // Get RazorPay integration for workspace
+        $razorpayInfo = Integration::getActive($this->workspaceId, 'RazorPay');
+        
+        if (!$razorpayInfo) {
+            Log::warning('RazorPay integration not found for workspace', ['workspace_id' => $this->workspaceId]);
+            $this->razorpay = null;
+            return;
+        }
+        
+        $this->config = $razorpayInfo->credentials;
+
+        // Initialize RazorPay API if the class exists
+        if (class_exists('Razorpay\Api\Api')) {
+            $this->razorpay = new \Razorpay\Api\Api($this->config['public_key'], $this->config['secret_key']);
+        } else {
+            // Fallback: set to null to prevent runtime errors
+            $this->razorpay = null;
+            Log::warning('RazorPay API class not found. RazorPay functionality will be disabled.');
+        }
     }
 
-    public function createPlan($plan, $razorpayPlan, $razorpayAmount)
+    public function createPlan($plan, $razorpayPlan, $razorpayAmount, $interval = 'month')
     {
         try {
+            if (!$this->razorpay) {
+                return (object) array('success' => false, 'error' => 'RazorPay API not available');
+            }
+
             $request = $this->razorpay->plan->create([
                 'period' => $interval == 'month' ? 'monthly' : 'yearly',
                 'interval' => 1,
@@ -33,7 +73,7 @@ class RazorPayService
                     'name' => $razorpayPlan,
                     'description' => $plan->description,
                     'amount' => $razorpayAmount,
-                    'currency' => Helper::config('currency'),
+                    'currency' => CustomHelper::config('currency'),
                 ],
             ]);
             return (object) array('success' => true, 'data' => $request);
@@ -45,15 +85,19 @@ class RazorPayService
     public function createSubscription($plan, $razorpayPlanRequest, $amount, $coupon, $taxRates, $interval)
     {
         try {
+            if (!$this->razorpay) {
+                return (object) array('success' => false, 'error' => 'RazorPay API not available');
+            }
+
             $request = $this->razorpay->subscription->create([
                 'plan_id' => $razorpayPlanRequest->id,
                 'total_count' => $interval == 'month' ? 36 : 3,
                 'notes' => [
-                    'user' => auth()->user()->id,
+                    'user' => Auth::user()->id,
                     'plan' => $plan->id,
                     'plan_amount' => $interval == 'year' ? $plan->yearly_price : $plan->monthly_price,
                     'amount' => $amount,
-                    'currency' => Helper::config('currency'),
+                    'currency' => CustomHelper::config('currency'),
                     'interval' => $interval,
                     'coupon' => $coupon->id ?? null,
                     'tax_rates' => isset($taxRates) ?? $taxRates->pluck('id')->implode('_')
@@ -68,8 +112,8 @@ class RazorPayService
     public function handleSubscription(Request $request,$plan, $coupon, $taxRates, $amount, $interval)
     {
         $razorpayAmount = in_array($plan->currency, config('currencies.zero_decimals')) ? $amount : ($amount * 100);
-        $razorpayPlan = $plan->id . '_' .$interval . '_' . $razorpayAmount . '_' . Helper::config('currency');
-        $razorpayPlanQuery = $this->createPlan($plan, $razorpayPlan, $razorpayAmount);
+        $razorpayPlan = $plan->id . '_' .$interval . '_' . $razorpayAmount . '_' . CustomHelper::config('currency');
+        $razorpayPlanQuery = $this->createPlan($plan, $razorpayPlan, $razorpayAmount, $interval);
 
         if($razorpayPlanQuery->success){
             $razorpayPlanQuery = $this->createSubscription($plan, $razorpayPlanQuery->data, $amount, $coupon, $taxRates, $interval);
@@ -83,6 +127,10 @@ class RazorPayService
     {
         // Attempt to cancel the current subscription
         try {
+            if (!$this->razorpay) {
+                return (object) array('success' => false, 'error' => 'RazorPay API not available');
+            }
+
             $request = $this->razorpay->subscription->fetch($plan_subscription_id)->cancel();
             return (object) array('success' => true, 'data' => $request);
         } catch (\Exception $e) {
@@ -105,7 +153,7 @@ class RazorPayService
 
             if (isset($metadata->user)) {
                 $user = User::where('id', '=', $metadata->user)->first();
-                $user_subscription = UserSubscription::where('user_id', $metadata->user)->first();
+                $user_subscription = Subscription::where('user_id', $metadata->user)->first();
 
                 // If a user was found
                 if ($user) {
@@ -166,8 +214,8 @@ class RazorPayService
 
                     if ($payload->event == 'subscription.charged') {
                         // If the payment does not exist
-                        if (!BillingHistory::where([['processor', '=', 'razorpay'], ['payment_id', '=', $payload->payload->payment->entity->id]])->exists()) {
-                            $payment = BillingHistory::create([
+                        if (!BillingPayment::where([['processor', '=', 'razorpay'], ['payment_id', '=', $payload->payload->payment->entity->id]])->exists()) {
+                            $payment = BillingPayment::create([
                                 'user_id' => $user->id,
                                 'plan_id' => $metadata->plan,
                                 'payment_id' => $payload->payload->payment->entity->id,

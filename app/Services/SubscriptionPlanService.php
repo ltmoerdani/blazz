@@ -7,9 +7,18 @@ use App\Models\PaymentGateway;
 use App\Models\SubscriptionPlan;
 use App\Services\StripeService;
 use DB;
+use Illuminate\Support\Facades\Log;
 
 class SubscriptionPlanService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     /**
      * Get all subscription plans based on the provided request filters.
      *
@@ -65,12 +74,18 @@ class SubscriptionPlanService
 
         if($stripe->is_active == '1'){
             //Create product in Stripe
-            (new StripeService)->createProduct($newSubscriptionPlan);
+            (new StripeService($this->workspaceId))->createProduct($newSubscriptionPlan);
         }
 
         if (file_exists(base_path('modules/Pabbly/Services/PabblyService.php'))) {
-            $pabblyService = new \Modules\Pabbly\Services\PabblyService();
-            $response = $pabblyService->createPlan($newSubscriptionPlan);
+            try {
+                $className = '\\Modules\\Pabbly\\Services\\PabblyService';
+                $pabblyService = new $className();
+                $response = $pabblyService->createPlan($newSubscriptionPlan);
+            } catch (\Exception $e) {
+                // Log error but continue execution
+                Log::warning('Pabbly service not available: ' . $e->getMessage());
+            }
         }
     
         return $newSubscriptionPlan;
@@ -107,12 +122,18 @@ class SubscriptionPlanService
 
         if($stripe->is_active == '1'){
             //Update product in Stripe
-            (new StripeService)->updateProduct($plan);
+            (new StripeService($this->workspaceId))->updateProduct($plan);
         }
 
         if (file_exists(base_path('modules/Pabbly/Services/PabblyService.php'))) {
-            $pabblyService = new \Modules\Pabbly\Services\PabblyService();
-            $response = $pabblyService->updatePlan($plan);
+            try {
+                $className = '\\Modules\\Pabbly\\Services\\PabblyService';
+                $pabblyService = new $className();
+                $response = $pabblyService->updatePlan($plan);
+            } catch (\Exception $e) {
+                // Log error but continue execution
+                Log::warning('Pabbly service not available: ' . $e->getMessage());
+            }
         }
 
         return $plan;
@@ -132,7 +153,7 @@ class SubscriptionPlanService
 
         if($stripe->is_active == '1'){
             //Update product in Stripe
-            (new StripeService)->deleteProduct($subscriptionPlan);
+            (new StripeService($this->workspaceId))->deleteProduct($subscriptionPlan);
         }
     }
 }

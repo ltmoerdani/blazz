@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Jobs\ProcessSingleCampaignLogJob;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
+use App\Services\WhatsApp\MessageSendingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -17,10 +18,24 @@ class ProcessCampaignMessagesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
     
-    public $timeout = 3600;
+    public $timeout = 3600; // 1 hour
     public $tries = 3;
+    public $backoff = [30, 120, 300]; // Progressive backoff: 30s, 2m, 5m
+    public $retryAfter = 60; // Rate limiting
 
-    public function handle()
+    /**
+     * Handle failed job
+     */
+    public function failed(\Throwable $exception)
+    {
+        Log::error('ProcessCampaignMessagesJob failed permanently', [
+            'job' => self::class,
+            'error' => $exception->getMessage(),
+            'trace' => $exception->getTraceAsString()
+        ]);
+    }
+
+    public function handle(MessageSendingService $messageService)
     {
         try {
             // Process logs in chunks to avoid memory issues
@@ -29,7 +44,7 @@ class ProcessCampaignMessagesJob implements ShouldQueue
                 ->whereHas('campaign', function ($query) {
                     $query->where('status', 'ongoing');
                 })
-                ->chunk(1000, function ($logs) {
+                ->chunk(1000, function ($logs) use ($messageService) {
                     $jobs = [];
                     $campaignsProcessed = [];
 
@@ -42,7 +57,7 @@ class ProcessCampaignMessagesJob implements ShouldQueue
 
                         // Filter the logs based on the status and retry logic
                         if ($log->status === 'pending' || ($log->status === 'failed' && $log->retry_count < $maxRetries && $retryEnabled === true)) {
-                            $jobs[] = new ProcessSingleCampaignLogJob($log);
+                            $jobs[] = new ProcessSingleCampaignLogJob($log, $messageService);
                         }
 
                         // Track which campaigns have been processed

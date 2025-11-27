@@ -14,6 +14,15 @@ use Illuminate\Support\Facades\DB;
 
 class BillingService
 {
+    private $subscriptionService;
+    private $workspaceId;
+
+    public function __construct(?SubscriptionService $subscriptionService = null, ?int $workspaceId = null)
+    {
+        $this->subscriptionService = $subscriptionService ?: new SubscriptionService();
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
     /**
      * Get all billing history based on the provided request filters.
      *
@@ -74,8 +83,9 @@ class BillingService
             ]);
 
             //Activate workspace's plan if credits cover cost of plan
-            $subscriptionService = new SubscriptionService();
-            $subscriptionService::activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, Auth::id());
+            if ($this->subscriptionService) {
+                $this->subscriptionService->activateSubscriptionIfInactiveAndExpiredWithCredits($workspace->id, Auth::id());
+            }
 
             return $transaction;
         });

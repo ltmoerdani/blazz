@@ -15,16 +15,6 @@ class WorkspaceApiKey extends Model
     protected $table = 'workspace_api_keys';
     protected $guarded = [];
     public $timestamps = true;
-    
-    protected $fillable = [
-        'workspace_id',
-        'api_key',
-        'name',
-        'permissions',
-        'is_active',
-        'expires_at',
-        'last_used_at',
-    ];
 
     protected $casts = [
         'permissions' => 'json',

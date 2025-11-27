@@ -13,6 +13,14 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class LangService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     // Constants for repeated string literals
     const JSON_EXTENSION = '.json';
     

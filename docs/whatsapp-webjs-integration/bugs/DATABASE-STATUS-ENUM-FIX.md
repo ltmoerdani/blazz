@@ -11,11 +11,11 @@
 ### Error Message
 ```
 SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1
-SQL: insert into `whatsapp_sessions` (..., `status`, ...) values (..., initializing, ...)
+SQL: insert into `whatsapp_accounts` (..., `status`, ...) values (..., initializing, ...)
 ```
 
 ### Database Schema (Migration)
-**File:** `database/migrations/2025_10_13_000000_create_whatsapp_sessions_table.php`  
+**File:** `database/migrations/2025_10_13_000000_create_whatsapp_accounts_table.php`  
 **Line 20:**
 
 ```php
@@ -32,7 +32,7 @@ $table->enum('status', [
 
 ### Code Using Wrong Value
 
-**1. WhatsAppSessionController.php (Line 95)**
+**1. WhatsAppAccountController.php (Line 95)**
 ```php
 'status' => 'initializing',  // ❌ NOT IN ENUM
 ```
@@ -51,14 +51,14 @@ status: 'initializing'  // ❌ NOT IN ENUM
 
 ## 🛠️ Fixes Applied
 
-### Fix 1: WhatsAppSessionController.php
+### Fix 1: WhatsAppAccountController.php
 
-**File:** `app/Http/Controllers/User/WhatsAppSessionController.php`  
+**File:** `app/Http/Controllers/User/WhatsAppAccountController.php`  
 **Line:** 95
 
 **BEFORE:**
 ```php
-$session = WhatsAppSession::create([
+$session = WhatsAppAccount::create([
     'uuid' => Str::uuid()->toString(),
     'workspace_id' => $workspaceId,
     'session_id' => 'webjs_' . $workspaceId . '_' . time() . '_' . Str::random(8),
@@ -76,7 +76,7 @@ $session = WhatsAppSession::create([
 
 **AFTER:**
 ```php
-$session = WhatsAppSession::create([
+$session = WhatsAppAccount::create([
     'uuid' => Str::uuid()->toString(),
     'workspace_id' => $workspaceId,
     'session_id' => 'webjs_' . $workspaceId . '_' . time() . '_' . Str::random(8),
@@ -188,7 +188,7 @@ failed              Error occurred during any stage
 
 **Request:**
 ```bash
-curl -X POST http://127.0.0.1:8000/settings/whatsapp-sessions \
+curl -X POST http://127.0.0.1:8000/settings/whatsapp-accounts \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{"provider_type": "webjs"}'
@@ -214,7 +214,7 @@ curl -X POST http://127.0.0.1:8000/settings/whatsapp-sessions \
 **Query:**
 ```sql
 SELECT id, session_id, status, created_at 
-FROM whatsapp_sessions 
+FROM whatsapp_accounts 
 ORDER BY created_at DESC 
 LIMIT 5;
 ```
@@ -233,7 +233,7 @@ ERROR 1265 (01000): Data truncated for column 'status' at row 1
 
 ### Test 3: Browser Testing
 
-1. Navigate to `/settings/whatsapp-sessions`
+1. Navigate to `/settings/whatsapp-accounts`
 2. Click "Add WhatsApp Number"
 3. **Expected:**
    - ✅ Modal opens
@@ -242,7 +242,7 @@ ERROR 1265 (01000): Data truncated for column 'status' at row 1
    - ✅ Network tab shows 200 OK
 4. **Console logs:**
    ```javascript
-   🔄 Creating new WhatsApp session...
+   🔄 Creating new WhatsApp account...
    ✅ Session created: {success: true, session: {status: "qr_scanning", ...}}
    ```
 
@@ -303,7 +303,7 @@ $table->enum('status', [
 
 **Then run:**
 ```bash
-php artisan migrate:refresh --path=database/migrations/2025_10_13_000000_create_whatsapp_sessions_table.php
+php artisan migrate:refresh --path=database/migrations/2025_10_13_000000_create_whatsapp_accounts_table.php
 ```
 
 **⚠️ WARNING:** This will **drop and recreate** the table, **deleting all existing data!**
@@ -315,7 +315,7 @@ php artisan migrate:refresh --path=database/migrations/2025_10_13_000000_create_
 ## 📊 Impact Analysis
 
 ### Files Modified
-1. `app/Http/Controllers/User/WhatsAppSessionController.php` - 1 line changed
+1. `app/Http/Controllers/User/WhatsAppAccountController.php` - 1 line changed
 2. `whatsapp-service/server.js` - 2 lines changed
 
 ### Breaking Changes
@@ -335,7 +335,7 @@ php artisan migrate:refresh --path=database/migrations/2025_10_13_000000_create_
 
 After applying fixes:
 
-- [x] WhatsAppSessionController.php updated
+- [x] WhatsAppAccountController.php updated
 - [x] whatsapp-service/server.js updated (2 places)
 - [x] WhatsApp service restarted
 - [ ] Test session creation via browser
@@ -350,7 +350,7 @@ After applying fixes:
 This fix resolves:
 - ❌ `SQLSTATE[01000]: Warning: 1265 Data truncated`
 - ❌ HTTP 500 Internal Server Error on session creation
-- ❌ Alert popup: "Failed to create WhatsApp session"
+- ❌ Alert popup: "Failed to create WhatsApp account"
 
 This fix enables:
 - ✅ Successful session creation

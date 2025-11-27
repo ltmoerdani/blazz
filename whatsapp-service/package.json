@@ -10,7 +10,20 @@
     "pm2": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop whatsapp-service",
     "pm2:restart": "pm2 restart whatsapp-service",
-    "pm2:logs": "pm2 logs whatsapp-service"
+    "pm2:reload": "pm2 reload whatsapp-service",
+    "pm2:logs": "pm2 logs whatsapp-service",
+    "pm2:monit": "pm2 monit",
+    "pm2:status": "pm2 status",
+    "pm2:start:dev": "./scripts/start.sh start development",
+    "pm2:start:staging": "./scripts/start.sh start staging",
+    "pm2:start:prod": "./scripts/start.sh start production",
+    "pm2:restart:dev": "./scripts/start.sh restart development",
+    "pm2:restart:staging": "./scripts/start.sh restart staging",
+    "pm2:restart:prod": "./scripts/start.sh restart production",
+    "pm2:reload:dev": "./scripts/start.sh reload development",
+    "pm2:reload:staging": "./scripts/start.sh reload staging",
+    "pm2:reload:prod": "./scripts/start.sh reload production",
+    "pm2:kill": "pm2 kill"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -18,10 +31,11 @@
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "ioredis": "^5.3.2",
+    "node-cron": "^4.2.1",
+    "p-limit": "^3.1.0",
     "pm2": "^5.3.0",
-    "puppeteer": "^18.2.1",
     "qrcode": "^1.5.3",
-    "whatsapp-web.js": "^1.23.0",
+    "whatsapp-web.js": "^1.33.2",
     "winston": "^3.11.0"
   },
   "devDependencies": {

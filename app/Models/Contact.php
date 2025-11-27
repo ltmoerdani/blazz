@@ -16,9 +16,36 @@ class Contact extends Model {
     use SoftDeletes;
 
     protected $guarded = [];
-    protected $appends = ['full_name', 'formatted_phone_number'];
+    protected $appends = ['formatted_phone_number'];
     protected $dates = ['deleted_at'];
-    public $timestamps = false;
+    protected $casts = [
+        'group_metadata' => 'array',
+    ];
+    public $timestamps = true;
+
+    public function isGroup(): bool
+    {
+        return $this->type === 'group';
+    }
+
+    public function isIndividual(): bool
+    {
+        return $this->type === 'individual';
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-populate full_name when creating or updating
+        static::saving(function ($contact) {
+            if ($contact->isDirty(['first_name', 'last_name'])) {
+                $firstName = trim($contact->first_name ?? '');
+                $lastName = trim($contact->last_name ?? '');
+                $contact->full_name = trim("$firstName $lastName");
+            }
+        });
+    }
 
     public function getCreatedAtAttribute($value)
     {
@@ -103,21 +130,35 @@ class Contact extends Model {
         return $this->hasMany(ChatLog::class);
     }
 
-    public function contactsWithChats($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
+    public function contactsWithChats($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true, $sessionId = null)
     {
         $query = $this->newQuery()
             ->where('contacts.Workspace_id', $workspaceId)
-            ->whereNotNull('contacts.latest_chat_created_at')
+            ->whereHas('chats', function ($q) use ($workspaceId, $sessionId) {
+                $q->where('chats.workspace_id', $workspaceId)
+                  ->whereNull('chats.deleted_at');
+
+                // Filter by session if specified
+                if ($sessionId) {
+                    $q->where('chats.whatsapp_account_id', $sessionId);
+                }
+            })
             ->with(['lastChat', 'lastInboundChat'])
             ->whereNull('contacts.deleted_at')
-            ->select('contacts.*')
-            ->selectSub(function ($subquery) use ($workspaceId) {
+            ->select('contacts.*', 'contacts.type', 'contacts.group_metadata')
+            ->selectSub(function ($subquery) use ($workspaceId, $sessionId) {
                 $subquery->from('chats')
                     ->selectRaw('MAX(created_at)')
                     ->whereColumn('chats.contact_id', 'contacts.id')
                     ->whereNull('chats.deleted_at')
-                    ->where('chats.Workspace_id', $workspaceId);
-            }, 'last_chat_created_at');
+                    ->where('chats.workspace_id', $workspaceId);
+
+                // Filter by session if specified
+                if ($sessionId) {
+                    $subquery->where('chats.whatsapp_account_id', $sessionId);
+                }
+            }, 'last_chat_created_at')
+            ->orderBy('last_chat_created_at', $sortDirection === 'desc' ? 'desc' : 'asc');
 
         // Apply ticketing conditions if active
         if ($ticketingActive) {
@@ -145,23 +186,28 @@ class Contact extends Model {
             });
         }
 
-        // Order by the latest chat's created_at
-        $query->orderBy('last_chat_created_at', $sortDirection); // Order contacts by last chat created_at
-
-        // Paginate contacts
-        return $query->paginate(10);
+        // NOTE: orderBy already set above at line 162, no need to duplicate
+        // Using simplePaginate for infinite scroll (efficient, no COUNT query)
+        return $query->simplePaginate(15);
 
     }
 
-    public function contactsWithChatsCount($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true)
+    public function contactsWithChatsCount($workspaceId, $searchTerm = null, $ticketingActive = false, $ticketState = null, $sortDirection = 'asc', $role = 'owner', $allowAgentsViewAllChats = true, $sessionId = null)
     {
         $query = $this->newQuery()
             ->where('contacts.Workspace_id', $workspaceId)
-            ->whereNotNull('contacts.latest_chat_created_at')
+            ->whereHas('chats', function ($q) use ($workspaceId, $sessionId) {
+                $q->where('chats.workspace_id', $workspaceId)
+                  ->whereNull('chats.deleted_at');
+
+                // Filter by session if specified
+                if ($sessionId) {
+                    $q->where('chats.whatsapp_account_id', $sessionId);
+                }
+            })
             ->whereNull('contacts.deleted_at')
             ->with(['lastChat', 'lastInboundChat'])
-            ->select('contacts.*')
-            ->orderBy('contacts.latest_chat_created_at', $sortDirection);
+            ->select('contacts.*');
 
         if($ticketingActive){
             // Conditional join with chat_tickets table and comparison with ticketState
@@ -246,13 +292,191 @@ class Contact extends Model {
     public function getFormattedPhoneNumberAttribute($value)
     {
         // Use the phone() helper function to format the phone number to international format
-        return phone($this->phone)->formatInternational();
+        if (!$this->phone) {
+            return '';
+        }
+
+        if ($this->isGroup()) {
+            return $this->phone;
+        }
+
+        try {
+            return phone($this->phone)->formatInternational();
+        } catch (\Exception $e) {
+            return $this->phone;
+        }
     }
 
     protected function decodeUnicodeBytes($value)
     {
+        if (!$value) {
+            return '';
+        }
         return preg_replace_callback('/\\\\x([0-9A-F]{2})/i', function ($matches) {
             return chr(hexdec($matches[1]));
         }, $value);
+    }
+
+    // Business Methods
+    /**
+     * Update contact presence information
+     */
+    public function updatePresence(array $data): self
+    {
+        if (isset($data['is_online'])) {
+            $this->is_online = $data['is_online'];
+        }
+
+        if (isset($data['typing_status'])) {
+            $this->typing_status = $data['typing_status'];
+        }
+
+        if (isset($data['last_activity'])) {
+            $this->last_activity = $data['last_activity'];
+        }
+
+        if (isset($data['last_message_at'])) {
+            $this->last_message_at = $data['last_message_at'];
+        }
+
+        $this->save();
+        return $this;
+    }
+
+    /**
+     * Set contact as online
+     */
+    public function setOnline(): self
+    {
+        return $this->updatePresence([
+            'is_online' => true,
+            'last_activity' => now()
+        ]);
+    }
+
+    /**
+     * Set contact as offline
+     */
+    public function setOffline(): self
+    {
+        return $this->updatePresence([
+            'is_online' => false,
+            'typing_status' => 'idle',
+            'last_activity' => now()
+        ]);
+    }
+
+    /**
+     * Set typing status
+     */
+    public function setTyping(string $status = 'typing'): self
+    {
+        return $this->updatePresence([
+            'typing_status' => $status,
+            'last_activity' => now()
+        ]);
+    }
+
+    /**
+     * Update last message timestamp
+     */
+    public function updateLastMessageTime(): self
+    {
+        return $this->updatePresence([
+            'last_message_at' => now(),
+            'last_activity' => now()
+        ]);
+    }
+
+    // Workspace Scopes
+    /**
+     * Scope query to only include contacts in specific workspace
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
+
+    /**
+     * Scope query to include workspace relationship
+     */
+    public function scopeWithWorkspace($query)
+    {
+        return $query->with('workspace');
+    }
+
+    /**
+     * Scope query to get online contacts
+     */
+    public function scopeOnline($query)
+    {
+        return $query->where('is_online', true);
+    }
+
+    /**
+     * Scope query to get typing contacts
+     */
+    public function scopeTyping($query)
+    {
+        return $query->where('typing_status', 'typing');
+    }
+
+    /**
+     * Scope query to get contacts with recent activity
+     */
+    public function scopeWithRecentActivity($query, int $minutes = 30)
+    {
+        return $query->where('last_activity', '>=', now()->subMinutes($minutes));
+    }
+
+    /**
+     * Get contacts for specific workspace with optional filters
+     */
+    public static function getForWorkspace(int $workspaceId, array $filters = [])
+    {
+        $query = static::inWorkspace($workspaceId)->whereNull('deleted_at');
+
+        if (!empty($filters['is_online'])) {
+            $query->online();
+        }
+
+        if (!empty($filters['typing_status'])) {
+            if ($filters['typing_status'] === 'typing') {
+                $query->typing();
+            } else {
+                $query->where('typing_status', $filters['typing_status']);
+            }
+        }
+
+        if (!empty($filters['recent_activity'])) {
+            $query->withRecentActivity($filters['recent_activity_minutes'] ?? 30);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Get workspace presence statistics
+     */
+    public static function getWorkspacePresenceStats(int $workspaceId): array
+    {
+        $contacts = static::inWorkspace($workspaceId)->whereNull('deleted_at');
+
+        return [
+            'total_contacts' => $contacts->count(),
+            'online_contacts' => $contacts->online()->count(),
+            'typing_contacts' => $contacts->typing()->count(),
+            'recent_activity_contacts' => $contacts->withRecentActivity(30)->count(),
+        ];
     }
 }

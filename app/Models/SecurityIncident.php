@@ -11,19 +11,7 @@ class SecurityIncident extends Model
 
     protected $table = 'security_incidents';
 
-    protected $fillable = [
-        'audit_id',
-        'workspace_id',
-        'incident_type',
-        'severity',
-        'ip_address',
-        'user_id',
-        'endpoint',
-        'details',
-        'resolved',
-        'resolution_notes',
-        'resolved_at',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'details' => 'json',
@@ -44,6 +32,22 @@ class SecurityIncident extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Scope for workspace-specific incidents (optional workspace_id after migration)
+     */
+    public function scopeInWorkspace($query, $workspaceId)
+    {
+        return $query->where('workspace_id', $workspaceId);
+    }
+
+    /**
+     * Scope for system-wide incidents (no workspace)
+     */
+    public function scopeSystemWide($query)
+    {
+        return $query->whereNull('workspace_id');
     }
 
     /**

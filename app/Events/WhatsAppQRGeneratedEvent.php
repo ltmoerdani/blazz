@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -15,17 +16,17 @@ class WhatsAppQRGeneratedEvent implements ShouldBroadcastNow
     public string $qrCodeBase64;
     public int $expiresInSeconds;
     public int $workspaceId;
-    public string $sessionId;
+    public string $accountId;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(string $qrCodeBase64, int $expiresInSeconds, int $workspaceId, string $sessionId)
+    public function __construct(string $qrCodeBase64, int $expiresInSeconds, int $workspaceId, string $accountId)
     {
         $this->qrCodeBase64 = $qrCodeBase64;
         $this->expiresInSeconds = $expiresInSeconds;
         $this->workspaceId = $workspaceId;
-        $this->sessionId = $sessionId;
+        $this->accountId = $accountId;
     }
 
     /**
@@ -34,7 +35,7 @@ class WhatsAppQRGeneratedEvent implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new Channel('workspace.' . $this->workspaceId),
+            new PrivateChannel('workspace.' . $this->workspaceId),
         ];
     }
 
@@ -55,7 +56,7 @@ class WhatsAppQRGeneratedEvent implements ShouldBroadcastNow
             'qr_code_base64' => $this->qrCodeBase64,
             'expires_in_seconds' => $this->expiresInSeconds,
             'workspace_id' => $this->workspaceId,
-            'session_id' => $this->sessionId,
+            'account_id' => $this->accountId,
             'timestamp' => now()->toISOString(),
         ];
     }

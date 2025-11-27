@@ -24,14 +24,17 @@ use Illuminate\Support\Facades\Log;
 class PayPalService
 {
     protected $config;
+    protected $workspaceId;
     protected $subscriptionService;
     protected $baseUri;
     protected $clientId;
     protected $clientSecret;
 
-    public function __construct()
+    public function __construct(SubscriptionService $subscriptionService, $workspaceId = null)
     {
-        $this->subscriptionService = new SubscriptionService();
+        $this->subscriptionService = $subscriptionService;
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
 
         $paypalInfo = PaymentGateway::where('name', 'Paypal')->first();
 

@@ -24,7 +24,7 @@ class DeveloperController extends BaseController
     }
 
     public function index(){
-        $rows = WorkspaceApiKey::where('workspace_id', session()->get('current_workspace'))
+        $rows = WorkspaceApiKey::where('workspace_id', $this->getWorkspaceId())
             ->where('deleted_at', null)
             ->paginate(9);
         $data['rows'] = DeveloperResource::collection($rows);

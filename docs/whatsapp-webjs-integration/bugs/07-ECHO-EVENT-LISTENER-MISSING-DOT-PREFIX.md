@@ -23,7 +23,7 @@ User experiencing:
 ✅ Echo instance created successfully
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ✅ Session created: {success: true, message: '...', session: {...}, qr_code: null}
 // ❌ MISSING: No "📨 QR Code Generated Event received" log!
 ```
@@ -54,7 +54,7 @@ User experiencing:
 
 **Frontend:** ❌ Event listener NOT triggered
 
-**File:** `resources/js/Pages/User/Settings/WhatsAppSessions.vue`  
+**File:** `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`  
 **Line:** 249-257
 
 **BEFORE (WRONG):**
@@ -90,7 +90,7 @@ onMounted(() => {
 
 ### Fix 1: Add Dot Prefix to Event Listeners
 
-**File:** `resources/js/Pages/User/Settings/WhatsAppSessions.vue`  
+**File:** `resources/js/Pages/User/Settings/WhatsAppAccounts.vue`  
 **Lines:** 249-257
 
 **AFTER (CORRECT):**
@@ -198,11 +198,11 @@ Clear browser cache and reload:
 - **Firefox:** `Cmd+Shift+R` (macOS) or `Ctrl+F5` (Windows)
 - **Safari:** `Cmd+Option+E` then `Cmd+R`
 
-**Why:** Ensure new JavaScript bundle is loaded (WhatsAppSessions-4baebedd.js)
+**Why:** Ensure new JavaScript bundle is loaded (WhatsAppAccounts-4baebedd.js)
 
 ### Step 2: Open Browser DevTools
 
-1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-sessions`
+1. Navigate to: `http://127.0.0.1:8000/settings/whatsapp-accounts`
 2. Open DevTools: `F12` or `Cmd+Option+I` (macOS)
 3. Go to **Console** tab
 
@@ -215,7 +215,7 @@ Clear browser cache and reload:
 ```javascript
 📡 Subscribing to Echo channel: workspace.1
 ✅ Echo channel subscribed successfully
-🔄 Creating new WhatsApp session...
+🔄 Creating new WhatsApp account...
 ✅ Session created: {success: true, session: {...}, qr_code: null}
 ⏳ Waiting for QR code via websocket...
 
@@ -255,9 +255,9 @@ Clear browser cache and reload:
 
 ### Files Modified
 
-1. **`resources/js/Pages/User/Settings/WhatsAppSessions.vue`**
+1. **`resources/js/Pages/User/Settings/WhatsAppAccounts.vue`**
    - Fixed Echo event listener (added dot prefix)
-   - Built asset: `WhatsAppSessions-4baebedd.js`
+   - Built asset: `WhatsAppAccounts-4baebedd.js`
 
 2. **`whatsapp-service/server.js`**
    - Added try-catch to 5 event handlers

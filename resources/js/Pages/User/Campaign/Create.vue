@@ -13,7 +13,14 @@
                     <Link href="/campaigns" class="rounded-md bg-black px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Back') }}</Link>
                 </div>
             </div>
-            <CampaignForm :templates="templates" :contactGroups="contactGroups" :settings="settings"/>
+            <CampaignForm
+                :templates="templates"
+                :contactGroups="contactGroups"
+                :settings="settings"
+                :whatsappAccounts="whatsappAccounts"
+                :campaignTypes="campaignTypes"
+                :providerOptions="providerOptions"
+            />
         </div>
     </AppLayout>
 </template>
@@ -27,5 +34,5 @@
     import 'vue3-toastify/dist/index.css';
     import { trans } from 'laravel-vue-i18n';
 
-    const props = defineProps(['templates', 'contactGroups', 'settings']);
+    const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappAccounts', 'campaignTypes', 'providerOptions']);
 </script>

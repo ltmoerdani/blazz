@@ -2,26 +2,42 @@
 
 namespace App\Services;
 
+use App\Models\Integration;
 use Carbon\Carbon;
-use DB;
-use Helper;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use App\Helpers\CustomHelper;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Request;
-use App\Models\BillingHistory;
+use App\Models\BillingPayment;
 use App\Models\Coupon;
 use App\Models\User;
-use App\Models\UserSubscription;
+use App\Models\Subscription;
 use App\Traits\ConsumesExternalServices;
 
 class CoinbaseService
 {
-    public function __construct()
+    private $config;
+    private $workspaceId;
+    private $baseUri;
+    private $secretKey;
+
+    public function __construct($workspaceId = null)
     {
-        $coinbaseInfo = DB::table('integrations')->where('name', 'Coinbase')->first();
-        $this->config = unserialize($coinbaseInfo->data);
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+        $coinbaseInfo = Integration::getActive($this->workspaceId, 'Coinbase');
+        
+        if (!$coinbaseInfo) {
+            Log::warning('Coinbase integration not found for workspace', ['workspace_id' => $this->workspaceId]);
+            return;
+        }
+        
+        $this->config = $coinbaseInfo->credentials;
         $this->baseUri = 'https://api.commerce.coinbase.com';
-        $this->secretKey = $this->config['api_key'];
+        $this->secretKey = $this->config['api_key'] ?? null;
     }
 
     public function makeRequest($method, $url, $body)
@@ -54,15 +70,15 @@ class CoinbaseService
                 'description' => $plan->description,
                 'local_price' => [
                     'amount' => $amount,
-                    'currency' => Helper::config('currency'),
+                    'currency' => CustomHelper::config('currency'),
                 ],
                 'pricing_type' => 'fixed_price',
                 'metadata' => [
-                    'user' => auth()->user()->id,
+                    'user' => Auth::user()->id,
                     'plan' => $plan->id,
                     'plan_amount' => $interval == 'year' ? $plan->yearly_price : $plan->monthly_price,
                     'amount' => $amount,
-                    'currency' => Helper::config('currency'),
+                    'currency' => CustomHelper::config('currency'),
                     'interval' => $interval,
                     'coupon' => $coupon->id ?? null,
                     'tax_rates' => isset($taxRates) ?? $taxRates->pluck('id')->implode('_')
@@ -98,13 +114,13 @@ class CoinbaseService
 
             if (isset($metadata->user)) {
                 $user = User::where('id', '=', $metadata->user)->first();
-                $user_subscription = UserSubscription::where('user_id', '=', $metadata->user)->first();
+                $user_subscription = Subscription::where('user_id', '=', $metadata->user)->first();
 
                 // If a user was found
                 if ($user) {
                     if ($payload->event->type == 'charge:confirmed' || $payload->event->type == 'charge:resolved') {
                         // If the payment does not exist
-                        if (!BillingHistory::where([['processor', '=', 'coinbase'], ['payment_id', '=', $payload->event->data->code]])->exists()) {
+                        if (!BillingPayment::where([['processor', '=', 'coinbase'], ['payment_id', '=', $payload->event->data->code]])->exists()) {
                             $now = Carbon::now();
 
                             // If the user previously had a subscription, attempt to cancel it
@@ -134,7 +150,7 @@ class CoinbaseService
                                 }
                             }
 
-                            $payment = BillingHistory::create([
+                            $payment = BillingPayment::create([
                                 'user_id' => $user->id,
                                 'plan_id' => $metadata->plan,
                                 'payment_id' => $payload->event->data->code,

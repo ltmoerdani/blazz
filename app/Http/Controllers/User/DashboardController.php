@@ -22,16 +22,17 @@ use Inertia\Inertia;
 
 class DashboardController extends BaseController
 {
-    public function __construct()
-    {
-        $this->subscriptionService = new SubscriptionService();
+    public function __construct(
+        private SubscriptionService $subscriptionService
+    ) {
+        // Constructor injection - no manual instantiation
     }
 
     public function index(Request $request){
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $data['subscription'] = Subscription::with('plan')->where('workspace_id', $workspaceId)->first();
-        $data['subscriptionDetails'] = SubscriptionService::calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
-        $data['subscriptionIsActive'] = SubscriptionService::isSubscriptionActive($workspaceId);
+        $data['subscriptionDetails'] = $this->subscriptionService->calculateSubscriptionBillingDetails($workspaceId, $data['subscription']->plan_id);
+        $data['subscriptionIsActive'] = $this->subscriptionService->isSubscriptionActive($workspaceId);
         $data['chatCount'] = Chat::where('workspace_id', $workspaceId)
             ->whereNull('deleted_at')
             ->whereHas('contact', function ($query) {
@@ -43,7 +44,7 @@ class DashboardController extends BaseController
         $data['templateCount'] = Template::where('workspace_id', $workspaceId)->whereNull('deleted_at')->count();
         $data['graphAPIVersion'] = config('graph.api_version');
 
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $workspace = workspace::where('id', $workspaceId)->first();
         $config = $workspace->metadata ? json_decode($workspace->metadata, true) : [];
         $settings = Setting::whereIn('key', ['is_embedded_signup_active', 'whatsapp_client_id', 'whatsapp_config_id'])
@@ -54,7 +55,11 @@ class DashboardController extends BaseController
             ->whereIn('status', ['pending', 'scheduled'])
             ->limit(5)
             ->get();
-        $data['setupWhatsapp'] = isset($config['whatsapp']) ? false : true;;
+        
+        // Check if workspace needs WhatsApp setup
+        // This checks both Meta API and WhatsApp Web.js connections
+        $data['setupWhatsapp'] = CustomHelper::needsWhatsAppSetup($workspaceId);
+        
         $data['period'] = $this->period();
         $data['inbound'] = $this->getChatCounts('inbound');
         $data['outbound'] = $this->getChatCounts('outbound');
@@ -67,7 +72,7 @@ class DashboardController extends BaseController
     }
 
     public function dismissNotification(Request $request, $type){
-        $currentworkspaceId = session()->get('current_workspace');
+        $currentworkspaceId = $this->getWorkspaceId();
         $workspaceConfig = workspace::where('id', $currentworkspaceId)->first();
 
         $metadataArray = $workspaceConfig->metadata ? json_decode($workspaceConfig->metadata, true) : [];
@@ -105,7 +110,7 @@ class DashboardController extends BaseController
     }
 
     private function getChatCounts($type){
-        $workspaceId = session()->get('current_workspace');
+        $workspaceId = $this->getWorkspaceId();
         $chatCounts = [];
 
         foreach ($this->period() as $dateString) {

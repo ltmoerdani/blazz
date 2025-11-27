@@ -68,7 +68,7 @@ Transformasi tenant "workspace" menjadi "Workspace" bertujuan menyeragamkan term
 
 ### HASIL VERIFIKASI LENGKAP
 **✅ ASM-1 - Database Schema:**
-- 8 tabel FK dependencies ditemukan: `channel_audits`, `device_activities`, `organization_channels`, `subscriptions`, `team_invites`, `teams`, `templates`, `whatsapp_sessions`
+- 8 tabel FK dependencies ditemukan: `channel_audits`, `device_activities`, `organization_channels`, `subscriptions`, `team_invites`, `teams`, `templates`, `whatsapp_accounts`
 - MySQL support `ALTER TABLE ... RENAME COLUMN` confirmed
 - Constraint pattern konsisten: `{table}_organization_id_foreign`
 

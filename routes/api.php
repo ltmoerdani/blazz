@@ -34,10 +34,26 @@ Route::get('/translations/{locale}', function ($locale) {
 // WhatsApp WebJS Integration Routes (HMAC secured, no Bearer Token needed)
 Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
     // Webhook for Node.js service callbacks (HMAC secured)
-    Route::post('/webhooks/webjs', [App\Http\Controllers\Api\WhatsAppWebJSController::class, 'webhook']);
+    Route::post('/webhooks/webjs', [App\Http\Controllers\Api\v1\WhatsApp\WebhookController::class, 'webhook']);
 
-    // Session management for Node.js service (HMAC secured)
-    Route::get('/sessions/{sessionId}/status', [App\Http\Controllers\Api\WhatsAppWebJSController::class, 'getSessionStatus']);
+    // Account management for Node.js service (HMAC secured)
+    Route::get('/accounts/{accountId}/status', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'getAccountStatus']);
+
+    // Account Restoration Endpoints (for auto-reconnect feature)
+    Route::get('/accounts/active', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'getActiveAccounts']);
+    Route::post('/accounts/{accountId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'markDisconnected']);
+
+    // Chat Sync Endpoints (HMAC secured + rate limited)
+    Route::post('/chats/sync', [App\Http\Controllers\API\WhatsAppSyncController::class, 'syncBatch'])
+        ->middleware('whatsapp.throttle');
+    Route::get('/accounts/{accountId}/sync-status', [App\Http\Controllers\API\WhatsAppSyncController::class, 'getSyncStatus']);
+
+    // Session Cleanup Endpoints (Week 2 Optional) - HMAC secured
+    Route::get('/accounts-for-cleanup', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getAccountsForCleanup']);
+    Route::get('/accounts/by-session/{sessionId}', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getAccountBySession']);
+    Route::patch('/accounts/{id}/status', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'updateAccountStatus']);
+    Route::post('/cleanup-logs', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'logCleanup']);
+    Route::get('/cleanup-stats', [App\Http\Controllers\Api\WhatsAppCleanupController::class, 'getCleanupStats']);
 
     // Broadcasting events (for testing) - requires HMAC
     Route::post('/broadcast', function (Request $request) {
@@ -54,9 +70,9 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
                 ));
                 break;
 
-            case 'session-status-changed':
-                broadcast(new \App\Events\WhatsAppSessionStatusChangedEvent(
-                    $data['session_id'],
+            case 'account-status-changed':
+                broadcast(new \App\Events\WhatsAppAccountStatusChangedEvent(
+                    $data['account_id'],
                     $data['status'],
                     $data['workspace_id'],
                     $data['phone_number'] ?? null,
@@ -73,25 +89,85 @@ Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
 });
 
 Route::middleware([AuthenticateBearerToken::class])->group(function () {
-    Route::post('/send', [App\Http\Controllers\ApiController::class, 'sendMessage']);
-    Route::post('/send/template', [App\Http\Controllers\ApiController::class, 'sendTemplateMessage']);
-    Route::post('/send/media', [App\Http\Controllers\ApiController::class, 'sendMediaMessage']);
-    Route::post('/campaigns', [App\Http\Controllers\ApiController::class, 'storeCampaign']);
-    
-    Route::get('/contacts', [App\Http\Controllers\ApiController::class, 'listContacts']);
-    Route::post('/contacts', [App\Http\Controllers\ApiController::class, 'storeContact']);
-    Route::put('/contacts/{uuid}', [App\Http\Controllers\ApiController::class, 'storeContact']);
-    Route::delete('/contacts/{uuid}', [App\Http\Controllers\ApiController::class, 'destroyContact']);
+    // WhatsApp messaging routes
+    Route::post('/send', [App\Http\Controllers\Api\v1\WhatsAppApiController::class, 'sendMessage']);
+    Route::post('/send/template', [App\Http\Controllers\Api\v1\TemplateApiController::class, 'sendTemplateMessage']);
+    Route::post('/send/media', [App\Http\Controllers\Api\v1\WhatsAppApiController::class, 'sendMediaMessage']);
+    Route::post('/campaigns', [App\Http\Controllers\Api\v1\CampaignApiController::class, 'storeCampaign']);
 
-    Route::get('/contact-groups', [App\Http\Controllers\ApiController::class, 'listContactGroups']);
-    Route::post('/contact-groups', [App\Http\Controllers\ApiController::class, 'storeContactGroup']);
-    Route::put('/contact-groups/{uuid}', [App\Http\Controllers\ApiController::class, 'storeContactGroup']);
-    Route::delete('/contact-groups/{uuid}', [App\Http\Controllers\ApiController::class, 'destroyContactGroup']);
+    // Contact management routes
+    Route::get('/contacts', [App\Http\Controllers\Api\v1\ContactApiController::class, 'listContacts']);
+    Route::post('/contacts', [App\Http\Controllers\Api\v1\ContactApiController::class, 'storeContact']);
+    Route::put('/contacts/{uuid}', [App\Http\Controllers\Api\v1\ContactApiController::class, 'storeContact']);
+    Route::delete('/contacts/{uuid}', [App\Http\Controllers\Api\v1\ContactApiController::class, 'destroyContact']);
 
-    Route::get('/canned-replies', [App\Http\Controllers\ApiController::class, 'listCannedReplies']);
-    Route::post('/canned-replies', [App\Http\Controllers\ApiController::class, 'storeCannedReply']);
-    Route::put('/canned-replies/{uuid}', [App\Http\Controllers\ApiController::class, 'storeCannedReply']);
-    Route::delete('/canned-replies/{uuid}', [App\Http\Controllers\ApiController::class, 'destroyCannedReply']);
+    Route::get('/contact-groups', [App\Http\Controllers\Api\v1\ContactGroupApiController::class, 'listContactGroups']);
+    Route::post('/contact-groups', [App\Http\Controllers\Api\v1\ContactGroupApiController::class, 'storeContactGroup']);
+    Route::put('/contact-groups/{uuid}', [App\Http\Controllers\Api\v1\ContactGroupApiController::class, 'storeContactGroup']);
+    Route::delete('/contact-groups/{uuid}', [App\Http\Controllers\Api\v1\ContactGroupApiController::class, 'destroyContactGroup']);
 
-    Route::get('/templates', [App\Http\Controllers\ApiController::class, 'listTemplates']);
+    // Contact presence management routes (real-time features)
+    Route::prefix('contacts')->group(function () {
+        Route::get('/{contactId}/presence', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'getPresence']);
+        Route::put('/{contactId}/typing-status', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'updateTypingStatus']);
+        Route::put('/{contactId}/online-status', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'updateOnlineStatus']);
+        Route::put('/{contactId}/last-message', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'updateLastMessageTime']);
+        Route::get('/workspace/presence', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'getWorkspaceContactsPresence']);
+        Route::post('/workspace/typing', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'getTypingContacts']);
+        Route::post('/bulk/presence', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'bulkUpdatePresence']);
+        Route::post('/cleanup/offline', [App\Http\Controllers\Api\v1\ContactPresenceController::class, 'cleanupOfflineContacts']);
+    });
+
+    Route::get('/canned-replies', [App\Http\Controllers\Api\v1\CannedReplyApiController::class, 'listCannedReplies']);
+    Route::post('/canned-replies', [App\Http\Controllers\Api\v1\CannedReplyApiController::class, 'storeCannedReply']);
+    Route::put('/canned-replies/{uuid}', [App\Http\Controllers\Api\v1\CannedReplyApiController::class, 'storeCannedReply']);
+    Route::delete('/canned-replies/{uuid}', [App\Http\Controllers\Api\v1\CannedReplyApiController::class, 'destroyCannedReply']);
+
+    Route::get('/templates', [App\Http\Controllers\Api\v1\TemplateApiController::class, 'listTemplates']);
+
+    // NEW: Specialized API Controllers (Week 3 Implementation)
+    Route::prefix('v2')->group(function () {
+        // WhatsApp API Routes
+        Route::prefix('whatsapp')->group(function () {
+            Route::post('/send', [App\Http\Controllers\Api\v1\WhatsAppApiController::class, 'sendMessage']);
+            Route::post('/send/template', [App\Http\Controllers\Api\v1\TemplateApiController::class, 'sendTemplateMessage']);
+            Route::post('/send/media', [App\Http\Controllers\Api\v1\WhatsAppApiController::class, 'sendMediaMessage']);
+            Route::get('/templates', [App\Http\Controllers\Api\v1\TemplateApiController::class, 'listTemplates']);
+        });
+
+        // Contact API Routes
+        Route::prefix('contacts')->group(function () {
+            Route::get('/', [App\Http\Controllers\Api\v1\ContactApiController::class, 'listContacts']);
+            Route::post('/', [App\Http\Controllers\Api\v1\ContactApiController::class, 'storeContact']);
+            Route::put('/{uuid}', [App\Http\Controllers\Api\v1\ContactApiController::class, 'storeContact']);
+            Route::delete('/{uuid}', [App\Http\Controllers\Api\v1\ContactApiController::class, 'destroyContact']);
+        });
+
+        // WhatsApp Account Management Routes (NEW)
+        Route::prefix('whatsapp/accounts')->group(function () {
+            Route::get('/{accountId}/status', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'getAccountStatus']);
+            Route::get('/active', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'getActiveAccounts']);
+            Route::post('/{accountId}/mark-disconnected', [App\Http\Controllers\Api\v1\WhatsApp\AccountController::class, 'markDisconnected']);
+        });
+
+        // WhatsApp Session Proxy Routes (Multi-Instance)
+        Route::prefix('whatsapp/sessions')->group(function () {
+            Route::post('/create', [App\Http\Controllers\WhatsApp\ProxyController::class, 'createSession']);
+            Route::delete('/{sessionId}', [App\Http\Controllers\WhatsApp\ProxyController::class, 'disconnect']);
+            Route::get('/{sessionId}/status', [App\Http\Controllers\WhatsApp\ProxyController::class, 'getStatus']);
+        });
+
+        // WhatsApp Webhook Routes (NEW)
+        Route::prefix('whatsapp')->middleware(['whatsapp.hmac'])->group(function () {
+            Route::post('/webhooks/v2', [App\Http\Controllers\Api\v1\WhatsApp\WebhookController::class, 'webhook']);
+        });
+
+        // WhatsApp Internal API Routes (for Node.js instance communication)
+        Route::prefix('internal/whatsapp')->group(function () {
+            Route::post('/session/migrated', [App\Http\Controllers\WhatsApp\InternalController::class, 'sessionMigrated']);
+            Route::post('/session/disconnected', [App\Http\Controllers\WhatsApp\InternalController::class, 'sessionDisconnected']);
+            Route::post('/session/activity', [App\Http\Controllers\WhatsApp\InternalController::class, 'updateActivity']);
+            Route::get('/session/{sessionId}/assignment', [App\Http\Controllers\WhatsApp\InternalController::class, 'getSessionAssignment']);
+        });
+    });
 });

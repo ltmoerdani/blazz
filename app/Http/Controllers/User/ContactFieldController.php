@@ -13,9 +13,10 @@ use Inertia\Inertia;
 
 class ContactFieldController extends BaseController
 {
-    private function contactFieldService()
-    {
-        return new ContactFieldService(session()->get('current_workspace'));
+    public function __construct(
+        private ContactFieldService $contactFieldService
+    ) {
+        // Constructor injection - no manual instantiation
     }
 
     public function index(Request $request, $id = null){
@@ -24,7 +25,7 @@ class ContactFieldController extends BaseController
 
     public function store(StoreContactField $request)
     {
-        $this->contactFieldService()->store($request);
+        $this->contactFieldService->store($request);
 
         return redirect('/settings/contacts')->with(
             'status', [
@@ -36,15 +37,14 @@ class ContactFieldController extends BaseController
 
     public function show($uuid)
     {
-        $contactFieldService = new ContactFieldService(session()->get('current_workspace'));
-        $row = $contactFieldService->getByUuid($uuid);
+        $row = $this->contactFieldService->getByUuid($uuid);
 
         return response()->json(['success' => true, 'item'=> $row]);
     }
 
     public function update(StoreContactField $request, $id)
     {
-        $this->contactFieldService()->store($request, $id);
+        $this->contactFieldService->store($request, $id);
 
         return redirect('/settings/contacts')->with(
             'status', [
@@ -56,7 +56,7 @@ class ContactFieldController extends BaseController
 
     public function destroy($id)
     {
-        $this->contactFieldService()->delete($id);
+        $this->contactFieldService->delete($id);
 
         return redirect('/settings/contacts')->with(
             'status', [

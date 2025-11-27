@@ -5,20 +5,29 @@ namespace App\Services;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketComment;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use DB;
-use Validator;
 
 class TicketService
 {
+    private $workspaceId;
+
+    public function __construct($workspaceId = null)
+    {
+        // Backward compatible: fallback to session if not provided
+        $this->workspaceId = $workspaceId ?? session('current_workspace');
+    }
+
     public function store(object $request){
         Ticket::create([
             'reference' => 'SUP-' . sprintf('%06d', Ticket::count() + 1) . '-' . now()->format('ymd'),
-            'user_id' => auth()->user()->role === 'user' ? auth()->user()->id : $request->user,
+            'user_id' => Auth::user()->role === 'user' ? Auth::user()->id : $request->user(),
             'category_id' => $request->category,
             'subject' => $request->subject,
             'message' => $request->message,
-            'assigned_to' => auth()->user()->role === 'user' ? null : auth()->user()->id,
+            'assigned_to' => Auth::user()->role === 'user' ? null : Auth::user()->id,
             'status' => 'open',
             'created_at' => now(),
             'updated_at' => now()
@@ -28,7 +37,7 @@ class TicketService
     public function assignTicket(object $request, $ticketUuid){
         $ticket = Ticket::where('uuid', $ticketUuid)->first();
         $ticket->update([
-            'assigned_to' => $request->user,
+            'assigned_to' => $request->user(),
             'updated_at' => now()
         ]);
     }
@@ -53,7 +62,7 @@ class TicketService
         $ticket = Ticket::where('uuid', $ticketUuid)->first();
         TicketComment::create([
             'ticket_id' => $ticket->id,
-            'user_id' => auth()->user()->id,
+            'user_id' => Auth::user()->id,
             'message' => $request->message,
             'created_at' => now(),
             'updated_at' => now()

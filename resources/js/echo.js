@@ -4,6 +4,13 @@ import Pusher from 'pusher-js';
 let echoInstance = null;
 
 export function getEchoInstance(broadcasterConfig = null, cluster = null) {
+    // ✅ REALTIME FIX: Use global window.Echo instance from bootstrap.js
+    // This prevents multiple Echo instances and ensures consistent WebSocket connection
+    if (window.Echo) {
+        console.log('✅ Using global Echo instance from bootstrap.js');
+        return window.Echo;
+    }
+
     if (!echoInstance) {
         // Get configuration from Laravel (via Inertia middleware)
         const config = broadcasterConfig || {

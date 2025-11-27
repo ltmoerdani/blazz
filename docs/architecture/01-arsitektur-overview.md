@@ -1,14 +1,85 @@
 # 🏗️ Arsitektur Proyek Blazz - Complete Overview
 
+> **⚠️ IMPORTANT**: This document describes the core architectural patterns and components. For **PRODUCTION DEPLOYMENT** and **SCALABILITY** (1,000-3,000 users), please refer to:
+> - **[20-realistic-scalable-architecture-v2.md](./20-realistic-scalable-architecture-v2.md)** - ✅ **PRODUCTION READY** - Workspace-sharded multi-instance strategy
+> - **[19-architecture-compliance-analysis.md](./19-architecture-compliance-analysis.md)** - Current architecture gap analysis (75% compliant)
+> - **[multi-instance-management/](./multi-instance-management/)** - Complete multi-instance implementation guides
+> - **[qr/](./qr/)** - ✅ **COMPLETE** - QR code integration (7-9s generation)
+
 ## Ringkasan Eksekutif
 
-**Blazz** adalah enterprise-grade **multi-tenant WhatsApp Business Platform** yang menggunakan **Hybrid Service-Oriented Architecture** dengan **Module-Based Extension System**. Arsitektur ini menggabungkan kekuatan **MVC Pattern** sebagai foundation dengan **Service Layer Pattern** untuk business logic isolation, **Job Queue System** untuk asynchronous processing, dan **Modular Architecture** untuk feature extensibility.
+**Blazz** adalah enterprise-grade **multi-tenant WhatsApp Business Platform** yang menggunakan **Hybrid Service-Oriented Architecture with Dual-Server Integration**. Arsitektur ini menggabungkan kekuatan **MVC Pattern** sebagai foundation dengan **Service Layer Pattern** untuk business logic isolation, **Dual-Server WhatsApp Architecture** (Laravel + Node.js), **Multi-Provider WhatsApp Support**, **Job Queue System** untuk asynchronous processing, dan **Modular Architecture** untuk feature extensibility.
+
+**Production Architecture (v2.0)**: ✅ **IMPLEMENTED** - For scalability beyond 500 concurrent users, Blazz uses **Workspace-Sharded Multi-Instance** deployment with LocalAuth and shared storage (EFS/NFS).
+- **QR Generation**: 7-9 seconds ✅
+- **Status**: Production-ready with 75% architecture compliance
+- See [20-realistic-scalable-architecture-v2.md](./20-realistic-scalable-architecture-v2.md) for complete details.
 
 ---
 
 ## 🎯 Arsitektur Pattern yang Digunakan
 
-### **1. Core Architecture: Enhanced MVC + Service Layer**
+### **1. Dual-Server Architecture (Primary Innovation)** ⭐
+
+Blazz menggunakan **dual-server approach** untuk WhatsApp integration:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     PRIMARY SERVER                          │
+│                  (Laravel - PHP 8.2+)                       │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │   Web App    │  │   REST API   │  │  Admin Panel │    │
+│  │  (Vue.js)    │  │  Endpoints   │  │             │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘    │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │ Controllers  │  │   Services   │  │   Models     │    │
+│  │              │  │              │  │              │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘    │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │            HTTP API TO WHATSAPP SERVICE              │  │
+│  │          /api/whatsapp/* endpoints                   │  │
+│  └─────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼ HTTP Communication
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                   SECONDARY SERVER                           │
+│               (Node.js + TypeScript)                         │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │           WHATSAPP SERVICE CORE                     │  │
+│  │                                                     │  │
+│  │  ┌──────────────┐  ┌──────────────┐                │  │
+│  │  │   Meta API   │  │ WhatsApp    │  │               │  │
+│  │  │   Adapter    │  │ Web.js      │  │               │  │
+│  │  │              │  │ Adapter     │  │               │  │
+│  │  └──────────────┘  └──────────────┘                │  │
+│  │                                                     │  │
+│  │  ┌──────────────┐  ┌──────────────┐                │  │
+│  │  │   Session    │  │   QR Code   │  │               │  │
+│  │  │ Management   │  │ Generation  │  │               │  │
+│  │  └──────────────┘  └──────────────┘                │  │
+│  └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │              EXPRESS.js SERVER                       │  │
+│  │          /internal/* endpoints                      │  │
+│  └─────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Benefits Dual-Server:**
+- ✅ **Process Isolation** - WhatsApp operations tidak block main application
+- ✅ **Technology Flexibility** - Best tool untuk job (Node.js untuk real-time)
+- ✅ **Independent Scaling** - Scale WhatsApp services separately
+- ✅ **Fault Tolerance** - WhatsApp service crash tidak down main app
+- ✅ **Performance** - Asynchronous WhatsApp operations
+
+### **2. Core Architecture: Enhanced MVC + Service Layer**
 
 Blazz mengimplementasikan **Enhanced MVC Pattern** dengan additional **Service Layer** untuk memisahkan business logic dari controller logic:
 
@@ -128,7 +199,7 @@ class ChatController extends BaseController
 **Current Services:**
 ```
 app/Services/
-├── AuthService.php              → Authentication & session management
+├── AuthService.php              → Authentication & account management
 ├── WhatsappService.php          → WhatsApp Cloud API integration
 ├── CampaignService.php          → Campaign creation & management
 ├── ChatService.php              → Real-time messaging logic
@@ -289,7 +360,61 @@ class SendCampaignJob implements ShouldQueue
 
 ---
 
-### **5. Module System - Feature Extensibility** 🔌
+### **5. Multi-Provider WhatsApp System** 📱
+
+**Dynamic Provider Selection Pattern:**
+
+```php
+// Laravel Service Provider Selection
+class WhatsAppProviderSelector
+{
+    public function getProvider($workspaceId): WhatsAppProviderInterface
+    {
+        $workspace = Workspace::find($workspaceId);
+
+        return match ($workspace->whatsapp_provider) {
+            'meta_api' => new MetaApiProvider($workspace),
+            'web_js' => new WebJsProvider($workspace),
+            'fallback' => new FallbackProvider($workspace),
+            default => throw new InvalidProviderException()
+        };
+    }
+}
+
+// Node.js Provider Management
+class WhatsAppServiceManager
+{
+    private providers: Map<string, WhatsAppProvider> = new Map();
+
+    async switchProvider(workspaceId: string, providerType: string): Promise<void> {
+        const provider = this.createProvider(providerType);
+        await this.migrateSessions(workspaceId, provider);
+        this.providers.set(workspaceId, provider);
+    }
+}
+```
+
+**Supported Providers:**
+1. **Meta API (Cloud)**
+   - Official WhatsApp Business API
+   - High throughput (up to 250K messages/day)
+   - Rate limited: 80 messages/second
+   - Reliable production-ready
+
+2. **WhatsApp Web.js (Browser Automation)**
+   - Browser-based WhatsApp Web
+   - Lower cost, unlimited rate
+   - Risk: Account ban for commercial use
+   - Good for testing/small scale
+
+3. **Provider Auto-Switching**
+   - Failover mechanism
+   - Session migration between providers
+   - Configuration-based selection
+
+---
+
+### **6. Module System - Feature Extensibility** 🔌
 
 **Responsibilities:**
 - Third-party integrations
@@ -635,4 +760,4 @@ Struktur ini provides **excellent balance** antara:
 - 📋 [02-component-connections.md](./02-component-connections.md) - Detailed component interaction
 - 📁 [03-folder-structure.md](./03-folder-structure.md) - Recommended folder organization
 - 🚀 [04-feature-development-guide.md](./04-feature-development-guide.md) - How to add new features
-- 🎨 [05-service-pattern-guidelines.md](./05-service-pattern-guidelines.md) - Service layer best practices
+- 🎨 [06-development-patterns-guidelines.md](./06-development-patterns-guidelines.md) - Service layer best practices

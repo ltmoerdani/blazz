@@ -1,9 +1,8 @@
 <script setup>
     import axios from 'axios';
-    import { ref, watch } from 'vue';
+    import { ref, watch, onMounted, onUnmounted } from 'vue';
     import debounce from 'lodash/debounce';
     import { Link, router } from "@inertiajs/vue3";
-    import Pagination from '@/Components/Pagination.vue';
     import TicketStatusToggle from '@/Components/TicketStatusToggle.vue';
     import SortDirectionToggle from '@/Components/SortDirectionToggle.vue';
 
@@ -27,25 +26,54 @@
         },
         chatSortDirection: {
             type: String
+        },
+        // NEW: WhatsApp accounts for filter dropdown (TASK-FE-1)
+        accounts: {
+            type: Array,
+            default: () => []
         }
     });
 
     const isSearching = ref(false);
     const selectedContact = ref(null);
-    const emit = defineEmits(['view']);
+    const isLoadingMore = ref(false);
+    const hasNextPage = ref(true);
+    const currentPage = ref(1);
+    const scrollContainer = ref(null);
+    const loadMoreTrigger = ref(null);
+    const localRows = ref([...props.rows.data]); // Local copy for manipulation
+    const emit = defineEmits(['view', 'contact-selected', 'update-rows']);
 
     function viewChat(contact) {
         selectedContact.value = contact;
         emit('view', contact);
     }
+    
+    // NEW: Handle contact selection without page reload (SPA behavior)
+    function selectContact(contact, event) {
+        event.preventDefault(); // Prevent default link behavior
+        
+        // Emit FIRST so parent sees original state (unread > 0)
+        emit('contact-selected', contact);
+        
+        selectedContact.value = contact;
+        
+        // OPTIMISTIC UPDATE: Mark as read immediately in localRows
+        const index = localRows.value.findIndex(c => c.id === contact.id);
+        if (index !== -1) {
+             localRows.value[index].unread_messages = 0;
+        }
+    }
 
     const contentType = (metadata) => {
-        const chatData = JSON.parse(metadata);
+        // Handle both string JSON and object (after Laravel cast)
+        const chatData = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
         return chatData.type;
     }
 
     const content = (metadata) => {
-        return JSON.parse(metadata);
+        // Handle both string JSON and object (after Laravel cast)
+        return typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
     }
 
     const getExtension = (fileFormat) => {
@@ -64,7 +92,9 @@
     };
 
     const getContactDisplayName = (metadata) => {
-        const contacts = JSON.parse(metadata).contacts;
+        // Handle both string JSON and object (after Laravel cast)
+        const chatData = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+        const contacts = chatData.contacts;
         if (contacts.length === 1) {
             const contact = contacts[0];
             return contact.name.formatted_name || `${contact.name.first_name} ${contact.name.last_name}`;
@@ -133,7 +163,11 @@
 
     const params = ref({
         search: props.filters.search,
+        account_id: props.filters?.account_id || '', // NEW: Track account filter
     });
+
+    // NEW: Account filter state (TASK-FE-1)
+    const selectedAccountId = ref(props.filters?.account_id || '');
 
     const search = debounce(() => {
         isSearching.value = true;
@@ -153,6 +187,190 @@
         params.value.search = null;
         runSearch();
     }
+
+    // NEW: Filter by WhatsApp account (TASK-FE-1)
+    const filterByAccount = () => {
+        params.value.account_id = selectedAccountId.value;
+        runSearch();
+    }
+
+    // NEW: Format phone number for display (TASK-FE-1)
+    const formatPhone = (phone) => {
+        if (!phone) return '';
+        // Format: +62 812-3456-7890
+        return phone.replace(/(\+\d{2})(\d{3})(\d{4})(\d+)/, '$1 $2-$3-$4');
+    }
+    
+    // Infinite Scroll Implementation
+    let intersectionObserver = null;
+    
+    const loadMoreContacts = async () => {
+        if (isLoadingMore.value || !hasNextPage.value) return;
+
+        isLoadingMore.value = true;
+        const nextPage = currentPage.value + 1;
+
+        try {
+            const response = await axios.get(`/chats?page=${nextPage}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                }
+            });
+
+            if (response.data?.result?.data) {
+                const newContacts = response.data.result.data;
+
+                if (newContacts.length > 0) {
+                    // Instant append - no animation delay
+                    localRows.value.push(...newContacts);
+                    currentPage.value = nextPage;
+                    hasNextPage.value = response.data.result.has_more_pages || false;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Load error:', error.message);
+            hasNextPage.value = false;
+        } finally {
+            isLoadingMore.value = false;
+        }
+    };    const handleScroll = debounce(() => {
+        if (!scrollContainer.value) return;
+        
+        const container = scrollContainer.value;
+        const scrollPosition = container.scrollTop + container.clientHeight;
+        const scrollHeight = container.scrollHeight;
+        
+        // Trigger load when user scrolls to 80% of the content
+        if (scrollPosition >= scrollHeight * 0.8 && !isLoadingMore.value && hasNextPage.value) {
+            loadMoreContacts();
+        }
+    }, 100);
+    
+    // Setup Intersection Observer for more efficient infinite scroll
+        const setupIntersectionObserver = () => {
+        if (!loadMoreTrigger.value || !hasNextPage.value) {
+            return;
+        }
+
+        // Cleanup existing observer
+        if (intersectionObserver) {
+            intersectionObserver.disconnect();
+        }
+
+        intersectionObserver = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+
+                if (entry.isIntersecting && !isLoadingMore.value && hasNextPage.value) {
+                    loadMoreContacts();
+                }
+            },
+            {
+                root: scrollContainer.value,
+                rootMargin: '500px', // Preload 500px before reaching bottom
+                threshold: 0
+            }
+        );
+
+        intersectionObserver.observe(loadMoreTrigger.value);
+    };    // Watch for props changes to update local copy
+    watch(() => props.rows.data, (newData) => {
+        if (newData) {
+            localRows.value = [...newData];
+            console.log('🔄 Rows updated from props:', localRows.value.length);
+        }
+    }, { deep: false });
+    
+    // Reset pagination when search or filter changes
+    watch([() => params.value.search, () => params.value.account_id], () => {
+        console.log('🔍 Filter changed, resetting pagination');
+        currentPage.value = 1;
+        hasNextPage.value = true;
+        localRows.value = [...props.rows.data]; // Reset to initial data
+    });
+    
+    // NEW: Method to programmatically move a contact to the top (called by parent)
+    const moveContactToTop = (contactId, updateData = {}) => {
+        console.log('🔄 ChatTable: Moving contact to top', contactId);
+        
+        const index = localRows.value.findIndex(c => c.id == contactId);
+        if (index !== -1) {
+            // Create copy of contact
+            const contact = { ...localRows.value[index] };
+            
+            // Apply updates (last message, time, unread count)
+            Object.assign(contact, updateData);
+            
+            // Remove from current position
+            localRows.value.splice(index, 1);
+            
+            // Add to top
+            localRows.value.unshift(contact);
+            
+            // Scroll to top to ensure visibility
+            if (scrollContainer.value) {
+                scrollContainer.value.scrollTop = 0;
+            }
+            
+            console.log('✅ ChatTable: Contact moved to top successfully');
+        } else {
+            console.warn('⚠️ ChatTable: Contact not found for reordering', contactId);
+        }
+    };
+
+    // Expose method to parent
+    defineExpose({
+        moveContactToTop
+    });
+
+    onMounted(() => {
+        // Initialize local rows from props
+        localRows.value = [...props.rows.data];
+        
+        console.log('🚀 ChatTable onMounted - Props received:', {
+            hasRowsMeta: !!props.rows?.meta,
+            rowsDataLength: props.rows?.data?.length,
+            metaKeys: props.rows?.meta ? Object.keys(props.rows.meta) : [],
+        });
+        
+        // Initialize pagination state from props
+        if (props.rows?.meta) {
+            currentPage.value = props.rows.meta.current_page || 1;
+            
+            // Check has_more_pages from backend if available
+            if (props.rows.meta.has_more_pages !== undefined) {
+                hasNextPage.value = props.rows.meta.has_more_pages;
+                console.log('✅ Using backend has_more_pages:', props.rows.meta.has_more_pages);
+            } else {
+                // Fallback: check if we have full page of data
+                hasNextPage.value = props.rows.data.length >= 15;
+                console.log('⚠️ Fallback: has_more_pages not provided, using length check');
+            }
+            
+            console.log('📋 Initial pagination state:', {
+                currentPage: currentPage.value,
+                hasNextPage: hasNextPage.value,
+                contactCount: localRows.value.length,
+                perPage: props.rows.meta.per_page,
+                backendHasMore: props.rows.meta.has_more_pages,
+            });
+        } else {
+            console.error('❌ No meta object in props.rows!');
+        }
+        
+        // Setup Intersection Observer with slight delay to ensure DOM is ready
+        setTimeout(() => {
+            setupIntersectionObserver();
+        }, 500);
+    });
+    
+    onUnmounted(() => {
+        if (intersectionObserver) {
+            intersectionObserver.disconnect();
+        }
+    });
 </script>
 <template>
     <div class="px-4 py-4 border-b">
@@ -174,6 +392,25 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="3.5" r="1.5" fill="currentColor" opacity="0"><animateTransform attributeName="transform" calcMode="discrete" dur="2.4s" repeatCount="indefinite" type="rotate" values="0 12 12;90 12 12;180 12 12;270 12 12"/><animate attributeName="opacity" dur="0.6s" keyTimes="0;0.5;1" repeatCount="indefinite" values="1;1;0"/></circle><circle cx="12" cy="3.5" r="1.5" fill="currentColor" opacity="0"><animateTransform attributeName="transform" begin="0.2s" calcMode="discrete" dur="2.4s" repeatCount="indefinite" type="rotate" values="30 12 12;120 12 12;210 12 12;300 12 12"/><animate attributeName="opacity" begin="0.2s" dur="0.6s" keyTimes="0;0.5;1" repeatCount="indefinite" values="1;1;0"/></circle><circle cx="12" cy="3.5" r="1.5" fill="currentColor" opacity="0"><animateTransform attributeName="transform" begin="0.4s" calcMode="discrete" dur="2.4s" repeatCount="indefinite" type="rotate" values="60 12 12;150 12 12;240 12 12;330 12 12"/><animate attributeName="opacity" begin="0.4s" dur="0.6s" keyTimes="0;0.5;1" repeatCount="indefinite" values="1;1;0"/></circle></svg>
             </span>
         </div>
+
+        <!-- NEW: Account Filter Dropdown (TASK-FE-1) -->
+        <div v-if="accounts && accounts.length > 0" class="mt-3">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                {{ $t('Filter by WhatsApp Number') }}
+            </label>
+            <select
+                v-model="selectedAccountId"
+                @change="filterByAccount"
+                class="w-full rounded-md border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+                <option value="">{{ $t('All Conversations') }}</option>
+                <option v-for="account in accounts" :key="account.id" :value="account.id">
+                    {{ formatPhone(account.phone_number) }}
+                    <template v-if="account.provider_type === 'webjs'"> (WhatsApp Web.js)</template>
+                    <template v-if="account.unread_count > 0"> ({{ account.unread_count }} unread)</template>
+                </option>
+            </select>
+        </div>
         <div v-if="ticketingIsEnabled" class="grid grid-cols-2 mt-4 items-center w-full">
             <TicketStatusToggle :status="status" :rowCount="rowCount"/>
             <div class="flex ml-auto gap-x-1">
@@ -184,20 +421,60 @@
             </div>
         </div>
     </div>
-    <div class="flex-grow overflow-y-auto h-[65vh]" ref="scrollContainer">
-        <Link :href="'/chats/' + contact.uuid + '?page=' + props.rows.meta.current_page" class="block border-b group-hover:pr-0" :class="contact.unread_messages > 0 ? 'bg-green-50' : ''" v-for="(contact, index) in rows.data" :key="index">
-            <div class="flex space-x-2 hover:bg-gray-50 cursor-pointer py-3 px-4">
-                <div class="w-[15%]">
-                    <img v-if="contact.avatar" class="rounded-full w-10 h-10" :src="contact.avatar">
-                    <div v-else class="rounded-full w-10 h-10 flex items-center justify-center bg-slate-200 capitalize">{{ contact.full_name.substring(0, 1) }}</div>
+    <div class="flex-grow overflow-y-auto h-[65vh]" ref="scrollContainer" @scroll="handleScroll">
+        <!-- Changed from Link to div for SPA navigation -->
+        <div 
+            @click="selectContact(contact, $event)" 
+            class="block border-b group-hover:pr-0 cursor-pointer" 
+            :class="[contact.unread_messages > 0 ? 'bg-green-50' : '', selectedContact?.id === contact.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : '']" 
+            v-for="(contact, index) in localRows" 
+            :key="contact.id || index">
+            <div class="flex space-x-2 hover:bg-gray-50 py-3 px-4">
+                <!-- NEW: Chat Type Icon (TASK-FE-2) -->
+                <div class="w-[15%] relative">
+                    <!-- Group Chat Icon -->
+                    <div v-if="contact.type === 'group'" class="rounded-full w-10 h-10 flex items-center justify-center bg-blue-100">
+                        <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                        </svg>
+                    </div>
+                    <!-- Private Chat Icon -->
+                    <template v-else>
+                        <img v-if="contact.avatar" class="rounded-full w-10 h-10" :src="contact.avatar">
+                        <div v-else class="rounded-full w-10 h-10 flex items-center justify-center bg-slate-200 capitalize">{{ contact.full_name.substring(0, 1) }}</div>
+                    </template>
                 </div>
                 <div class="w-[85%]">
-                    <div class="flex justify-between">
-                        <h3 class="truncate">{{ contact.full_name }}</h3>
-                        <span class="self-center text-slate-500 text-xs">{{ formatTime(contact?.last_chat?.created_at) }}</span>
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1 min-w-0">
+                            <!-- Contact/Group Name -->
+                            <h3 class="truncate font-semibold">
+                                {{ contact.type === 'group' ? (contact.first_name || contact.phone) : contact.full_name }}
+                                <!-- NEW: Participant count for groups (TASK-FE-2) -->
+                                <span v-if="contact.type === 'group' && contact.group_metadata?.participants" class="text-xs text-gray-500 font-normal ml-1">
+                                    ({{ contact.group_metadata.participants.length }} members)
+                                </span>
+                            </h3>
+                            <!-- NEW: Provider Type Badge (TASK-FE-2) -->
+                            <div class="flex items-center gap-1 mt-1">
+                                <span v-if="contact.provider_type === 'webjs'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    WhatsApp Web.js
+                                </span>
+                                <span v-else-if="contact.provider_type === 'meta'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    Meta API
+                                </span>
+                            </div>
+                        </div>
+                        <span class="self-center text-slate-500 text-xs ml-2">{{ formatTime(contact?.last_chat?.created_at) }}</span>
                     </div>
                     <div v-if="contact?.last_chat?.deleted_at === null" class="flex justify-between">
-                        <div v-if="contentType(contact?.last_chat?.metadata) ==='text'" class="text-slate-500 text-xs truncate self-end"> {{ content(contact?.last_chat?.metadata).text.body }}</div>
+                        <div v-if="contentType(contact?.last_chat?.metadata) ==='text'" class="text-slate-500 text-xs truncate self-end">
+                            <!-- NEW: Show sender name for group messages (TASK-FE-2) -->
+                            <span v-if="contact.type === 'group' && contact.last_sender_name" class="font-medium text-gray-700">
+                                {{ contact.last_sender_name }}:
+                            </span>
+                            {{ content(contact?.last_chat?.metadata).text.body }}
+                        </div>
                         <div v-if="contentType(contact?.last_chat?.metadata) ==='button'" class="text-slate-500 text-xs truncate self-end"> {{ content(contact?.last_chat?.metadata).button.text }}</div>
                         <div v-if="contentType(contact?.last_chat?.metadata) ==='interactive'" class="text-slate-500 text-xs truncate self-end"> {{ content(contact?.last_chat?.metadata).interactive?.button_reply?.title || content(contact?.last_chat?.metadata).interactive?.list_reply?.title }}</div>
                         <div v-if="contentType(contact?.last_chat?.metadata) ==='image'" class="text-slate-500 text-xs truncate self-end"> 
@@ -248,10 +525,27 @@
                     </div>
                 </div>
             </div>
-        </Link>
-    </div>
-    <div class="px-4 pb-4">
-        <Pagination class="mt-3" :pagination="rows.meta"/>
+        </div>
+        
+        <!-- Intersection Observer Target - Must be AFTER all items -->
+        <div v-if="hasNextPage && !isLoadingMore" ref="loadMoreTrigger" class="h-20 flex items-center justify-center">
+            <span class="text-xs text-gray-400">📡 Scroll detector active</span>
+        </div>
+        
+        <!-- Infinite Scroll Loading Indicator -->
+        <div v-if="isLoadingMore" class="py-4 flex justify-center items-center">
+            <svg class="animate-spin h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="ml-2 text-sm text-gray-500">Loading more chats...</span>
+        </div>
+        
+        <!-- End of List Indicator -->
+        <div v-if="!hasNextPage && localRows.length > 0" class="py-4 text-center text-sm text-gray-400">
+            <p>You've reached the end of your chats</p>
+            <p class="text-xs mt-1">Showing {{ localRows.length }} conversations</p>
+        </div>
     </div>
 </template>
   

@@ -23,10 +23,11 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping();
         
-        // Monitor queue health
-        $schedule->command('queue:restart')
-            ->hourly()
-            ->evenInMaintenanceMode();
+        // Monitor queue health - removed queue:restart as it stops workers
+        // Note: queue:restart should only be used after deployments, not scheduled
+        // $schedule->command('queue:restart')
+        //     ->hourly()
+        //     ->evenInMaintenanceMode();
         
         // Clean failed jobs table
         $schedule->command('queue:prune-failed --hours=24')
@@ -44,6 +45,14 @@ class Kernel extends ConsoleKernel
         // Monitor queue size
         $schedule->command('monitor:queue-size')
             ->everyFiveMinutes();
+        
+        // ✅ PHASE 1: Sync WhatsApp instance URLs proactively
+        $schedule->command('whatsapp:sync-instance-urls')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->onFailure(function () {
+                \Illuminate\Support\Facades\Log::error('whatsapp:sync-instance-urls command failed');
+            });
     }
 
     /**
