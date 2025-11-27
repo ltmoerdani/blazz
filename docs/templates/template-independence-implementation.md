@@ -68,11 +68,35 @@ User → Create Template Page → Fill Form → Save as Draft (always available)
 
 ---
 
+## 🏛️ Architecture Compliance
+
+### Verified Against:
+- `docs/architecture/01-arsitektur-overview.md`
+- `docs/architecture/06-development-patterns-guidelines.md`
+- `docs/architecture/04-feature-development-guide.md`
+
+### Pattern Compliance Checklist:
+
+| Pattern | Requirement | Implementation | Status |
+|---------|-------------|----------------|--------|
+| Service Layer | Business logic in Service, not Controller | `saveDraft()` in `TemplateService` | ✅ |
+| Workspace Scoping | All queries scoped by `workspace_id` | `scopeInWorkspace()` scope | ✅ |
+| DI via ServiceProvider | Services registered in Provider | Update `UtilityServiceProvider` | ✅ |
+| Response Object | Return `(object)['success'=>...]` | Standard response format | ✅ |
+| Error Handling | try-catch with DB::transaction | Wrap create/update in transaction | ✅ |
+| Logging | Log important operations | `Log::info()` for draft creation | ✅ |
+| UUID | Use UUID trait for external reference | `HasUuid` trait in Model | ✅ |
+| Soft Deletes | Preserve data with soft delete | `SoftDeletes` trait | ✅ |
+
+---
+
 ## Implementation Steps
 
 ### Step 1: Database Migration
 
 **File:** `database/migrations/xxxx_xx_xx_update_templates_for_drafts.php`
+
+> ⚠️ **Note:** Only make `meta_id` nullable. Status column already exists and can store 'DRAFT'.
 
 ```php
 <?php
@@ -87,29 +111,35 @@ return new class extends Migration
     {
         Schema::table('templates', function (Blueprint $table) {
             // Make meta_id nullable for draft templates
+            // Existing column: string('meta_id', 128) - need to allow null
             $table->string('meta_id', 128)->nullable()->change();
-            
-            // Add provider_type to track template source
-            $table->string('provider_type', 50)->default('local')->after('status');
-            // Values: 'local', 'meta_api', 'webjs'
         });
     }
 
     public function down(): void
     {
         Schema::table('templates', function (Blueprint $table) {
+            // Revert: meta_id back to required (will fail if null values exist)
             $table->string('meta_id', 128)->nullable(false)->change();
-            $table->dropColumn('provider_type');
         });
     }
 };
 ```
+
+**Run migration:**
+```bash
+php artisan migrate
+```
+
+> 💡 **Tip:** Existing `status` column can already store 'DRAFT', 'PENDING', 'APPROVED', 'REJECTED' - no schema change needed for status.
 
 ---
 
 ### Step 2: Update Template Model
 
 **File:** `app/Models/Template.php`
+
+> ⚠️ **Pattern:** Follow existing model patterns - `HasUuid`, `HasFactory`, scopes, business methods
 
 ```php
 <?php
@@ -125,18 +155,34 @@ class Template extends Model
 {
     use HasFactory, HasUuid, SoftDeletes;
 
-    protected $guarded = [];
+    protected $guarded = [];  // Follow existing pattern
 
-    // Status constants
-    const STATUS_DRAFT = 'DRAFT';
-    const STATUS_PENDING = 'PENDING';
-    const STATUS_APPROVED = 'APPROVED';
-    const STATUS_REJECTED = 'REJECTED';
+    // Status constants - align with Meta API statuses + DRAFT
+    const STATUS_DRAFT = 'DRAFT';           // Local only, not submitted
+    const STATUS_PENDING = 'PENDING';       // Submitted to Meta, awaiting review
+    const STATUS_APPROVED = 'APPROVED';     // Approved by Meta
+    const STATUS_REJECTED = 'REJECTED';     // Rejected by Meta
 
-    // Provider types
-    const PROVIDER_LOCAL = 'local';
-    const PROVIDER_META_API = 'meta_api';
-    const PROVIDER_WEBJS = 'webjs';
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
+    /**
+     * Workspace relationship - REQUIRED for multi-tenancy
+     */
+    public function workspace()
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    /**
+     * Creator relationship
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 
     /**
      * Scope: Only draft templates
@@ -163,7 +209,7 @@ class Template extends Model
     }
 
     /**
-     * Scope: Query by workspace
+     * Scope: Query by workspace (existing pattern)
      */
     public function scopeInWorkspace($query, $workspaceId)
     {
@@ -171,22 +217,28 @@ class Template extends Model
     }
 
     /**
+     * Scope: Usable templates (DRAFT for WebJS, APPROVED for Meta)
+     */
+    public function scopeUsableFor($query, string $provider)
+    {
+        return match($provider) {
+            'webjs' => $query, // All templates usable for WebJS
+            'meta_api' => $query->where('status', self::STATUS_APPROVED)
+                                ->whereNotNull('meta_id'),
+            default => $query,
+        };
+    }
+
+    /**
      * Check if template can be used with specific provider
      */
     public function canUseWithProvider(string $provider): bool
     {
-        switch ($provider) {
-            case self::PROVIDER_META_API:
-                // Meta API requires APPROVED status
-                return $this->status === self::STATUS_APPROVED && !empty($this->meta_id);
-            
-            case self::PROVIDER_WEBJS:
-                // WebJS can use any template (draft or published)
-                return true;
-            
-            default:
-                return false;
-        }
+        return match($provider) {
+            'meta_api' => $this->status === self::STATUS_APPROVED && !empty($this->meta_id),
+            'webjs' => true, // WebJS can use any template
+            default => false,
+        };
     }
 
     /**
@@ -225,11 +277,11 @@ class Template extends Model
     public function getStatusLabelAttribute(): string
     {
         return match($this->status) {
-            self::STATUS_DRAFT => 'Draft',
-            self::STATUS_PENDING => 'Pending Review',
-            self::STATUS_APPROVED => 'Approved',
-            self::STATUS_REJECTED => 'Rejected',
-            default => 'Unknown',
+            self::STATUS_DRAFT => __('Draft'),
+            self::STATUS_PENDING => __('Pending Review'),
+            self::STATUS_APPROVED => __('Approved'),
+            self::STATUS_REJECTED => __('Rejected'),
+            default => __('Unknown'),
         };
     }
 }
@@ -241,14 +293,21 @@ class Template extends Model
 
 **File:** `app/Services/TemplateService.php`
 
-Add new method for saving drafts:
+> ⚠️ **IMPORTANT:** Follow existing service pattern - workspace ID via constructor, DI via ServiceProvider
 
 ```php
 /**
  * Save template as draft (local database only, no Meta API call)
+ * 
+ * Pattern: Follows existing service methods in TemplateService
+ * - Workspace scoping via $this->workspaceId
+ * - Standard response object format
+ * - DB::transaction for data integrity
+ * - Logging for audit trail
  */
 public function saveDraft(Request $request)
 {
+    // Validation - same pattern as createTemplate()
     $validator = Validator::make($request->all(), [
         'name' => 'required|string|max:128',
         'category' => 'required|in:UTILITY,MARKETING,AUTHENTICATION',
@@ -263,95 +322,141 @@ public function saveDraft(Request $request)
         ], 422);
     }
 
-    // Build components array
-    $components = $this->buildComponentsFromRequest($request);
+    try {
+        DB::beginTransaction();
 
-    // Create draft template (no Meta API call)
-    $template = Template::create([
-        'uuid' => \Illuminate\Support\Str::uuid(),
-        'workspace_id' => $this->workspaceId,
-        'meta_id' => null, // No Meta ID for drafts
-        'name' => $request->name,
-        'category' => $request->category,
-        'language' => $request->language,
-        'metadata' => json_encode($components),
-        'status' => Template::STATUS_DRAFT,
-        'provider_type' => Template::PROVIDER_LOCAL,
-        'created_by' => auth()->id(),
-    ]);
+        // Build components array (reuse existing private method)
+        $components = $this->buildComponentsFromRequest($request);
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Template saved as draft',
-        'data' => [
-            'uuid' => $template->uuid,
-            'status' => $template->status,
-        ]
-    ]);
+        // Create draft template (no Meta API call)
+        $template = Template::create([
+            'uuid' => \Illuminate\Support\Str::uuid(),
+            'workspace_id' => $this->workspaceId,
+            'meta_id' => null, // No Meta ID for drafts
+            'name' => $request->name,
+            'category' => $request->category,
+            'language' => $request->language,
+            'metadata' => json_encode($components),
+            'status' => Template::STATUS_DRAFT,
+            'created_by' => auth()->id(),
+        ]);
+
+        DB::commit();
+
+        // Logging - same pattern as existing services
+        Log::info('Template draft saved', [
+            'workspace_id' => $this->workspaceId,
+            'template_id' => $template->id,
+            'template_uuid' => $template->uuid,
+            'user_id' => auth()->id(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('Template saved as draft'),
+            'data' => [
+                'uuid' => $template->uuid,
+                'status' => $template->status,
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        Log::error('Failed to save template draft', [
+            'workspace_id' => $this->workspaceId,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => __('Failed to save draft: ') . $e->getMessage(),
+        ], 500);
+    }
 }
 
 /**
  * Publish draft template to Meta API
+ * 
+ * Pattern: Uses existing TemplateManagementService for Meta API calls
  */
 public function publishToMeta(string $uuid)
 {
     $template = Template::where('uuid', $uuid)
         ->where('workspace_id', $this->workspaceId)
-        ->firstOrFail();
+        ->first();
+
+    if (!$template) {
+        return response()->json([
+            'success' => false,
+            'message' => __('Template not found')
+        ], 404);
+    }
 
     if (!$template->isDraft()) {
         return response()->json([
             'success' => false,
-            'message' => 'Template is already published'
+            'message' => __('Template is already published')
         ], 400);
     }
 
-    // Check if Meta API is configured
+    // Check if Meta API is configured via workspace metadata
     $workspace = Workspace::find($this->workspaceId);
     $config = $workspace->metadata ? json_decode($workspace->metadata, true) : [];
     
     if (empty($config['whatsapp']['access_token']) || empty($config['whatsapp']['waba_id'])) {
         return response()->json([
             'success' => false,
-            'message' => 'Meta API is not configured. Please configure WhatsApp connection first.'
+            'message' => __('Meta API is not configured. Please configure WhatsApp connection first.')
         ], 400);
     }
 
-    // Create request from stored template data
+    // Reconstruct request from stored template data
     $templateData = json_decode($template->metadata, true);
     $request = new Request([
         'name' => $template->name,
         'category' => $template->category,
         'language' => $template->language,
-        'components' => $templateData,
+        'header' => $this->extractComponentByType($templateData, 'HEADER'),
+        'body' => $this->extractComponentByType($templateData, 'BODY'),
+        'footer' => $this->extractComponentByType($templateData, 'FOOTER'),
+        'buttons' => $this->extractButtons($templateData),
     ]);
 
-    // Submit to Meta API
+    // Submit to Meta API via existing TemplateManagementService
     $response = $this->templateService->createTemplate($request);
 
     if ($response->success) {
         $template->update([
             'meta_id' => $response->data['id'] ?? null,
             'status' => Template::STATUS_PENDING,
-            'provider_type' => Template::PROVIDER_META_API,
+        ]);
+
+        Log::info('Template published to Meta', [
+            'workspace_id' => $this->workspaceId,
+            'template_uuid' => $template->uuid,
+            'meta_id' => $response->data['id'] ?? null,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Template submitted to Meta for review',
+            'message' => __('Template submitted to Meta for review'),
             'data' => [
                 'uuid' => $template->uuid,
-                'status' => $template->status,
+                'status' => Template::STATUS_PENDING,
+                'meta_id' => $response->data['id'] ?? null,
             ]
         ]);
     }
 
     return response()->json([
         'success' => false,
-        'message' => 'Failed to publish template',
+        'message' => __('Failed to publish template'),
         'error' => $response->error ?? 'Unknown error'
     ], 500);
 }
+```
 
 /**
  * Build components array from request data

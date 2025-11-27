@@ -171,16 +171,20 @@ Dalam Scenario A, **WebJS dapat menggunakan template dengan status apapun** (DRA
 
 ```sql
 -- Query drafts only
-SELECT * FROM templates WHERE status = 'DRAFT';
+SELECT * FROM templates 
+WHERE workspace_id = ? AND status = 'DRAFT' AND deleted_at IS NULL;
 
 -- Query Meta-ready templates
-SELECT * FROM templates WHERE status = 'APPROVED' AND meta_id IS NOT NULL;
+SELECT * FROM templates 
+WHERE workspace_id = ? AND status = 'APPROVED' AND meta_id IS NOT NULL AND deleted_at IS NULL;
 
--- Query WebJS-compatible templates
-SELECT * FROM templates WHERE status IN ('DRAFT', 'PENDING', 'APPROVED');
+-- Query WebJS-compatible templates (all non-deleted)
+SELECT * FROM templates 
+WHERE workspace_id = ? AND status IN ('DRAFT', 'PENDING', 'APPROVED') AND deleted_at IS NULL;
 
--- Query by provider type
-SELECT * FROM templates WHERE provider_type = 'meta_api';
+-- Query usable for campaigns
+SELECT * FROM templates 
+WHERE workspace_id = ? AND status != 'REJECTED' AND deleted_at IS NULL;
 ```
 
 ---
@@ -193,10 +197,12 @@ SELECT * FROM templates WHERE provider_type = 'meta_api';
     "uuid": "abc-123",
     "name": "welcome_message",
     "status": "DRAFT",
-    "provider_type": "local",
+    "status_label": "Draft",
+    "status_color": "gray",
     "meta_id": null,
     "can_use_meta": false,
-    "can_use_webjs": true
+    "can_use_webjs": true,
+    "is_draft": true
 }
 ```
 
@@ -206,10 +212,27 @@ SELECT * FROM templates WHERE provider_type = 'meta_api';
     "uuid": "def-456",
     "name": "order_confirmation",
     "status": "APPROVED",
-    "provider_type": "meta_api",
+    "status_label": "Approved",
+    "status_color": "green",
     "meta_id": "789012345",
     "can_use_meta": true,
-    "can_use_webjs": true
+    "can_use_webjs": true,
+    "is_draft": false
+}
+```
+
+### Pending Template (submitted to Meta)
+```json
+{
+    "uuid": "ghi-789",
+    "name": "promo_message",
+    "status": "PENDING",
+    "status_label": "Pending Review",
+    "status_color": "yellow",
+    "meta_id": "123456789",
+    "can_use_meta": false,
+    "can_use_webjs": true,
+    "is_draft": false
 }
 ```
 

@@ -295,20 +295,24 @@ DRAFT ────────────────────────�
 - Show provider compatibility badges
 
 #### 2. Backend (`TemplateService.php`)
-- Add `saveDraft()` method - saves to DB only
-- Rename existing `createTemplate()` to `publishToMeta()`
-- Handle template without Meta credentials gracefully
+- Add `saveDraft()` method - saves to DB only, follows existing service pattern
+- Refactor `createTemplate()` to support draft-first workflow
+- Add `publishToMeta()` as separate action
+- Use `DB::transaction()` and proper logging
 
 #### 3. Database Migration
 ```sql
+-- Only change needed:
 ALTER TABLE templates MODIFY meta_id VARCHAR(128) NULL;
--- Status will now include: DRAFT, PENDING, APPROVED, REJECTED
+-- Status column already supports: DRAFT, PENDING, APPROVED, REJECTED
 ```
 
 #### 4. Model (`Template.php`)
-- Add status constants
-- Add scope for drafts
+- Add status constants (`STATUS_DRAFT`, `STATUS_PENDING`, etc.)
+- Add scopes (`scopeDrafts()`, `scopePublished()`, `scopeUsableFor()`)
 - Add `canUseWithProvider()` method
+- Add `isDraft()`, `isPublishedToMeta()` helpers
+- Follow existing patterns: `HasUuid`, `SoftDeletes`, workspace relationship
 
 ---
 
