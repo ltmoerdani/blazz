@@ -99,10 +99,28 @@ class CampaignController extends BaseController
             ]);
         } else if($uuid == 'create'){
             $data['settings'] = Workspace::where('id', $workspaceId)->first();
+            
+            // Get templates - include DRAFT for WebJS and APPROVED for all providers
+            // DRAFT templates can be used with WhatsApp WebJS (no Meta API approval needed)
+            // APPROVED templates can be used with both providers
             $data['templates'] = Template::where('workspace_id', $workspaceId)
                 ->where('deleted_at', null)
-                ->where('status', 'APPROVED')
-                ->get();
+                ->whereIn('status', [Template::STATUS_APPROVED, Template::STATUS_DRAFT])
+                ->get()
+                ->map(function ($template) {
+                    return [
+                        'uuid' => $template->uuid,
+                        'name' => $template->name,
+                        'language' => $template->language,
+                        'category' => $template->category,
+                        'status' => $template->status,
+                        'metadata' => $template->metadata,
+                        // Flag to indicate if this template requires Meta API (i.e., only APPROVED can use Meta API)
+                        'requires_meta_api' => $template->status === Template::STATUS_APPROVED && !empty($template->meta_id),
+                        // Flag to indicate if this template can be used with WebJS
+                        'webjs_compatible' => true, // All templates are compatible with WebJS
+                    ];
+                });
 
             $data['contactGroups'] = ContactGroup::where('workspace_id', $workspaceId)
                 ->where('deleted_at', null)

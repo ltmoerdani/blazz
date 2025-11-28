@@ -58,6 +58,7 @@ class TemplateService
 
     /**
      * Get templates list or sync templates from WhatsApp
+     * @deprecated Use listTemplates, syncTemplates, or getTemplateDetail instead
      */
     public function getTemplates(Request $request, $uuid = null)
     {
@@ -73,6 +74,30 @@ class TemplateService
         }
 
         return $response;
+    }
+
+    /**
+     * List templates for the current workspace
+     */
+    public function listTemplates(Request $request, $search = null)
+    {
+        return $this->getTemplatesListResponse($request);
+    }
+
+    /**
+     * Sync templates from WhatsApp API
+     */
+    public function syncTemplatesFromWhatsApp()
+    {
+        return $this->templateService->syncTemplates();
+    }
+
+    /**
+     * Get template details by UUID
+     */
+    public function getTemplateDetail(Request $request, $uuid)
+    {
+        return $this->getTemplateDetailResponse($request, $uuid);
     }
 
     private function getTemplatesListResponse(Request $request)

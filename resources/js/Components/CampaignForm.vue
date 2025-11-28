@@ -245,7 +245,12 @@
     }
 
     const extractComponent = (data, type, customProperty) => {
-        const component = data.components.find(
+        // Handle both draft format (components at root) and Meta API format (components in metadata)
+        const components = data.components || data;
+        
+        if (!Array.isArray(components)) return null;
+        
+        const component = components.find(
             (c) => c.type === type
         );
 
@@ -255,9 +260,27 @@
     const transformOptions = (options) => {
         return options.map((option) => ({
             value: option.uuid,
-            label: option.language ? option.name + ' [' + option.language + ']' : option.name,
+            label: option.language 
+                ? `${option.name} [${option.language}]${option.status === 'DRAFT' ? ' (Draft)' : ''}`
+                : `${option.name}${option.status === 'DRAFT' ? ' (Draft)' : ''}`,
+            status: option.status,
+            requires_meta_api: option.requires_meta_api || false,
+            webjs_compatible: option.webjs_compatible !== false,
         }));
     };
+
+    // Filter templates based on selected provider
+    const filteredTemplateOptions = computed(() => {
+        const allOptions = transformOptions(props.templates || []);
+        
+        if (form.preferred_provider === 'meta_api') {
+            // Meta API can only use APPROVED templates
+            return allOptions.filter(opt => opt.status === 'APPROVED');
+        }
+        
+        // WebJS can use all templates (APPROVED and DRAFT)
+        return allOptions;
+    });
 
     // Computed properties for hybrid functionality
     const isTemplateMode = computed(() => form.campaign_type === 'template');
@@ -486,7 +509,7 @@
     }, { deep: true });
 
     onMounted(() => {
-        templateOptions.value = transformOptions(props.templates);
+        // Note: templateOptions is now handled by computed 'filteredTemplateOptions'
         contactGroupOptions.value = [...contactGroupOptions.value, ...transformOptions(props.contactGroups)];
 
         // Initialize preview data with current form values
@@ -626,7 +649,13 @@
             <!-- Template-specific Configuration -->
             <div v-if="isTemplateMode && isCampaignFlow" :class="isCampaignFlow ? '' : 'px-3 md:px-3'">
                 <div class="mb-4">
-                    <FormSelect v-model="form.template" @update:modelValue="loadTemplate" :options="templateOptions" :required="true" :error="form.errors.template" :name="$t('Template')" :placeholder="$t('Select template')"/>
+                    <FormSelect v-model="form.template" @update:modelValue="loadTemplate" :options="filteredTemplateOptions" :required="true" :error="form.errors.template" :name="$t('Template')" :placeholder="$t('Select template')"/>
+                    <p v-if="form.preferred_provider === 'webjs' && filteredTemplateOptions.some(t => t.status === 'DRAFT')" class="text-xs text-blue-600 mt-1">
+                        {{ $t('Draft templates are available for WhatsApp Web JS') }}
+                    </p>
+                    <p v-if="form.preferred_provider === 'meta_api'" class="text-xs text-amber-600 mt-1">
+                        {{ $t('Only approved templates can be used with Meta Business API') }}
+                    </p>
                 </div>
             </div>
 
