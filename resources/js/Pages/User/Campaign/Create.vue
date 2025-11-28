@@ -20,6 +20,7 @@
                 :whatsappAccounts="whatsappAccounts"
                 :campaignTypes="campaignTypes"
                 :providerOptions="providerOptions"
+                :speedTiers="speedTiers"
             />
         </div>
     </AppLayout>
@@ -34,5 +35,5 @@
     import 'vue3-toastify/dist/index.css';
     import { trans } from 'laravel-vue-i18n';
 
-    const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappAccounts', 'campaignTypes', 'providerOptions']);
+    const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappAccounts', 'campaignTypes', 'providerOptions', 'speedTiers']);
 </script>

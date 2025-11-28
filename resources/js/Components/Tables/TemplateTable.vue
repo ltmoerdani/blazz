@@ -57,14 +57,22 @@
     }
 
     const findBodyText = (item) => {
-        const metadataArray = JSON.parse(item);
-        const bodyArray = metadataArray.components.find(element => element.type === "BODY");
-
-        if (bodyArray) {
-            return bodyArray.text;
+        try {
+            const metadataArray = JSON.parse(item);
+            // Support both draft format (components at root) and Meta API format (components in metadata)
+            const components = metadataArray.components || metadataArray;
+            
+            if (Array.isArray(components)) {
+                const bodyArray = components.find(element => element.type === "BODY");
+                if (bodyArray) {
+                    return bodyArray.text;
+                }
+            }
+            
+            return 'N/A';
+        } catch (e) {
+            return 'N/A';
         }
-
-        return 'N/A';
     }
 </script>
 <template>
@@ -105,7 +113,7 @@
                         </button>
                         <template #items>
                             <DropdownItemGroup>
-                                <DropdownItem v-if="item.status == 'APPROVED' || item.status == 'REJECTED' || item.status == 'PAUSED'" :href="'/templates/' + item.uuid">{{ $t('edit') }}</DropdownItem>
+                                <DropdownItem v-if="item.status == 'APPROVED' || item.status == 'REJECTED' || item.status == 'PAUSED' || item.status == 'DRAFT'" :href="'/templates/' + item.uuid">{{ $t('edit') }}</DropdownItem>
                                 <DropdownItem as="button" @click="openAlert(item.uuid)">{{ $t('Delete') }}</DropdownItem>
                             </DropdownItemGroup>
                         </template>

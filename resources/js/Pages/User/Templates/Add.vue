@@ -11,50 +11,46 @@
                 </div>
                 <div class="space-x-2 flex items-center">
                     <Link href="/templates" class="rounded-md bg-black px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Back') }}</Link>
-                    <button @click="submitForm()" type="button" class="capitalize rounded-md px-3 py-2 float-right text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600" :class="isFormValid === true ? 'bg-indigo-600 hover:bg-indigo-500 shadow-sm' : 'bg-gray-200'" :disabled="!isFormValid || isLoading">
-                        <span v-if="!isLoading">{{ $t('Create template') }}</span>
+                    
+                    <!-- Save as Draft Button (Always Available) -->
+                    <button @click="saveAsDraft()" type="button" class="capitalize rounded-md px-3 py-2 float-right text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 border border-gray-300" :class="isFormValid === true ? 'bg-white hover:bg-gray-50 text-gray-700 shadow-sm' : 'bg-gray-100 text-gray-400'" :disabled="!isFormValid || isLoading">
+                        <span v-if="!isLoading || loadingAction !== 'draft'">{{ $t('Save as Draft') }}</span>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8A8 8 0 0 1 12 20Z" opacity=".5"/><path fill="currentColor" d="M20 12h2A10 10 0 0 0 12 2V4A8 8 0 0 1 20 12Z"><animateTransform attributeName="transform" dur="1s" from="0 12 12" repeatCount="indefinite" to="360 12 12" type="rotate"/></path></svg>
+                    </button>
+
+                    <!-- Submit to Meta Button (Only when Meta API is configured) -->
+                    <button v-if="isMetaApiConfigured" @click="submitToMeta()" type="button" class="capitalize rounded-md px-3 py-2 float-right text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600" :class="isFormValid === true ? 'bg-indigo-600 hover:bg-indigo-500 shadow-sm' : 'bg-gray-200'" :disabled="!isFormValid || isLoading">
+                        <span v-if="!isLoading || loadingAction !== 'meta'">{{ $t('Submit to Meta') }}</span>
                         <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8A8 8 0 0 1 12 20Z" opacity=".5"/><path fill="currentColor" d="M20 12h2A10 10 0 0 0 12 2V4A8 8 0 0 1 20 12Z"><animateTransform attributeName="transform" dur="1s" from="0 12 12" repeatCount="indefinite" to="360 12 12" type="rotate"/></path></svg>
                     </button>
                 </div>
             </div>
             <div class="md:flex md:flex-grow-1 md:h-[88vh] mt-4 md:mt-0">
                 <div class="md:w-[50%] md:p-8 overflow-y-auto">
-                    <div v-if="!isWhatsAppConnected" class="p-4 md:p-8 overflow-y-auto">
-                        <div class="bg-slate-50 border border-primary shadow rounded-md p-4 py-8">
-                            <div class="flex justify-center mb-4">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 48 48"><path fill="black" d="M43.634 4.366a1.25 1.25 0 0 1 0 1.768l-4.913 4.913a9.253 9.253 0 0 1-.744 12.244l-3.343 3.343a1.25 1.25 0 0 1-1.768 0l-11.5-11.5a1.25 1.25 0 0 1 0-1.768l3.343-3.343a9.25 9.25 0 0 1 12.244-.743l4.913-4.914a1.25 1.25 0 0 1 1.768 0m-7.611 7.425a6.75 6.75 0 0 0-9.546 0l-2.46 2.459l9.733 9.732l2.46-2.459a6.75 6.75 0 0 0 0-9.546zM9.28 36.953l-4.914 4.913a1.25 1.25 0 0 0 1.768 1.768l4.913-4.913a9.253 9.253 0 0 0 12.244-.744l3.343-3.343a1.25 1.25 0 0 0 0-1.768L25.268 31.5l3.366-3.366a1.25 1.25 0 0 0-1.768-1.768L23.5 29.732L18.268 24.5l3.366-3.366a1.25 1.25 0 0 0-1.768-1.768L16.5 22.732l-1.366-1.366a1.25 1.25 0 0 0-1.768 0l-3.343 3.343a9.25 9.25 0 0 0-.743 12.244m2.51-10.476l2.46-2.46l9.732 9.733l-2.459 2.46a6.75 6.75 0 0 1-9.546 0l-.186-.187a6.75 6.75 0 0 1 0-9.546"/></svg>
-                            </div>
-                            <h3 class="text-center text-lg font-medium mb-4">{{ $t('Connect your whatsapp account') }}</h3>
-                            <h4 class="text-center mb-4">{{ $t('You need to connect your WhatsApp account first before you can create a template.') }}</h4>
-
-                            <!-- Show connection status details -->
-                            <div class="text-center mb-4 text-sm text-gray-600">
-                                <div v-if="!settings?.whatsapp && (!whatsappAccounts || whatsappAccounts.length === 0)" class="mb-2">
-                                    <p class="mb-2">{{ $t('No WhatsApp connection found. You can connect via:') }}</p>
-                                    <div class="space-y-1">
-                                        <p>• {{ $t('Meta API (Business API)') }}</p>
-                                        <p>• {{ $t('WhatsApp Web JS (Direct connection)') }}</p>
+                    <!-- Optional: Show connection info banner if not connected (non-blocking) -->
+                    <div v-if="!isWhatsAppConnected" class="p-4 mb-6">
+                        <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-blue-800">{{ $t('Draft Mode') }}</h3>
+                                    <div class="mt-2 text-sm text-blue-700">
+                                        <p>{{ $t('You can create and save templates as drafts without WhatsApp connection.') }}</p>
+                                        <p class="mt-1">{{ $t('To submit templates to Meta for approval, configure your WhatsApp Business API in') }} 
+                                            <Link href="/settings/whatsapp" class="font-medium underline">{{ $t('Settings') }}</Link>.
+                                        </p>
                                     </div>
                                 </div>
-                                <div v-if="!settings?.whatsapp && whatsappAccounts && whatsappAccounts.length > 0" class="mb-2">
-                                    <p class="text-green-600">{{ $t('WhatsApp Web JS accounts found, but none are connected.') }}</p>
-                                </div>
-                                <div v-if="settings?.whatsapp && (!whatsappAccounts || whatsappAccounts.length === 0)" class="mb-2">
-                                    <p class="text-green-600">{{ $t('Meta API is configured.') }}</p>
-                                </div>
-                            </div>
-
-                            <div class="flex justify-center space-x-3">
-                                <Link href="/settings/whatsapp" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 bg-primary" :disabled="isLoading">
-                                    <span v-if="!isLoading">{{ $t('Connect Meta API') }}</span>
-                                </Link>
-                                <Link href="/settings/whatsapp/accounts" class="rounded-md px-3 py-2 text-sm hover:shadow-md text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 bg-green-600" :disabled="isLoading">
-                                    <span v-if="!isLoading">{{ $t('Manage WhatsApp Accounts') }}</span>
-                                </Link>
                             </div>
                         </div>
                     </div>
-                    <div v-else>
+                    
+                    <!-- Template Form (Always visible) -->
+                    <div>
                         <div class="grid gap-x-6 gap-y-4 sm:grid-cols-6 mb-8 capitalize">
                             <FormInput v-model="form.name" :name="$t('Name')" :type="'text'" @input="handleNameInput" @keydown.space.prevent="addUnderscore" :class="'sm:col-span-6'"/>
                             <FormSelect v-model="form.category" :options="categoryOptions" :name="$t('Category')" :class="'sm:col-span-3'" :placeholder="$t('Select category')"/>
@@ -460,9 +456,11 @@
     const footerCharacterLimit = ref('60');
     const footerCharacterCount = ref('0');
     const isLoading = ref(false);
+    const loadingAction = ref(null); // 'draft' or 'meta'
     const imageUrl = ref(null);
     const isModalOpen = ref(false);
     const error = ref(null);
+    const successMessage = ref(null);
     const bodyExamples = ref([]);
     const form = ref({
         'name' : null,
@@ -504,6 +502,11 @@
     });
     const config = ref(props.settings.metadata);
     const settings = ref(config.value ? JSON.parse(config.value) : null);
+
+    // Check if Meta API is configured (for Submit to Meta button visibility)
+    const isMetaApiConfigured = computed(() => {
+        return settings.value?.whatsapp?.access_token && settings.value?.whatsapp?.waba_id;
+    });
 
     // Check if WhatsApp is connected via either Meta API or WhatsApp Web JS
     const isWhatsAppConnected = computed(() => {
@@ -806,28 +809,71 @@
         form.value.header.example = value;
     }
 
-    const submitForm = () => {
+    /**
+     * Save template as draft (no Meta API submission)
+     */
+    const saveAsDraft = () => {
         isLoading.value = true;
+        loadingAction.value = 'draft';
+        
+        axios.post('/templates/draft', form.value, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        .then(response => {
+            if (response.data.success === false) {
+                isLoading.value = false;
+                loadingAction.value = null;
+                toast.error(response.data.message || 'Failed to save draft');
+            } else {
+                toast.success(response.data.message || 'Template saved as draft');
+                router.visit('/templates', {
+                    method: 'get',
+                });
+            }
+        })
+        .catch(err => {
+            isLoading.value = false;
+            loadingAction.value = null;
+            toast.error(err.response?.data?.message || 'An error occurred');
+        });
+    }
+
+    /**
+     * Submit template directly to Meta API (existing behavior)
+     */
+    const submitToMeta = () => {
+        isLoading.value = true;
+        loadingAction.value = 'meta';
         isModalOpen.value = true;
+        
         axios.post('/templates/create', form.value, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
         })
         .then(response => {
-            if(response.data.success === false){
+            if (response.data.success === false) {
                 isLoading.value = false;
-                error.value = response.data.data.error.message;
+                loadingAction.value = null;
+                error.value = response.data.data?.error?.message || response.data.message || 'Failed to submit template';
             } else {
                 router.visit('/templates', {
                     method: 'get',
                 });
             }
         })
-        .catch(error => {
-            // Handle any errors that occur during the request
-            //console.error('An error occurred:', error);
+        .catch(err => {
+            isLoading.value = false;
+            loadingAction.value = null;
+            error.value = err.response?.data?.message || 'An error occurred';
         });
+    }
+
+    // Keep submitForm for backward compatibility (calls submitToMeta)
+    const submitForm = () => {
+        submitToMeta();
     }
 
     const codeDeliveryOptions = [

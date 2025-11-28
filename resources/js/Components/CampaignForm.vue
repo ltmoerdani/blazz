@@ -5,6 +5,7 @@
     import FormTextArea from '@/Components/FormTextArea.vue';
     import BodyTextArea from '@/Components/Template/BodyTextArea.vue';
     import WhatsappTemplate from '@/Components/WhatsappTemplate.vue';
+    import SpeedTierSelector from '@/Components/Campaign/SpeedTierSelector.vue';
     import { ref, computed, onMounted, watch } from 'vue';
     import { Link, useForm } from "@inertiajs/vue3";
     import 'vue3-toastify/dist/index.css';
@@ -23,6 +24,10 @@
             default: () => []
         },
         providerOptions: {
+            type: Array,
+            default: () => []
+        },
+        speedTiers: {
             type: Array,
             default: () => []
         },
@@ -98,6 +103,7 @@
         contacts: null,
         preferred_provider: 'webjs', // Default to WhatsApp Web JS as requested
         whatsapp_account_id: null,
+        speed_tier: 2, // Default to 'safe' tier
         time: null,
         scheduled_at: null,
         skip_schedule: false,
@@ -245,7 +251,12 @@
     }
 
     const extractComponent = (data, type, customProperty) => {
-        const component = data.components.find(
+        // Handle both draft format (components at root) and Meta API format (components in metadata)
+        const components = data.components || data;
+        
+        if (!Array.isArray(components)) return null;
+        
+        const component = components.find(
             (c) => c.type === type
         );
 
@@ -255,9 +266,27 @@
     const transformOptions = (options) => {
         return options.map((option) => ({
             value: option.uuid,
-            label: option.language ? option.name + ' [' + option.language + ']' : option.name,
+            label: option.language 
+                ? `${option.name} [${option.language}]${option.status === 'DRAFT' ? ' (Draft)' : ''}`
+                : `${option.name}${option.status === 'DRAFT' ? ' (Draft)' : ''}`,
+            status: option.status,
+            requires_meta_api: option.requires_meta_api || false,
+            webjs_compatible: option.webjs_compatible !== false,
         }));
     };
+
+    // Filter templates based on selected provider
+    const filteredTemplateOptions = computed(() => {
+        const allOptions = transformOptions(props.templates || []);
+        
+        if (form.preferred_provider === 'meta_api') {
+            // Meta API can only use APPROVED templates
+            return allOptions.filter(opt => opt.status === 'APPROVED');
+        }
+        
+        // WebJS can use all templates (APPROVED and DRAFT)
+        return allOptions;
+    });
 
     // Computed properties for hybrid functionality
     const isTemplateMode = computed(() => form.campaign_type === 'template');
@@ -486,7 +515,7 @@
     }, { deep: true });
 
     onMounted(() => {
-        templateOptions.value = transformOptions(props.templates);
+        // Note: templateOptions is now handled by computed 'filteredTemplateOptions'
         contactGroupOptions.value = [...contactGroupOptions.value, ...transformOptions(props.contactGroups)];
 
         // Initialize preview data with current form values
@@ -611,6 +640,14 @@
                 <!-- Contact Group Selection -->
                 <FormSelect v-model="form.contacts" :options="contactGroupOptions" :name="$t('Send to')" :required="true" :class="'sm:col-span-3'" :placeholder="$t('Select contacts')" :error="form.errors.contacts"/>
 
+                <!-- Speed Tier Selection -->
+                <div class="sm:col-span-6">
+                    <SpeedTierSelector
+                        v-model="form.speed_tier"
+                        :tiers="props.speedTiers"
+                    />
+                </div>
+
                 <!-- Scheduling Options -->
                 <FormInput v-if="!form.skip_schedule" v-model="form.time" :name="$t('Scheduled time')" :type="'datetime-local'" :error="form.errors.time" :required="true" :class="'sm:col-span-2'"/>
                 <div class="relative flex gap-x-3 sm:col-span-6 items-center">
@@ -626,7 +663,13 @@
             <!-- Template-specific Configuration -->
             <div v-if="isTemplateMode && isCampaignFlow" :class="isCampaignFlow ? '' : 'px-3 md:px-3'">
                 <div class="mb-4">
-                    <FormSelect v-model="form.template" @update:modelValue="loadTemplate" :options="templateOptions" :required="true" :error="form.errors.template" :name="$t('Template')" :placeholder="$t('Select template')"/>
+                    <FormSelect v-model="form.template" @update:modelValue="loadTemplate" :options="filteredTemplateOptions" :required="true" :error="form.errors.template" :name="$t('Template')" :placeholder="$t('Select template')"/>
+                    <p v-if="form.preferred_provider === 'webjs' && filteredTemplateOptions.some(t => t.status === 'DRAFT')" class="text-xs text-blue-600 mt-1">
+                        {{ $t('Draft templates are available for WhatsApp Web JS') }}
+                    </p>
+                    <p v-if="form.preferred_provider === 'meta_api'" class="text-xs text-amber-600 mt-1">
+                        {{ $t('Only approved templates can be used with Meta Business API') }}
+                    </p>
                 </div>
             </div>
 
