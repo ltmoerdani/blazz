@@ -203,6 +203,11 @@ class CampaignController extends BaseController
                 $data['campaign']['campaign_type_label'] = $data['campaign']->isTemplateBased() ? __('Template-based') : __('Direct Message');
                 $data['campaign']['provider_label'] = $data['campaign']->preferred_provider === 'webjs' ? 'WhatsApp Web JS' : 'Meta Business API';
 
+                // Speed tier info for display
+                $speedTierInfo = $this->speedService->getTierInfo($data['campaign']->speed_tier ?? 2);
+                $data['campaign']['speed_tier_info'] = $speedTierInfo;
+                $data['speedTierConfig'] = $this->speedService->getDelayConfig($data['campaign']);
+
                 // WhatsApp session info
                 if ($data['campaign']->whatsappAccount) {
                     $data['campaign']['session_info'] = [

@@ -1,6 +1,6 @@
 <script setup>
     import 'vue3-toastify/dist/index.css';
-    import { ref } from 'vue';
+    import { ref, computed } from 'vue';
     import debounce from 'lodash/debounce';
     import { router } from '@inertiajs/vue3';
     import Modal from '@/Components/Modal.vue';
@@ -22,6 +22,14 @@
         },
         uuid: {
             type: String
+        },
+        speedTierConfig: {
+            type: Object,
+            default: null
+        },
+        scheduledAt: {
+            type: String,
+            default: null
         }
     });
     
@@ -65,6 +73,206 @@
     const getErrorDetails = (metadata) => {
         return JSON.parse(metadata);
     }
+
+    /**
+     * Parse date string to Date object
+     * Handles format: "2025-11-28 09:09:31"
+     */
+    const parseScheduledDate = () => {
+        if (!props.scheduledAt) return null;
+        
+        // Handle both formats: "2025-11-28 09:09:31" and ISO format
+        let dateStr = props.scheduledAt;
+        
+        // If format is "YYYY-MM-DD HH:MM:SS", convert to ISO format
+        if (dateStr.includes(' ') && !dateStr.includes('T')) {
+            dateStr = dateStr.replace(' ', 'T');
+        }
+        
+        const date = new Date(dateStr);
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    /**
+     * Store pre-generated random intervals for consistency
+     */
+    const randomIntervals = ref({});
+
+    /**
+     * Generate random interval for a specific index
+     * Uses seeded random based on index for consistency during re-renders
+     */
+    const getRandomInterval = (index) => {
+        if (!props.speedTierConfig) return 0;
+        
+        // Check if already generated
+        if (randomIntervals.value[index] !== undefined) {
+            return randomIntervals.value[index];
+        }
+        
+        const minMs = props.speedTierConfig.interval_min_ms;
+        const maxMs = props.speedTierConfig.interval_max_ms;
+        
+        // Generate random interval between min and max
+        const baseInterval = minMs + Math.random() * (maxMs - minMs);
+        
+        // Apply ±25% variance for more realistic feel
+        const variance = baseInterval * 0.25;
+        const finalInterval = baseInterval + (Math.random() * 2 - 1) * variance;
+        
+        // Ensure minimum 1 second
+        const intervalMs = Math.max(1000, finalInterval);
+        
+        // Store for consistency
+        randomIntervals.value[index] = intervalMs;
+        
+        return intervalMs;
+    }
+
+    /**
+     * Calculate estimated send time for each contact
+     * Based on position in queue and accumulated random intervals
+     */
+    const calculateEstimatedTime = (index) => {
+        if (!props.speedTierConfig || !props.scheduledAt) {
+            return null;
+        }
+
+        // Parse scheduled time
+        const baseTime = parseScheduledDate();
+        if (!baseTime) {
+            return null;
+        }
+
+        // Calculate batch breaks
+        const batchSize = props.speedTierConfig.batch_size || 20;
+        const batchBreakMs = props.speedTierConfig.batch_break_ms || 180000;
+
+        // Accumulate all delays up to this index
+        let totalDelayMs = 0;
+        for (let i = 0; i < index; i++) {
+            // Add the random interval for each previous message
+            totalDelayMs += getRandomInterval(i);
+            
+            // Add batch break if needed (after every batchSize messages)
+            if ((i + 1) % batchSize === 0) {
+                totalDelayMs += batchBreakMs;
+            }
+        }
+
+        // Add delay to base time
+        const estimatedTime = new Date(baseTime.getTime() + totalDelayMs);
+        
+        return estimatedTime;
+    }
+
+    /**
+     * Format estimated time for display - full date and time
+     */
+    const formatEstimatedTime = (index) => {
+        const estimated = calculateEstimatedTime(index);
+        if (!estimated) return '-';
+        
+        // Format as YYYY-MM-DD HH:MM:SS
+        const year = estimated.getFullYear();
+        const month = String(estimated.getMonth() + 1).padStart(2, '0');
+        const day = String(estimated.getDate()).padStart(2, '0');
+        const hours = String(estimated.getHours()).padStart(2, '0');
+        const minutes = String(estimated.getMinutes()).padStart(2, '0');
+        const seconds = String(estimated.getSeconds()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+
+    /**
+     * Get the actual random interval for this specific contact in seconds
+     */
+    const getIntervalDisplay = (index) => {
+        if (!props.speedTierConfig) return '-';
+        
+        // First message has no interval (it's the starting point)
+        if (index === 0) return '-';
+        
+        // Get the random interval for the previous position (delay before this message)
+        const intervalMs = getRandomInterval(index - 1);
+        const intervalSec = Math.round(intervalMs / 1000);
+        
+        // Check if this is after a batch break
+        const batchSize = props.speedTierConfig.batch_size || 20;
+        if (index % batchSize === 0) {
+            const breakMin = Math.round(props.speedTierConfig.batch_break_ms / 1000 / 60);
+            return `${intervalSec}s + ${breakMin}m break`;
+        }
+        
+        return `${intervalSec}s`;
+    }
+
+    /**
+     * Check if position is after a batch break
+     */
+    const isAfterBatchBreak = (index) => {
+        if (!props.speedTierConfig) return false;
+        const batchSize = props.speedTierConfig.batch_size || 20;
+        return index > 0 && index % batchSize === 0;
+    }
+
+    /**
+     * Get the actual position index for a row
+     * Handles pagination offset safely
+     */
+    const getRowPosition = (loopIndex) => {
+        const currentPage = props.rows?.current_page || props.rows?.meta?.current_page || 1;
+        const perPage = props.rows?.per_page || props.rows?.meta?.per_page || 10;
+        return ((currentPage - 1) * perPage) + loopIndex;
+    }
+
+    /**
+     * Get appropriate CSS class for status badge
+     * @param {Object} item - Campaign log item
+     * @returns {string} CSS classes for status badge
+     */
+    const getStatusClass = (item) => {
+        // Determine the effective status to display
+        const status = getEffectiveStatus(item);
+        
+        const statusClasses = {
+            'success': 'bg-green-700 text-white',
+            'sent': 'bg-green-600 text-white',
+            'delivered': 'bg-blue-600 text-white',
+            'read': 'bg-purple-600 text-white',
+            'pending': 'bg-yellow-500 text-white',
+            'queued': 'bg-orange-500 text-white',
+            'failed': 'bg-red-500 text-white',
+            'error': 'bg-red-400 text-white'
+        };
+        
+        return statusClasses[status] || 'bg-gray-500 text-white';
+    }
+
+    /**
+     * Get the effective status from campaign log item
+     * Prioritizes chat status when available for more detailed delivery info
+     * @param {Object} item - Campaign log item
+     * @returns {string} Effective status
+     */
+    const getEffectiveStatus = (item) => {
+        // If log status is success and we have chat with status, use chat status
+        // This gives us more detailed delivery info (sent, delivered, read)
+        if (item.status === 'success' && item.chat?.status) {
+            return item.chat.status;
+        }
+        // Otherwise use the log status (pending, success, failed)
+        return item.status || 'pending';
+    }
+
+    /**
+     * Get human-readable status label
+     * @param {Object} item - Campaign log item
+     * @returns {string} Status label to display
+     */
+    const getStatusLabel = (item) => {
+        return getEffectiveStatus(item);
+    }
 </script>
 <template>
     <div class="bg-white flex items-center shadow-sm h-10 w-80 rounded-[0.5rem] mb-6 text-sm">
@@ -82,32 +290,45 @@
     <Table :rows="rows">
         <TableHeader>
             <TableHeaderRow>
-                <TableHeaderRowItem :position="'first'" class="hidden sm:table-cell">{{ $t('Contact') }}</TableHeaderRowItem>
+                <TableHeaderRowItem :position="'first'" class="hidden sm:table-cell w-8">#</TableHeaderRowItem>
+                <TableHeaderRowItem class="hidden sm:table-cell">{{ $t('Contact') }}</TableHeaderRowItem>
                 <TableHeaderRowItem>{{ $t('Phone') }}</TableHeaderRowItem>
+                <TableHeaderRowItem v-if="speedTierConfig" class="hidden md:table-cell">{{ $t('Est. Time') }}</TableHeaderRowItem>
+                <TableHeaderRowItem v-if="speedTierConfig" class="hidden lg:table-cell">{{ $t('Interval') }}</TableHeaderRowItem>
                 <TableHeaderRowItem class="hidden sm:table-cell">{{ $t('Last updated') }}</TableHeaderRowItem>
-                <TableHeaderRowItem>{{ $t('Retries') }}</TableHeaderRowItem>
                 <TableHeaderRowItem>{{ $t('Status') }}</TableHeaderRowItem>
                 <TableHeaderRowItem :position="'last'"></TableHeaderRowItem>
             </TableHeaderRow>
         </TableHeader>
         <TableBody>
             <TableBodyRow v-for="(item, index) in rows.data" :key="index">
-                <TableBodyRowItem :position="'first'" class="hidden sm:table-cell">{{ item.contact.full_name }}</TableBodyRowItem>
+                <TableBodyRowItem :position="'first'" class="hidden sm:table-cell text-gray-400 text-xs">
+                    {{ getRowPosition(index) + 1 }}
+                </TableBodyRowItem>
+                <TableBodyRowItem class="hidden sm:table-cell">{{ item.contact.full_name }}</TableBodyRowItem>
                 <TableBodyRowItem>
                     {{ item.contact.phone }}
                 </TableBodyRowItem>
+                <TableBodyRowItem v-if="speedTierConfig" class="hidden md:table-cell">
+                    <div class="text-sm">
+                        <span class="font-medium">{{ formatEstimatedTime(getRowPosition(index)) }}</span>
+                        <div v-if="isAfterBatchBreak(getRowPosition(index))" class="text-xs text-orange-500">
+                            ☕ after break
+                        </div>
+                    </div>
+                </TableBodyRowItem>
+                <TableBodyRowItem v-if="speedTierConfig" class="hidden lg:table-cell">
+                    <span class="text-xs px-2 py-1 bg-gray-100 rounded" :class="{ 'bg-orange-50 text-orange-700': isAfterBatchBreak(getRowPosition(index)) }">
+                        {{ getIntervalDisplay(getRowPosition(index)) }}
+                    </span>
+                </TableBodyRowItem>
                 <TableBodyRowItem class="hidden sm:table-cell">
-                    <span v-if="item.status === 'success'" class="border-b border-dashed border-black">{{ item.chat.created_at }}</span>
+                    <span v-if="item.status === 'success' && item.chat" class="border-b border-dashed border-black">{{ item.chat.created_at }}</span>
                     <span v-else class="border-b border-dashed border-black">{{ item.created_at }}</span>
                 </TableBodyRowItem>
                 <TableBodyRowItem>
-                    <span>
-                        {{ item.retry_count }}
-                    </span>
-                </TableBodyRowItem>
-                <TableBodyRowItem>
-                    <span class="px-2 py-1 text-xs rounded-md capitalize" :class="item.status === 'success' ? 'bg-green-700 text-white' : 'bg-red-400 text-white'">
-                        {{ item.status === 'success' ? item.chat.status : item.status }}
+                    <span class="px-2 py-1 text-xs rounded-md capitalize" :class="getStatusClass(item)">
+                        {{ getStatusLabel(item) }}
                     </span>
                 </TableBodyRowItem>
                 <TableBodyRowItem>

@@ -72,7 +72,13 @@
                     </div>
 
                     <!-- Table Component-->
-                    <CampaignLogTable :rows="props.rows" :filters="props.filters" :uuid="props.campaign.uuid"/>
+                    <CampaignLogTable 
+                        :rows="props.rows" 
+                        :filters="props.filters" 
+                        :uuid="props.campaign.uuid"
+                        :speedTierConfig="props.speedTierConfig"
+                        :scheduledAt="props.campaign.scheduled_at"
+                    />
                 </div>
                 <div class="md:w-[30%]">
                     <div class="w-full rounded-lg bg-white pt-4 pb-8 border px-4 space-y-1 capitalize">
@@ -96,6 +102,29 @@
                         <div class="text-sm bg-slate-100 p-3 rounded-lg">
                             <h3>{{ $t('Time scheduled') }}</h3>
                             <p>{{ props.campaign.scheduled_at }}</p>
+                        </div>
+                        
+                        <!-- Speed Tier Info -->
+                        <div v-if="props.campaign.speed_tier_info" class="text-sm bg-slate-100 p-3 rounded-lg">
+                            <h3>{{ $t('Speed Tier') }}</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xl">{{ props.campaign.speed_tier_info.emoji }}</span>
+                                <div>
+                                    <p class="font-medium">{{ props.campaign.speed_tier_info.label }}</p>
+                                    <p class="text-xs text-gray-500">{{ props.campaign.speed_tier_info.interval }}</p>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-xs">
+                                <span :class="[
+                                    'px-2 py-0.5 rounded-full',
+                                    props.campaign.speed_tier_info.risk_color === 'green' ? 'bg-green-100 text-green-800' :
+                                    props.campaign.speed_tier_info.risk_color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                                    props.campaign.speed_tier_info.risk_color === 'orange' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-red-100 text-red-800'
+                                ]">
+                                    Risk: {{ props.campaign.speed_tier_info.risk_level.replace('_', ' ') }}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -131,7 +160,7 @@ import { Link } from "@inertiajs/vue3";
 import { ref, onMounted, onUnmounted } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
-const props = defineProps(['campaign', 'rows', 'filters']);
+const props = defineProps(['campaign', 'rows', 'filters', 'speedTierConfig']);
 const page = usePage();
 
 // Reactive statistics (will be updated in real-time)
