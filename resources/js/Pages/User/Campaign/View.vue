@@ -163,17 +163,20 @@ import { usePage } from '@inertiajs/vue3';
 const props = defineProps(['campaign', 'rows', 'filters', 'speedTierConfig']);
 const page = usePage();
 
+// Get statistics from campaign.statistics (sent from controller)
+const campaignStats = props.campaign.statistics || {};
+
 // Reactive statistics (will be updated in real-time)
 const statistics = ref({
-    total_message_count: props.campaign.total_message_count,
-    total_sent_count: props.campaign.total_sent_count,
-    total_delivered_count: props.campaign.total_delivered_count,
-    total_read_count: props.campaign.total_read_count,
-    total_failed_count: props.campaign.total_failed_count,
-    pending_count: 0,
-    delivery_rate: 0,
-    read_rate: 0,
-    success_rate: 0
+    total_message_count: campaignStats.total_message_count || 0,
+    total_sent_count: campaignStats.total_sent_count || 0,
+    total_delivered_count: campaignStats.total_delivered_count || 0,
+    total_read_count: campaignStats.total_read_count || 0,
+    total_failed_count: campaignStats.total_failed_count || 0,
+    pending_count: campaignStats.pending_count || 0,
+    delivery_rate: campaignStats.delivery_rate || 0,
+    read_rate: campaignStats.read_rate || 0,
+    success_rate: campaignStats.success_rate || 0
 });
 
 // WebSocket connection state

@@ -72,7 +72,7 @@ class CampaignController extends BaseController
             }
 
             $rows = CampaignResource::collection(
-                $campaignsQuery->latest()->paginate(10)
+                $campaignsQuery->orderBy('scheduled_at', 'desc')->paginate(10)
             );
 
             return Inertia::render('User/Campaign/Index', [

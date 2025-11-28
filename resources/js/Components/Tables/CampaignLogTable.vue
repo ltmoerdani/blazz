@@ -39,6 +39,7 @@
 
     const logs = ref(null);
     const messageStatus = ref(null);
+    const currentItem = ref(null);
     const isOpenModal = ref(false);
     const isSearching = ref(false);
     const emit = defineEmits(['delete']);
@@ -60,18 +61,78 @@
         })
     }
 
-    const openModal = (status, value) => {
-        messageStatus.value = status;
-        logs.value = value;
+    const openModal = (item) => {
+        currentItem.value = item;
+        messageStatus.value = item.status;
+        // Parse metadata if it exists
+        if (item.metadata) {
+            try {
+                logs.value = typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata;
+            } catch (e) {
+                logs.value = null;
+            }
+        } else if (item.chat?.logs) {
+            logs.value = item.chat.logs;
+        } else {
+            logs.value = null;
+        }
         isOpenModal.value = true;
     }
 
-    const getStatus = (metadata) => {
-        return JSON.parse(metadata).status;
+    /**
+     * Get message body from metadata
+     */
+    const getMessageBody = () => {
+        if (!logs.value) return null;
+        // Try different paths where message body might be stored
+        return logs.value?.data?.body 
+            || logs.value?.data?.metadata?.text?.body 
+            || logs.value?.message
+            || null;
     }
 
+    /**
+     * Get message status from metadata
+     */
+    const getMessageStatus = () => {
+        if (!logs.value) return null;
+        return logs.value?.data?.message_status 
+            || logs.value?.data?.status 
+            || logs.value?.status
+            || null;
+    }
+
+    /**
+     * Get sent timestamp from metadata
+     */
+    const getSentTime = () => {
+        if (!logs.value) return null;
+        return logs.value?.data?.sent_at 
+            || logs.value?.data?.created_at
+            || null;
+    }
+
+    /**
+     * Get error message from metadata for failed status
+     */
+    const getErrorMessage = () => {
+        if (!logs.value) return 'Unknown error';
+        return logs.value?.data?.error?.message 
+            || logs.value?.error?.message
+            || logs.value?.message
+            || 'Message sending failed';
+    }
+
+    /**
+     * Get error details from metadata
+     */
     const getErrorDetails = (metadata) => {
-        return JSON.parse(metadata);
+        if (!metadata) return { data: { error: { message: 'No details available' } } };
+        try {
+            return typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+        } catch (e) {
+            return { data: { error: { message: 'Failed to parse error details' } } };
+        }
     }
 
     /**
@@ -332,7 +393,7 @@
                     </span>
                 </TableBodyRowItem>
                 <TableBodyRowItem>
-                    <div @click="openModal(item.status, item.status === 'success' ? item.chat?.logs : item.metadata)" class="flex items-center underline cursor-pointer">
+                    <div @click="openModal(item)" class="flex items-center underline cursor-pointer">
                         <svg class="mr-1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><g fill="currentColor"><path d="M11 10.98a1 1 0 1 1 2 0v6a1 1 0 1 1-2 0zm1-4.929a1 1 0 1 0 0 2a1 1 0 0 0 0-2"/><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10s10-4.477 10-10S17.523 2 12 2M4 12a8 8 0 1 0 16 0a8 8 0 0 0-16 0" clip-rule="evenodd"/></g></svg>
                         <span>{{ $t('More info') }}</span>
                     </div>
@@ -341,19 +402,83 @@
         </TableBody>
     </Table>
     <Modal :label="$t('Message info')" :isOpen="isOpenModal">
-        <div class="max-w-md w-full space-y-8">
-            <div class="mt-8 space-y-2">
-                <div v-if="messageStatus === 'success'" v-for="(log, index) in logs" class="text-sm border-b pb-2">
-                    <div class="flex items-center capitalize">
-                        <svg class="mr-1" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m1.75 9.75l2.5 2.5m3.5-4l2.5-2.5m-4.5 4l2.5 2.5l6-6.5"/></svg>
-                        <span>{{ $t(getStatus(log.metadata)) }}</span>
-                    </div>
-                    <div>{{ log.created_at }}</div>
+        <div class="max-w-md w-full space-y-4">
+            <!-- Contact Info -->
+            <div v-if="currentItem" class="border-b pb-3">
+                <div class="text-sm text-gray-500">{{ $t('Contact') }}</div>
+                <div class="font-medium">{{ currentItem.contact?.full_name || '-' }}</div>
+                <div class="text-sm text-gray-600">{{ currentItem.contact?.phone || '-' }}</div>
+            </div>
+
+            <!-- Status Info -->
+            <div class="border-b pb-3">
+                <div class="text-sm text-gray-500">{{ $t('Status') }}</div>
+                <div class="mt-1">
+                    <span class="px-2 py-1 text-xs rounded-md capitalize" :class="currentItem ? getStatusClass(currentItem) : ''">
+                        {{ currentItem ? getStatusLabel(currentItem) : '-' }}
+                    </span>
                 </div>
-                <div v-else-if="messageStatus === 'failed'">
-                    <div class="text-sm mb-3 bg-red-800 p-2 rounded text-white">Error: {{ getErrorDetails(logs).data.error.message }}</div>
-                    <div v-if="getErrorDetails(logs).data?.error?.error_data?.details" class="text-sm">{{ getErrorDetails(logs).data?.error?.error_data?.details }}</div>
-                    <div v-else>{{ getErrorDetails(logs).data.error.message }}</div>
+            </div>
+
+            <!-- Message Details for Success -->
+            <div v-if="messageStatus === 'success' && logs" class="space-y-3">
+                <!-- Message Body -->
+                <div v-if="getMessageBody()" class="border-b pb-3">
+                    <div class="text-sm text-gray-500">{{ $t('Message') }}</div>
+                    <div class="mt-1 p-2 bg-green-50 rounded text-sm">{{ getMessageBody() }}</div>
+                </div>
+                
+                <!-- Delivery Status -->
+                <div v-if="getMessageStatus()" class="border-b pb-3">
+                    <div class="text-sm text-gray-500">{{ $t('Delivery Status') }}</div>
+                    <div class="mt-1 flex items-center">
+                        <svg class="mr-1 text-green-600" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m1.75 9.75l2.5 2.5m3.5-4l2.5-2.5m-4.5 4l2.5 2.5l6-6.5"/></svg>
+                        <span class="capitalize">{{ getMessageStatus() }}</span>
+                    </div>
+                </div>
+
+                <!-- Sent Time -->
+                <div v-if="getSentTime()" class="border-b pb-3">
+                    <div class="text-sm text-gray-500">{{ $t('Sent at') }}</div>
+                    <div class="mt-1 text-sm">{{ getSentTime() }}</div>
+                </div>
+
+                <!-- Success Message -->
+                <div v-if="logs?.message" class="pb-3">
+                    <div class="text-sm text-gray-500">{{ $t('Result') }}</div>
+                    <div class="mt-1 p-2 bg-green-100 text-green-800 rounded text-sm">{{ logs.message }}</div>
+                </div>
+            </div>
+
+            <!-- Message Details for Success without metadata -->
+            <div v-else-if="messageStatus === 'success' && !logs" class="py-3">
+                <div class="p-3 bg-green-50 text-green-700 rounded text-sm text-center">
+                    {{ $t('Message sent successfully') }}
+                </div>
+            </div>
+
+            <!-- Error Details for Failed -->
+            <div v-else-if="messageStatus === 'failed'" class="space-y-3">
+                <div class="p-3 bg-red-50 border border-red-200 rounded">
+                    <div class="text-sm text-red-800 font-medium mb-1">{{ $t('Error') }}</div>
+                    <div class="text-sm text-red-700">{{ getErrorMessage() }}</div>
+                </div>
+                <div v-if="logs?.data?.error?.error_data?.details" class="text-sm text-gray-600">
+                    {{ logs.data.error.error_data.details }}
+                </div>
+            </div>
+
+            <!-- Pending Status -->
+            <div v-else-if="messageStatus === 'pending'" class="py-3">
+                <div class="p-3 bg-yellow-50 text-yellow-700 rounded text-sm text-center">
+                    {{ $t('Message is queued and waiting to be sent') }}
+                </div>
+            </div>
+
+            <!-- No Info Available -->
+            <div v-else class="py-3">
+                <div class="p-3 bg-gray-50 text-gray-600 rounded text-sm text-center">
+                    {{ $t('No additional information available') }}
                 </div>
             </div>
         </div>
