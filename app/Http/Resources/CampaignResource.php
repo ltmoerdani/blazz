@@ -27,6 +27,9 @@ class CampaignResource extends JsonResource
             'delivery_count' => $this->deliveryCount(),
             'read_count' => $this->readCount(),
             'contact_group_count' => $this->contact_group_id == 0 ? $totalContacts : $this->contactGroupCount(),
+            'scheduled_at' => $this->scheduled_at,
+            'created_at' => $this->scheduled_at, // Use scheduled_at as the display date
+            'updated_at' => $this->updated_at,
             // Add other attributes as needed...
         ];
     }

@@ -23,7 +23,8 @@ class Campaign extends Model {
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'campaign_type' => 'string',
-        'preferred_provider' => 'string'
+        'preferred_provider' => 'string',
+        'speed_tier' => 'integer',
     ];
 
     protected $attributes = [
@@ -32,7 +33,8 @@ class Campaign extends Model {
         'messages_sent' => 0,
         'messages_delivered' => 0,
         'messages_read' => 0,
-        'messages_failed' => 0
+        'messages_failed' => 0,
+        'speed_tier' => 2, // Default: Safe tier
     ];
 
     public function getCreatedAtAttribute($value)
@@ -78,6 +80,17 @@ class Campaign extends Model {
         return $this->campaignLogs->count();
     }
 
+    /**
+     * Get speed tier info
+     * 
+     * @return array|null
+     */
+    public function getSpeedTierInfoAttribute(): ?array
+    {
+        $speedService = app(\App\Services\Campaign\CampaignSpeedService::class);
+        return $speedService->getTierInfo($this->speed_tier ?? 2);
+    }
+
     public function contactGroupCount(){
         return $this->contactGroup ? $this->contactGroup->contacts->count() : 0;
     }
@@ -86,7 +99,7 @@ class Campaign extends Model {
         return $this->campaignLogs()
             ->where('status', 'success')
             ->whereHas('chat', function ($query) {
-                $query->whereIn('status', ['accepted', 'sent', 'delivered', 'read']);
+                $query->whereIn('message_status', ['accepted', 'sent', 'delivered', 'read']);
             })
             ->count();
     }
@@ -95,7 +108,7 @@ class Campaign extends Model {
         return $this->campaignLogs()
             ->where('status', 'success')
             ->whereHas('chat', function ($query) {
-                $query->whereIn('status', ['delivered', 'read']);
+                $query->whereIn('message_status', ['delivered', 'read']);
             })
             ->count();
     }
@@ -106,7 +119,7 @@ class Campaign extends Model {
         $chatFailedCount = $this->campaignLogs()
             ->where('status', 'success')
             ->whereHas('chat', function ($query) {
-                $query->where('status', 'failed');
+                $query->where('message_status', 'failed');
             })
             ->count();
 
@@ -117,7 +130,7 @@ class Campaign extends Model {
         return $this->campaignLogs()
             ->where('status', 'success')
             ->whereHas('chat', function ($query) {
-                $query->where('status', 'read');
+                $query->where('message_status', 'read');
             })
             ->count();
     }
@@ -126,11 +139,11 @@ class Campaign extends Model {
         return $this->campaignLogs()
             ->selectRaw('
                 COUNT(*) as total_message_count,
-                SUM(CASE WHEN campaign_logs.status = "success" AND chat.status IN ("accepted", "sent", "delivered", "read") THEN 1 ELSE 0 END) as total_sent_count,
-                SUM(CASE WHEN campaign_logs.status = "success" AND chat.status IN ("delivered", "read") THEN 1 ELSE 0 END) as total_delivered_count,
+                SUM(CASE WHEN campaign_logs.status = "success" AND chat.message_status IN ("accepted", "sent", "delivered", "read") THEN 1 ELSE 0 END) as total_sent_count,
+                SUM(CASE WHEN campaign_logs.status = "success" AND chat.message_status IN ("delivered", "read") THEN 1 ELSE 0 END) as total_delivered_count,
                 SUM(CASE WHEN campaign_logs.status = "failed" THEN 1 ELSE 0 END) +
-                    SUM(CASE WHEN campaign_logs.status = "success" AND chat.status = "failed" THEN 1 ELSE 0 END) as total_failed_count,
-                SUM(CASE WHEN campaign_logs.status = "success" AND chat.status = "read" THEN 1 ELSE 0 END) as total_read_count
+                    SUM(CASE WHEN campaign_logs.status = "success" AND chat.message_status = "failed" THEN 1 ELSE 0 END) as total_failed_count,
+                SUM(CASE WHEN campaign_logs.status = "success" AND chat.message_status = "read" THEN 1 ELSE 0 END) as total_read_count
             ')
             ->leftJoin('chats as chat', 'chat.id', '=', 'campaign_logs.chat_id')
             ->where('campaign_logs.campaign_id', $this->id)
@@ -207,6 +220,13 @@ class Campaign extends Model {
         $failedCount = max($this->messages_failed, $this->failedCount());
 
         return [
+            // For backward compatibility with frontend
+            'total_message_count' => $totalContacts,
+            'total_sent_count' => $sentCount,
+            'total_delivered_count' => $deliveredCount,
+            'total_read_count' => $readCount,
+            'total_failed_count' => $failedCount,
+            // Additional stats
             'total_contacts' => $totalContacts,
             'messages_sent' => $sentCount,
             'messages_delivered' => $deliveredCount,
