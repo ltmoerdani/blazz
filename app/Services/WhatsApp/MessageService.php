@@ -85,9 +85,13 @@ class MessageService
                     'whatsapp_account_id' => $whatsappAccount->id,
                 ]);
 
+                // Return response with chat wrapped in data->chat for consistency with MessageSendingService
+                // This format is expected by ProcessSingleCampaignLogJob and SendCampaignJob
+                $responseData = (object) ['chat' => $chat];
+                
                 return (object) [
                     'success' => true,
-                    'data' => $chat,
+                    'data' => $responseData,
                     'message' => 'Message sent successfully',
                     'nodejs_result' => $result,
                 ];
@@ -148,7 +152,7 @@ class MessageService
                     'contact_uuid' => $contactUuid,
                     'success' => $result->success,
                     'message' => $result->message,
-                    'chat_id' => $result->success ? $result->data->id : null,
+                    'chat_id' => $result->success ? $result->data->chat->id : null,
                 ];
 
                 if ($result->success) {
@@ -634,9 +638,13 @@ class MessageService
                     'whatsapp_account_id' => $whatsappAccount->id,
                 ]);
 
+                // Return response with chat wrapped in data->chat for consistency with MessageSendingService
+                // This format is expected by ProcessSingleCampaignLogJob and SendCampaignJob
+                $responseData = (object) ['chat' => $chat];
+                
                 return (object) [
                     'success' => true,
-                    'data' => $chat,
+                    'data' => $responseData,
                     'message' => 'Template message sent successfully',
                     'nodejs_result' => $result,
                 ];

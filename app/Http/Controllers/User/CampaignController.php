@@ -14,6 +14,7 @@ use App\Models\ContactGroup;
 use App\Models\Workspace;
 use App\Models\Template;
 use App\Services\CampaignService;
+use App\Services\Campaign\CampaignSpeedService;
 use App\Models\WhatsAppAccount;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -25,10 +26,12 @@ use Maatwebsite\Excel\Facades\Excel;
 class CampaignController extends BaseController
 {
     private $campaignService;
+    private $speedService;
 
-    public function __construct(CampaignService $campaignService)
+    public function __construct(CampaignService $campaignService, CampaignSpeedService $speedService)
     {
         $this->campaignService = $campaignService;
+        $this->speedService = $speedService;
     }
 
     public function index(Request $request, $uuid = null){
@@ -69,7 +72,7 @@ class CampaignController extends BaseController
             }
 
             $rows = CampaignResource::collection(
-                $campaignsQuery->latest()->paginate(10)
+                $campaignsQuery->orderBy('scheduled_at', 'desc')->paginate(10)
             );
 
             return Inertia::render('User/Campaign/Index', [
@@ -99,10 +102,28 @@ class CampaignController extends BaseController
             ]);
         } else if($uuid == 'create'){
             $data['settings'] = Workspace::where('id', $workspaceId)->first();
+            
+            // Get templates - include DRAFT for WebJS and APPROVED for all providers
+            // DRAFT templates can be used with WhatsApp WebJS (no Meta API approval needed)
+            // APPROVED templates can be used with both providers
             $data['templates'] = Template::where('workspace_id', $workspaceId)
                 ->where('deleted_at', null)
-                ->where('status', 'APPROVED')
-                ->get();
+                ->whereIn('status', [Template::STATUS_APPROVED, Template::STATUS_DRAFT])
+                ->get()
+                ->map(function ($template) {
+                    return [
+                        'uuid' => $template->uuid,
+                        'name' => $template->name,
+                        'language' => $template->language,
+                        'category' => $template->category,
+                        'status' => $template->status,
+                        'metadata' => $template->metadata,
+                        // Flag to indicate if this template requires Meta API (i.e., only APPROVED can use Meta API)
+                        'requires_meta_api' => $template->status === Template::STATUS_APPROVED && !empty($template->meta_id),
+                        // Flag to indicate if this template can be used with WebJS
+                        'webjs_compatible' => true, // All templates are compatible with WebJS
+                    ];
+                });
 
             $data['contactGroups'] = ContactGroup::where('workspace_id', $workspaceId)
                 ->where('deleted_at', null)
@@ -160,6 +181,10 @@ class CampaignController extends BaseController
 
             $data['title'] = __('Create campaign');
 
+            // Speed tier options for anti-ban protection
+            $data['speedTiers'] = $this->speedService->getAvailableTiers();
+            $data['defaultSpeedTier'] = $this->speedService->getDefaultTier();
+
             return Inertia::render('User/Campaign/Create', $data);
         } else {
             $data['campaign'] = Campaign::with(['contactGroup', 'template', 'whatsappAccount', 'campaignLogs' => function($query) {
@@ -177,6 +202,11 @@ class CampaignController extends BaseController
                 // Additional campaign metadata
                 $data['campaign']['campaign_type_label'] = $data['campaign']->isTemplateBased() ? __('Template-based') : __('Direct Message');
                 $data['campaign']['provider_label'] = $data['campaign']->preferred_provider === 'webjs' ? 'WhatsApp Web JS' : 'Meta Business API';
+
+                // Speed tier info for display
+                $speedTierInfo = $this->speedService->getTierInfo($data['campaign']->speed_tier ?? 2);
+                $data['campaign']['speed_tier_info'] = $speedTierInfo;
+                $data['speedTierConfig'] = $this->speedService->getDelayConfig($data['campaign']);
 
                 // WhatsApp session info
                 if ($data['campaign']->whatsappAccount) {
