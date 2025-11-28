@@ -23,7 +23,8 @@ class Campaign extends Model {
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'campaign_type' => 'string',
-        'preferred_provider' => 'string'
+        'preferred_provider' => 'string',
+        'speed_tier' => 'integer',
     ];
 
     protected $attributes = [
@@ -32,7 +33,8 @@ class Campaign extends Model {
         'messages_sent' => 0,
         'messages_delivered' => 0,
         'messages_read' => 0,
-        'messages_failed' => 0
+        'messages_failed' => 0,
+        'speed_tier' => 2, // Default: Safe tier
     ];
 
     public function getCreatedAtAttribute($value)
@@ -76,6 +78,17 @@ class Campaign extends Model {
 
     public function contactsCount(){
         return $this->campaignLogs->count();
+    }
+
+    /**
+     * Get speed tier info
+     * 
+     * @return array|null
+     */
+    public function getSpeedTierInfoAttribute(): ?array
+    {
+        $speedService = app(\App\Services\Campaign\CampaignSpeedService::class);
+        return $speedService->getTierInfo($this->speed_tier ?? 2);
     }
 
     public function contactGroupCount(){

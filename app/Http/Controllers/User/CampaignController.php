@@ -14,6 +14,7 @@ use App\Models\ContactGroup;
 use App\Models\Workspace;
 use App\Models\Template;
 use App\Services\CampaignService;
+use App\Services\Campaign\CampaignSpeedService;
 use App\Models\WhatsAppAccount;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -25,10 +26,12 @@ use Maatwebsite\Excel\Facades\Excel;
 class CampaignController extends BaseController
 {
     private $campaignService;
+    private $speedService;
 
-    public function __construct(CampaignService $campaignService)
+    public function __construct(CampaignService $campaignService, CampaignSpeedService $speedService)
     {
         $this->campaignService = $campaignService;
+        $this->speedService = $speedService;
     }
 
     public function index(Request $request, $uuid = null){
@@ -177,6 +180,10 @@ class CampaignController extends BaseController
             ];
 
             $data['title'] = __('Create campaign');
+
+            // Speed tier options for anti-ban protection
+            $data['speedTiers'] = $this->speedService->getAvailableTiers();
+            $data['defaultSpeedTier'] = $this->speedService->getDefaultTier();
 
             return Inertia::render('User/Campaign/Create', $data);
         } else {

@@ -5,6 +5,7 @@
     import FormTextArea from '@/Components/FormTextArea.vue';
     import BodyTextArea from '@/Components/Template/BodyTextArea.vue';
     import WhatsappTemplate from '@/Components/WhatsappTemplate.vue';
+    import SpeedTierSelector from '@/Components/Campaign/SpeedTierSelector.vue';
     import { ref, computed, onMounted, watch } from 'vue';
     import { Link, useForm } from "@inertiajs/vue3";
     import 'vue3-toastify/dist/index.css';
@@ -23,6 +24,10 @@
             default: () => []
         },
         providerOptions: {
+            type: Array,
+            default: () => []
+        },
+        speedTiers: {
             type: Array,
             default: () => []
         },
@@ -98,6 +103,7 @@
         contacts: null,
         preferred_provider: 'webjs', // Default to WhatsApp Web JS as requested
         whatsapp_account_id: null,
+        speed_tier: 2, // Default to 'safe' tier
         time: null,
         scheduled_at: null,
         skip_schedule: false,
@@ -633,6 +639,14 @@
 
                 <!-- Contact Group Selection -->
                 <FormSelect v-model="form.contacts" :options="contactGroupOptions" :name="$t('Send to')" :required="true" :class="'sm:col-span-3'" :placeholder="$t('Select contacts')" :error="form.errors.contacts"/>
+
+                <!-- Speed Tier Selection -->
+                <div class="sm:col-span-6">
+                    <SpeedTierSelector
+                        v-model="form.speed_tier"
+                        :tiers="props.speedTiers"
+                    />
+                </div>
 
                 <!-- Scheduling Options -->
                 <FormInput v-if="!form.skip_schedule" v-model="form.time" :name="$t('Scheduled time')" :type="'datetime-local'" :error="form.errors.time" :required="true" :class="'sm:col-span-2'"/>

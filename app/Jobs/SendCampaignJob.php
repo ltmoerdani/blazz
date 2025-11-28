@@ -10,6 +10,7 @@ use App\Models\Contact;
 use App\Models\WhatsAppAccount;
 use App\Models\Workspace;
 use App\Models\Setting;
+use App\Services\Campaign\CampaignSpeedService;
 use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\ProviderSelectionService;
 use App\Traits\HasUuid;
@@ -34,16 +35,20 @@ class SendCampaignJob implements ShouldQueue
     private $workspaceId;
     private MessageService $messageService;
     private ProviderSelectionService $providerService;
+    private CampaignSpeedService $speedService;
     private ?WhatsAppAccount $selectedAccount = null;
+    private int $batchMessageCount = 0;
 
     /**
      * Create a new job instance.
      */
     public function __construct(
         private Campaign|int $campaign,
-        ?ProviderSelectionService $providerService = null
+        ?ProviderSelectionService $providerService = null,
+        ?CampaignSpeedService $speedService = null
     ) {
         $this->providerService = $providerService ?? app(ProviderSelectionService::class);
+        $this->speedService = $speedService ?? app(CampaignSpeedService::class);
         $this->onQueue('whatsapp-campaign');
     }
 
@@ -57,6 +62,57 @@ class SendCampaignJob implements ShouldQueue
             'campaign_id' => $this->campaign instanceof Campaign ? $this->campaign->id : $this->campaign,
             'error' => $exception->getMessage()
         ]);
+    }
+
+    /**
+     * Apply speed tier delay before sending message
+     * 
+     * Implements anti-ban protection by adding delays between messages
+     * based on user-selected speed tier.
+     * 
+     * @see docs/broadcast/relay/02-anti-ban-system-design.md
+     * @param Campaign $campaign
+     * @return void
+     */
+    protected function applySpeedDelay(Campaign $campaign): void
+    {
+        // Skip if speed tier system is disabled
+        if (!$this->speedService->isEnabled()) {
+            return;
+        }
+        
+        // Check if batch break is needed
+        if ($this->speedService->needsBatchBreak($campaign, $this->batchMessageCount)) {
+            $breakDuration = $this->speedService->getBatchBreakDuration($campaign);
+            
+            Log::info('Campaign speed: Applying batch break', [
+                'campaign_id' => $campaign->id,
+                'speed_tier' => $campaign->speed_tier,
+                'break_ms' => $breakDuration,
+                'batch_count' => $this->batchMessageCount,
+            ]);
+            
+            // Sleep for batch break duration (convert ms to microseconds)
+            usleep($breakDuration * 1000);
+            
+            // Reset batch counter
+            $this->batchMessageCount = 0;
+        }
+        
+        // Calculate and apply interval delay
+        $delayMs = $this->speedService->calculateDelay($campaign);
+        
+        Log::debug('Campaign speed: Applying interval delay', [
+            'campaign_id' => $campaign->id,
+            'speed_tier' => $campaign->speed_tier,
+            'delay_ms' => $delayMs,
+        ]);
+        
+        // Sleep for delay duration (convert ms to microseconds)
+        usleep($delayMs * 1000);
+        
+        // Increment batch counter
+        $this->batchMessageCount++;
     }
 
     /**
@@ -452,6 +508,9 @@ class SendCampaignJob implements ShouldQueue
             $campaign = $campaignLog->campaign;
             $this->workspaceId = $campaign->workspace_id;
             $campaign_user_id = $campaign->created_by;
+
+            // Apply speed tier delay before sending
+            $this->applySpeedDelay($campaign);
 
             // Mark log as ongoing
             $log->status = 'ongoing';
