@@ -157,7 +157,86 @@ return [
         // Interval variance percentage (adds randomness)
         // Example: 25% variance on 60s = 45s to 75s actual delay
         'interval_variance_percent' => 25,
-        
+
     ],
-    
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mobile Conflict Detection Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for detecting conflicts between campaign messaging
+    | and mobile WhatsApp activity.
+    |
+    */
+
+    'mobile_conflict' => [
+        /*
+        |--------------------------------------------------------------------------
+        | Enable Mobile Conflict Detection
+        |--------------------------------------------------------------------------
+        |
+        | Enable/disable the mobile conflict detection system.
+        |
+        */
+        'enabled' => env('CAMPAIGN_CONFLICT_ENABLED', true),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Queue Name
+        |--------------------------------------------------------------------------
+        |
+        | Queue name for conflict resolution jobs.
+        |
+        */
+        'queue' => env('CAMPAIGN_CONFLICT_QUEUE', 'campaign-conflict'),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Default Cooldown Period
+        |--------------------------------------------------------------------------
+        |
+        | Default cooldown period in seconds if tier not determined.
+        |
+        */
+        'default_cooldown_seconds' => env('CAMPAIGN_CONFLICT_DEFAULT_COOLDOWN', 30),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Maximum Resume Attempts
+        |--------------------------------------------------------------------------
+        |
+        | Maximum attempts to auto-resume before forcing resume.
+        |
+        */
+        'max_resume_attempts' => env('CAMPAIGN_CONFLICT_MAX_ATTEMPTS', 5),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Tier-Based Cooldown Periods
+        |--------------------------------------------------------------------------
+        |
+        | Cooldown periods in seconds based on WhatsApp account tier.
+        | Higher tier (more trusted) = faster resume.
+        |
+        */
+        'tier_cooldown' => [
+            1 => 60,  // Tier 1: New account - conservative
+            2 => 45,  // Tier 2: Warming up
+            3 => 30,  // Tier 3: Established
+            4 => 20,  // Tier 4: Trusted
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Trigger Device Types
+        |--------------------------------------------------------------------------
+        |
+        | Device types that trigger campaign pause.
+        | 'web' is excluded because it's our own client.
+        |
+        */
+        'trigger_device_types' => ['android', 'ios', 'unknown'],
+    ],
+
 ];

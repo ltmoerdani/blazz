@@ -15,6 +15,9 @@ const AutoReconnect = require('../services/AutoReconnect');
 const CustomRemoteAuth = require('../auth/CustomRemoteAuth');
 const redisConfig = require('../../config/redis');
 
+// Import MobileActivityMonitor for conflict detection
+const MobileActivityMonitor = require('../monitors/MobileActivityMonitor');
+
 /**
  * Session Manager
  *
@@ -38,6 +41,13 @@ class SessionManager {
         // Initialize session restoration and auto-reconnect services
         this.accountRestoration = new AccountRestoration(this, logger);
         this.autoReconnect = new AutoReconnect(this, logger);
+
+        // Initialize MobileActivityMonitor for conflict detection
+        this.mobileActivityMonitor = new MobileActivityMonitor({
+            logger: logger,
+            webhookUrl: process.env.LARAVEL_WEBHOOK_URL + '/api/v1/whatsapp/webhook',
+            activityTimeoutMs: 60000
+        });
 
         // NEW: Auth strategy configuration (Week 3 RemoteAuth Migration)
         this.authStrategy = process.env.AUTH_STRATEGY || 'localauth';
@@ -631,6 +641,19 @@ class SessionManager {
         client.on('message_create', async (message) => {
             if (message.fromMe) {
                 try {
+                    // Get device type to determine if message is from mobile
+                    const deviceType = message.deviceType || 'unknown';
+
+                    // Track mobile activity for conflict detection
+                    if (deviceType !== 'web') {
+                        await this.mobileActivityMonitor.trackActivity(
+                            sessionId,
+                            deviceType,
+                            message.id._serialized,
+                            workspaceId
+                        );
+                    }
+
                     // Get chat to determine if group and get proper chat ID
                     const chat = await message.getChat();
                     const isGroup = chat.isGroup;
@@ -646,7 +669,9 @@ class SessionManager {
                         chatId: chatId,
                         isGroup: isGroup,
                         to: message.to,
-                        hasBody: !!message.body
+                        hasBody: !!message.body,
+                        deviceType: deviceType,
+                        source: deviceType === 'web' ? 'web' : 'mobile'
                     });
 
                     // Update activity timestamp

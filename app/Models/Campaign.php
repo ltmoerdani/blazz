@@ -22,6 +22,8 @@ class Campaign extends Model {
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'paused_at' => 'datetime',
+        'auto_resume_at' => 'datetime',
         'campaign_type' => 'string',
         'preferred_provider' => 'string',
         'speed_tier' => 'integer',
@@ -342,7 +344,7 @@ class Campaign extends Model {
 
     /**
      * Scope query to specific workspace
-     * 
+     *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param int $workspaceId
      * @return \Illuminate\Database\Eloquent\Builder
@@ -350,5 +352,68 @@ class Campaign extends Model {
     public function scopeInWorkspace($query, $workspaceId)
     {
         return $query->where('workspace_id', $workspaceId);
+    }
+
+    /**
+     * Mobile Conflict Detection Constants
+     */
+    const STATUS_PAUSED_MOBILE = 'paused_mobile';
+
+    const PAUSE_REASON_MOBILE_ACTIVITY = 'mobile_activity';
+    const PAUSE_REASON_MANUAL = 'manual';
+
+    /**
+     * Check if campaign is paused due to mobile activity
+     */
+    public function isPausedForMobile(): bool
+    {
+        return $this->status === self::STATUS_PAUSED_MOBILE;
+    }
+
+    /**
+     * Scope for campaigns paused due to mobile activity
+     */
+    public function scopePausedForMobile($query)
+    {
+        return $query->where('status', self::STATUS_PAUSED_MOBILE);
+    }
+
+    /**
+     * Scope for ongoing campaigns
+     */
+    public function scopeOngoing($query)
+    {
+        return $query->where('status', 'ongoing');
+    }
+
+    /**
+     * Pause campaign for mobile activity
+     */
+    public function pauseForMobileActivity(string $sessionId): void
+    {
+        $this->status = self::STATUS_PAUSED_MOBILE;
+        $this->paused_at = now();
+        $this->pause_reason = self::PAUSE_REASON_MOBILE_ACTIVITY;
+        $this->paused_by_session = $sessionId;
+        $this->pause_count = ($this->pause_count ?? 0) + 1;
+        $this->save();
+    }
+
+    /**
+     * Resume campaign from mobile activity pause
+     */
+    public function resumeFromPause(): void
+    {
+        $this->status = 'ongoing';
+        $this->auto_resume_at = now();
+        $this->save();
+    }
+
+    /**
+     * Get session ID from WhatsApp account relationship
+     */
+    public function getSessionIdAttribute(): ?string
+    {
+        return $this->whatsappAccount?->session_id;
     }
 }

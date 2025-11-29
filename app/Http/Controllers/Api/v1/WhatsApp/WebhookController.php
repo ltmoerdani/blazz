@@ -6,6 +6,7 @@ use App\Events\WhatsAppQRGeneratedEvent;
 use App\Events\WhatsAppAccountStatusChangedEvent;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessWhatsAppWebhookJob;
+use App\Jobs\HandleMobileActivityJob;
 use App\Models\Contact;
 use App\Models\WhatsAppAccount;
 use App\Services\ChatService;
@@ -102,6 +103,9 @@ class WebhookController extends Controller
             case 'session_error':
                 $this->handleSessionError($data);
                 break;
+
+            case 'mobile_activity_detected':
+                return $this->handleMobileActivityDetected($request);
 
             default:
                 Log::warning('Unknown WhatsApp WebJS event', ['event' => $event]);
@@ -998,5 +1002,42 @@ class WebhookController extends Controller
                 'data_keys' => array_keys($data)
             ]);
         }
+    }
+
+    /**
+     * Handle mobile activity detected webhook
+     */
+    protected function handleMobileActivityDetected(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $sessionId = $request->input('session_id');
+        $data = $request->input('data', []);
+
+        $workspaceId = $data['workspace_id'] ?? null;
+        $deviceType = $data['device_type'] ?? 'unknown';
+
+        if (!$workspaceId || !$sessionId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Missing required fields: workspace_id, session_id',
+            ], 422);
+        }
+
+        // Dispatch job for async processing
+        HandleMobileActivityJob::dispatch(
+            (int) $workspaceId,
+            $sessionId,
+            $deviceType
+        );
+
+        Log::info('Mobile activity webhook queued', [
+            'workspace_id' => $workspaceId,
+            'session_id' => $sessionId,
+            'device_type' => $deviceType,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mobile activity queued for processing',
+        ]);
     }
 }
