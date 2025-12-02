@@ -444,11 +444,15 @@ class ChatMedia extends Model
 
     /**
      * Find by content hash (for deduplication)
+     * Note: content_hash is stored in metadata.content_hash (not column)
      */
     public static function findByContentHash(string $hash, int $workspaceId): ?self
     {
         return static::forWorkspace($workspaceId)
-            ->whereJsonContains('metadata->hash', $hash)
+            ->where(function ($query) use ($hash) {
+                $query->whereJsonContains('metadata->content_hash', $hash)
+                      ->orWhereJsonContains('metadata->hash', $hash); // Backward compatibility
+            })
             ->completed()
             ->first();
     }

@@ -164,11 +164,11 @@ class MediaStorageService
             'size' => $file->getSize(),
             'location' => $this->disk === 's3' ? 's3' : 'local',
             'processing_status' => ChatMedia::STATUS_PENDING,
-            'content_hash' => $contentHash ?? md5_file($file->getRealPath()),
             'metadata' => [
                 'original_extension' => $extension,
                 'uploaded_at' => now()->toIso8601String(),
                 'source' => 'campaign_upload',
+                'content_hash' => $contentHash ?? md5_file($file->getRealPath()),
             ],
         ]);
 
@@ -224,10 +224,10 @@ class MediaStorageService
                 'size' => $size,
                 'location' => $this->disk === 's3' ? 's3' : 'local',
                 'processing_status' => ChatMedia::STATUS_PENDING,
-                'content_hash' => md5_file($tempPath),
                 'metadata' => [
                     'source_url' => $url,
                     'downloaded_at' => now()->toIso8601String(),
+                    'content_hash' => md5_file($tempPath),
                 ],
             ]);
 
@@ -276,11 +276,11 @@ class MediaStorageService
                 'size' => strlen($content),
                 'location' => $this->disk === 's3' ? 's3' : 'local',
                 'processing_status' => ChatMedia::STATUS_PENDING,
-                'content_hash' => md5($content),
                 'metadata' => [
                     'source' => 'chat_' . $direction,
                     'contact_id' => $options['contact_id'] ?? null,
                     'uploaded_at' => now()->toIso8601String(),
+                    'content_hash' => md5($content), // Store hash in metadata for deduplication reference
                 ],
             ]);
         }
@@ -300,11 +300,11 @@ class MediaStorageService
             'size' => $file->getSize(),
             'location' => $this->disk === 's3' ? 's3' : 'local',
             'processing_status' => ChatMedia::STATUS_PENDING,
-            'content_hash' => md5_file($file->getRealPath()),
             'metadata' => [
                 'source' => 'chat_' . $direction,
                 'contact_id' => $options['contact_id'] ?? null,
                 'uploaded_at' => now()->toIso8601String(),
+                'content_hash' => md5_file($file->getRealPath()),
             ],
         ]);
     }
@@ -339,11 +339,11 @@ class MediaStorageService
             'size' => $file->getSize(),
             'location' => $this->disk === 's3' ? 's3' : 'local',
             'processing_status' => ChatMedia::STATUS_PENDING,
-            'content_hash' => md5_file($file->getRealPath()),
             'metadata' => [
                 'source' => 'template_upload',
                 'template_uuid' => $templateUuid,
                 'uploaded_at' => now()->toIso8601String(),
+                'content_hash' => md5_file($file->getRealPath()),
             ],
         ]);
     }
@@ -386,10 +386,10 @@ class MediaStorageService
             'size' => $file->getSize(),
             'location' => $this->disk === 's3' ? 's3' : 'local',
             'processing_status' => ChatMedia::STATUS_PENDING,
-            'content_hash' => $contentHash ?? md5_file($file->getRealPath()),
             'metadata' => [
                 'source' => 'shared_upload',
                 'uploaded_at' => now()->toIso8601String(),
+                'content_hash' => $contentHash ?? md5_file($file->getRealPath()),
             ],
         ]);
     }
