@@ -245,8 +245,9 @@ class MediaStorageService
         $media->markAsProcessing();
 
         try {
-            $sourcePath = $this->getAbsolutePath($media->original_path);
-            $outputDir = dirname($sourcePath) . '/processed';
+            // For S3 storage, download file to temp location first
+            $sourcePath = $this->downloadToTemp($media->original_path);
+            $outputDir = sys_get_temp_dir() . '/blazz_media_' . $media->id;
 
             // Ensure output directory exists
             if (!is_dir($outputDir)) {
@@ -265,19 +266,23 @@ class MediaStorageService
                 return $media;
             }
 
-            // Update media record with processed paths
+            // Upload processed files back to S3 and update paths
             $updateData = [];
+            $basePath = dirname($media->original_path);
 
             if (!empty($results['compressed'])) {
-                $updateData['compressed_path'] = $this->toRelativePath($results['compressed']);
+                $compressedPath = $this->uploadProcessedFile($results['compressed'], $basePath);
+                $updateData['compressed_path'] = $compressedPath;
             }
 
             if (!empty($results['thumbnail'])) {
-                $updateData['thumbnail_path'] = $this->toRelativePath($results['thumbnail']);
+                $thumbnailPath = $this->uploadProcessedFile($results['thumbnail'], $basePath);
+                $updateData['thumbnail_path'] = $thumbnailPath;
             }
 
             if (!empty($results['webp'])) {
-                $updateData['webp_path'] = $this->toRelativePath($results['webp']);
+                $webpPath = $this->uploadProcessedFile($results['webp'], $basePath);
+                $updateData['webp_path'] = $webpPath;
             }
 
             // Update metadata
@@ -292,10 +297,14 @@ class MediaStorageService
                 $metadata['processed_sizes'] = $results['file_sizes'];
             }
             $metadata['processed_at'] = now()->toIso8601String();
+            $metadata['storage_location'] = $this->disk;
             $updateData['metadata'] = $metadata;
 
             $media->update($updateData);
             $media->markAsCompleted();
+
+            // Cleanup temp files
+            $this->cleanupTempFiles($sourcePath, $outputDir);
 
             Log::info('[MediaStorageService] Successfully processed media', [
                 'media_id' => $media->id,
@@ -312,6 +321,15 @@ class MediaStorageService
                 'error' => $e->getMessage(),
             ]);
             $media->markAsFailed($e->getMessage());
+            
+            // Cleanup temp files on error
+            if (isset($sourcePath) && file_exists($sourcePath)) {
+                @unlink($sourcePath);
+            }
+            if (isset($outputDir) && is_dir($outputDir)) {
+                $this->cleanupTempFiles(null, $outputDir);
+            }
+            
             return $media;
         }
     }
@@ -351,11 +369,75 @@ class MediaStorageService
     }
 
     /**
-     * Get absolute file path for media
+     * Get absolute file path for media (only works for local storage)
+     * For S3, use downloadToTemp() instead
      */
     public function getAbsolutePath(string $relativePath): string
     {
+        if ($this->disk === 's3') {
+            // S3 doesn't have a local path, return the relative path
+            return $relativePath;
+        }
         return Storage::disk($this->disk)->path($relativePath);
+    }
+
+    /**
+     * Download file from storage to temp location for processing
+     */
+    protected function downloadToTemp(string $relativePath): string
+    {
+        $tempPath = sys_get_temp_dir() . '/' . Str::random(32) . '_' . basename($relativePath);
+        
+        $content = Storage::disk($this->disk)->get($relativePath);
+        
+        if ($content === null) {
+            throw new \Exception("Failed to download file from storage: {$relativePath}");
+        }
+        
+        if (file_put_contents($tempPath, $content) === false) {
+            throw new \Exception("Failed to write temp file: {$tempPath}");
+        }
+        
+        return $tempPath;
+    }
+
+    /**
+     * Upload processed file back to S3
+     */
+    protected function uploadProcessedFile(string $localPath, string $basePath): string
+    {
+        $filename = basename($localPath);
+        $remotePath = "{$basePath}/{$filename}";
+        
+        $success = Storage::disk($this->disk)->put(
+            $remotePath,
+            file_get_contents($localPath),
+            'public'
+        );
+        
+        if (!$success) {
+            throw new \Exception("Failed to upload processed file: {$remotePath}");
+        }
+        
+        return $remotePath;
+    }
+
+    /**
+     * Cleanup temporary files and directories
+     */
+    protected function cleanupTempFiles(?string $tempFile, ?string $tempDir): void
+    {
+        if ($tempFile && file_exists($tempFile)) {
+            @unlink($tempFile);
+        }
+        
+        if ($tempDir && is_dir($tempDir)) {
+            $files = glob($tempDir . '/*');
+            foreach ($files as $file) {
+                @unlink($file);
+            }
+            @rmdir($tempDir);
+        }
     }
 
     // ==========================================
@@ -452,21 +534,15 @@ class MediaStorageService
     }
 
     /**
-     * Convert absolute path to relative storage path
-     */
-    protected function toRelativePath(string $absolutePath): string
-    {
-        $storagePath = Storage::disk($this->disk)->path('');
-        return str_replace($storagePath, '', $absolutePath);
-    }
-
-    /**
      * Generate URL for stored file
      */
     protected function generateUrl(string $path, string $location): string
     {
         if ($location === 's3' || $location === 's3_cdn') {
-            return Storage::url($path);
+            // For S3-compatible storage (CloudHost IS3)
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+            $disk = Storage::disk('s3');
+            return $disk->url($path);
         }
 
         // For local storage, generate URL via route or asset

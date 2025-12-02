@@ -13,7 +13,7 @@ return [
 
     'storage' => [
         // Storage disk to use: 'local', 's3'
-        'disk' => env('MEDIA_STORAGE_DISK', 'local'),
+        'disk' => env('MEDIA_STORAGE_DISK', 's3'),
 
         // Base path for general chat media
         'base_path' => 'chat_media',
@@ -23,6 +23,9 @@ return [
 
         // Maximum file size in bytes (default: 100MB)
         'max_file_size' => env('MEDIA_MAX_FILE_SIZE', 100 * 1024 * 1024),
+
+        // S3 URL for public access
+        's3_url' => env('AWS_URL', env('AWS_ENDPOINT')),
     ],
 
     /*
