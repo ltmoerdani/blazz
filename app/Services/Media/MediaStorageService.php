@@ -16,9 +16,31 @@ use Illuminate\Support\Str;
  * - Processing delegation (images/videos)
  * - Path management
  * - Content deduplication
+ * 
+ * S3 Path Structure:
+ * ├── campaigns/{workspace_id}/{campaign_uuid}/{usage_type}/{filename}
+ * ├── chats/{workspace_id}/{direction}/{YYYY}/{MM}/{filename}
+ * ├── templates/{workspace_id}/{template_uuid}/{filename}
+ * └── shared/{workspace_id}/{YYYY}/{MM}/{filename}
  */
 class MediaStorageService
 {
+    // ==========================================
+    // MEDIA CONTEXT CONSTANTS
+    // ==========================================
+
+    public const CONTEXT_CAMPAIGN = 'campaigns';
+    public const CONTEXT_CHAT = 'chats';
+    public const CONTEXT_TEMPLATE = 'templates';
+    public const CONTEXT_SHARED = 'shared';
+
+    public const DIRECTION_RECEIVED = 'received';
+    public const DIRECTION_SENT = 'sent';
+
+    public const USAGE_HEADER = 'header';
+    public const USAGE_BODY = 'body';
+    public const USAGE_ATTACHMENT = 'attachment';
+
     // ==========================================
     // DEPENDENCIES
     // ==========================================
@@ -31,13 +53,10 @@ class MediaStorageService
     // ==========================================
 
     /** @var string Storage disk to use */
-    protected string $disk = 'local';
+    protected string $disk = 's3';
 
-    /** @var string Base path for media storage */
-    protected string $basePath = 'chat_media';
-
-    /** @var string Base path for campaign media */
-    protected string $campaignPath = 'campaign_media';
+    /** @var string S3 bucket name */
+    protected string $bucket = '';
 
     /** @var bool Whether to enable deduplication */
     protected bool $deduplicationEnabled = true;
@@ -81,9 +100,8 @@ class MediaStorageService
      */
     protected function loadConfig(): void
     {
-        $this->disk = config('media.storage.disk', 'local');
-        $this->basePath = config('media.storage.base_path', 'chat_media');
-        $this->campaignPath = config('media.storage.campaign_path', 'campaign_media');
+        $this->disk = config('media.storage.disk', 's3');
+        $this->bucket = config('filesystems.disks.s3.bucket', 's3-blazz');
         $this->deduplicationEnabled = config('media.deduplication.enabled', true);
         $this->maxFileSize = config('media.storage.max_file_size', 100 * 1024 * 1024);
     }
@@ -97,7 +115,7 @@ class MediaStorageService
      * 
      * @param UploadedFile $file Uploaded file
      * @param int $workspaceId Workspace ID
-     * @param array $options Additional options
+     * @param array $options Additional options (campaign_uuid, usage_type)
      * @return ChatMedia Created media record
      */
     public function uploadForCampaign(UploadedFile $file, int $workspaceId, array $options = []): ChatMedia
@@ -124,12 +142,14 @@ class MediaStorageService
         $extension = $file->getClientOriginalExtension();
         $filename = $this->generateFilename($originalName, $extension);
         
-        // Build storage path
-        $storagePath = $this->buildStoragePath($workspaceId, 'campaigns');
+        // Build storage path for campaign
+        $campaignUuid = $options['campaign_uuid'] ?? 'draft';
+        $usageType = $options['usage_type'] ?? self::USAGE_HEADER;
+        $storagePath = $this->buildCampaignPath($workspaceId, $campaignUuid, $usageType);
         $fullPath = "{$storagePath}/{$filename}";
 
-        // Store the original file
-        $path = $file->storeAs($storagePath, $filename, $this->disk);
+        // Store the original file with public visibility
+        $path = Storage::disk($this->disk)->putFileAs($storagePath, $file, $filename, 'public');
 
         if (!$path) {
             throw new \Exception('Failed to store file');
@@ -167,7 +187,7 @@ class MediaStorageService
      * 
      * @param string $url Remote file URL
      * @param int $workspaceId Workspace ID
-     * @param array $options Additional options
+     * @param array $options Additional options (context, campaign_uuid, direction, etc.)
      * @return ChatMedia|null Created media record or null on failure
      */
     public function storeFromUrl(string $url, int $workspaceId, array $options = []): ?ChatMedia
@@ -187,12 +207,13 @@ class MediaStorageService
             $extension = $this->getExtensionFromMime($mimeType);
             $filename = $this->generateFilename(basename($url), $extension);
 
-            // Build storage path
-            $storagePath = $this->buildStoragePath($workspaceId, 'campaigns');
+            // Build storage path based on context
+            $context = $options['context'] ?? self::CONTEXT_SHARED;
+            $storagePath = $this->buildContextPath($workspaceId, $context, $options);
             $fullPath = "{$storagePath}/{$filename}";
 
-            // Store the file
-            Storage::disk($this->disk)->put($fullPath, file_get_contents($tempPath));
+            // Store the file with public visibility
+            Storage::disk($this->disk)->put($fullPath, file_get_contents($tempPath), 'public');
 
             // Create media record
             $media = ChatMedia::create([
@@ -222,6 +243,155 @@ class MediaStorageService
             ]);
             return null;
         }
+    }
+
+    /**
+     * Upload and store media for chat messages
+     * 
+     * @param UploadedFile|string $file Uploaded file or base64 content
+     * @param int $workspaceId Workspace ID
+     * @param array $options Additional options (direction, contact_id, mime_type)
+     * @return ChatMedia Created media record
+     */
+    public function uploadForChat($file, int $workspaceId, array $options = []): ChatMedia
+    {
+        $direction = $options['direction'] ?? self::DIRECTION_RECEIVED;
+        $storagePath = $this->buildChatPath($workspaceId, $direction);
+
+        // Handle base64 content
+        if (is_string($file)) {
+            $content = base64_decode($file);
+            $mimeType = $options['mime_type'] ?? 'application/octet-stream';
+            $extension = $this->getExtensionFromMime($mimeType);
+            $filename = $this->generateFilename($options['filename'] ?? 'media', $extension);
+            $fullPath = "{$storagePath}/{$filename}";
+
+            Storage::disk($this->disk)->put($fullPath, $content, 'public');
+
+            return ChatMedia::create([
+                'workspace_id' => $workspaceId,
+                'name' => $options['filename'] ?? $filename,
+                'original_path' => $fullPath,
+                'type' => $mimeType,
+                'size' => strlen($content),
+                'location' => $this->disk === 's3' ? 's3' : 'local',
+                'processing_status' => ChatMedia::STATUS_PENDING,
+                'content_hash' => md5($content),
+                'metadata' => [
+                    'source' => 'chat_' . $direction,
+                    'contact_id' => $options['contact_id'] ?? null,
+                    'uploaded_at' => now()->toIso8601String(),
+                ],
+            ]);
+        }
+
+        // Handle UploadedFile
+        $this->validateFile($file);
+        $filename = $this->generateFilename($file->getClientOriginalName(), $file->getClientOriginalExtension());
+        $fullPath = "{$storagePath}/{$filename}";
+
+        $path = Storage::disk($this->disk)->putFileAs($storagePath, $file, $filename, 'public');
+
+        return ChatMedia::create([
+            'workspace_id' => $workspaceId,
+            'name' => $file->getClientOriginalName(),
+            'original_path' => $path,
+            'type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'location' => $this->disk === 's3' ? 's3' : 'local',
+            'processing_status' => ChatMedia::STATUS_PENDING,
+            'content_hash' => md5_file($file->getRealPath()),
+            'metadata' => [
+                'source' => 'chat_' . $direction,
+                'contact_id' => $options['contact_id'] ?? null,
+                'uploaded_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * Upload and store media for templates
+     * 
+     * @param UploadedFile $file Uploaded file
+     * @param int $workspaceId Workspace ID
+     * @param array $options Additional options (template_uuid)
+     * @return ChatMedia Created media record
+     */
+    public function uploadForTemplate(UploadedFile $file, int $workspaceId, array $options = []): ChatMedia
+    {
+        $this->validateFile($file);
+
+        $templateUuid = $options['template_uuid'] ?? Str::uuid()->toString();
+        $storagePath = $this->buildTemplatePath($workspaceId, $templateUuid);
+        
+        $filename = $this->generateFilename($file->getClientOriginalName(), $file->getClientOriginalExtension());
+        $path = Storage::disk($this->disk)->putFileAs($storagePath, $file, $filename, 'public');
+
+        if (!$path) {
+            throw new \Exception('Failed to store template file');
+        }
+
+        return ChatMedia::create([
+            'workspace_id' => $workspaceId,
+            'name' => $file->getClientOriginalName(),
+            'original_path' => $path,
+            'type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'location' => $this->disk === 's3' ? 's3' : 'local',
+            'processing_status' => ChatMedia::STATUS_PENDING,
+            'content_hash' => md5_file($file->getRealPath()),
+            'metadata' => [
+                'source' => 'template_upload',
+                'template_uuid' => $templateUuid,
+                'uploaded_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * Upload shared/general media
+     * 
+     * @param UploadedFile $file Uploaded file
+     * @param int $workspaceId Workspace ID
+     * @param array $options Additional options
+     * @return ChatMedia Created media record
+     */
+    public function uploadShared(UploadedFile $file, int $workspaceId, array $options = []): ChatMedia
+    {
+        $this->validateFile($file);
+
+        // Check for duplicate
+        if ($this->deduplicationEnabled) {
+            $contentHash = md5_file($file->getRealPath());
+            $existing = ChatMedia::findByContentHash($contentHash, $workspaceId);
+            
+            if ($existing) {
+                Log::info('[MediaStorageService] Found duplicate shared media', [
+                    'hash' => $contentHash,
+                    'existing_id' => $existing->id,
+                ]);
+                return $existing;
+            }
+        }
+
+        $storagePath = $this->buildSharedPath($workspaceId);
+        $filename = $this->generateFilename($file->getClientOriginalName(), $file->getClientOriginalExtension());
+        $path = Storage::disk($this->disk)->putFileAs($storagePath, $file, $filename, 'public');
+
+        return ChatMedia::create([
+            'workspace_id' => $workspaceId,
+            'name' => $file->getClientOriginalName(),
+            'original_path' => $path,
+            'type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'location' => $this->disk === 's3' ? 's3' : 'local',
+            'processing_status' => ChatMedia::STATUS_PENDING,
+            'content_hash' => $contentHash ?? md5_file($file->getRealPath()),
+            'metadata' => [
+                'source' => 'shared_upload',
+                'uploaded_at' => now()->toIso8601String(),
+            ],
+        ]);
     }
 
     // ==========================================
@@ -525,12 +695,64 @@ class MediaStorageService
     }
 
     /**
-     * Build storage path for workspace and type
+     * Build storage path for campaigns
+     * Path: campaigns/{workspace_id}/{campaign_uuid}/{usage_type}/
      */
-    protected function buildStoragePath(int $workspaceId, string $type = 'general'): string
+    protected function buildCampaignPath(int $workspaceId, string $campaignUuid, string $usageType = 'header'): string
+    {
+        return self::CONTEXT_CAMPAIGN . "/{$workspaceId}/{$campaignUuid}/{$usageType}";
+    }
+
+    /**
+     * Build storage path for chats
+     * Path: chats/{workspace_id}/{direction}/{YYYY}/{MM}/
+     */
+    protected function buildChatPath(int $workspaceId, string $direction = 'received'): string
     {
         $date = now()->format('Y/m');
-        return "{$this->campaignPath}/{$workspaceId}/{$type}/{$date}";
+        return self::CONTEXT_CHAT . "/{$workspaceId}/{$direction}/{$date}";
+    }
+
+    /**
+     * Build storage path for templates
+     * Path: templates/{workspace_id}/{template_uuid}/
+     */
+    protected function buildTemplatePath(int $workspaceId, string $templateUuid): string
+    {
+        return self::CONTEXT_TEMPLATE . "/{$workspaceId}/{$templateUuid}";
+    }
+
+    /**
+     * Build storage path for shared/general media
+     * Path: shared/{workspace_id}/{YYYY}/{MM}/
+     */
+    protected function buildSharedPath(int $workspaceId): string
+    {
+        $date = now()->format('Y/m');
+        return self::CONTEXT_SHARED . "/{$workspaceId}/{$date}";
+    }
+
+    /**
+     * Build storage path based on context
+     */
+    protected function buildContextPath(int $workspaceId, string $context, array $options = []): string
+    {
+        return match($context) {
+            self::CONTEXT_CAMPAIGN => $this->buildCampaignPath(
+                $workspaceId,
+                $options['campaign_uuid'] ?? 'draft',
+                $options['usage_type'] ?? self::USAGE_HEADER
+            ),
+            self::CONTEXT_CHAT => $this->buildChatPath(
+                $workspaceId,
+                $options['direction'] ?? self::DIRECTION_RECEIVED
+            ),
+            self::CONTEXT_TEMPLATE => $this->buildTemplatePath(
+                $workspaceId,
+                $options['template_uuid'] ?? 'draft'
+            ),
+            default => $this->buildSharedPath($workspaceId),
+        };
     }
 
     /**

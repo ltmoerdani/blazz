@@ -7,7 +7,18 @@ return [
     | Media Storage Configuration
     |--------------------------------------------------------------------------
     |
-    | Configuration for campaign media storage and processing.
+    | Configuration for media storage and processing.
+    |
+    | S3 Path Structure:
+    | ├── campaigns/{workspace_id}/{campaign_uuid}/{usage_type}/{filename}
+    | ├── chats/{workspace_id}/{direction}/{YYYY}/{MM}/{filename}
+    | ├── templates/{workspace_id}/{template_uuid}/{filename}
+    | └── shared/{workspace_id}/{YYYY}/{MM}/{filename}
+    |
+    | Example URLs:
+    | - https://is3.cloudhost.id/s3-blazz/campaigns/5/abc123/header/image_xyz.jpg
+    | - https://is3.cloudhost.id/s3-blazz/chats/5/received/2025/12/audio_abc.ogg
+    | - https://is3.cloudhost.id/s3-blazz/templates/5/tpl-uuid/header_img.png
     |
     */
 
@@ -15,17 +26,24 @@ return [
         // Storage disk to use: 'local', 's3'
         'disk' => env('MEDIA_STORAGE_DISK', 's3'),
 
-        // Base path for general chat media
-        'base_path' => 'chat_media',
-
-        // Base path for campaign media
-        'campaign_path' => 'campaign_media',
-
         // Maximum file size in bytes (default: 100MB)
         'max_file_size' => env('MEDIA_MAX_FILE_SIZE', 100 * 1024 * 1024),
 
         // S3 URL for public access
         's3_url' => env('AWS_URL', env('AWS_ENDPOINT')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Path Contexts
+    |--------------------------------------------------------------------------
+    */
+
+    'paths' => [
+        'campaigns' => 'campaigns',    // Campaign media (headers, attachments)
+        'chats' => 'chats',            // Chat message media (received/sent)
+        'templates' => 'templates',     // Template header media
+        'shared' => 'shared',           // Reusable shared media
     ],
 
     /*
