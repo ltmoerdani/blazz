@@ -311,4 +311,21 @@ Estimasi waktu implementasi: **4-6 jam**
 
 ---
 
+## ⚠️ Related Critical Issue: IP Address & Anti-Ban
+
+> **PERHATIAN:** Masalah media handling ini hanya SATU bagian dari permasalahan yang lebih besar!
+> 
+> User melaporkan **semua nomor WhatsApp di-ban dalam 5 hari** karena:
+> - Semua traffic dari **single IP address** (server)
+> - WhatsApp detection untuk **device fingerprint**
+> - **Warm-up pattern** antar akun di server yang sama terdeteksi
+>
+> **Baca dokumentasi lengkap:**
+> - [IP & Proxy Anti-Detection Analysis](../../broadcast/relay/05-ip-proxy-anti-detection-analysis.md)
+> - [Proxy Implementation Guide](../../broadcast/relay/06-proxy-implementation-guide.md)
+>
+> **Speed Tier saja TIDAK CUKUP untuk anti-ban di server production!**
+
+---
+
 *Dokumen ini dibuat berdasarkan analisis kode pada 3 Desember 2025*

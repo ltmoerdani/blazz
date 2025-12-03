@@ -2,7 +2,10 @@
 
 ## Overview
 
-Dokumentasi lengkap untuk **Relay System** - sistem pengiriman pesan WhatsApp yang aman dan terukur dengan anti-ban tier system.
+Dokumentasi lengkap untuk **Relay System** - sistem pengiriman pesan WhatsApp yang fokus pada **timing dan interval** untuk menghindari ban.
+
+> **📌 Note:** Dokumentasi tentang **IP/Proxy Anti-Detection** dan **Infrastructure Architecture** telah dipindahkan ke:  
+> **[/docs/architecture/anti-ban-infrastructure/](../../architecture/anti-ban-infrastructure/readme.md)**
 
 ---
 
@@ -10,9 +13,9 @@ Dokumentasi lengkap untuk **Relay System** - sistem pengiriman pesan WhatsApp ya
 
 | No | Document | Description | Status |
 |----|----------|-------------|--------|
-| 01 | [Re-Evaluasi Tier Structure](./01-re-evaluasi-tier-structure.md) | Analisis dan evaluasi struktur tier berdasarkan data real | ✅ Complete |
-| 02 | [Anti-Ban System Design](./02-anti-ban-system-design.md) | Desain sistem anti-ban dengan user-controlled speed tiers | ✅ Complete |
-| 03 | [Implementation Guide](./03-implementation-guide.md) | Panduan implementasi lengkap step-by-step | ✅ Complete |
+| 01 | [Re-Evaluasi Tier Structure](./01-re-evaluasi-tier-structure.md) | Analisis struktur tier berdasarkan data real | ✅ Complete |
+| 02 | [Anti-Ban System Design](./02-anti-ban-system-design.md) | Desain sistem dengan user-controlled speed tiers | ✅ Complete |
+| 03 | [Implementation Guide](./03-implementation-guide.md) | Panduan implementasi step-by-step | ✅ Complete |
 | 04 | [Testing & QA Guide](./04-testing-guide.md) | Panduan testing untuk anti-ban system | 📋 Planned |
 
 ---
@@ -54,13 +57,44 @@ Vue (Frontend):
 
 ---
 
+## ⚠️ Important Warning
+
+> **Speed Tier saja TIDAK CUKUP untuk anti-ban!**
+> 
+> WhatsApp detection tidak hanya berdasarkan timing/interval, tapi juga:
+> - **IP Address** - Semua session dari IP sama = terdeteksi
+> - **Device Fingerprint** - Browser/Puppeteer signature
+> - **Network Pattern** - Warm-up antar akun di server sama = terdeteksi
+>
+> **📚 Baca dokumentasi lengkap di:**  
+> **[/docs/architecture/anti-ban-infrastructure/](../../architecture/anti-ban-infrastructure/readme.md)**
+
+---
+
 ## 🔗 Related Documentation
+
+### Infrastructure & IP Anti-Detection (Moved)
+
+Dokumentasi berikut telah dipindahkan ke `/docs/architecture/anti-ban-infrastructure/`:
+
+| Old Location | New Location | Description |
+|-------------|--------------|-------------|
+| Doc 05-14 | [anti-ban-infrastructure/](../../architecture/anti-ban-infrastructure/) | IP, Proxy, Deployment Architecture |
+
+### Quick Links
+
+- **[Anti-Ban Infrastructure README](../../architecture/anti-ban-infrastructure/readme.md)** - Index lengkap
+- **[Deployment Architecture](../../architecture/anti-ban-infrastructure/10-deployment-architecture-ip-sync.md)** - 🏆 RECOMMENDED
+- **[IP/Proxy Analysis](../../architecture/anti-ban-infrastructure/01-ip-proxy-anti-detection-analysis.md)** - Root cause analysis
+
+### Other Architecture Docs
 
 - [Architecture Overview](../../architecture/01-arsitektur-overview.md)
 - [Development Patterns](../../architecture/06-development-patterns-guidelines.md)
 - [Dual-Server Architecture](../../architecture/05-dual-server-architecture.md)
+- [Scalable Architecture](../../architecture/08-scalable-architecture.md)
 
 ---
 
-**Last Updated:** November 28, 2025  
-**Version:** 2.0
+**Last Updated:** December 3, 2025  
+**Version:** 3.0 (Restructured - IP/Infra docs moved to architecture)
