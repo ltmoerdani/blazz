@@ -632,7 +632,10 @@ class MessageSendingService
 
         $mediaType = $header['type'];
         $mediaUrl = $header['media'];
-        $caption = $content['footer']['text'] ?? null;
+        
+        // Caption should be body_text, not footer_text
+        // Body text is the main message content that should appear as caption
+        $caption = $content['body']['text'] ?? null;
 
         $responseObject = $this->sendMedia(
             $contact->uuid,
