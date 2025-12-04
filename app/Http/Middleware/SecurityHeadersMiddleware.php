@@ -103,7 +103,11 @@ class SecurityHeadersMiddleware
             return implode('; ', $csp);
         }
         
-        // Production: Strict CSP
+        // Production: Strict CSP with WebSocket support for Reverb
+        $reverbHost = config('reverb.apps.0.allowed_origins.0', parse_url($baseUrl, PHP_URL_HOST));
+        $reverbPort = config('broadcasting.connections.reverb.options.port', 8080);
+        $wsUrl = "wss://{$reverbHost}:{$reverbPort}";
+        
         $csp = [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net unpkg.com",
@@ -118,7 +122,7 @@ class SecurityHeadersMiddleware
             "form-action 'self'",
             "frame-ancestors 'none'",
             "base-uri 'self'",
-            "connect-src 'self' {$baseUrl}",
+            "connect-src 'self' {$baseUrl} {$wsUrl} wss://{$reverbHost}",
         ];
         
         // Add upgrade-insecure-requests dalam production
