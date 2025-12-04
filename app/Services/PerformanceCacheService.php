@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\DB;
 use App\Models\Chat;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\User;
 
 /**

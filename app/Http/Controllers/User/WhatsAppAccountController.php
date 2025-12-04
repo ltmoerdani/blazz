@@ -89,7 +89,7 @@ class WhatsAppAccountController extends Controller
             'graphAPIVersion' => config('graph.api_version'),
             'appId' => $settings->get('whatsapp_client_id', null),
             'configId' => $settings->get('whatsapp_config_id', null),
-            'settings' => \App\Models\workspace::where('id', $workspaceId)->first(),
+            'settings' => \App\Models\Workspace::where('id', $workspaceId)->first(),
             'workspaceId' => $workspaceId,
             'title' => __('Settings'),
         ]);

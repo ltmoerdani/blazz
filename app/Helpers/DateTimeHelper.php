@@ -2,7 +2,7 @@
 
 namespace App\Helpers;
 
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;

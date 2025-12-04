@@ -10,7 +10,7 @@ use App\Services\WhatsApp\WhatsAppHealthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use App\Models\Setting;
-use App\Models\workspace;
+use App\Models\Workspace;
 
 class WhatsappService
 {

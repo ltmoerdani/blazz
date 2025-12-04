@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
 use App\Models\Subscription;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use App\Resolvers\PaymentPlatformResolver;
 use App\Services\StripeService;

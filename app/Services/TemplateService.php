@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Events\NewChatEvent;
 use App\Http\Resources\TemplateResource;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Template;
 use App\Models\WhatsAppAccount;
 use App\Services\WhatsappService;

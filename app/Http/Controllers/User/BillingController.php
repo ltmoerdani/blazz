@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\PaymentRequest;
 use App\Models\Addon;
 use App\Models\BillingPayment;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\PaymentGateway;
 use App\Models\Setting;
 use App\Models\Subscription;

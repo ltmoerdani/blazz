@@ -14,7 +14,7 @@ use App\Models\ChatTicketLog;
 use App\Models\Contact;
 use App\Models\ContactField;
 use App\Models\ContactGroup;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\Template;

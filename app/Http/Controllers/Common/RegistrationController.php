@@ -10,7 +10,7 @@ use App\Models\Setting;
 use App\Models\Team;
 use App\Models\TeamInvite;
 use App\Models\User;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

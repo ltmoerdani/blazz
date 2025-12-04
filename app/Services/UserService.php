@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Helpers\Email;
 use App\Http\Resources\UserResource;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Subscription;

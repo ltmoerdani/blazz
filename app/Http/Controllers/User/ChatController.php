@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\AutoReply;
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Services\ChatService;
 use App\Services\WhatsappService;
 use App\Services\WhatsApp\MessageService;

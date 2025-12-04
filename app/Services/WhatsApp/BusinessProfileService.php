@@ -3,7 +3,7 @@
 namespace App\Services\WhatsApp;
 
 use App\Models\Setting;
-use App\Models\workspace;
+use App\Models\Workspace;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
