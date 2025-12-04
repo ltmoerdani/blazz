@@ -14,6 +14,7 @@ use App\Models\Setting;
 use App\Models\Template;
 use App\Models\WhatsAppAccount;
 use App\Services\WhatsappService;
+use App\Services\Media\MediaStorageService;
 use App\Traits\TemplateTrait;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -326,6 +327,7 @@ class CampaignService
 
     /**
      * Handle media upload for template campaigns
+     * Now uses MediaStorageService for organized S3 storage
      */
     private function handleTemplateMediaUpload(array $parameter, int $workspaceId): ?int
     {
@@ -333,36 +335,38 @@ class CampaignService
             return null;
         }
 
-        $storage = Setting::where('key', 'storage_system')->first()?->value ?? 'local';
-        $fileName = $parameter['value']->getClientOriginalName();
-        $fileContent = $parameter['value'];
+        try {
+            /** @var MediaStorageService $mediaService */
+            $mediaService = app(MediaStorageService::class);
+            
+            $chatMedia = $mediaService->uploadForCampaign(
+                $parameter['value'],
+                $workspaceId,
+                [
+                    'campaign_uuid' => 'template-upload',
+                    'usage_type' => MediaStorageService::USAGE_HEADER,
+                ]
+            );
 
-        if ($storage === 'local') {
-            $file = Storage::disk('local')->put('public', $fileContent);
-            $mediaFilePath = $file;
-            $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-        } elseif ($storage === 'aws') {
-            $file = $parameter['value'];
-            $uploadedFile = $file->store('uploads/media/sent/' . $workspaceId, 's3');
-            $mediaUrl = Storage::url($uploadedFile);
+            Log::info('[CampaignService] Template media uploaded via MediaStorageService', [
+                'media_id' => $chatMedia->id,
+                'path' => $chatMedia->original_path,
+                'workspace_id' => $workspaceId,
+            ]);
+
+            return $chatMedia->id;
+        } catch (\Exception $e) {
+            Log::error('[CampaignService] Failed to upload template media', [
+                'error' => $e->getMessage(),
+                'workspace_id' => $workspaceId,
+            ]);
+            return null;
         }
-
-        $contentType = $this->getContentTypeFromUrl($mediaUrl);
-        $mediaSize = $this->getMediaSizeInBytesFromUrl($mediaUrl);
-
-        $chatMedia = new ChatMedia;
-        $chatMedia->name = $fileName;
-        $chatMedia->path = $mediaUrl;
-        $chatMedia->type = $contentType;
-        $chatMedia->size = $mediaSize;
-        $chatMedia->created_at = now();
-        $chatMedia->save();
-
-        return $chatMedia->id;
     }
 
     /**
      * Handle media upload for direct campaigns
+     * Now uses MediaStorageService for organized S3 storage
      */
     private function handleDirectMediaUpload(object $request): ?string
     {
@@ -370,20 +374,34 @@ class CampaignService
             return null;
         }
 
-        $workspaceId = session()->get('current_workspace');
-        $storage = Setting::where('key', 'storage_system')->first()?->value ?? 'local';
-        $fileName = $request->header_media->getClientOriginalName();
+        try {
+            $workspaceId = session()->get('current_workspace');
+            
+            /** @var MediaStorageService $mediaService */
+            $mediaService = app(MediaStorageService::class);
+            
+            $chatMedia = $mediaService->uploadForCampaign(
+                $request->header_media,
+                $workspaceId,
+                [
+                    'campaign_uuid' => 'direct-upload',
+                    'usage_type' => MediaStorageService::USAGE_HEADER,
+                ]
+            );
 
-        if ($storage === 'local') {
-            $file = Storage::disk('local')->put('public', $request->header_media);
-            $mediaFilePath = $file;
-            $mediaUrl = rtrim(config('app.url'), '/') . '/media/' . ltrim($mediaFilePath, '/');
-        } elseif ($storage === 'aws') {
-            $uploadedFile = $request->header_media->store('uploads/media/sent/' . $workspaceId, 's3');
-            $mediaUrl = Storage::url($uploadedFile);
+            Log::info('[CampaignService] Direct campaign media uploaded via MediaStorageService', [
+                'media_id' => $chatMedia->id,
+                'url' => $chatMedia->url,
+                'workspace_id' => $workspaceId,
+            ]);
+
+            return $chatMedia->url;
+        } catch (\Exception $e) {
+            Log::error('[CampaignService] Failed to upload direct campaign media', [
+                'error' => $e->getMessage(),
+            ]);
+            return null;
         }
-
-        return $mediaUrl;
     }
 
     /**

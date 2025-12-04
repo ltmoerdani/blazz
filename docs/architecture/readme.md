@@ -81,6 +81,19 @@ Documentation of 5-phase refactoring journey (78% → 99% compliance):
 
 **Achievement**: 102+ session violations eliminated in 8.5 hours!
 
+### [🛡️ anti-ban-infrastructure/](./anti-ban-infrastructure/)
+**WhatsApp anti-ban infrastructure architecture**
+
+Comprehensive documentation for IP diversification, proxy solutions, and distributed deployment to prevent WhatsApp bans:
+
+| # | Document | Description |
+|---|----------|-------------|
+| 01 | [IP/Proxy Analysis](./anti-ban-infrastructure/01-ip-proxy-anti-detection-analysis.md) | Root cause: why single IP = mass ban |
+| 02-09 | Various solutions | Proxy, budget, UDN, enterprise options |
+| 10 | [Deployment Architecture](./anti-ban-infrastructure/10-deployment-architecture-ip-sync.md) | **🏆 RECOMMENDED** - Multi-VPS solution |
+
+**Key Insight**: 1 VPS = 1 IP = 30-100 sessions (safe ratio). Multi-VPS cheaper than single server + proxy!
+
 ### [🔧 multi-instance-management/](./multi-instance-management/)
 **Multi-instance deployment guides**
 

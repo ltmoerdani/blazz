@@ -4,7 +4,7 @@
 
         <div class="md:mt-0 md:pt-0 flex md:h-screen w-full tracking-[0.3px] bg-gray-300/10" :class="viewTopBar === false ? 'mt-0 pt-0' : ''">
             <Sidebar :user="user" :config="config" :workspace="workspace" :workspaces="workspaces" :unreadMessages="unreadMessages"></Sidebar>
-            <div class="md:min-h-screen flex flex-col w-full min-w-0">
+            <div class="md:h-screen flex flex-col w-full min-w-0 overflow-hidden">
                 <slot :user="user" :toggleNavBar="toggleTopBar" @testEmit="doSomething"></slot>
             </div>
         </div>

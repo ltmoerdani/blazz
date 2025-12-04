@@ -7,6 +7,7 @@ use App\Http\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Campaign extends Model {
     use HasFactory;
@@ -76,6 +77,58 @@ class Campaign extends Model {
 
     public function creator(){
         return $this->belongsTo(User::class, 'created_by', 'id');
+    }
+
+    // ==========================================
+    // MEDIA RELATIONSHIP (Campaign Media Storage)
+    // ==========================================
+
+    /**
+     * Get all media attached to this campaign
+     */
+    public function media(): BelongsToMany
+    {
+        return $this->belongsToMany(ChatMedia::class, 'campaign_media', 'campaign_id', 'media_id')
+            ->withPivot(['usage_type', 'parameters'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get header media for this campaign
+     */
+    public function getHeaderMedia(): ?ChatMedia
+    {
+        return $this->media()
+            ->wherePivot('usage_type', 'header')
+            ->first();
+    }
+
+    /**
+     * Attach media to campaign
+     */
+    public function attachMedia(ChatMedia $media, string $usageType = 'header', array $parameters = []): void
+    {
+        $this->media()->attach($media->id, [
+            'usage_type' => $usageType,
+            'parameters' => json_encode($parameters),
+        ]);
+    }
+
+    /**
+     * Detach media from campaign
+     */
+    public function detachMedia(?ChatMedia $media = null, ?string $usageType = null): void
+    {
+        $query = $this->media();
+        
+        if ($media) {
+            $query->detach($media->id);
+        } elseif ($usageType) {
+            $mediaIds = $this->media()->wherePivot('usage_type', $usageType)->pluck('chat_media.id');
+            $this->media()->detach($mediaIds);
+        } else {
+            $this->media()->detach();
+        }
     }
 
     public function contactsCount(){

@@ -24,6 +24,7 @@ use App\Services\WhatsappService;
 use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\MediaProcessingService;
 use App\Services\WhatsApp\TemplateManagementService;
+use App\Services\Media\MediaStorageService;
 use App\Services\AutoReplyService;
 use App\Traits\TemplateTrait;
 use Illuminate\Http\Request;
@@ -623,26 +624,31 @@ class ChatService
 
     /**
      * Process template media upload
+     * Now uses MediaStorageService for organized S3 storage
      */
     private function processTemplateMediaUpload($file)
     {
         try {
-            $storage = Setting::where('key', 'storage_system')->first()->value;
-            $fileName = $file->getClientOriginalName();
+            /** @var MediaStorageService $mediaService */
+            $mediaService = app(MediaStorageService::class);
+            
+            $chatMedia = $mediaService->uploadForTemplate(
+                $file,
+                $this->workspaceId,
+                [
+                    'template_uuid' => 'chat-template-' . now()->format('YmdHis'),
+                ]
+            );
 
-            if($storage === 'local'){
-                $filePath = Storage::disk('local')->put('public', $file);
-                return rtrim(config('app.url'), '/') . '/media/' . ltrim($filePath, '/');
-            } elseif($storage === 'aws') {
-                $uploadedFile = $file->store('uploads/media/sent/' . $this->workspaceId, 's3');
-                /** @var \Illuminate\Filesystem\FilesystemAdapter $s3Disk */
-                $s3Disk = Storage::disk('s3');
-                return $s3Disk->url($uploadedFile);
-            }
+            Log::info('[ChatService] Template media uploaded via MediaStorageService', [
+                'media_id' => $chatMedia->id,
+                'url' => $chatMedia->url,
+                'workspace_id' => $this->workspaceId,
+            ]);
 
-            return null;
+            return $chatMedia->url;
         } catch (\Exception $e) {
-            Log::error('Failed to process template media upload', [
+            Log::error('[ChatService] Failed to process template media upload', [
                 'error' => $e->getMessage(),
                 'workspace_id' => $this->workspaceId
             ]);

@@ -7,10 +7,12 @@ use App\Events\WhatsAppAccountStatusChangedEvent;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessWhatsAppWebhookJob;
 use App\Jobs\HandleMobileActivityJob;
+use App\Models\ChatMedia;
 use App\Models\Contact;
 use App\Models\WhatsAppAccount;
 use App\Services\ChatService;
 use App\Services\ContactProvisioningService;
+use App\Services\Media\MediaStorageService;
 use App\Services\MediaService;
 use App\Services\ProviderSelector;
 use Illuminate\Http\Request;
@@ -470,7 +472,7 @@ class WebhookController extends Controller
                 'metadata' => json_encode([
                     'body' => $message['body'] ?? '',
                     'type' => $message['type'] ?? 'text',
-                    'has_media' => isset($message['has_media']) ? $message['has_media'] : false,
+                    'has_media' => isset($message['media']) || (isset($message['has_media']) && $message['has_media']),
                     'media_type' => $message['type'] ?? 'text',
                     'from' => $message['from'] ?? null,
                     'to' => $message['to'] ?? null,
@@ -480,6 +482,36 @@ class WebhookController extends Controller
                     'sender_name' => $isGroup ? ($message['sender_name'] ?? 'Unknown') : null,
                 ]),
             ]);
+
+            // ==========================================
+            // PROCESS MEDIA FROM WHATSAPP WEBJS
+            // Media is sent as base64 from Node.js service
+            // ==========================================
+            $chatMedia = null;
+            if (!empty($message['media']) && !empty($message['media']['data'])) {
+                try {
+                    $chatMedia = $this->processWebJsMedia($message['media'], $workspaceId, $chat->id, $contact->id);
+                    
+                    if ($chatMedia) {
+                        // Update chat with media_id
+                        $chat->update(['media_id' => $chatMedia->id]);
+                        
+                        Log::info('📎 Media processed and saved from WebJS', [
+                            'chat_id' => $chat->id,
+                            'media_id' => $chatMedia->id,
+                            'media_type' => $chatMedia->type,
+                            'size' => $chatMedia->size,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('❌ Failed to process WebJS media', [
+                        'error' => $e->getMessage(),
+                        'message_id' => $message['id'] ?? null,
+                        'workspace_id' => $workspaceId,
+                    ]);
+                    // Continue without media - don't fail the whole message
+                }
+            }
 
             // Create ChatLog entry for UI display
             \App\Models\ChatLog::create([
@@ -1039,5 +1071,109 @@ class WebhookController extends Controller
             'success' => true,
             'message' => 'Mobile activity queued for processing',
         ]);
+    }
+
+    // ==========================================
+    // MEDIA PROCESSING HELPERS
+    // ==========================================
+
+    /**
+     * Process media from WhatsApp WebJS webhook
+     * 
+     * Media is received as base64-encoded data from Node.js service.
+     * This method stores the media to S3 and creates a ChatMedia record.
+     * 
+     * @param array $mediaData Media data from webhook ['data' => base64, 'mimetype' => string, 'filename' => string]
+     * @param int $workspaceId Workspace ID
+     * @param int $chatId Chat record ID
+     * @param int $contactId Contact ID
+     * @return ChatMedia|null Created media record or null on failure
+     */
+    protected function processWebJsMedia(array $mediaData, int $workspaceId, int $chatId, int $contactId): ?ChatMedia
+    {
+        // Validate media data
+        if (empty($mediaData['data'])) {
+            Log::warning('[WebhookController] Empty media data received', [
+                'workspace_id' => $workspaceId,
+                'chat_id' => $chatId,
+            ]);
+            return null;
+        }
+
+        $base64Data = $mediaData['data'];
+        $mimeType = $mediaData['mimetype'] ?? 'application/octet-stream';
+        $filename = $mediaData['filename'] ?? 'media_' . time();
+
+        // Log media info
+        Log::info('📎 Processing WebJS media', [
+            'workspace_id' => $workspaceId,
+            'chat_id' => $chatId,
+            'mime_type' => $mimeType,
+            'filename' => $filename,
+            'base64_length' => strlen($base64Data),
+        ]);
+
+        try {
+            /** @var MediaStorageService $mediaService */
+            $mediaService = app(MediaStorageService::class);
+
+            // Use the uploadForChat method which handles base64
+            $chatMedia = $mediaService->uploadForChat(
+                $base64Data,
+                $workspaceId,
+                [
+                    'direction' => MediaStorageService::DIRECTION_RECEIVED,
+                    'mime_type' => $mimeType,
+                    'filename' => $filename,
+                    'contact_id' => $contactId,
+                ]
+            );
+
+            // Store media category in metadata for quick reference
+            $category = $this->getMediaCategory($mimeType);
+            $currentMetadata = $chatMedia->metadata ?? [];
+            $currentMetadata['category'] = $category;
+            $currentMetadata['chat_id'] = $chatId;
+            $currentMetadata['source'] = 'webjs_inbound';
+            $chatMedia->update(['metadata' => $currentMetadata]);
+
+            Log::info('✅ WebJS media stored successfully', [
+                'media_id' => $chatMedia->id,
+                'path' => $chatMedia->original_path,
+                'category' => $category,
+                'size' => $chatMedia->size,
+            ]);
+
+            return $chatMedia;
+
+        } catch (\Exception $e) {
+            Log::error('❌ Failed to store WebJS media', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'workspace_id' => $workspaceId,
+                'chat_id' => $chatId,
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get media category from MIME type
+     * 
+     * @param string $mimeType MIME type
+     * @return string Category: image, video, audio, document
+     */
+    protected function getMediaCategory(string $mimeType): string
+    {
+        if (str_starts_with($mimeType, 'image/')) {
+            return 'image';
+        }
+        if (str_starts_with($mimeType, 'video/')) {
+            return 'video';
+        }
+        if (str_starts_with($mimeType, 'audio/')) {
+            return 'audio';
+        }
+        return 'document';
     }
 }
