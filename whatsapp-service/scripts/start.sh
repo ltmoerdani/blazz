@@ -99,6 +99,7 @@ HMAC_SECRET=your-hmac-secret-here
 
 # Laravel Integration
 LARAVEL_URL=http://localhost:8000
+LARAVEL_WEBHOOK_URL=http://localhost:8000/api/v1/whatsapp/webhook
 LARAVEL_API_TOKEN=your-laravel-api-token-here
 
 # WhatsApp Configuration
