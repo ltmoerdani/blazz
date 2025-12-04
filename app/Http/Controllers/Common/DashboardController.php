@@ -11,7 +11,7 @@ use App\Models\Addon;
 use App\Models\Chat;
 use App\Models\Campaign;
 use App\Models\Contact;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\Template;

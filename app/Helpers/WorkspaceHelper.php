@@ -2,7 +2,7 @@
 
 namespace App\Helpers;
 
-use App\Models\workspace;
+use App\Models\Workspace;
 use Illuminate\Support\Facades\Auth;
 
 class WorkspaceHelper

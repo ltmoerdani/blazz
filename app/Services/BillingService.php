@@ -7,7 +7,7 @@ use App\Models\BillingCredit;
 use App\Models\BillingDebit;
 use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

@@ -16,7 +16,7 @@ use App\Services\AuthService;
 use App\Services\PasswordResetService;
 use App\Services\UserService;
 use App\Models\Addon;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\PasswordResetToken;
 use App\Models\Setting;
 use App\Models\Subscription;

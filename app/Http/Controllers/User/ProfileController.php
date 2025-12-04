@@ -8,7 +8,7 @@ use App\Http\Requests\StoreProfile;
 use App\Http\Requests\StoreProfilePassword;
 use App\Http\Requests\StoreProfileAddress;
 use App\Http\Requests\StoreProfileTfa;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

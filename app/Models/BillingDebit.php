@@ -24,6 +24,6 @@ class BillingDebit extends Model {
 
     public function workspace()
     {
-        return $this->belongsTo(workspace::class, 'workspace_id', 'id');
+        return $this->belongsTo(Workspace::class, 'workspace_id', 'id');
     }
 }

@@ -26,7 +26,7 @@ class SecurityIncident extends Model
 
     public function workspace()
     {
-        return $this->belongsTo(workspace::class);
+        return $this->belongsTo(Workspace::class);
     }
 
     public function user()

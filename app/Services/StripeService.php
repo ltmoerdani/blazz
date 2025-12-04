@@ -6,7 +6,7 @@ use Carbon\Carbon;
 use Helper;
 use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\PaymentGateway;
 use App\Models\Setting;
 use App\Models\Subscription;

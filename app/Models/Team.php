@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Http\Traits\HasUuid;
 use App\Models\User;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\ChatTicket;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -35,7 +35,7 @@ class Team extends Model {
      */
     public function workspace()
     {
-        return $this->belongsTo(workspace::class, 'workspace_id', 'id');
+        return $this->belongsTo(Workspace::class, 'workspace_id', 'id');
     }
 
     /**

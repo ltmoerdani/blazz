@@ -5,7 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\Addon;
 use App\Models\Contact;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use App\Services\ContactFieldService;
 use Illuminate\Http\Request;

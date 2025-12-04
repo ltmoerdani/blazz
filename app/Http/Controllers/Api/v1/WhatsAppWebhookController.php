@@ -9,7 +9,7 @@ use App\Models\Chat;
 use App\Models\ChatLog;
 use App\Models\ChatStatusLog;
 use App\Models\ChatMedia;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use App\Models\Template;
 use App\Services\AutoReplyService;

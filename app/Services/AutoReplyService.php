@@ -7,7 +7,7 @@ use App\Http\Resources\AutoReplyResource;
 use App\Models\AutoReply;
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use App\Services\MediaService;
 use App\Services\WhatsappService;

@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Addon;
 use App\Models\Chat;
 use App\Models\Language;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;

@@ -10,7 +10,7 @@ use App\Models\BillingDebit;
 use App\Models\BillingInvoice;
 use App\Models\BillingPayment;
 use App\Models\BillingTransaction;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
@@ -49,7 +49,7 @@ class WorkspaceService
      * Retrieve an workspace by its UUID.
      *
      * @param string $uuid
-     * @return \App\Models\workspace
+     * @return \App\Models\Workspace
      *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
@@ -152,7 +152,7 @@ class WorkspaceService
      *
      * @param Request $request
      * @param string $uuid
-     * @return \App\Models\workspace
+     * @return \App\Models\Workspace
      */
     public function update($request, $uuid)
     {

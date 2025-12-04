@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\CampaignLog;
 use App\Models\CampaignLogRetry;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Services\WhatsappService;
 use App\Services\WhatsApp\MessageSendingService;
 use App\Traits\TemplateTrait;

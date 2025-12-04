@@ -9,7 +9,7 @@ use App\Models\ChatLog;
 use App\Models\ChatTicket;
 use App\Models\ChatTicketLog;
 use App\Models\Contact;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\ChatService;

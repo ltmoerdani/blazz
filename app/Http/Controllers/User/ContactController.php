@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\Contact;
 use App\Models\ContactField;
 use App\Models\ContactGroup;
-use App\Models\workspace;
+use App\Models\Workspace;
 use App\Exports\ContactsExport;
 use App\Http\Requests\StoreContact;
 use App\Http\Resources\ContactResource;
