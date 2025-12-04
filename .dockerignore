@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Dependencies (will be installed in container)
+node_modules
+vendor
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files (will be mounted)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Storage (will be mounted)
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+
+# Tests
+tests/
+phpunit.xml
+
+# Documentation
+docs/
+
+# Build artifacts
+public/hot
+public/build
+
+# WhatsApp sessions (will be mounted)
+whatsapp-service/sessions/
+whatsapp-service/session-backups/
+whatsapp-service/.wwebjs_auth/
+whatsapp-service/.wwebjs_cache/

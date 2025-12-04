@@ -1,0 +1,226 @@
+# ============================================================================
+# Docker Compose Configuration for Blazz
+# ============================================================================
+# Services: Laravel App, Nginx, MySQL, Redis, WhatsApp Service, Reverb
+# Usage: docker compose up -d
+# ============================================================================
+
+name: blazz
+
+services:
+  # ==========================================================================
+  # Laravel Application (PHP-FPM)
+  # ==========================================================================
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    image: blazz/app:latest
+    container_name: blazz-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html:cached
+      - ./storage:/var/www/html/storage:delegated
+      - ./docker/app/php.ini:/usr/local/etc/php/conf.d/custom.ini:ro
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - blazz-network
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm-healthcheck || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ==========================================================================
+  # Queue Worker (Supervisor)
+  # ==========================================================================
+  queue:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    image: blazz/app:latest
+    container_name: blazz-queue
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["/usr/bin/supervisord", "-c", "/var/www/html/docker/app/supervisord.conf"]
+    user: root
+    volumes:
+      - ./:/var/www/html:cached
+      - ./storage:/var/www/html/storage:delegated
+      - ./docker/app/supervisord.conf:/var/www/html/docker/app/supervisord.conf:ro
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QUEUE_CONNECTION=redis
+    depends_on:
+      - app
+      - mysql
+      - redis
+    networks:
+      - blazz-network
+
+  # ==========================================================================
+  # Nginx Web Server
+  # ==========================================================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: blazz-nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+      - "${APP_SSL_PORT:-443}:443"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./storage/logs/nginx:/var/log/nginx:delegated
+    depends_on:
+      - app
+    networks:
+      - blazz-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # MySQL Database
+  # ==========================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: blazz-mysql
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-secret}
+      - MYSQL_DATABASE=${DB_DATABASE:-blazz}
+      - MYSQL_USER=${DB_USERNAME:-blazz}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+      --max-connections=200
+    networks:
+      - blazz-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==========================================================================
+  # Redis Cache & Session Store
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: blazz-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - blazz-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # WhatsApp Service (Node.js + Puppeteer)
+  # ==========================================================================
+  whatsapp:
+    build:
+      context: ./whatsapp-service
+      dockerfile: Dockerfile
+    image: blazz/whatsapp:latest
+    container_name: blazz-whatsapp
+    restart: unless-stopped
+    init: true  # Properly handle zombie processes from Chromium
+    ports:
+      - "${WHATSAPP_PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3001
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LARAVEL_API_URL=http://nginx
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+    volumes:
+      - whatsapp-sessions:/app/sessions
+      - whatsapp-auth:/app/.wwebjs_auth
+      - ./whatsapp-service/logs:/app/logs:delegated
+    shm_size: '2gb'  # Required for Chromium
+    cap_add:
+      - SYS_ADMIN  # Required for Chromium sandbox
+    security_opt:
+      - seccomp=unconfined  # Required for Chromium
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - blazz-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  blazz-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
+  whatsapp-sessions:
+    driver: local
+  whatsapp-auth:
+    driver: local

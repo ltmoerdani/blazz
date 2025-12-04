@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Session data (mounted as volumes)
+sessions/
+session-backups/
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Tests
+tests/
+*.test.js
+*.spec.js
+jest.config.js
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Development files
+.env.example
+.env.local
+docker-compose*.yml
+Dockerfile*
+
+# npm debug
+npm-debug.log*
+
+# Coverage
+coverage/
+.nyc_output/

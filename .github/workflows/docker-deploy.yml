@@ -1,0 +1,235 @@
+# ============================================================================
+# GitHub Actions - Docker Deploy
+# ============================================================================
+# Runs on: Push to staging or main branches
+# Deploys to respective environments
+# ============================================================================
+
+name: Docker Deploy
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ==========================================================================
+  # Build and Push Images
+  # ==========================================================================
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      app_image: ${{ steps.meta-app.outputs.tags }}
+      whatsapp_image: ${{ steps.meta-whatsapp.outputs.tags }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for App
+        id: meta-app
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/app
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push App image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/app/Dockerfile
+          push: true
+          tags: ${{ steps.meta-app.outputs.tags }}
+          labels: ${{ steps.meta-app.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for WhatsApp
+        id: meta-whatsapp
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/whatsapp
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push WhatsApp image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./whatsapp-service
+          file: ./whatsapp-service/Dockerfile
+          push: true
+          tags: ${{ steps.meta-whatsapp.outputs.tags }}
+          labels: ${{ steps.meta-whatsapp.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==========================================================================
+  # Deploy to Staging
+  # ==========================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/staging'
+    environment:
+      name: staging
+      url: https://staging.blazz.app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /var/www/blazz
+            
+            # Pull latest code
+            git pull origin staging
+            
+            # Pull latest images
+            docker compose pull
+            
+            # Restart containers
+            docker compose -f compose.yaml -f compose.prod.yaml up -d
+            
+            # Run migrations
+            docker compose exec -T app php artisan migrate --force
+            
+            # Clear caches
+            docker compose exec -T app php artisan optimize:clear
+            docker compose exec -T app php artisan config:cache
+            docker compose exec -T app php artisan route:cache
+            docker compose exec -T app php artisan view:cache
+            
+            # Health check
+            sleep 10
+            curl -f http://localhost/health || exit 1
+            
+            echo "✅ Staging deployment complete!"
+
+      - name: Notify on success
+        if: success()
+        run: echo "✅ Deployed to staging successfully"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Staging deployment failed"
+
+  # ==========================================================================
+  # Deploy to Production
+  # ==========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://blazz.app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /var/www/blazz
+            
+            # Backup database before deployment
+            docker compose exec -T mysql mysqldump -u root -p$DB_ROOT_PASSWORD blazz > /backups/blazz_$(date +%Y%m%d_%H%M%S).sql
+            
+            # Pull latest code
+            git pull origin main
+            
+            # Pull latest images
+            docker compose pull
+            
+            # Rolling update with zero downtime
+            docker compose -f compose.yaml -f compose.prod.yaml up -d --no-deps --build app
+            
+            # Run migrations
+            docker compose exec -T app php artisan migrate --force
+            
+            # Clear and rebuild caches
+            docker compose exec -T app php artisan optimize:clear
+            docker compose exec -T app php artisan config:cache
+            docker compose exec -T app php artisan route:cache
+            docker compose exec -T app php artisan view:cache
+            
+            # Restart queue workers
+            docker compose exec -T app php artisan queue:restart
+            
+            # Health check
+            sleep 10
+            curl -f https://blazz.app/health || exit 1
+            
+            echo "✅ Production deployment complete!"
+
+      - name: Notify on success
+        if: success()
+        run: echo "✅ Deployed to production successfully"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Production deployment failed"
+
+  # ==========================================================================
+  # Rollback Job (Manual trigger only)
+  # ==========================================================================
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Rollback
+        run: |
+          echo "Rollback triggered for ${{ github.event.inputs.environment }}"
+          echo "Please check the server logs and database backups"

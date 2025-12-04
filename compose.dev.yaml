@@ -1,0 +1,91 @@
+# ============================================================================
+# Docker Compose - Development Override
+# ============================================================================
+# Usage: docker compose -f compose.yaml -f compose.dev.yaml up -d
+# ============================================================================
+
+services:
+  # Development app configuration
+  app:
+    build:
+      target: development
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - XDEBUG_MODE=develop,debug
+      - XDEBUG_CONFIG=client_host=host.docker.internal
+    volumes:
+      - ./:/var/www/html:cached
+      # Don't copy vendor/node_modules from container
+      - /var/www/html/vendor
+      - /var/www/html/node_modules
+
+  # Development queue - single worker
+  queue:
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+
+  # Vite dev server
+  vite:
+    image: node:20-alpine
+    container_name: blazz-vite
+    working_dir: /var/www/html
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/var/www/html:cached
+      - /var/www/html/node_modules
+    networks:
+      - blazz-network
+
+  # WhatsApp service in development
+  whatsapp:
+    environment:
+      - NODE_ENV=development
+      - DEBUG=whatsapp:*
+    volumes:
+      - ./whatsapp-service:/app:cached
+      - /app/node_modules
+
+  # phpMyAdmin for database management
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: blazz-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=${DB_USERNAME:-blazz}
+      - PMA_PASSWORD=${DB_PASSWORD:-secret}
+    depends_on:
+      - mysql
+    networks:
+      - blazz-network
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: blazz-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - blazz-network
+
+  # Mailpit for email testing
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: blazz-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"  # Web UI
+      - "1025:1025"  # SMTP
+    networks:
+      - blazz-network
