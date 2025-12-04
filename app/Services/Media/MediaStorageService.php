@@ -123,9 +123,41 @@ class MediaStorageService
         // Validate file
         $this->validateFile($file);
 
-        // Check for duplicate
+        $originalName = $file->getClientOriginalName();
+        $originalExtension = $file->getClientOriginalExtension();
+        $mimeType = $file->getMimeType();
+        $fileToUpload = $file->getRealPath();
+        $tempConvertedPath = null;
+
+        // Auto-convert video to MP4 if needed (MOV, AVI, etc.)
+        // WhatsApp Web JS requires MP4 with H.264 codec
+        if ($this->videoProcessor->needsConversion($file->getRealPath())) {
+            Log::info('[MediaStorageService] Video needs conversion to MP4', [
+                'original_name' => $originalName,
+                'mime_type' => $mimeType,
+            ]);
+
+            $tempConvertedPath = $this->videoProcessor->convertToMp4($file->getRealPath());
+            
+            if ($tempConvertedPath && file_exists($tempConvertedPath)) {
+                $fileToUpload = $tempConvertedPath;
+                $originalExtension = 'mp4';
+                $mimeType = 'video/mp4';
+                
+                Log::info('[MediaStorageService] Video converted to MP4 successfully', [
+                    'original_name' => $originalName,
+                    'converted_path' => $tempConvertedPath,
+                ]);
+            } else {
+                Log::warning('[MediaStorageService] Video conversion failed, uploading original', [
+                    'original_name' => $originalName,
+                ]);
+            }
+        }
+
+        // Check for duplicate (use converted file hash if applicable)
+        $contentHash = md5_file($fileToUpload);
         if ($this->deduplicationEnabled) {
-            $contentHash = md5_file($file->getRealPath());
             $existing = ChatMedia::findByContentHash($contentHash, $workspaceId);
             
             if ($existing) {
@@ -133,14 +165,18 @@ class MediaStorageService
                     'hash' => $contentHash,
                     'existing_id' => $existing->id,
                 ]);
+                
+                // Cleanup temp file
+                if ($tempConvertedPath && file_exists($tempConvertedPath)) {
+                    @unlink($tempConvertedPath);
+                }
+                
                 return $existing;
             }
         }
 
-        // Generate unique filename
-        $originalName = $file->getClientOriginalName();
-        $extension = $file->getClientOriginalExtension();
-        $filename = $this->generateFilename($originalName, $extension);
+        // Generate unique filename (with mp4 extension if converted)
+        $filename = $this->generateFilename($originalName, $originalExtension);
         
         // Build storage path for campaign
         $campaignUuid = $options['campaign_uuid'] ?? 'draft';
@@ -148,8 +184,21 @@ class MediaStorageService
         $storagePath = $this->buildCampaignPath($workspaceId, $campaignUuid, $usageType);
         $fullPath = "{$storagePath}/{$filename}";
 
-        // Store the original file with public visibility
-        $path = Storage::disk($this->disk)->putFileAs($storagePath, $file, $filename, 'public');
+        // Store the file with public visibility
+        // Use file_get_contents for converted files since they're not UploadedFile instances
+        if ($tempConvertedPath && $fileToUpload === $tempConvertedPath) {
+            $path = Storage::disk($this->disk)->put($fullPath, file_get_contents($fileToUpload), 'public');
+            $path = $path ? $fullPath : null;
+            $fileSize = filesize($fileToUpload);
+        } else {
+            $path = Storage::disk($this->disk)->putFileAs($storagePath, $file, $filename, 'public');
+            $fileSize = $file->getSize();
+        }
+
+        // Cleanup temp converted file
+        if ($tempConvertedPath && file_exists($tempConvertedPath)) {
+            @unlink($tempConvertedPath);
+        }
 
         if (!$path) {
             throw new \Exception('Failed to store file');
@@ -160,15 +209,16 @@ class MediaStorageService
             'workspace_id' => $workspaceId,
             'name' => $originalName,
             'original_path' => $path,
-            'type' => $file->getMimeType(),
-            'size' => $file->getSize(),
+            'type' => $mimeType,
+            'size' => $fileSize,
             'location' => $this->disk === 's3' ? 's3' : 'local',
             'processing_status' => ChatMedia::STATUS_PENDING,
             'metadata' => [
-                'original_extension' => $extension,
+                'original_extension' => $file->getClientOriginalExtension(),
                 'uploaded_at' => now()->toIso8601String(),
                 'source' => 'campaign_upload',
-                'content_hash' => $contentHash ?? md5_file($file->getRealPath()),
+                'content_hash' => $contentHash,
+                'converted_to_mp4' => $tempConvertedPath !== null,
             ],
         ]);
 
@@ -176,7 +226,8 @@ class MediaStorageService
             'media_id' => $media->id,
             'workspace_id' => $workspaceId,
             'filename' => $originalName,
-            'size' => $file->getSize(),
+            'size' => $fileSize,
+            'converted' => $tempConvertedPath !== null,
         ]);
 
         return $media;

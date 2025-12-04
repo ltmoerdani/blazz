@@ -449,6 +449,118 @@ class VideoProcessor
     }
 
     /**
+     * Check if video needs conversion to MP4 format
+     * WhatsApp Web JS requires MP4 with H.264 codec
+     */
+    public function needsConversion(string $filePath): bool
+    {
+        if (!$this->ffmpegAvailable) {
+            return false;
+        }
+
+        $mimeType = mime_content_type($filePath);
+        
+        // These formats need conversion to MP4
+        $needsConversion = [
+            'video/quicktime',      // .mov
+            'video/x-msvideo',      // .avi
+            'video/x-ms-wmv',       // .wmv
+            'video/webm',           // .webm (sometimes has issues)
+            'video/x-matroska',     // .mkv
+        ];
+
+        return in_array($mimeType, $needsConversion);
+    }
+
+    /**
+     * Convert video to MP4 format (H.264 + AAC)
+     * Required for WhatsApp Web JS compatibility
+     * 
+     * @param string $sourcePath Source video file path
+     * @param string|null $outputPath Optional output path (defaults to temp directory)
+     * @return string|null Path to converted MP4 file, or null on failure
+     */
+    public function convertToMp4(string $sourcePath, ?string $outputPath = null): ?string
+    {
+        if (!$this->ffmpegAvailable) {
+            Log::warning('[VideoProcessor] Cannot convert video - FFmpeg not available');
+            return null;
+        }
+
+        if (!file_exists($sourcePath)) {
+            Log::error('[VideoProcessor] Source file not found for conversion', ['path' => $sourcePath]);
+            return null;
+        }
+
+        // Generate output path if not provided
+        if (!$outputPath) {
+            $tempDir = sys_get_temp_dir();
+            $filename = pathinfo($sourcePath, PATHINFO_FILENAME);
+            $outputPath = "{$tempDir}/{$filename}_converted.mp4";
+        }
+
+        // Get source dimensions
+        $metadata = $this->getMetadata($sourcePath);
+        $sourceWidth = $metadata['video']['width'] ?? 1920;
+        $sourceHeight = $metadata['video']['height'] ?? 1080;
+
+        // Calculate target dimensions (maintain aspect ratio, max 1280x720 for WhatsApp)
+        [$targetWidth, $targetHeight] = $this->calculateDimensions(
+            $sourceWidth,
+            $sourceHeight,
+            $this->maxWidth,
+            $this->maxHeight
+        );
+
+        // Ensure even dimensions (required by H.264)
+        $targetWidth = $targetWidth - ($targetWidth % 2);
+        $targetHeight = $targetHeight - ($targetHeight % 2);
+
+        // Build FFmpeg command for WhatsApp-compatible MP4
+        // Using H.264 video codec and AAC audio codec
+        $command = sprintf(
+            '%s -i "%s" -vf "scale=%d:%d" -c:v %s -preset medium -crf 23 -c:a %s -b:a 128k -movflags +faststart -y "%s" 2>&1',
+            $this->ffmpegPath,
+            $sourcePath,
+            $targetWidth,
+            $targetHeight,
+            $this->videoCodec,  // libx264
+            $this->audioCodec,  // aac
+            $outputPath
+        );
+
+        Log::info('[VideoProcessor] Converting video to MP4', [
+            'source' => basename($sourcePath),
+            'output' => basename($outputPath),
+            'dimensions' => "{$targetWidth}x{$targetHeight}",
+        ]);
+
+        $result = Process::timeout(600)->run($command);
+
+        if (!$result->successful()) {
+            Log::error('[VideoProcessor] Video conversion failed', [
+                'source' => $sourcePath,
+                'error' => $result->errorOutput(),
+            ]);
+            return null;
+        }
+
+        if (!file_exists($outputPath)) {
+            Log::error('[VideoProcessor] Converted file not found', ['path' => $outputPath]);
+            return null;
+        }
+
+        Log::info('[VideoProcessor] Video converted successfully', [
+            'source' => basename($sourcePath),
+            'output' => basename($outputPath),
+            'original_size' => filesize($sourcePath),
+            'converted_size' => filesize($outputPath),
+        ]);
+
+        return $outputPath;
+    }
+
+    /**
      * Get video duration in seconds
      */
     public function getDuration(string $filePath): float
