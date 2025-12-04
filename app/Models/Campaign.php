@@ -7,6 +7,7 @@ use App\Http\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Campaign extends Model {
     use HasFactory;
@@ -22,8 +23,11 @@ class Campaign extends Model {
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'paused_at' => 'datetime',
+        'auto_resume_at' => 'datetime',
         'campaign_type' => 'string',
-        'preferred_provider' => 'string'
+        'preferred_provider' => 'string',
+        'speed_tier' => 'integer',
     ];
 
     protected $attributes = [
@@ -32,7 +36,8 @@ class Campaign extends Model {
         'messages_sent' => 0,
         'messages_delivered' => 0,
         'messages_read' => 0,
-        'messages_failed' => 0
+        'messages_failed' => 0,
+        'speed_tier' => 2, // Default: Safe tier
     ];
 
     public function getCreatedAtAttribute($value)
@@ -74,8 +79,71 @@ class Campaign extends Model {
         return $this->belongsTo(User::class, 'created_by', 'id');
     }
 
+    // ==========================================
+    // MEDIA RELATIONSHIP (Campaign Media Storage)
+    // ==========================================
+
+    /**
+     * Get all media attached to this campaign
+     */
+    public function media(): BelongsToMany
+    {
+        return $this->belongsToMany(ChatMedia::class, 'campaign_media', 'campaign_id', 'media_id')
+            ->withPivot(['usage_type', 'parameters'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get header media for this campaign
+     */
+    public function getHeaderMedia(): ?ChatMedia
+    {
+        return $this->media()
+            ->wherePivot('usage_type', 'header')
+            ->first();
+    }
+
+    /**
+     * Attach media to campaign
+     */
+    public function attachMedia(ChatMedia $media, string $usageType = 'header', array $parameters = []): void
+    {
+        $this->media()->attach($media->id, [
+            'usage_type' => $usageType,
+            'parameters' => json_encode($parameters),
+        ]);
+    }
+
+    /**
+     * Detach media from campaign
+     */
+    public function detachMedia(?ChatMedia $media = null, ?string $usageType = null): void
+    {
+        $query = $this->media();
+        
+        if ($media) {
+            $query->detach($media->id);
+        } elseif ($usageType) {
+            $mediaIds = $this->media()->wherePivot('usage_type', $usageType)->pluck('chat_media.id');
+            $this->media()->detach($mediaIds);
+        } else {
+            $this->media()->detach();
+        }
+    }
+
     public function contactsCount(){
         return $this->campaignLogs->count();
+    }
+
+    /**
+     * Get speed tier info
+     * 
+     * @return array|null
+     */
+    public function getSpeedTierInfoAttribute(): ?array
+    {
+        $speedService = app(\App\Services\Campaign\CampaignSpeedService::class);
+        return $speedService->getTierInfo($this->speed_tier ?? 2);
     }
 
     public function contactGroupCount(){
@@ -86,7 +154,7 @@ class Campaign extends Model {
         return $this->campaignLogs()
             ->where('status', 'success')
             ->whereHas('chat', function ($query) {
-                $query->whereIn('status', ['accepted', 'sent', 'delivered', 'read']);
+                $query->whereIn('message_status', ['accepted', 'sent', 'delivered', 'read']);
             })
             ->count();
     }
@@ -95,7 +163,7 @@ class Campaign extends Model {
         return $this->campaignLogs()
             ->where('status', 'success')
             ->whereHas('chat', function ($query) {
-                $query->whereIn('status', ['delivered', 'read']);
+                $query->whereIn('message_status', ['delivered', 'read']);
             })
             ->count();
     }
@@ -106,7 +174,7 @@ class Campaign extends Model {
         $chatFailedCount = $this->campaignLogs()
             ->where('status', 'success')
             ->whereHas('chat', function ($query) {
-                $query->where('status', 'failed');
+                $query->where('message_status', 'failed');
             })
             ->count();
 
@@ -117,7 +185,7 @@ class Campaign extends Model {
         return $this->campaignLogs()
             ->where('status', 'success')
             ->whereHas('chat', function ($query) {
-                $query->where('status', 'read');
+                $query->where('message_status', 'read');
             })
             ->count();
     }
@@ -126,11 +194,11 @@ class Campaign extends Model {
         return $this->campaignLogs()
             ->selectRaw('
                 COUNT(*) as total_message_count,
-                SUM(CASE WHEN campaign_logs.status = "success" AND chat.status IN ("accepted", "sent", "delivered", "read") THEN 1 ELSE 0 END) as total_sent_count,
-                SUM(CASE WHEN campaign_logs.status = "success" AND chat.status IN ("delivered", "read") THEN 1 ELSE 0 END) as total_delivered_count,
+                SUM(CASE WHEN campaign_logs.status = "success" AND chat.message_status IN ("accepted", "sent", "delivered", "read") THEN 1 ELSE 0 END) as total_sent_count,
+                SUM(CASE WHEN campaign_logs.status = "success" AND chat.message_status IN ("delivered", "read") THEN 1 ELSE 0 END) as total_delivered_count,
                 SUM(CASE WHEN campaign_logs.status = "failed" THEN 1 ELSE 0 END) +
-                    SUM(CASE WHEN campaign_logs.status = "success" AND chat.status = "failed" THEN 1 ELSE 0 END) as total_failed_count,
-                SUM(CASE WHEN campaign_logs.status = "success" AND chat.status = "read" THEN 1 ELSE 0 END) as total_read_count
+                    SUM(CASE WHEN campaign_logs.status = "success" AND chat.message_status = "failed" THEN 1 ELSE 0 END) as total_failed_count,
+                SUM(CASE WHEN campaign_logs.status = "success" AND chat.message_status = "read" THEN 1 ELSE 0 END) as total_read_count
             ')
             ->leftJoin('chats as chat', 'chat.id', '=', 'campaign_logs.chat_id')
             ->where('campaign_logs.campaign_id', $this->id)
@@ -207,6 +275,13 @@ class Campaign extends Model {
         $failedCount = max($this->messages_failed, $this->failedCount());
 
         return [
+            // For backward compatibility with frontend
+            'total_message_count' => $totalContacts,
+            'total_sent_count' => $sentCount,
+            'total_delivered_count' => $deliveredCount,
+            'total_read_count' => $readCount,
+            'total_failed_count' => $failedCount,
+            // Additional stats
             'total_contacts' => $totalContacts,
             'messages_sent' => $sentCount,
             'messages_delivered' => $deliveredCount,
@@ -322,7 +397,7 @@ class Campaign extends Model {
 
     /**
      * Scope query to specific workspace
-     * 
+     *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param int $workspaceId
      * @return \Illuminate\Database\Eloquent\Builder
@@ -330,5 +405,68 @@ class Campaign extends Model {
     public function scopeInWorkspace($query, $workspaceId)
     {
         return $query->where('workspace_id', $workspaceId);
+    }
+
+    /**
+     * Mobile Conflict Detection Constants
+     */
+    const STATUS_PAUSED_MOBILE = 'paused_mobile';
+
+    const PAUSE_REASON_MOBILE_ACTIVITY = 'mobile_activity';
+    const PAUSE_REASON_MANUAL = 'manual';
+
+    /**
+     * Check if campaign is paused due to mobile activity
+     */
+    public function isPausedForMobile(): bool
+    {
+        return $this->status === self::STATUS_PAUSED_MOBILE;
+    }
+
+    /**
+     * Scope for campaigns paused due to mobile activity
+     */
+    public function scopePausedForMobile($query)
+    {
+        return $query->where('status', self::STATUS_PAUSED_MOBILE);
+    }
+
+    /**
+     * Scope for ongoing campaigns
+     */
+    public function scopeOngoing($query)
+    {
+        return $query->where('status', 'ongoing');
+    }
+
+    /**
+     * Pause campaign for mobile activity
+     */
+    public function pauseForMobileActivity(string $sessionId): void
+    {
+        $this->status = self::STATUS_PAUSED_MOBILE;
+        $this->paused_at = now();
+        $this->pause_reason = self::PAUSE_REASON_MOBILE_ACTIVITY;
+        $this->paused_by_session = $sessionId;
+        $this->pause_count = ($this->pause_count ?? 0) + 1;
+        $this->save();
+    }
+
+    /**
+     * Resume campaign from mobile activity pause
+     */
+    public function resumeFromPause(): void
+    {
+        $this->status = 'ongoing';
+        $this->auto_resume_at = now();
+        $this->save();
+    }
+
+    /**
+     * Get session ID from WhatsApp account relationship
+     */
+    public function getSessionIdAttribute(): ?string
+    {
+        return $this->whatsappAccount?->session_id;
     }
 }

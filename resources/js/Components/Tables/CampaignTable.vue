@@ -64,6 +64,38 @@
         }
     }
 
+    // Get row number based on pagination
+    const getRowNumber = (index) => {
+        const currentPage = props.rows.current_page || 1;
+        const perPage = props.rows.per_page || 10;
+        return ((currentPage - 1) * perPage) + index + 1;
+    }
+
+    // Format date for display
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        // Parse date string directly without timezone conversion
+        // Format: "YYYY-MM-DD HH:mm:ss" or ISO format
+        let date;
+        if (dateString.includes('T')) {
+            // ISO format - use as is
+            date = new Date(dateString);
+        } else {
+            // MySQL format "YYYY-MM-DD HH:mm:ss" - treat as local time
+            const [datePart, timePart] = dateString.split(' ');
+            const [year, month, day] = datePart.split('-');
+            const [hour, minute, second] = (timePart || '00:00:00').split(':');
+            date = new Date(year, month - 1, day, hour, minute, second);
+        }
+        return date.toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
     const clearSearch = () => {
         params.value.search = null;
         runSearch();
@@ -97,8 +129,10 @@
     <Table :rows="rows">
         <TableHeader>
             <TableHeaderRow>
-                <TableHeaderRowItem :position="'first'">{{ $t('Campaign name') }}</TableHeaderRowItem>
+                <TableHeaderRowItem :position="'first'" class="w-12">#</TableHeaderRowItem>
+                <TableHeaderRowItem>{{ $t('Campaign name') }}</TableHeaderRowItem>
                 <TableHeaderRowItem class="hidden md:table-cell">{{ $t('Template') }}</TableHeaderRowItem>
+                <TableHeaderRowItem class="hidden lg:table-cell">{{ $t('Created') }}</TableHeaderRowItem>
                 <TableHeaderRowItem>{{ $t('Delivery rate') }}</TableHeaderRowItem>
                 <TableHeaderRowItem>{{ $t('Read rate') }}</TableHeaderRowItem>
                 <TableHeaderRowItem>{{ $t('Status') }}</TableHeaderRowItem>
@@ -107,7 +141,10 @@
         </TableHeader>
         <TableBody>
             <TableBodyRow v-for="(item, index) in rows.data" :key="index" :class="!isLastRow(index) ? 'border-b' : ''">
-                <TableBodyRowItem :position="'first'">
+                <TableBodyRowItem :position="'first'" class="w-12 text-gray-500">
+                    {{ getRowNumber(index) }}
+                </TableBodyRowItem>
+                <TableBodyRowItem>
                     <Link :href="'/campaigns/' + item.uuid" class="block w-full">
                         {{ item.name }}
                     </Link>
@@ -116,6 +153,11 @@
                     <Link :href="'/campaigns/' + item.uuid" class="block w-full">
                         <span v-if="item.template">{{ item.template.name }}</span>
                         <span v-else class="italic text-gray-500">{{ $t('Direct Message') }}</span>
+                    </Link>
+                </TableBodyRowItem>
+                <TableBodyRowItem class="hidden lg:table-cell">
+                    <Link :href="'/campaigns/' + item.uuid" class="block w-full text-gray-600 text-sm">
+                        {{ formatDate(item.created_at) }}
                     </Link>
                 </TableBodyRowItem>
                 <TableBodyRowItem class="hidden sm:table-cell">

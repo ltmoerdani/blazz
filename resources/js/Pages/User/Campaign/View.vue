@@ -72,7 +72,13 @@
                     </div>
 
                     <!-- Table Component-->
-                    <CampaignLogTable :rows="props.rows" :filters="props.filters" :uuid="props.campaign.uuid"/>
+                    <CampaignLogTable 
+                        :rows="props.rows" 
+                        :filters="props.filters" 
+                        :uuid="props.campaign.uuid"
+                        :speedTierConfig="props.speedTierConfig"
+                        :scheduledAt="props.campaign.scheduled_at"
+                    />
                 </div>
                 <div class="md:w-[30%]">
                     <div class="w-full rounded-lg bg-white pt-4 pb-8 border px-4 space-y-1 capitalize">
@@ -97,18 +103,57 @@
                             <h3>{{ $t('Time scheduled') }}</h3>
                             <p>{{ props.campaign.scheduled_at }}</p>
                         </div>
+                        
+                        <!-- Speed Tier Info -->
+                        <div v-if="props.campaign.speed_tier_info" class="text-sm bg-slate-100 p-3 rounded-lg">
+                            <h3>{{ $t('Speed Tier') }}</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xl">{{ props.campaign.speed_tier_info.emoji }}</span>
+                                <div>
+                                    <p class="font-medium">{{ props.campaign.speed_tier_info.label }}</p>
+                                    <p class="text-xs text-gray-500">{{ props.campaign.speed_tier_info.interval }}</p>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-xs">
+                                <span :class="[
+                                    'px-2 py-0.5 rounded-full',
+                                    props.campaign.speed_tier_info.risk_color === 'green' ? 'bg-green-100 text-green-800' :
+                                    props.campaign.speed_tier_info.risk_color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                                    props.campaign.speed_tier_info.risk_color === 'orange' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-red-100 text-red-800'
+                                ]">
+                                    Risk: {{ props.campaign.speed_tier_info.risk_level.replace('_', ' ') }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="w-full rounded-lg p-5 mt-5 border chat-bg">
                         <!-- Direct Message Preview -->
-                        <div v-if="props.campaign?.campaign_type === 'direct'" class="mr-auto rounded-lg rounded-tl-none my-1 p-1 text-sm bg-white flex flex-col relative speech-bubble-left w-[25em]">
-                            <div v-if="props.campaign.header_type && props.campaign.header_type !== 'text'" class="mb-4 bg-[#ccd0d5] flex justify-center py-8 rounded">
-                                <img v-if="props.campaign.header_type === 'image'" :src="'/images/image-placeholder.png'">
-                                <img v-if="props.campaign.header_type === 'video'" :src="'/images/video-placeholder.png'">
-                                <img v-if="props.campaign.header_type === 'document'" :src="'/images/document-placeholder.png'">
+                        <div v-if="props.campaign?.campaign_type === 'direct'" class="mr-auto rounded-lg rounded-tl-none my-1 p-1 text-sm bg-white flex flex-col relative speech-bubble-left max-w-[280px]">
+                            <!-- Media Preview -->
+                            <div v-if="props.campaign.header_type && props.campaign.header_type !== 'text'" class="mb-2 bg-[#ccd0d5] flex justify-center rounded overflow-hidden">
+                                <template v-if="props.campaign.header_type === 'image'">
+                                    <img v-if="props.campaign.header_media" :src="props.campaign.header_media" class="w-full h-auto max-h-[200px] object-cover rounded">
+                                    <img v-else :src="'/images/image-placeholder.png'" class="py-8">
+                                </template>
+                                <template v-else-if="props.campaign.header_type === 'video'">
+                                    <video v-if="props.campaign.header_media" :src="props.campaign.header_media" class="w-full h-auto max-h-[200px] rounded" controls></video>
+                                    <img v-else :src="'/images/video-placeholder.png'" class="py-8">
+                                </template>
+                                <template v-else-if="props.campaign.header_type === 'document'">
+                                    <div v-if="props.campaign.header_media" class="py-4 px-6 flex items-center space-x-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6m4 18H6V4h7v5h5v11Z"/></svg>
+                                        <span class="text-sm truncate max-w-[150px]">Document</span>
+                                    </div>
+                                    <img v-else :src="'/images/document-placeholder.png'" class="py-8">
+                                </template>
                             </div>
+                            <!-- Header Text (only if no media) -->
                             <h2 v-else-if="props.campaign.header_text" class="text-gray-700 text-sm mb-1 px-2 normal-case whitespace-pre-wrap">{{ props.campaign.header_text }}</h2>
-                            <p class="px-2 normal-case whitespace-pre-wrap">{{ props.campaign.body_text }}</p>
+                            <!-- Body Text -->
+                            <p v-if="props.campaign.body_text" class="px-2 normal-case whitespace-pre-wrap break-words">{{ props.campaign.body_text }}</p>
+                            <!-- Footer -->
                             <div class="text-[#8c8c8c] mt-1 px-2">
                                 <span class="text-[13px]">{{ props.campaign.footer_text }}</span>
                                 <span class="text-right text-xs leading-none float-right" :class="props.campaign.footer_text ? 'mt-2' : ''">9:15</span>
@@ -131,20 +176,23 @@ import { Link } from "@inertiajs/vue3";
 import { ref, onMounted, onUnmounted } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
-const props = defineProps(['campaign', 'rows', 'filters']);
+const props = defineProps(['campaign', 'rows', 'filters', 'speedTierConfig']);
 const page = usePage();
+
+// Get statistics from campaign.statistics (sent from controller)
+const campaignStats = props.campaign.statistics || {};
 
 // Reactive statistics (will be updated in real-time)
 const statistics = ref({
-    total_message_count: props.campaign.total_message_count,
-    total_sent_count: props.campaign.total_sent_count,
-    total_delivered_count: props.campaign.total_delivered_count,
-    total_read_count: props.campaign.total_read_count,
-    total_failed_count: props.campaign.total_failed_count,
-    pending_count: 0,
-    delivery_rate: 0,
-    read_rate: 0,
-    success_rate: 0
+    total_message_count: campaignStats.total_message_count || 0,
+    total_sent_count: campaignStats.total_sent_count || 0,
+    total_delivered_count: campaignStats.total_delivered_count || 0,
+    total_read_count: campaignStats.total_read_count || 0,
+    total_failed_count: campaignStats.total_failed_count || 0,
+    pending_count: campaignStats.pending_count || 0,
+    delivery_rate: campaignStats.delivery_rate || 0,
+    read_rate: campaignStats.read_rate || 0,
+    success_rate: campaignStats.success_rate || 0
 });
 
 // WebSocket connection state

@@ -11,7 +11,21 @@
                 </div>
                 <div class="space-x-2 flex items-center">
                     <Link href="/templates" class="rounded-md bg-black px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Back') }}</Link>
-                    <button @click="submitForm()" type="button" class="rounded-md px-3 py-2 float-right text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 capitalize" :class="isFormValid === true ? 'bg-indigo-600 hover:bg-indigo-500 shadow-sm' : 'bg-gray-200'" :disabled="!isFormValid || isLoading">
+                    
+                    <!-- For Draft Templates: Save Draft Button -->
+                    <button v-if="isDraft" @click="updateDraft()" type="button" class="rounded-md px-3 py-2 float-right text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 capitalize border border-gray-300" :class="isFormValid === true ? 'bg-white hover:bg-gray-50 text-gray-700 shadow-sm' : 'bg-gray-100 text-gray-400'" :disabled="!isFormValid || isLoading">
+                        <span v-if="!isLoading || loadingAction !== 'draft'">{{ $t('Save Draft') }}</span>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8A8 8 0 0 1 12 20Z" opacity=".5"/><path fill="currentColor" d="M20 12h2A10 10 0 0 0 12 2V4A8 8 0 0 1 20 12Z"><animateTransform attributeName="transform" dur="1s" from="0 12 12" repeatCount="indefinite" to="360 12 12" type="rotate"/></path></svg>
+                    </button>
+
+                    <!-- For Draft Templates: Publish to Meta Button (if Meta configured) -->
+                    <button v-if="isDraft && isMetaApiConfigured" @click="publishToMeta()" type="button" class="rounded-md px-3 py-2 float-right text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 capitalize" :class="isFormValid === true ? 'bg-indigo-600 hover:bg-indigo-500 shadow-sm' : 'bg-gray-200'" :disabled="!isFormValid || isLoading">
+                        <span v-if="!isLoading || loadingAction !== 'meta'">{{ $t('Submit to Meta') }}</span>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8A8 8 0 0 1 12 20Z" opacity=".5"/><path fill="currentColor" d="M20 12h2A10 10 0 0 0 12 2V4A8 8 0 0 1 20 12Z"><animateTransform attributeName="transform" dur="1s" from="0 12 12" repeatCount="indefinite" to="360 12 12" type="rotate"/></path></svg>
+                    </button>
+
+                    <!-- For Published Templates: Update Button (existing behavior) -->
+                    <button v-if="!isDraft" @click="submitForm()" type="button" class="rounded-md px-3 py-2 float-right text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 capitalize" :class="isFormValid === true ? 'bg-indigo-600 hover:bg-indigo-500 shadow-sm' : 'bg-gray-200'" :disabled="!isFormValid || isLoading">
                         <span v-if="!isLoading">{{ $t('Update template') }}</span>
                         <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8A8 8 0 0 1 12 20Z" opacity=".5"/><path fill="currentColor" d="M20 12h2A10 10 0 0 0 12 2V4A8 8 0 0 1 20 12Z"><animateTransform attributeName="transform" dur="1s" from="0 12 12" repeatCount="indefinite" to="360 12 12" type="rotate"/></path></svg>
                     </button>
@@ -19,10 +33,28 @@
             </div>
             <div class="md:flex md:flex-grow-1">
                 <div class="md:w-[50%] py-4 md:p-8 overflow-y-auto md:h-[90vh]">
+                    <!-- Draft Template Info Banner -->
+                    <div v-if="isDraft" class="p-4 mb-6 bg-blue-50 border border-blue-200 rounded-md">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-blue-800">{{ $t('Draft Template') }}</h3>
+                                <div class="mt-1 text-sm text-blue-700">
+                                    <p>{{ $t('This is a draft template. You can edit all fields freely.') }}</p>
+                                    <p v-if="isMetaApiConfigured" class="mt-1">{{ $t('Click "Submit to Meta" when ready for approval.') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid gap-x-6 gap-y-4 sm:grid-cols-6 mb-8">
                         <div class="sm:col-span-6">
-                            <FormInput v-model="form.name" :name="$t('Name')" :disabled="true" :type="'text'" @input="handleNameInput" @keydown.space.prevent="addUnderscore" :class="''"/>
-                            <span class="flex items-center gap-x-1 text-[11px] text-red-800 mt-1">
+                            <FormInput v-model="form.name" :name="$t('Name')" :disabled="!isDraft" :type="'text'" @input="handleNameInput" @keydown.space.prevent="addUnderscore" :class="''"/>
+                            <span v-if="!isDraft" class="flex items-center gap-x-1 text-[11px] text-red-800 mt-1">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="#991b1b" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3"/></svg>
                                 {{ $t('You are not allowed to edit this field') }}
                             </span>
@@ -31,8 +63,8 @@
                             <FormSelect v-model="form.category" :options="categoryOptions" :name="$t('Category')" :class="'sm:col-span-3'" :placeholder="'Select Category'"/>
                         </div>
                         <div class="sm:col-span-3">
-                            <FormSelect v-model="form.language" :disabled="true" :options="langOptions" :name="$t('Language')" :class="'sm:col-span-3'" :placeholder="'Select Language'"/>
-                            <span class="flex items-center gap-x-1 text-[11px] text-red-800 mt-1">
+                            <FormSelect v-model="form.language" :disabled="!isDraft" :options="langOptions" :name="$t('Language')" :class="'sm:col-span-3'" :placeholder="'Select Language'"/>
+                            <span v-if="!isDraft" class="flex items-center gap-x-1 text-[11px] text-red-800 mt-1">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="#991b1b" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3"/></svg>
                                 {{ $t('You are not allowed to edit this field') }}
                             </span>
@@ -430,8 +462,9 @@
     import 'vue3-toastify/dist/index.css';
     import { router } from '@inertiajs/vue3';
 
-    const props = defineProps(['languages', 'template']);
+    const props = defineProps(['languages', 'template', 'settings']);
     const headerCharacterLimit = ref('60');
+    const loadingAction = ref(null); // 'draft' or 'meta'
     const headerCharacterCount = ref('0');
     const bodyCharacterLimit = ref('1098');
     const bodyCharacterCount = ref('0');
@@ -441,9 +474,28 @@
     const imageUrl = ref(null);
     const isModalOpen = ref(false);
     const error = ref(null);
-    const metadata = ref(JSON.parse(props.template.metadata));
+    
+    // Parse metadata - handle both draft and Meta API formats
+    const parseMetadata = () => {
+        try {
+            const parsed = JSON.parse(props.template.metadata);
+            // Draft templates store components directly in metadata.components
+            // Meta API templates may have different structure
+            return parsed;
+        } catch (e) {
+            return { components: [] };
+        }
+    };
+    
+    const metadata = ref(parseMetadata());
+    
     const extractComponent = (type, key, fromButtons = false) => {
-        const component = metadata.value.components.find(c => c.type === type);
+        // Handle both formats: metadata.components or just components array
+        const components = metadata.value.components || metadata.value || [];
+        
+        if (!Array.isArray(components)) return null;
+        
+        const component = components.find(c => c.type === type);
 
         if (!component) return null;
 
@@ -457,7 +509,11 @@
     };
 
     const extractButtonParam = (key) => {
-        const buttonsComponent = metadata.value.components.find(component => component.type === 'BUTTONS');
+        const components = metadata.value.components || metadata.value || [];
+        
+        if (!Array.isArray(components)) return null;
+        
+        const buttonsComponent = components.find(component => component.type === 'BUTTONS');
 
         if (!buttonsComponent || !buttonsComponent.buttons || buttonsComponent.buttons.length === 0) {
             return null; // No BUTTONS component found
@@ -466,8 +522,12 @@
         const button = buttonsComponent.buttons[0]; // Assuming only one button exists
         if (!button.url) return null; // No URL present
 
-        const params = new URLSearchParams(new URL(button.url).search);
-        return params.get(key) || null; // Return only the requested key
+        try {
+            const params = new URLSearchParams(new URL(button.url).search);
+            return params.get(key) || null; // Return only the requested key
+        } catch (e) {
+            return null;
+        }
     };
     
     const form = ref({
@@ -680,6 +740,185 @@
         return true;
     });
 
+    // Check if this is a draft template
+    const isDraft = computed(() => {
+        return props.template.status === 'DRAFT';
+    });
+
+    // Check if Meta API is configured
+    const isMetaApiConfigured = computed(() => {
+        if (!props.settings?.metadata) return false;
+        const config = typeof props.settings.metadata === 'string' 
+            ? JSON.parse(props.settings.metadata) 
+            : props.settings.metadata;
+        return config?.whatsapp?.access_token && config?.whatsapp?.waba_id;
+    });
+
+    /**
+     * Update draft template (local only, no Meta API)
+     */
+    const updateDraft = () => {
+        isLoading.value = true;
+        loadingAction.value = 'draft';
+        
+        // Create FormData for proper multipart handling with PUT method spoofing
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('name', form.value.name);
+        formData.append('category', form.value.category);
+        formData.append('language', form.value.language);
+        formData.append('header[format]', form.value.header?.format || 'TEXT');
+        formData.append('header[text]', form.value.header?.text || '');
+        
+        // Handle header example (could be file or text)
+        if (form.value.header?.example) {
+            if (form.value.header.example instanceof File) {
+                formData.append('header[example]', form.value.header.example);
+            } else if (Array.isArray(form.value.header.example)) {
+                form.value.header.example.forEach((val, idx) => {
+                    formData.append(`header[example][${idx}]`, val);
+                });
+            } else {
+                formData.append('header[example]', form.value.header.example);
+            }
+        }
+        
+        formData.append('body[text]', form.value.body?.text || '');
+        if (form.value.body?.example) {
+            if (Array.isArray(form.value.body.example)) {
+                form.value.body.example.forEach((val, idx) => {
+                    formData.append(`body[example][${idx}]`, val);
+                });
+            } else {
+                formData.append('body[example]', form.value.body.example);
+            }
+        }
+        formData.append('body[add_security_recommendation]', form.value.body?.add_security_recommendation || false);
+        
+        formData.append('footer[text]', form.value.footer?.text || '');
+        if (form.value.footer?.code_expiration_minutes) {
+            formData.append('footer[code_expiration_minutes]', form.value.footer.code_expiration_minutes);
+        }
+        
+        // Handle buttons
+        if (form.value.buttons && Array.isArray(form.value.buttons)) {
+            form.value.buttons.forEach((btn, idx) => {
+                Object.keys(btn).forEach(key => {
+                    formData.append(`buttons[${idx}][${key}]`, btn[key] ?? '');
+                });
+            });
+        }
+        
+        axios.post('/templates/draft/' + props.template.uuid, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        .then(response => {
+            if (response.data.success === false) {
+                isLoading.value = false;
+                loadingAction.value = null;
+                error.value = response.data.message || 'Failed to update draft';
+                isModalOpen.value = true;
+            } else {
+                router.visit('/templates', {
+                    method: 'get',
+                });
+            }
+        })
+        .catch(err => {
+            isLoading.value = false;
+            loadingAction.value = null;
+            error.value = err.response?.data?.message || 'An error occurred';
+            isModalOpen.value = true;
+        });
+    }
+
+    /**
+     * Publish draft template to Meta API
+     */
+    const publishToMeta = () => {
+        isLoading.value = true;
+        loadingAction.value = 'meta';
+        isModalOpen.value = true;
+        
+        // Create FormData for proper multipart handling with PUT method spoofing
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('name', form.value.name);
+        formData.append('category', form.value.category);
+        formData.append('language', form.value.language);
+        formData.append('header[format]', form.value.header?.format || 'TEXT');
+        formData.append('header[text]', form.value.header?.text || '');
+        
+        if (form.value.header?.example) {
+            if (form.value.header.example instanceof File) {
+                formData.append('header[example]', form.value.header.example);
+            } else if (Array.isArray(form.value.header.example)) {
+                form.value.header.example.forEach((val, idx) => {
+                    formData.append(`header[example][${idx}]`, val);
+                });
+            } else {
+                formData.append('header[example]', form.value.header.example);
+            }
+        }
+        
+        formData.append('body[text]', form.value.body?.text || '');
+        if (form.value.body?.example) {
+            if (Array.isArray(form.value.body.example)) {
+                form.value.body.example.forEach((val, idx) => {
+                    formData.append(`body[example][${idx}]`, val);
+                });
+            } else {
+                formData.append('body[example]', form.value.body.example);
+            }
+        }
+        formData.append('body[add_security_recommendation]', form.value.body?.add_security_recommendation || false);
+        
+        formData.append('footer[text]', form.value.footer?.text || '');
+        if (form.value.footer?.code_expiration_minutes) {
+            formData.append('footer[code_expiration_minutes]', form.value.footer.code_expiration_minutes);
+        }
+        
+        if (form.value.buttons && Array.isArray(form.value.buttons)) {
+            form.value.buttons.forEach((btn, idx) => {
+                Object.keys(btn).forEach(key => {
+                    formData.append(`buttons[${idx}][${key}]`, btn[key] ?? '');
+                });
+            });
+        }
+        
+        // First update the draft, then publish
+        axios.post('/templates/draft/' + props.template.uuid, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        .then(() => {
+            // Now publish to Meta
+            return axios.post('/templates/' + props.template.uuid + '/publish');
+        })
+        .then(response => {
+            if (response.data.success === false) {
+                isLoading.value = false;
+                loadingAction.value = null;
+                error.value = response.data.message || 'Failed to publish to Meta';
+            } else {
+                router.visit('/templates', {
+                    method: 'get',
+                });
+            }
+        })
+        .catch(err => {
+            isLoading.value = false;
+            loadingAction.value = null;
+            error.value = err.response?.data?.message || 'An error occurred';
+        });
+    }
+
+    /**
+     * Update published template (existing Meta API flow)
+     */
     const submitForm = () => {
         isLoading.value = true;
         isModalOpen.value = true;

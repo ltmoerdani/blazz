@@ -85,9 +85,13 @@ class MessageService
                     'whatsapp_account_id' => $whatsappAccount->id,
                 ]);
 
+                // Return response with chat wrapped in data->chat for consistency with MessageSendingService
+                // This format is expected by ProcessSingleCampaignLogJob and SendCampaignJob
+                $responseData = (object) ['chat' => $chat];
+                
                 return (object) [
                     'success' => true,
-                    'data' => $chat,
+                    'data' => $responseData,
                     'message' => 'Message sent successfully',
                     'nodejs_result' => $result,
                 ];
@@ -148,7 +152,7 @@ class MessageService
                     'contact_uuid' => $contactUuid,
                     'success' => $result->success,
                     'message' => $result->message,
-                    'chat_id' => $result->success ? $result->data->id : null,
+                    'chat_id' => $result->success ? $result->data->chat->id : null,
                 ];
 
                 if ($result->success) {
@@ -634,9 +638,13 @@ class MessageService
                     'whatsapp_account_id' => $whatsappAccount->id,
                 ]);
 
+                // Return response with chat wrapped in data->chat for consistency with MessageSendingService
+                // This format is expected by ProcessSingleCampaignLogJob and SendCampaignJob
+                $responseData = (object) ['chat' => $chat];
+                
                 return (object) [
                     'success' => true,
-                    'data' => $chat,
+                    'data' => $responseData,
                     'message' => 'Template message sent successfully',
                     'nodejs_result' => $result,
                 ];
@@ -757,12 +765,28 @@ class MessageService
                 return $this->sendMessage($contactUuid, $messageText, $messageType, $options);
             } else {
                 // For media messages, include the media URL in options
+                // Caption (messageText/body text) should be sent as the message parameter
+                // Media URL is passed via options and will be used by WhatsAppServiceClient
                 $options['file_name'] = null;
                 $options['file_path'] = null;
                 $options['media_url'] = $options['media_url'];
                 $options['location'] = null;
 
-                return $this->sendMessage($contactUuid, $options['media_url'], $messageType, $options);
+                // Use caption (body text) as the message, not media_url
+                // WhatsAppServiceClient expects: caption = $message, media_url = $options['media_url']
+                $captionText = $options['caption'] ?? $messageText;
+                
+                // DEBUG: Log what we're sending
+                Log::info('sendDirectMessage: Sending media message', [
+                    'contactUuid' => $contactUuid,
+                    'messageType' => $messageType,
+                    'captionText' => $captionText,
+                    'media_url' => $options['media_url'],
+                    'messageText' => $messageText,
+                    'options_caption' => $options['caption'] ?? 'NOT SET'
+                ]);
+                
+                return $this->sendMessage($contactUuid, $captionText, $messageType, $options);
             }
 
         } catch (\Exception $e) {

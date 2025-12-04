@@ -5,7 +5,8 @@
     import FormTextArea from '@/Components/FormTextArea.vue';
     import BodyTextArea from '@/Components/Template/BodyTextArea.vue';
     import WhatsappTemplate from '@/Components/WhatsappTemplate.vue';
-    import { ref, computed, onMounted, watch } from 'vue';
+    import SpeedTierSelector from '@/Components/Campaign/SpeedTierSelector.vue';
+    import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
     import { Link, useForm } from "@inertiajs/vue3";
     import 'vue3-toastify/dist/index.css';
     import { trans } from 'laravel-vue-i18n';
@@ -23,6 +24,10 @@
             default: () => []
         },
         providerOptions: {
+            type: Array,
+            default: () => []
+        },
+        speedTiers: {
             type: Array,
             default: () => []
         },
@@ -47,6 +52,16 @@
             default: 'Send'
         }
     });
+    
+    // Refs for scroll preservation
+    const formContainer = ref(null);
+    const scrollPosition = ref(0);
+    
+    // Separate ref for media file to avoid reactivity issues
+    const mediaFile = ref(null);
+    const hasMediaFile = ref(false);
+    const mediaPreviewUrl = ref(null);
+    
     const isLoading = ref(false);
     const contactGroupOptions = ref([
         { value: 'all', label: trans('all contacts') },
@@ -98,6 +113,7 @@
         contacts: null,
         preferred_provider: 'webjs', // Default to WhatsApp Web JS as requested
         whatsapp_account_id: null,
+        speed_tier: 2, // Default to 'safe' tier
         time: null,
         scheduled_at: null,
         skip_schedule: false,
@@ -245,7 +261,12 @@
     }
 
     const extractComponent = (data, type, customProperty) => {
-        const component = data.components.find(
+        // Handle both draft format (components at root) and Meta API format (components in metadata)
+        const components = data.components || data;
+        
+        if (!Array.isArray(components)) return null;
+        
+        const component = components.find(
             (c) => c.type === type
         );
 
@@ -255,9 +276,27 @@
     const transformOptions = (options) => {
         return options.map((option) => ({
             value: option.uuid,
-            label: option.language ? option.name + ' [' + option.language + ']' : option.name,
+            label: option.language 
+                ? `${option.name} [${option.language}]${option.status === 'DRAFT' ? ' (Draft)' : ''}`
+                : `${option.name}${option.status === 'DRAFT' ? ' (Draft)' : ''}`,
+            status: option.status,
+            requires_meta_api: option.requires_meta_api || false,
+            webjs_compatible: option.webjs_compatible !== false,
         }));
     };
+
+    // Filter templates based on selected provider
+    const filteredTemplateOptions = computed(() => {
+        const allOptions = transformOptions(props.templates || []);
+        
+        if (form.preferred_provider === 'meta_api') {
+            // Meta API can only use APPROVED templates
+            return allOptions.filter(opt => opt.status === 'APPROVED');
+        }
+        
+        // WebJS can use all templates (APPROVED and DRAFT)
+        return allOptions;
+    });
 
     // Computed properties for hybrid functionality
     const isTemplateMode = computed(() => form.campaign_type === 'template');
@@ -367,18 +406,101 @@
         }
     };
 
-    // Handle direct media upload
+    // Handle direct media upload with file size validation
     const handleDirectMediaUpload = (event, mediaType) => {
-        const file = event.target.files[0];
-        if (file) {
-            form.header_media = file;
+        try {
+            const file = event.target.files[0];
+            if (file) {
+                // Validate file size based on media type
+                const maxSizes = {
+                    'image': 5 * 1024 * 1024, // 5MB
+                    'video': 16 * 1024 * 1024, // 16MB
+                    'document': 100 * 1024 * 1024 // 100MB
+                };
+                
+                const maxSize = maxSizes[mediaType] || 5 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    alert(trans('file size exceeds the limit. Max allowed size:') + ' ' + (maxSize / (1024 * 1024)) + 'MB');
+                    event.target.value = null;
+                    return;
+                }
+                
+                // Store file in separate ref to avoid reactivity issues
+                mediaFile.value = file;
+                hasMediaFile.value = true;
+                
+                // Create preview URL for images and videos
+                if (mediaPreviewUrl.value) {
+                    URL.revokeObjectURL(mediaPreviewUrl.value);
+                }
+                if (mediaType === 'image' || mediaType === 'video') {
+                    mediaPreviewUrl.value = URL.createObjectURL(file);
+                } else {
+                    // For documents, just use a truthy value to indicate file exists
+                    mediaPreviewUrl.value = 'document';
+                }
+                
+                // Store file reference in form for submission
+                form.header_media = file;
+                
+                console.log('[CampaignForm] File uploaded:', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    mediaType: mediaType,
+                    previewUrl: mediaPreviewUrl.value
+                });
+                
+                // Restore scroll position after file selection
+                nextTick(() => {
+                    if (formContainer.value && scrollPosition.value > 0) {
+                        formContainer.value.scrollTop = scrollPosition.value;
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('[CampaignForm] Error handling file upload:', error);
+        }
+    };
+    
+    // Save scroll position before opening file dialog
+    const openFileDialog = (inputId) => {
+        if (formContainer.value) {
+            scrollPosition.value = formContainer.value.scrollTop;
+        }
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.click();
         }
     };
 
     // Remove direct media
     const removeDirectMedia = () => {
         form.header_media = null;
+        mediaFile.value = null;
+        hasMediaFile.value = false;
+        
+        // Clean up preview URL to prevent memory leaks
+        if (mediaPreviewUrl.value && mediaPreviewUrl.value !== 'document') {
+            URL.revokeObjectURL(mediaPreviewUrl.value);
+        }
+        mediaPreviewUrl.value = null;
+        
+        // Reset file input elements
+        const imageInput = document.getElementById('direct-image-upload');
+        const videoInput = document.getElementById('direct-video-upload');
+        const documentInput = document.getElementById('direct-document-upload');
+        if (imageInput) imageInput.value = '';
+        if (videoInput) videoInput.value = '';
+        if (documentInput) documentInput.value = '';
     };
+    
+    // Reset media when switching header types
+    watch(() => form.header_type, (newType, oldType) => {
+        if (oldType && oldType !== newType && ['image', 'video', 'document'].includes(oldType)) {
+            removeDirectMedia();
+        }
+    });
 
     // Format button text for display
     const formatButtonText = (type) => {
@@ -469,8 +591,10 @@
         previewData.value.header_type = newValue;
     });
 
-    watch(() => form.header_media, (newValue) => {
-        previewData.value.header_media = newValue;
+    // Use hasMediaFile ref instead of watching form.header_media to avoid reactivity issues with File objects
+    watch(hasMediaFile, (newValue) => {
+        console.log('[CampaignForm] hasMediaFile changed:', newValue);
+        previewData.value.header_media = newValue ? mediaFile.value : null;
     });
 
     watch(() => form.body_text, (newValue) => {
@@ -486,7 +610,7 @@
     }, { deep: true });
 
     onMounted(() => {
-        templateOptions.value = transformOptions(props.templates);
+        // Note: templateOptions is now handled by computed 'filteredTemplateOptions'
         contactGroupOptions.value = [...contactGroupOptions.value, ...transformOptions(props.contactGroups)];
 
         // Initialize preview data with current form values
@@ -499,10 +623,17 @@
             buttons: form.buttons || []
         };
     });
+    
+    // Cleanup preview URL on component unmount to prevent memory leaks
+    onUnmounted(() => {
+        if (mediaPreviewUrl.value && mediaPreviewUrl.value !== 'document') {
+            URL.revokeObjectURL(mediaPreviewUrl.value);
+        }
+    });
 </script>
 <template>
-    <div :class="'md:flex md:flex-grow-1'">
-        <div v-if="!isWhatsAppConnected" class="md:w-[50%] p-4 md:p-8 overflow-y-auto h-[90vh]">
+    <div class="flex flex-col md:flex-row h-full overflow-hidden">
+        <div v-if="!isWhatsAppConnected" class="md:w-1/2 p-4 md:p-8 overflow-y-auto">
             <div class="bg-slate-50 border border-primary shadow rounded-md p-4 py-8">
                 <div class="flex justify-center mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 48 48"><path fill="black" d="M43.634 4.366a1.25 1.25 0 0 1 0 1.768l-4.913 4.913a9.253 9.253 0 0 1-.744 12.244l-3.343 3.343a1.25 1.25 0 0 1-1.768 0l-11.5-11.5a1.25 1.25 0 0 1 0-1.768l3.343-3.343a9.25 9.25 0 0 1 12.244-.743l4.913-4.914a1.25 1.25 0 0 1 1.768 0m-7.611 7.425a6.75 6.75 0 0 0-9.546 0l-2.46 2.459l9.733 9.732l2.46-2.459a6.75 6.75 0 0 0 0-9.546zM9.28 36.953l-4.914 4.913a1.25 1.25 0 0 0 1.768 1.768l4.913-4.913a9.253 9.253 0 0 0 12.244-.744l3.343-3.343a1.25 1.25 0 0 0 0-1.768L25.268 31.5l3.366-3.366a1.25 1.25 0 0 0-1.768-1.768L23.5 29.732L18.268 24.5l3.366-3.366a1.25 1.25 0 0 0-1.768-1.768L16.5 22.732l-1.366-1.366a1.25 1.25 0 0 0-1.768 0l-3.343 3.343a9.25 9.25 0 0 0-.743 12.244m2.51-10.476l2.46-2.46l9.732 9.733l-2.459 2.46a6.75 6.75 0 0 1-9.546 0l-.186-.187a6.75 6.75 0 0 1 0-9.546"/></svg>
@@ -538,7 +669,7 @@
             </div>
         </div>
 
-        <form v-else @submit.prevent="submitForm()" class="overflow-y-auto md:w-[50%]" :class="isCampaignFlow ? 'p-4 md:p-8 h-[90vh]' : ' h-full'">
+        <form v-else ref="formContainer" @submit.prevent="submitForm()" class="md:w-1/2 p-4 md:p-8 overflow-y-auto">
             <div v-if="displayTitle" class="m-1 rounded px-3 pt-3 pb-3 bg-slate-100 flex items-center justify-between mb-4">
                 <h3 class="text-[15px]">{{ isTemplateMode ? $t('Send Template Message') : $t('Send Direct Message') }}</h3>
                 <button @click="viewTemplate()" class="text-sm md:inline-flex hidden justify-center rounded-md border border-transparent bg-red-800 px-4 py-1 text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">Cancel</button>
@@ -611,6 +742,14 @@
                 <!-- Contact Group Selection -->
                 <FormSelect v-model="form.contacts" :options="contactGroupOptions" :name="$t('Send to')" :required="true" :class="'sm:col-span-3'" :placeholder="$t('Select contacts')" :error="form.errors.contacts"/>
 
+                <!-- Speed Tier Selection -->
+                <div class="sm:col-span-6">
+                    <SpeedTierSelector
+                        v-model="form.speed_tier"
+                        :tiers="props.speedTiers"
+                    />
+                </div>
+
                 <!-- Scheduling Options -->
                 <FormInput v-if="!form.skip_schedule" v-model="form.time" :name="$t('Scheduled time')" :type="'datetime-local'" :error="form.errors.time" :required="true" :class="'sm:col-span-2'"/>
                 <div class="relative flex gap-x-3 sm:col-span-6 items-center">
@@ -626,7 +765,13 @@
             <!-- Template-specific Configuration -->
             <div v-if="isTemplateMode && isCampaignFlow" :class="isCampaignFlow ? '' : 'px-3 md:px-3'">
                 <div class="mb-4">
-                    <FormSelect v-model="form.template" @update:modelValue="loadTemplate" :options="templateOptions" :required="true" :error="form.errors.template" :name="$t('Template')" :placeholder="$t('Select template')"/>
+                    <FormSelect v-model="form.template" @update:modelValue="loadTemplate" :options="filteredTemplateOptions" :required="true" :error="form.errors.template" :name="$t('Template')" :placeholder="$t('Select template')"/>
+                    <p v-if="form.preferred_provider === 'webjs' && filteredTemplateOptions.some(t => t.status === 'DRAFT')" class="text-xs text-blue-600 mt-1">
+                        {{ $t('Draft templates are available for WhatsApp Web JS') }}
+                    </p>
+                    <p v-if="form.preferred_provider === 'meta_api'" class="text-xs text-amber-600 mt-1">
+                        {{ $t('Only approved templates can be used with Meta Business API') }}
+                    </p>
                 </div>
             </div>
 
@@ -648,114 +793,117 @@
                     </div>
                     <!-- Image Header -->
                     <div v-if="form.header_type === 'image'">
-                        <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md min-h-[120px]">
                             <input
                                 type="file"
                                 class="sr-only"
                                 accept=".jpg, .png, .jpeg"
+                                id="direct-image-upload"
                                 ref="imageFileInput"
                                 @change="handleDirectMediaUpload($event, 'image')"
                             />
-                            <div class="text-center">
+                            <div class="text-center w-full">
                                 <div>
-                                    <div v-if="form.header_media && form.header_type === 'image'" class="flex justify-center items-center">
+                                    <div v-if="hasMediaFile && form.header_type === 'image'" class="flex justify-center items-center min-h-[80px]">
                                         <div class="flex justify-center items-center space-x-3 py-1 border bg-slate-100 rounded-lg mb-2 w-fit px-2">
                                             <div>
                                                 <svg class="mx-auto h-6 w-6 text-gray-400 cursor-pointer" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M14 9a1.5 1.5 0 1 1 3 0a1.5 1.5 0 0 1-3 0Z"/><path fill="currentColor" fill-rule="evenodd" d="M7.268 4.658a54.647 54.647 0 0 1 9.465 0l1.51.132a3.138 3.138 0 0 1 2.831 2.66a30.604 30.604 0 0 1 0 9.1a3.138 3.138 0 0 1-2.831 2.66l-1.51.131c-3.15.274-6.316.274-9.465 0l-1.51-.131a3.138 3.138 0 0 1-2.832-2.66a30.601 30.601 0 0 1 0-9.1a3.138 3.138 0 0 1 2.831-2.66l1.51-.132Zm9.335 1.495a53.147 53.147 0 0 0-9.206 0l-1.51.131A1.638 1.638 0 0 0 4.41 7.672a29.101 29.101 0 0 0-.311 5.17L7.97 8.97a.75.75 0 0 1 1.09.032l3.672 4.13l2.53-.844a.75.75 0 0 1 .796.21l3.519 3.91a29.101 29.101 0 0 0 .014-8.736a1.638 1.638 0 0 0-1.478-1.388l-1.51-.131Zm2.017 11.435l-3.349-3.721l-2.534.844a.75.75 0 0 1-.798-.213l-3.471-3.905l-4.244 4.243c.049.498.11.996.185 1.491a1.638 1.638 0 0 0 1.478 1.389l1.51.131c3.063.266 6.143.266 9.206 0l1.51-.131c.178-.016.35-.06.507-.128Z" clip-rule="evenodd"/></svg>
                                             </div>
                                             <div class="flex items-center space-x-2">
-                                                <span class="text-sm">{{ form.header_media instanceof File ? form.header_media.name : 'Media uploaded' }}</span>
-                                                <button @click="removeDirectMedia()" type="button">
+                                                <span class="text-sm truncate max-w-[200px]">{{ mediaFile ? mediaFile.name : 'Media uploaded' }}</span>
+                                                <button @click="removeDirectMedia()" type="button" class="flex-shrink-0">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M17.707 7.707a1 1 0 0 0-1.414-1.414L12 10.586L7.707 6.293a1 1 0 0 0-1.414 1.414L10.586 12l-4.293 4.293a1 1 0 1 0 1.414 1.414L12 13.414l4.293 4.293a1 1 0 1 0 1.414-1.414L13.414 12l4.293-4.293Z" clip-rule="evenodd"/></svg>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
-                                    <label v-else class="cursor-pointer">
+                                    <div v-else @click="openFileDialog('direct-image-upload')" class="cursor-pointer block min-h-[80px]">
                                         <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M14 9a1.5 1.5 0 1 1 3 0a1.5 1.5 0 0 1-3 0Z"/><path fill="currentColor" fill-rule="evenodd" d="M7.268 4.658a54.647 54.647 0 0 1 9.465 0l1.51.132a3.138 3.138 0 0 1 2.831 2.66a30.604 30.604 0 0 1 0 9.1a3.138 3.138 0 0 1-2.831 2.66l-1.51.131c-3.15.274-6.316.274-9.465 0l-1.51-.131a3.138 3.138 0 0 1-2.832-2.66a30.601 30.601 0 0 1 0-9.1a3.138 3.138 0 0 1 2.831-2.66l1.51-.132Zm9.335 1.495a53.147 53.147 0 0 0-9.206 0l-1.51.131A1.638 1.638 0 0 0 4.41 7.672a29.101 29.101 0 0 0-.311 5.17L7.97 8.97a.75.75 0 0 1 1.09.032l3.672 4.13l2.53-.844a.75.75 0 0 1 .796.21l3.519 3.91a29.101 29.101 0 0 0 .014-8.736a1.638 1.638 0 0 0-1.478-1.388l-1.51-.131Zm2.017 11.435l-3.349-3.721l-2.534.844a.75.75 0 0 1-.798-.213l-3.471-3.905l-4.244 4.243c.049.498.11.996.185 1.491a1.638 1.638 0 0 0 1.478 1.389l1.51.131c3.063.266 6.143.266 9.206 0l1.51-.131c.178-.016.35-.06.507-.128Z" clip-rule="evenodd"/></svg>
-                                        <div class="flex text-sm text-gray-600">
+                                        <div class="flex text-sm text-gray-600 justify-center">
                                             <span class="relative cursor-pointer bg-white rounded-md font-medium hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                                                 {{ $t('Upload an image for the header') }}
                                             </span>
                                         </div>
                                         <p class="text-xs text-gray-500">{{ $t('PNG or JPG files only (Max 5MB)') }}</p>
-                                    </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <!-- Video Header -->
                     <div v-if="form.header_type === 'video'">
-                        <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md min-h-[120px]">
                             <input
                                 type="file"
                                 class="sr-only"
                                 accept=".mp4, .mov, .avi"
+                                id="direct-video-upload"
                                 ref="videoFileInput"
                                 @change="handleDirectMediaUpload($event, 'video')"
                             />
-                            <div class="text-center">
+                            <div class="text-center w-full">
                                 <div>
-                                    <div v-if="form.header_media && form.header_type === 'video'" class="flex justify-center items-center">
+                                    <div v-if="hasMediaFile && form.header_type === 'video'" class="flex justify-center items-center min-h-[80px]">
                                         <div class="flex justify-center items-center space-x-3 py-1 border bg-slate-100 rounded-lg mb-2 w-fit px-2">
                                             <div>
                                                 <svg class="mx-auto h-6 w-6 text-gray-400 cursor-pointer" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2 11.5c0-3.287 0-4.931.908-6.038a4 4 0 0 1 .554-.554C4.57 4 6.212 4 9.5 4c3.287 0 4.931 0 6.038.908a4 4 0 0 1 .554.554C17 6.57 17 8.212 17 11.5v1c0 3.287 0 4.931-.908 6.038a4 4 0 0 1-.554.554C14.43 20 12.788 20 9.5 20c-3.287 0-4.931 0-6.038-.908a4 4 0 0 1-.554-.554C2 17.43 2 15.788 2 12.5v-1Zm15-2l.658-.329c1.946-.973 2.92-1.46 3.63-1.02c.712.44.712 1.528.712 3.703v.292c0 2.176 0 3.263-.711 3.703c-.712.44-1.685-.047-3.63-1.02L17 14.5v-5Z"/></svg>
                                             </div>
                                             <div class="flex items-center space-x-2">
-                                                <span class="text-sm">{{ form.header_media instanceof File ? form.header_media.name : 'Video uploaded' }}</span>
-                                                <button @click="removeDirectMedia()" type="button">
+                                                <span class="text-sm truncate max-w-[200px]">{{ mediaFile ? mediaFile.name : 'Video uploaded' }}</span>
+                                                <button @click="removeDirectMedia()" type="button" class="flex-shrink-0">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M17.707 7.707a1 1 0 0 0-1.414-1.414L12 10.586L7.707 6.293a1 1 0 0 0-1.414 1.414L10.586 12l-4.293 4.293a1 1 0 1 0 1.414 1.414L12 13.414l4.293 4.293a1 1 0 1 0 1.414-1.414L13.414 12l4.293-4.293Z" clip-rule="evenodd"/></svg>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
-                                    <label v-else class="cursor-pointer">
+                                    <div v-else @click="openFileDialog('direct-video-upload')" class="cursor-pointer block min-h-[80px]">
                                         <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2 11.5c0-3.287 0-4.931.908-6.038a4 4 0 0 1 .554-.554C4.57 4 6.212 4 9.5 4c3.287 0 4.931 0 6.038.908a4 4 0 0 1 .554.554C17 6.57 17 8.212 17 11.5v1c0 3.287 0 4.931-.908 6.038a4 4 0 0 1-.554.554C14.43 20 12.788 20 9.5 20c-3.287 0-4.931 0-6.038-.908a4 4 0 0 1-.554-.554C2 17.43 2 15.788 2 12.5v-1Zm15-2l.658-.329c1.946-.973 2.92-1.46 3.63-1.02c.712.44.712 1.528.712 3.703v.292c0 2.176 0 3.263-.711 3.703c-.712.44-1.685-.047-3.63-1.02L17 14.5v-5Z"/></svg>
-                                        <div class="flex text-sm text-gray-600">
+                                        <div class="flex text-sm text-gray-600 justify-center">
                                             <span class="relative cursor-pointer bg-white rounded-md font-medium hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                                                 {{ $t('Upload a video for the header') }}
                                             </span>
                                         </div>
                                         <p class="text-xs text-gray-500">{{ $t('MP4, MOV, or AVI files (Max 16MB)') }}</p>
-                                    </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <!-- Document Header -->
                     <div v-if="form.header_type === 'document'">
-                        <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div class="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md min-h-[120px]">
                             <input
                                 type="file"
                                 class="sr-only"
                                 accept=".pdf, .doc, .docx, .xls, .xlsx, .ppt, .pptx"
+                                id="direct-document-upload"
                                 ref="documentFileInput"
                                 @change="handleDirectMediaUpload($event, 'document')"
                             />
-                            <div class="text-center">
+                            <div class="text-center w-full">
                                 <div>
-                                    <div v-if="form.header_media && form.header_type === 'document'" class="flex justify-center items-center">
+                                    <div v-if="hasMediaFile && form.header_type === 'document'" class="flex justify-center items-center min-h-[80px]">
                                         <div class="flex justify-center items-center space-x-3 py-1 border bg-slate-100 rounded-lg mb-2 w-fit px-2">
                                             <div>
                                                 <svg class="mx-auto h-6 w-6 text-gray-400 cursor-pointer" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M18.53 9L13 3.47a.75.75 0 0 0-.53-.22H8A2.75 2.75 0 0 0 5.25 6v12A2.75 2.75 0 0 0 8 20.75h8A2.75 2.75 0 0 0 18.75 18V9.5a.75.75 0 0 0-.22-.5Zm-5.28-3.19l2.94 2.94h-2.94ZM16 19.25H8A1.25 1.25 0 0 1 6.75 18V6A1.25 1.25 0 0 1 8 4.75h3.75V9.5a.76.76 0 0 0 .75.75h4.75V18A1.25 1.25 0 0 1 16 19.25Z"/><path fill="currentColor" d="M13.49 14.85a3.15 3.15 0 0 1-1.31-1.66a4.44 4.44 0 0 0 .19-2a.8.8 0 0 0-1.52-.19a5 5 0 0 0 .25 2.4A29 29 0 0 1 9.83 16c-.71.4-1.68 1-1.83 1.69c-.12.56.93 2 2.72-1.12a18.58 18.58 0 0 1 2.44-.72a4.72 4.72 0 0 0 2 .61a.82.82 0 0 0 .62-1.38c-.42-.43-1.67-.31-2.29-.23Zm-4.78 3a4.32 4.32 0 0 1 1.09-1.24c-.68 1.08-1.09 1.27-1.09 1.25Zm2.92-6.81c.26 0 .24 1.15.06 1.46a3.07 3.07 0 0 1-.06-1.45Zm-.87 4.88a14.76 14.76 0 0 0 .88-1.92a3.88 3.88 0 0 0 1.08 1.26a12.35 12.35 0 0 0-1.96.67Zm4.7-.18s-.18.22-1.33-.28c1.25-.08 1.46.21 1.33.29Z"/></svg>
                                             </div>
                                             <div class="flex items-center space-x-2">
-                                                <span class="text-sm">{{ form.header_media instanceof File ? form.header_media.name : 'Document uploaded' }}</span>
-                                                <button @click="removeDirectMedia()" type="button">
+                                                <span class="text-sm truncate max-w-[200px]">{{ mediaFile ? mediaFile.name : 'Document uploaded' }}</span>
+                                                <button @click="removeDirectMedia()" type="button" class="flex-shrink-0">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M17.707 7.707a1 1 0 0 0-1.414-1.414L12 10.586L7.707 6.293a1 1 0 0 0-1.414 1.414L10.586 12l-4.293 4.293a1 1 0 1 0 1.414 1.414L12 13.414l4.293 4.293a1 1 0 1 0 1.414-1.414L13.414 12l4.293-4.293Z" clip-rule="evenodd"/></svg>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
-                                    <label v-else class="cursor-pointer">
+                                    <div v-else @click="openFileDialog('direct-document-upload')" class="cursor-pointer block min-h-[80px]">
                                         <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M18.53 9L13 3.47a.75.75 0 0 0-.53-.22H8A2.75 2.75 0 0 0 5.25 6v12A2.75 2.75 0 0 0 8 20.75h8A2.75 2.75 0 0 0 18.75 18V9.5a.75.75 0 0 0-.22-.5Zm-5.28-3.19l2.94 2.94h-2.94ZM16 19.25H8A1.25 1.25 0 0 1 6.75 18V6A1.25 1.25 0 0 1 8 4.75h3.75V9.5a.76.76 0 0 0 .75.75h4.75V18A1.25 1.25 0 0 1 16 19.25Z"/><path fill="currentColor" d="M13.49 14.85a3.15 3.15 0 0 1-1.31-1.66a4.44 4.44 0 0 0 .19-2a.8.8 0 0 0-1.52-.19a5 5 0 0 0 .25 2.4A29 29 0 0 1 9.83 16c-.71.4-1.68 1-1.83 1.69c-.12.56.93 2 2.72-1.12a18.58 18.58 0 0 1 2.44-.72a4.72 4.72 0 0 0 2 .61a.82.82 0 0 0 .62-1.38c-.42-.43-1.67-.31-2.29-.23Zm-4.78 3a4.32 4.32 0 0 1 1.09-1.24c-.68 1.08-1.09 1.27-1.09 1.25Zm2.92-6.81c.26 0 .24 1.15.06 1.46a3.07 3.07 0 0 1-.06-1.45Zm-.87 4.88a14.76 14.76 0 0 0 .88-1.92a3.88 3.88 0 0 0 1.08 1.26a12.35 12.35 0 0 0-1.96.67Zm4.7-.18s-.18.22-1.33-.28c1.25-.08 1.46.21 1.33.29Z"/></svg>
-                                        <div class="flex text-sm text-gray-600">
+                                        <div class="flex text-sm text-gray-600 justify-center">
                                             <span class="relative cursor-pointer bg-white rounded-md font-medium hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                                                 {{ $t('Upload a document for the header') }}
                                             </span>
                                         </div>
                                         <p class="text-xs text-gray-500">{{ $t('PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX (Max 100MB)') }}</p>
-                                    </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -922,7 +1070,7 @@
                 </div>
             </div>
         </form>
-        <div class="md:w-[50%] py-20 px-4 md:px-20 overflow-y-auto" style="background-image: url('/images/whatsapp-bg-02.png');">
+        <div class="md:w-1/2 py-8 px-4 md:px-12 overflow-y-auto flex-shrink-0" style="background-image: url('/images/whatsapp-bg-02.png'); background-size: cover;">
             <div>
                 <!-- Show template preview for template campaigns -->
                 <WhatsappTemplate v-if="isTemplateMode" :parameters="form" :visible="form.template ? true : false"/>
@@ -930,10 +1078,22 @@
                 <!-- Show direct message preview for direct campaigns -->
                 <div v-else-if="isDirectMode">
                     <div class="mr-auto rounded-lg rounded-tl-none my-1 p-1 text-sm bg-white flex flex-col relative speech-bubble-left w-[25em]">
-                        <div v-if="previewData.header_type !== 'text'" class="mb-4 bg-[#ccd0d5] flex justify-center py-8 rounded">
-                            <img v-if="previewData.header_type === 'image'" :src="'/images/image-placeholder.png'">
-                            <img v-if="previewData.header_type === 'video'" :src="'/images/video-placeholder.png'">
-                            <img v-if="previewData.header_type === 'document'" :src="'/images/document-placeholder.png'">
+                        <div v-if="previewData.header_type !== 'text'" class="mb-4 bg-[#ccd0d5] flex justify-center rounded overflow-hidden">
+                            <template v-if="previewData.header_type === 'image'">
+                                <img v-if="mediaPreviewUrl" :src="mediaPreviewUrl" class="max-w-full max-h-48 object-contain">
+                                <img v-else :src="'/images/image-placeholder.png'" class="py-8">
+                            </template>
+                            <template v-else-if="previewData.header_type === 'video'">
+                                <video v-if="mediaPreviewUrl" :src="mediaPreviewUrl" class="max-w-full max-h-48" controls></video>
+                                <img v-else :src="'/images/video-placeholder.png'" class="py-8">
+                            </template>
+                            <template v-else-if="previewData.header_type === 'document'">
+                                <div v-if="mediaPreviewUrl" class="py-4 px-6 flex items-center space-x-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6m4 18H6V4h7v5h5v11Z"/></svg>
+                                    <span class="text-sm truncate max-w-[150px]">{{ mediaFile?.name }}</span>
+                                </div>
+                                <img v-else :src="'/images/document-placeholder.png'" class="py-8">
+                            </template>
                         </div>
                         <h2 v-else class="text-gray-700 text-sm mb-1 px-2 normal-case whitespace-pre-wrap">{{ previewData.header_text }}</h2>
                         <p class="px-2 normal-case whitespace-pre-wrap">{{ previewData.body_text }}</p>
@@ -964,3 +1124,11 @@
         </div>
     </div>
 </template>
+
+<style scoped>
+/* Prevent overscroll/bounce effect on scrollable containers */
+.overflow-y-auto {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+</style>

@@ -158,10 +158,17 @@ Route::middleware(['auth:user'])->group(function () {
                 Route::get('/campaigns/export/{uuid?}', [App\Http\Controllers\User\CampaignController::class, 'export']);
                 Route::delete('/campaigns/{uuid?}', [App\Http\Controllers\User\CampaignController::class, 'delete']);
 
+                // Draft Template Routes (Scenario A: Local-First Approach)
+                // NOTE: These must be defined BEFORE the {uuid} routes to avoid route conflicts
+                Route::post('/templates/draft', [App\Http\Controllers\User\TemplateController::class, 'saveDraft']);
+                Route::put('/templates/draft/{uuid}', [App\Http\Controllers\User\TemplateController::class, 'updateDraft']);
+                Route::get('/templates/meta-config/check', [App\Http\Controllers\User\TemplateController::class, 'checkMetaConfig']);
+
                 Route::match(['get', 'post'], '/templates/create', [App\Http\Controllers\User\TemplateController::class, 'create']);
                 Route::get('/templates/{uuid?}', [App\Http\Controllers\User\TemplateController::class, 'index']);
                 Route::post('/templates', [App\Http\Controllers\User\TemplateController::class, 'store']);
                 Route::post('/templates/{uuid}', [App\Http\Controllers\User\TemplateController::class, 'update']);
+                Route::post('/templates/{uuid}/publish', [App\Http\Controllers\User\TemplateController::class, 'publishToMeta']);
                 Route::delete('/templates/{uuid}', [App\Http\Controllers\User\TemplateController::class, 'delete']);
 
                 Route::get('/automation/basic', [App\Http\Controllers\User\CannedReplyController::class, 'index'])->name('cannedReply');

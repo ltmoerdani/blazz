@@ -1,6 +1,6 @@
 <template>
     <AppLayout>
-        <div class="bg-white md:bg-inherit pt-0 px-4 md:pt-8 md:p-8 rounded-[5px] text-[#000] overflow-y-scroll capitalize">
+        <div class="bg-white md:bg-inherit pt-0 px-4 md:pt-8 md:p-8 rounded-[5px] text-[#000] capitalize">
             <div class="flex justify-between mt-8 md:mt-0">
                 <div>
                     <h2 class="text-xl mb-1">{{ $t('Message templates') }}</h2>

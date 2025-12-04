@@ -1,7 +1,7 @@
 <template>
     <AppLayout>
-        <div class="md:flex md:flex-col bg-white border-l py-4 text-[#000] overflow-y-hidden">
-            <div class="flex justify-between px-8 border-b pb-2 capitalize">
+        <div class="flex flex-col h-full bg-white border-l text-[#000] overflow-hidden">
+            <div class="sticky top-0 z-10 bg-white flex justify-between px-8 py-4 border-b capitalize flex-shrink-0">
                 <div>
                     <h2 class="text-xl mb-1">{{ $t('New campaign') }}</h2>
                     <p class="flex items-center text-sm leading-6 text-gray-600">
@@ -13,14 +13,17 @@
                     <Link href="/campaigns" class="rounded-md bg-black px-3 py-2 text-sm text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $t('Back') }}</Link>
                 </div>
             </div>
-            <CampaignForm
-                :templates="templates"
-                :contactGroups="contactGroups"
-                :settings="settings"
-                :whatsappAccounts="whatsappAccounts"
-                :campaignTypes="campaignTypes"
-                :providerOptions="providerOptions"
-            />
+            <div class="flex-1 min-h-0 overflow-hidden">
+                <CampaignForm
+                    :templates="templates"
+                    :contactGroups="contactGroups"
+                    :settings="settings"
+                    :whatsappAccounts="whatsappAccounts"
+                    :campaignTypes="campaignTypes"
+                    :providerOptions="providerOptions"
+                    :speedTiers="speedTiers"
+                />
+            </div>
         </div>
     </AppLayout>
 </template>
@@ -34,5 +37,12 @@
     import 'vue3-toastify/dist/index.css';
     import { trans } from 'laravel-vue-i18n';
 
-    const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappAccounts', 'campaignTypes', 'providerOptions']);
+    const props = defineProps(['templates', 'contactGroups', 'settings', 'whatsappAccounts', 'campaignTypes', 'providerOptions', 'speedTiers']);
 </script>
+
+<style scoped>
+/* Prevent overscroll bounce effect */
+.overflow-hidden {
+    overscroll-behavior: none;
+}
+</style>
