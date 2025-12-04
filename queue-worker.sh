@@ -29,7 +29,7 @@ start_queue_worker() {
     cd "$SCRIPT_DIR"
     
     nohup php artisan queue:work \
-        --queue=default,messaging,campaign-stats,whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign \
+        --queue=default,messaging,campaign-stats,campaign-conflict,whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign \
         --tries=3 \
         --timeout=300 \
         --memory=512 \

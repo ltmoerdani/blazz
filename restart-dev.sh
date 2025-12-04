@@ -193,7 +193,7 @@ if [ -n "$SERVICE_ONLY" ]; then
             ;;
         queue)
             restart_service "Queue Worker" "php artisan queue:work" \
-                "php artisan queue:work --queue=messaging,campaign-stats,whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign --tries=3 --timeout=300" \
+                "php artisan queue:work --queue=messaging,campaign-stats,whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign,campaign-conflict --tries=3 --timeout=300" \
                 "logs/queue.log" ""
             ;;
         scheduler)
@@ -290,7 +290,7 @@ else
     
     # Start Queue Worker
     echo -e "${BLUE}4. Starting Queue Worker...${NC}"
-    nohup php artisan queue:work --queue=messaging,campaign-stats,whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign --tries=3 --timeout=300 > logs/queue.log 2>&1 &
+    nohup php artisan queue:work --queue=messaging,campaign-stats,whatsapp-urgent,whatsapp-high,whatsapp-normal,whatsapp-campaign,campaign-conflict --tries=3 --timeout=300 > logs/queue.log 2>&1 &
     QUEUE_PID=$!
     
     # Start Scheduler
@@ -376,6 +376,11 @@ else
         echo -e "${BLUE}Process IDs:${NC}"
         echo "Laravel: $LARAVEL_PID | Reverb: $REVERB_PID | WhatsApp: $WHATSAPP_PID"
         echo "Queue: $QUEUE_PID | Scheduler: $SCHEDULER_PID"
+        echo ""
+        echo -e "${GREEN}🔍 Mobile Conflict Detection:${NC}"
+        echo "✅ Queue 'campaign-conflict' included in worker"
+        echo "✅ WhatsApp Service monitors mobile activity"
+        echo "✅ Webhook endpoint: /api/v1/whatsapp/webhook"
     else
         echo -e "${RED}❌ Some services failed to restart${NC}"
         echo -e "${YELLOW}📋 Check logs: tail -f logs/*.log${NC}"

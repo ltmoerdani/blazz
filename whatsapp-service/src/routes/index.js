@@ -114,6 +114,35 @@ function createRoutes(sessionManager, logger) {
     router.get('/api/messages/:sessionId/validate', messageController.validateSessionForSending.bind(messageController));
 
     // ==========================================
+    // Mobile Activity Routes (Internal API)
+    // ==========================================
+
+    // Get last mobile activity for session
+    // GET /api/internal/sessions/:sessionId/last-activity
+    router.get('/api/internal/sessions/:sessionId/last-activity', (req, res) => {
+        const { sessionId } = req.params;
+        const activityData = sessionManager.mobileActivityMonitor.getActivityData(sessionId);
+
+        if (!activityData) {
+            return res.json({
+                success: true,
+                data: {
+                    session_id: sessionId,
+                    last_activity: null,
+                    device_type: null,
+                    seconds_since_activity: null,
+                    message_count: 0
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            data: activityData
+        });
+    });
+
+    // ==========================================
     // Root Routes
     // ==========================================
 
