@@ -21,6 +21,7 @@ logs/
 
 # Session data (mounted as volumes)
 sessions/
+sessions-shared/
 session-backups/
 .wwebjs_auth/
 .wwebjs_cache/
